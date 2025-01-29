@@ -1,197 +1,112 @@
-# Real-Time WebSocket Chat Application
+# Turn-Based Online Game (Combat System)
 
-A real-time chat application built with Go backend and React TypeScript frontend, using WebSocket protocol for communication.
+A turn-based online game inspired by Dofus, focusing on the combat system. This repository currently contains the foundational WebSocket implementation with a basic chat system, which will serve as the base for real-time game communications.
 
-## Features
+## Project Overview
 
-- Real-time messaging
-- Multiple client support
-- Connection status indicators
-- Modern UI with Tailwind CSS
-- Message broadcasting
+### Current Stage: WebSocket Foundation
+The current implementation focuses on establishing the WebSocket infrastructure that will be used throughout the game. A basic chat system has been implemented as a proof of concept for real-time communication between clients.
+
+### Planned Features
+- ⚔️ Turn-based combat system
+- 🎮 Character movement and positioning
+- 🎲 Combat mechanics and abilities
+- 🌍 Battle arena implementation
+- 👥 Multiplayer combat sessions
+
+## Current Features (WebSocket Implementation)
+- Real-time WebSocket communication
+- Multi-client support
+- Message broadcasting system
+- Connection state management
 
 ## Project Structure
-
 ```
 project/
-├── backend/
+├── backend/               # Go server
 │   ├── cmd/
-│   │   └── server/
-│   │       └── main.go
+│   │   └── server/       # Server entry point
 │   └── internal/
-│       ├── models/
-│       │   └── message.go
-│       └── websocket/
-│           ├── client.go
-│           ├── hub.go
-│           └── handler.go
-└── frontend/
+│       ├── models/       # Data structures
+│       └── websocket/    # WebSocket implementation
+└── frontend/             # React client
     ├── src/
-    │   ├── components/
-    │   ├── providers/
-    │   ├── context/
-    │   └── types/
-    ├── tailwind.config.js
+    │   ├── components/   # React components
+    │   ├── providers/    # Context providers
+    │   └── types/       # TypeScript definitions
     └── package.json
 ```
 
-## Prerequisites
+## Tech Stack
+- **Backend**: Go with Gorilla WebSocket
+- **Frontend**: React + TypeScript
+- **Styling**: Tailwind CSS
+- **Build Tool**: Vite
 
-- Go 1.21 or higher
-- Node.js 18 or higher
-- npm 9 or higher
+## Getting Started
 
-## Installation
+### Prerequisites
+- Go 1.21+
+- Node.js 18+
+- npm 9+
 
 ### Backend Setup
-
-1. Navigate to the backend directory:
 ```bash
 cd backend
-```
-
-2. Initialize Go module:
-```bash
 go mod init game-server
-```
-
-3. Install required dependencies:
-```bash
 go get github.com/gorilla/websocket
-```
-
-### Frontend Setup
-
-1. Navigate to the frontend directory:
-```bash
-cd frontend
-```
-
-2. Install dependencies:
-```bash
-npm install
-```
-
-3. Install and configure Tailwind CSS:
-```bash
-npm install -D tailwindcss@3.4.1 postcss@8.4.35 autoprefixer@10.4.17
-```
-
-## Running the Application
-
-1. Start the backend server:
-```bash
-cd backend
 go run cmd/server/main.go
 ```
 
-2. In a new terminal, start the frontend development server:
+### Frontend Setup
 ```bash
 cd frontend
+npm install
 npm run dev
 ```
 
-3. Open your browser and navigate to:
-```
-http://localhost:5173
-```
+## Development Roadmap
 
-## Environment Variables
+### Phase 1: Communication Infrastructure ✅
+- [x] WebSocket implementation
+- [x] Real-time chat system
+- [x] Client connection management
 
-### Backend
-- Default port: 8080
+### Phase 2: Game Engine (Upcoming)
+- [ ] Game state management
+- [ ] Turn system implementation
+- [ ] Combat mechanics
+- [ ] Character movement
 
-### Frontend
-- Default WebSocket URL: ws://localhost:8080/ws
-- Development server port: 5173
+### Phase 3: Combat System (Planned)
+- [ ] Battle initialization
+- [ ] Combat actions
+- [ ] Spell system
+- [ ] Effect management
 
-## Architecture
-
-### Backend Components
-
-#### Hub
-- Manages active WebSocket connections
-- Handles message broadcasting
-- Tracks connected clients
-
-#### Client
-- Represents a connected user
-- Manages individual WebSocket connections
-- Handles message reading and writing
-
-### Frontend Components
-
-#### WebSocketProvider
-- Manages WebSocket connection
-- Handles message state
-- Provides WebSocket context to components
-
-#### Chat Components
-- ChatWindow: Displays messages
-- ChatInput: Message input interface
-- ConnectionStatus: Shows connection state
-
-## API
-
-### WebSocket Messages Format
-
-```typescript
-interface Message {
-    type: string;    // Message type (e.g., 'chat')
-    sender: string;  // Sender identifier
-    content: string; // Message content
-}
-```
-
-## Development
-
-### Backend Development
-
-Add new features by:
-1. Defining new message types in `models/message.go`
-2. Implementing handlers in `websocket/hub.go`
-3. Updating client handling if needed
-
-### Frontend Development
-
-Extend functionality by:
-1. Adding components in `src/components/`
-2. Updating WebSocket provider as needed
-3. Adding new types in `src/types/`
-
-## Testing
-
-1. Open multiple browser tabs to test multi-user functionality
-2. Check browser console (F12) for connection and message logs
-3. Monitor backend terminal for server-side logs
+### Phase 4: User Interface (Planned)
+- [ ] Battle grid
+- [ ] Character animations
+- [ ] Combat UI
+- [ ] Ability interface
 
 ## Contributing
+This project is in active development. For major changes:
+1. Create a feature branch
+2. Submit a pull request with detailed description
 
-1. Fork the repository
-2. Create a feature branch
-3. Commit changes
-4. Push to the branch
-5. Create a Pull Request
+## Next Steps
+1. Implement game state management
+2. Add battle grid system
+3. Develop basic combat mechanics
+4. Create character movement system
 
-## Known Issues
-
-- No message persistence
-- Messages are lost on page refresh
-- Basic error handling
-
-## Future Improvements
-
-- Add message persistence
-- Implement user authentication
-- Add typing indicators
-- Add read receipts
-- Support private messaging
-- Add a CHANGLOG.md file
-- Implement unit tests
-- Add Docker support
+## Development Notes
+- The current WebSocket implementation will be extended to handle game state updates
+- The message system will be expanded to include game actions and state changes
+- Future updates will include game-specific message types and handlers
 
 ## Acknowledgments
-
-- [Gorilla WebSocket](https://github.com/gorilla/websocket)
-- [React](https://reactjs.org/)
-- [Tailwind CSS](https://tailwindcss.com/)
+- Inspired by Dofus combat system
+- Built with modern web technologies
+- Community contributions welcome
