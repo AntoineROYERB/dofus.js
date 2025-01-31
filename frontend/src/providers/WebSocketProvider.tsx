@@ -21,9 +21,11 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
       return wsRef.current;
     }
 
+    // 1. Create WebSocket connection
     const ws = new WebSocket(`ws://localhost:8080/ws?id=${clientId}`);
     wsRef.current = ws;
 
+    // 2. Set up event handlers
     ws.onopen = () => {
       setConnected(true);
       console.log(`[WebSocket] Connected as ${clientId}`);

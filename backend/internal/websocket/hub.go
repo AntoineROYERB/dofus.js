@@ -3,24 +3,27 @@ package websocket
 
 import (
 	"encoding/json"
+	"game-server/internal/game"
 	"log"
 	"sync"
 )
 
 type Hub struct {
-	Clients    map[*Client]bool
-	Broadcast  chan []byte
-	Register   chan *Client
-	Unregister chan *Client
-	mutex      sync.Mutex
+	Clients     map[*Client]bool
+	Broadcast   chan []byte
+	Register    chan *Client
+	Unregister  chan *Client
+	mutex       sync.Mutex
+	gameManager *game.GameManager
 }
 
 func NewHub() *Hub {
 	return &Hub{
-		Broadcast:  make(chan []byte),
-		Register:   make(chan *Client),
-		Unregister: make(chan *Client),
-		Clients:    make(map[*Client]bool),
+		Broadcast:   make(chan []byte),
+		Register:    make(chan *Client),
+		Unregister:  make(chan *Client),
+		Clients:     make(map[*Client]bool),
+		gameManager: game.NewGameManager(),
 	}
 }
 
@@ -43,42 +46,47 @@ func (h *Hub) Run() {
 			h.mutex.Unlock()
 
 		case message := <-h.Broadcast:
-			// Parse the message only once
 			var msg struct {
-				Sender  string `json:"sender"`
-				Content string `json:"content"`
-				Type    string `json:"type"`
+				Type    string          `json:"type"`
+				Payload json.RawMessage `json:"payload"`
 			}
+
 			if err := json.Unmarshal(message, &msg); err != nil {
-				log.Printf("[Error] Parsing message: %v", err)
+				log.Printf("Error parsing message: %v", err)
 				continue
 			}
 
-			// Log when we receive a message to broadcast
-			log.Printf("[Broadcast] Message from %s: %s", msg.Sender, msg.Content)
-
-			// Single lock for the entire broadcast operation
-			h.mutex.Lock()
-			// Use a map to track which clients we've sent to
-			processedClients := make(map[string]bool)
-
-			for client := range h.Clients {
-				// Skip if we've already sent to this client or if it's the sender
-				if processedClients[client.ID] || client.ID == msg.Sender {
+			switch msg.Type {
+			case "game_action":
+				var action game.GameAction
+				if err := json.Unmarshal(msg.Payload, &action); err != nil {
+					log.Printf("Error parsing game action: %v", err)
 					continue
 				}
 
-				select {
-				case client.Send <- message:
-					processedClients[client.ID] = true
-					log.Printf("[Sent] Message to %s", client.ID)
-				default:
-					close(client.Send)
-					delete(h.Clients, client)
-					log.Printf("[Error] Failed to send to %s, removing client", client.ID)
+				if err := h.gameManager.HandleAction(action); err != nil {
+					log.Printf("Error handling game action: %v", err)
+					continue
 				}
+
+				// Broadcast updated state
+				newState := h.gameManager.GetState()
+				stateMsg, _ := json.Marshal(map[string]interface{}{
+					"type":    "game_state_update",
+					"payload": newState,
+				})
+
+				h.mutex.Lock()
+				for client := range h.Clients {
+					select {
+					case client.Send <- stateMsg:
+					default:
+						close(client.Send)
+						delete(h.Clients, client)
+					}
+				}
+				h.mutex.Unlock()
 			}
-			h.mutex.Unlock()
 		}
 	}
 }

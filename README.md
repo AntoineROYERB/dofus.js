@@ -19,6 +19,7 @@ The current implementation focuses on establishing the WebSocket infrastructure 
 - Multi-client support
 - Message broadcasting system
 - Connection state management
+- Game state management
 
 ## Project Structure
 ```
@@ -73,7 +74,7 @@ npm run dev
 - [x] Client connection management
 
 ### Phase 2: Game Engine (Upcoming)
-- [ ] Game state management
+- [x] Game state management
 - [ ] Turn system implementation
 - [ ] Combat mechanics
 - [ ] Character movement
