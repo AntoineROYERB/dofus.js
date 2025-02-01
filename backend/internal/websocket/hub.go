@@ -32,6 +32,13 @@ func (h *Hub) Run() {
 		select {
 		case client := <-h.Register:
 			h.mutex.Lock()
+			// Check for duplicate connections
+			for existingClient := range h.Clients {
+				if existingClient.ID == client.ID {
+					delete(h.Clients, existingClient)
+					close(existingClient.Send)
+				}
+			}
 			h.Clients[client] = true
 			log.Printf("[New Connection] User-%s joined. Total clients: %d", client.ID, len(h.Clients))
 			h.mutex.Unlock()
@@ -46,43 +53,31 @@ func (h *Hub) Run() {
 			h.mutex.Unlock()
 
 		case message := <-h.Broadcast:
-			var msg struct {
-				Type    string          `json:"type"`
-				Payload json.RawMessage `json:"payload"`
+			log.Printf("[Debug] Broadcasting message: %s", string(message))
+
+			var chatMsg struct {
+				Type    string `json:"type"`
+				Sender  string `json:"sender"`
+				Content string `json:"content"`
 			}
 
-			if err := json.Unmarshal(message, &msg); err != nil {
-				log.Printf("Error parsing message: %v", err)
+			if err := json.Unmarshal(message, &chatMsg); err != nil {
+				log.Printf("[Error] Parsing message: %v", err)
 				continue
 			}
 
-			switch msg.Type {
-			case "game_action":
-				var action game.GameAction
-				if err := json.Unmarshal(msg.Payload, &action); err != nil {
-					log.Printf("Error parsing game action: %v", err)
-					continue
-				}
-
-				if err := h.gameManager.HandleAction(action); err != nil {
-					log.Printf("Error handling game action: %v", err)
-					continue
-				}
-
-				// Broadcast updated state
-				newState := h.gameManager.GetState()
-				stateMsg, _ := json.Marshal(map[string]interface{}{
-					"type":    "game_state_update",
-					"payload": newState,
-				})
-
+			if chatMsg.Type == "chat" {
 				h.mutex.Lock()
 				for client := range h.Clients {
-					select {
-					case client.Send <- stateMsg:
-					default:
-						close(client.Send)
-						delete(h.Clients, client)
+					if client.ID != chatMsg.Sender {
+						select {
+						case client.Send <- message:
+							log.Printf("[Debug] Message sent to client %s", client.ID)
+						default:
+							close(client.Send)
+							delete(h.Clients, client)
+							log.Printf("[Error] Failed to send to client %s", client.ID)
+						}
 					}
 				}
 				h.mutex.Unlock()

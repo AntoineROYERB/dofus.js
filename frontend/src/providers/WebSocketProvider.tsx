@@ -15,48 +15,68 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
   const [messages, setMessages] = useState<Message[]>([]);
   const [connected, setConnected] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout>();
 
   const connectWebSocket = useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
+      console.log("[WebSocket] Already connected");
       return wsRef.current;
     }
 
-    // 1. Create WebSocket connection
-    const ws = new WebSocket(`ws://localhost:8080/ws?id=${clientId}`);
-    wsRef.current = ws;
+    try {
+      console.log("[WebSocket] Connecting...");
+      const ws = new WebSocket(`ws://localhost:8080/ws?id=${clientId}`);
+      wsRef.current = ws;
 
-    // 2. Set up event handlers
-    ws.onopen = () => {
-      setConnected(true);
-      console.log(`[WebSocket] Connected as ${clientId}`);
-    };
-
-    ws.onclose = () => {
-      setConnected(false);
-      wsRef.current = null;
-      console.log("[WebSocket] Disconnected");
-    };
-
-    ws.onmessage = (event) => {
-      try {
-        const message: Message = JSON.parse(event.data);
-        console.log("[WebSocket] Received message:", message);
-        // Only add messages from others (our own messages are added in sendMessage)
-        if (message.sender !== clientId) {
-          setMessages((prev) => [...prev, message]);
+      ws.onopen = () => {
+        console.log(`[WebSocket] Connected as ${clientId}`);
+        setConnected(true);
+        if (reconnectTimeoutRef.current) {
+          clearTimeout(reconnectTimeoutRef.current);
         }
-      } catch (error) {
-        console.error("[WebSocket] Error parsing message:", error);
-      }
-    };
+      };
 
-    setSocket(ws);
-    return ws;
+      ws.onclose = () => {
+        console.log("[WebSocket] Connection closed");
+        setConnected(false);
+        wsRef.current = null;
+
+        // Attempt to reconnect after 2 seconds
+        reconnectTimeoutRef.current = setTimeout(() => {
+          console.log("[WebSocket] Attempting to reconnect...");
+          connectWebSocket();
+        }, 2000);
+      };
+
+      ws.onerror = (error) => {
+        console.error("[WebSocket] Error:", error);
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          console.log("[WebSocket] Message received:", event.data);
+          const message = JSON.parse(event.data);
+          setMessages((prev) => [...prev, message]);
+        } catch (error) {
+          console.error("[WebSocket] Error parsing message:", error);
+        }
+      };
+
+      setSocket(ws);
+      return ws;
+    } catch (error) {
+      console.error("[WebSocket] Connection error:", error);
+      return null;
+    }
   }, [clientId]);
 
   useEffect(() => {
     const ws = connectWebSocket();
+
     return () => {
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+      }
       if (ws?.readyState === WebSocket.OPEN) {
         ws.close();
         wsRef.current = null;
@@ -71,13 +91,10 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
         sender: clientId,
         content: content,
       };
-
-      // Add our message to local state immediately
-      setMessages((prev) => [...prev, message]);
-
-      // Send to server
       socket.send(JSON.stringify(message));
-      console.log("[WebSocket] Sent message:", message);
+      setMessages((prev) => [...prev, message]);
+    } else {
+      console.warn("[WebSocket] Cannot send message - not connected");
     }
   };
 
@@ -89,3 +106,5 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
     </WebSocketContext.Provider>
   );
 };
+
+export default WebSocketProvider;
