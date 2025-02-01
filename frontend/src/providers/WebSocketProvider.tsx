@@ -1,7 +1,7 @@
 // src/providers/WebSocketProvider.tsx
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import { WebSocketContext } from "../context/WebSocketContext";
-import { Message } from "../types/websocket";
+import { Message, GameState, Position } from "../types/websocket"; // Added missing imports
 
 interface WebSocketProviderProps {
   children: React.ReactNode;
@@ -14,8 +14,24 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
   const [socket, setSocket] = useState<WebSocket | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [connected, setConnected] = useState(false);
+  const [gameState, setGameState] = useState<GameState | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout>();
+
+  // Move sendGameAction outside of connectWebSocket
+  const sendGameAction = (action: string, position?: Position) => {
+    if (socket?.readyState === WebSocket.OPEN) {
+      const message = {
+        type: "game_action",
+        action,
+        playerId: clientId,
+        position,
+      };
+      socket.send(JSON.stringify(message));
+    } else {
+      console.warn("[WebSocket] Cannot send game action - not connected");
+    }
+  };
 
   const connectWebSocket = useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -54,9 +70,17 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 
       ws.onmessage = (event) => {
         try {
-          console.log("[WebSocket] Message received:", event.data);
           const message = JSON.parse(event.data);
-          setMessages((prev) => [...prev, message]);
+          console.log("[WebSocket] Message received:", message);
+
+          switch (message.type) {
+            case "chat":
+              setMessages((prev) => [...prev, message]);
+              break;
+            case "game_state":
+              setGameState(message.state);
+              break;
+          }
         } catch (error) {
           console.error("[WebSocket] Error parsing message:", error);
         }
@@ -100,7 +124,14 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 
   return (
     <WebSocketContext.Provider
-      value={{ messages, sendMessage, connected, clientId }}
+      value={{
+        messages,
+        gameState,
+        sendMessage,
+        sendGameAction,
+        connected,
+        clientId,
+      }}
     >
       {children}
     </WebSocketContext.Provider>
