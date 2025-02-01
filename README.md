@@ -2,6 +2,8 @@
 
 A turn-based online game inspired by Dofus, focusing on the combat system. This repository currently contains the foundational WebSocket implementation with a basic chat system, which will serve as the base for real-time game communications.
 
+![image](src/chatngameboard.png)
+
 ## Project Overview
 
 ### Current Stage: WebSocket Foundation
@@ -86,15 +88,11 @@ npm run dev
 - [ ] Effect management
 
 ### Phase 4: User Interface (Planned)
-- [ ] Battle grid
+- [x] Battle grid
 - [ ] Character animations
 - [ ] Combat UI
 - [ ] Ability interface
 
-## Contributing
-This project is in active development. For major changes:
-1. Create a feature branch
-2. Submit a pull request with detailed description
 
 ## Next Steps
 1. Implement game state management
