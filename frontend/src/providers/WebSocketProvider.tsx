@@ -1,37 +1,62 @@
 // src/providers/WebSocketProvider.tsx
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import { WebSocketContext } from "../context/WebSocketContext";
-import { Message, GameState, Position } from "../types/websocket"; // Added missing imports
+import { ChatMessage, Message, UserInitMessage } from "../types/message";
+import { GameState } from "../types/game";
 
-interface WebSocketProviderProps {
+type WebSocketProviderProps = {
   children: React.ReactNode;
-}
+};
+
+export const generateMessageId = () => {
+  const timestamp = Date.now();
+  const messageId = `${timestamp}-${Math.random()
+    .toString(36)
+    .substring(2, 8)}`;
+  return { messageId, timestamp };
+};
 
 export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
   children,
 }) => {
-  const [clientId] = useState(`User-${Math.floor(Math.random() * 1000)}`);
+  const [userId, setUserId] = useState<string>("");
+  const [userName, setUserName] = useState<string>("");
   const [socket, setSocket] = useState<WebSocket | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [connected, setConnected] = useState(false);
   const [gameState, setGameState] = useState<GameState | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout>();
+  const processedMessageIds = useRef(new Set<string>());
 
-  // Move sendGameAction outside of connectWebSocket
-  const sendGameAction = (action: string, position?: Position) => {
-    if (socket?.readyState === WebSocket.OPEN) {
-      const message = {
-        type: "game_action",
-        action,
-        playerId: clientId,
-        position,
-      };
-      socket.send(JSON.stringify(message));
-    } else {
-      console.warn("[WebSocket] Cannot send game action - not connected");
-    }
+  const markMessageAsProcessed = (messageId: string) => {
+    processedMessageIds.current.add(messageId);
   };
+
+  const handleMessage = useCallback((data: Message | UserInitMessage) => {
+    console.log("[WebSocket] Processing message:", data);
+    if (data.type === "user_init") {
+      setUserId(data.userId);
+      setUserName(data.userName);
+      return;
+    }
+    // Check if message has an ID and hasn't been processed
+    if (!data.messageId || processedMessageIds.current.has(data.messageId)) {
+      return;
+    }
+
+    // Mark message as processed
+    markMessageAsProcessed(data.messageId);
+
+    switch (data.type) {
+      case "chat":
+        setMessages((prev) => [...prev, data]);
+        break;
+      case "game_state":
+        setGameState(data.state);
+        break;
+    }
+  }, []);
 
   const connectWebSocket = useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -41,11 +66,10 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 
     try {
       console.log("[WebSocket] Connecting...");
-      const ws = new WebSocket(`ws://localhost:8080/ws?id=${clientId}`);
+      const ws = new WebSocket(`ws://localhost:8080/ws`);
       wsRef.current = ws;
 
       ws.onopen = () => {
-        console.log(`[WebSocket] Connected as ${clientId}`);
         setConnected(true);
         if (reconnectTimeoutRef.current) {
           clearTimeout(reconnectTimeoutRef.current);
@@ -57,7 +81,6 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
         setConnected(false);
         wsRef.current = null;
 
-        // Attempt to reconnect after 2 seconds
         reconnectTimeoutRef.current = setTimeout(() => {
           console.log("[WebSocket] Attempting to reconnect...");
           connectWebSocket();
@@ -70,17 +93,8 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 
       ws.onmessage = (event) => {
         try {
-          const message = JSON.parse(event.data);
-          console.log("[WebSocket] Message received:", message);
-
-          switch (message.type) {
-            case "chat":
-              setMessages((prev) => [...prev, message]);
-              break;
-            case "game_state":
-              setGameState(message.state);
-              break;
-          }
+          const data = JSON.parse(event.data);
+          handleMessage(data);
         } catch (error) {
           console.error("[WebSocket] Error parsing message:", error);
         }
@@ -92,7 +106,7 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
       console.error("[WebSocket] Connection error:", error);
       return null;
     }
-  }, [clientId]);
+  }, [handleMessage]);
 
   useEffect(() => {
     const ws = connectWebSocket();
@@ -108,17 +122,40 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
     };
   }, [connectWebSocket]);
 
-  const sendMessage = (content: string) => {
-    if (socket?.readyState === WebSocket.OPEN) {
-      const message = {
+  const sendChatMessage = (content: string) => {
+    if (socket?.readyState === WebSocket.OPEN && userId) {
+      const { messageId, timestamp } = generateMessageId();
+      const message: ChatMessage = {
+        userId: userId,
+        messageId,
+        timestamp,
+        userName,
         type: "chat",
-        sender: clientId,
         content: content,
       };
+
+      console.log("[WebSocket] Sending message:", message);
       socket.send(JSON.stringify(message));
-      setMessages((prev) => [...prev, message]);
     } else {
-      console.warn("[WebSocket] Cannot send message - not connected");
+      console.warn(
+        "[WebSocket] Cannot send message - not connected or no user ID"
+      );
+    }
+  };
+
+  const sendGameAction = (action: any) => {
+    if (socket?.readyState === WebSocket.OPEN) {
+      const messageId = generateMessageId();
+      const message = {
+        type: "game_action",
+        timestamp: Date.now(),
+        messageId,
+        ...action,
+      };
+      console.log("[WebSocket] Sending game action:", message);
+      socket.send(JSON.stringify(message));
+    } else {
+      console.warn("[WebSocket] Cannot send game action - not connected");
     }
   };
 
@@ -127,10 +164,11 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
       value={{
         messages,
         gameState,
-        sendMessage,
+        sendChatMessage,
         sendGameAction,
         connected,
-        clientId,
+        userId,
+        userName,
       }}
     >
       {children}

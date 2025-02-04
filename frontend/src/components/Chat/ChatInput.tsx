@@ -3,12 +3,12 @@ import { useWebSocket } from "../../context/WebSocketContext";
 
 export const ChatInput: React.FC = () => {
   const [message, setMessage] = useState("");
-  const { sendMessage, connected } = useWebSocket();
+  const { sendChatMessage, connected } = useWebSocket();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (message.trim()) {
-      sendMessage(message.trim());
+      sendChatMessage(message.trim());
       setMessage("");
     }
   };

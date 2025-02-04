@@ -1,9 +1,14 @@
-// internal/game/types.go
-package game
+package types
 
 type Position struct {
 	X int `json:"x"`
 	Y int `json:"y"`
+}
+
+type Character struct {
+	Name   string `json:"name"`
+	Color  string `json:"color"`
+	Symbol string `json:"symbol"`
 }
 
 type Player struct {
@@ -22,15 +27,8 @@ type GameState struct {
 	Status      string             `json:"status"`
 }
 
-type GameAction struct {
-	Type      string     `json:"type"`
-	PlayerId  string     `json:"playerId"`
-	Position  *Position  `json:"position,omitempty"`
-	Character *Character `json:"character,omitempty"` // Added this field
-}
-
-type Character struct {
-	Color  string `json:"color"`
-	Name   string `json:"name"`
-	Symbol string `json:"symbol"`
-}
+const (
+	GameStatusWaiting  = "waiting"
+	GameStatusPlaying  = "playing"
+	GameStatusFinished = "finished"
+)

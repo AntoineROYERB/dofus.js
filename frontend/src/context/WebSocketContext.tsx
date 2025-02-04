@@ -1,13 +1,15 @@
 import { createContext, useContext } from "react";
-import { Message, GameState } from "../types/websocket";
+import { Message } from "../types/message";
+import { GameState, GameAction } from "../types/game";
 
 interface WebSocketContextType {
   messages: Message[];
   gameState: GameState | null;
-  sendMessage: (content: string) => void;
-  sendGameAction: (action: string, position?: Position) => void;
+  sendChatMessage: (content: string) => void;
+  sendGameAction: (action: GameAction) => void;
   connected: boolean;
-  clientId: string;
+  userId: string;
+  userName: string;
 }
 
 export const WebSocketContext = createContext<WebSocketContextType | null>(

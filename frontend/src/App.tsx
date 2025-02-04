@@ -1,5 +1,4 @@
 // src/App.tsx
-import React from "react";
 import { WebSocketProvider } from "./providers/WebSocketProvider";
 import { Chat } from "./components/Chat/Chat";
 import { GameBoard } from "./components/Game/GameBoard";

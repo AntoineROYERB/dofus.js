@@ -1,28 +1,30 @@
-// frontend/src/types/game.ts
-interface Position {
+export type Position = {
     x: number;
     y: number;
 }
 
-interface Player {
-    id: string;
-    position: Position;
-    health: number;
-    actionPoints: number;
-    movementPoints: number;
-    isCurrentTurn: boolean;
+export type Character = {
+  name: string;
+  color: string;
+  symbol: string;
 }
 
-interface GameState {
-    players: Map<string, Player>;
-    currentTurn: string;  // Player ID
-    turnOrder: string[];  // Array of Player IDs
-    turnNumber: number;
-    gameStatus: 'waiting' | 'playing' | 'finished';
+
+export type Player = {
+  id: string;
+  position: Position | null;
+  character: Character;
+  isCurrentTurn: boolean;
+  actionPoints: number;
+  movementPoints: number;
 }
 
-// Game action types
-type GameAction = 
-    | { type: 'MOVE', playerId: string, position: Position }
-    | { type: 'ATTACK', fromId: string, targetId: string }
-    | { type: 'END_TURN', playerId: string }
+export type GameState = {
+  players: { [key: string]: Player };
+  currentTurn: string;
+  turnNumber: number;
+  status: GameStatus;
+}
+
+export type GameAction = { }
+export type GameStatus = 'waiting' | 'playing' | 'finished';
