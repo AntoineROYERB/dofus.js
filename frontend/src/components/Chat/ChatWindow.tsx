@@ -1,10 +1,10 @@
-// src/components/Chat/ChatWindow.tsx
 import React, { useRef, useEffect } from "react";
 import { useWebSocket } from "../../context/WebSocketContext";
 
 export const ChatWindow: React.FC = () => {
   const { messages, userId } = useWebSocket();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  let lastMessageId: string | null = null; // Variable pour mémoriser l'ID du dernier message affiché
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -16,8 +16,16 @@ export const ChatWindow: React.FC = () => {
         {messages.length === 0 ? (
           <div className="text-gray-400 text-center">No messages yet</div>
         ) : (
-          messages.map((msg, index) =>
-            msg.type === "chat" ? (
+          messages.map((msg, index) => {
+            // Vérifie si l'ID du message est le même que celui du précédent
+            if (msg.messageId === lastMessageId) {
+              return null; // Ignore ce message
+            }
+
+            // Mémorise l'ID du message actuel
+            lastMessageId = msg.messageId;
+
+            return msg.type === "chat" ? (
               <div
                 key={index}
                 className={`mb-2 p-3 rounded-lg ${
@@ -29,8 +37,8 @@ export const ChatWindow: React.FC = () => {
                 <div className="text-xs text-gray-600 mb-1">{msg.userName}</div>
                 <div className="break-words">{msg.content}</div>
               </div>
-            ) : null
-          )
+            ) : null;
+          })
         )}
         <div ref={messagesEndRef} />
       </div>

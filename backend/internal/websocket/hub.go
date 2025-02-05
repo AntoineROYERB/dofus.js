@@ -4,25 +4,20 @@ package websocket
 import (
 	"encoding/json"
 	"game-server/internal/game"
+	"game-server/internal/types"
 	"game-server/internal/user"
 	"log"
 	"sync"
 )
 
-type baseMsg struct {
-	MessageID string `json:"messageId"`
-	Timestamp int64  `json:"timestamp"`
-	Type      string `json:"type"`
-	UserId    string `json:"userId"`
-}
 type Hub struct {
 	Clients           map[*Client]bool
 	Broadcast         chan []byte
 	Register          chan *Client
 	Unregister        chan *Client
 	mutex             sync.Mutex
-	gameManager       *game.GameManager
 	processedMessages sync.Map
+	gameManager       *game.GameManager
 	userManager       *user.UserManager
 }
 
@@ -37,29 +32,18 @@ func NewHub() *Hub {
 	}
 }
 
-func (h *Hub) isMessageProcessed(messageId string) bool {
-	_, exists := h.processedMessages.Load(messageId)
-	return exists
-}
-
-func (h *Hub) markMessageAsProcessed(messageId string) {
-	h.processedMessages.Store(messageId, true)
-}
-
-func (h *Hub) broadcastMessage(message []byte, excludeClientID string) {
+func (h *Hub) broadcastMessage(message []byte) {
 	h.mutex.Lock()
 	defer h.mutex.Unlock()
 
 	for client := range h.Clients {
-		if client.ID != excludeClientID {
-			select {
-			case client.Send <- message:
-				log.Printf("[Debug] Sent message to client %s", client.ID)
-			default:
-				close(client.Send)
-				delete(h.Clients, client)
-				log.Printf("[Error] Failed to send to client %s", client.ID)
-			}
+		select {
+		case client.Send <- message:
+			log.Printf("[Debug] Sent message to client %s", client.ID)
+		default:
+			close(client.Send)
+			delete(h.Clients, client)
+			log.Printf("[Error] Failed to send to client %s", client.ID)
 		}
 	}
 }
@@ -85,26 +69,33 @@ func (h *Hub) Run() {
 		case message := <-h.Broadcast:
 			log.Printf("[Debug] Received broadcast message: %s", string(message))
 
-			// Parse message and attribute the value to baseMsg
-			var baseMsg baseMsg
-			if err := json.Unmarshal(message, &baseMsg); err != nil {
-				log.Printf("[Error] Parsing message: %v", err)
-				continue
+			var msgObj types.BaseMessage
+
+			if err := json.Unmarshal(message, &msgObj); err != nil {
+				log.Printf("[Error] Failed to parse message: %v", err)
+				return
 			}
 
-			// Skip if no messageId or already processed
-			if baseMsg.MessageID == "" || h.isMessageProcessed(baseMsg.MessageID) {
-				log.Printf("[Debug] Skipping message: %s", baseMsg.MessageID)
-				continue
-			}
+			log.Printf("[Debug] Message map: %v", msgObj)
 
-			h.markMessageAsProcessed(baseMsg.MessageID)
-			switch baseMsg.Type {
+			// Handle the message based on its type
+			switch msgObj.GetType() {
 			case "chat":
-				log.Printf("baseMsg: %s", baseMsg.Type)
-				h.broadcastMessage(message, baseMsg.UserId)
+
+				var chatMessage types.ChatMessage
+				if err := json.Unmarshal(message, &chatMessage); err != nil {
+					log.Printf("[Error] Invalid message type for 'chat': %v", err)
+					continue
+				}
+
+				log.Printf("[Chat] Message received from UserID: %s, Content: %s", chatMessage.UserID, chatMessage.Content)
+				// h.broadcastMessage(message, chatMessage.UserID)
+				h.broadcastMessage(message)
+
+			case "create_character":
+				log.Printf("[Character] Creating character for UserID: %s", msgObj.UserID)
 			case "game_action":
-				log.Printf("baseMsg: %s", baseMsg.Type)
+				log.Printf("[Game] Processing game action from UserID: %s", msgObj.UserID)
 
 				var action game.GameAction
 				if err := json.Unmarshal(message, &action); err != nil {
@@ -117,19 +108,24 @@ func (h *Hub) Run() {
 					continue
 				}
 
-				// Send updated game state to all clients
+				// Récupération de l'état mis à jour du jeu
 				newState := h.gameManager.GetState()
 				stateMsg, err := json.Marshal(map[string]interface{}{
 					"type":      "game_state",
-					"messageId": baseMsg.MessageID + "-state",
-					//"timestamp": action.Timestamp,
-					"state": newState,
+					"messageId": msgObj.MessageID + "-state",
+					"state":     newState,
 				})
-				log.Printf("[Debug] Sending game state: %s", string(stateMsg))
-
 				if err != nil {
+					log.Printf("[Error] Failed to marshal game state: %v", err)
+					continue
 				}
+
+				log.Printf("[Debug] Sending updated game state: %s", string(stateMsg))
+
+			default:
+				log.Printf("[Warning] Unrecognized message type: %s", msgObj.Type)
 			}
+
 		}
 	}
 }
