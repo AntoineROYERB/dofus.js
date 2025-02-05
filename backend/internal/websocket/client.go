@@ -55,7 +55,7 @@ func (c *Client) ReadPump() {
 			}
 			break
 		}
-		log.Printf("[Debug] Received message from client %s: %s", c.ID, string(message))
+		log.Printf("[Debug] Received message from client %s:\n%s", c.ID, string(message))
 		c.Hub.Broadcast <- message
 	}
 }

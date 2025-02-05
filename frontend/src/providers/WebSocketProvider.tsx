@@ -145,15 +145,22 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 
   const sendGameAction = (action: any) => {
     if (socket?.readyState === WebSocket.OPEN) {
-      const messageId = generateMessageId();
-      const message = {
-        type: "game_action",
-        timestamp: Date.now(),
-        messageId,
-        ...action,
-      };
-      console.log("[WebSocket] Sending game action:", message);
-      socket.send(JSON.stringify(message));
+      const { messageId, timestamp } = generateMessageId();
+
+      switch (action.type) {
+        case "create_character":
+          const message = {
+            messageId,
+            timestamp,
+            ...action,
+          };
+          console.log("[WebSocket] Sending game action:", message);
+          socket.send(JSON.stringify(message));
+          break;
+        case "game_action":
+          // TO DO
+          break;
+      }
     } else {
       console.warn("[WebSocket] Cannot send game action - not connected");
     }

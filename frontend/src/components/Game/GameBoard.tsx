@@ -1,4 +1,3 @@
-// src/components/Game/GameBoard.tsx
 import React, { useState } from "react";
 import { useWebSocket } from "../../context/WebSocketContext";
 
@@ -15,10 +14,13 @@ const PLAYER_COLORS = [
 ];
 
 export const GameBoard: React.FC = () => {
-  const { userId, connected, gameState, sendGameAction } = useWebSocket();
+  const { userId, userName, connected, gameState, sendGameAction } =
+    useWebSocket();
 
   // Local state for character creation
-  const [characterName, setCharacterName] = useState("");
+  const [characterName, setCharacterName] = useState(
+    `Player ${userId.slice(0, 4)}`
+  );
   const [selectedColor, setSelectedColor] = useState(PLAYER_COLORS[0]);
 
   // Game state checks
@@ -32,8 +34,9 @@ export const GameBoard: React.FC = () => {
     sendGameAction({
       type: "create_character",
       userId,
+      userName,
       character: {
-        name: characterName || `Player ${userId.slice(0, 4)}`,
+        name: characterName,
         color: selectedColor,
         symbol: characterName ? characterName[0].toUpperCase() : "P",
       },
