@@ -1,15 +1,23 @@
 package types
 
-const (
-	MessageTypeChat       = "chat"
-	MessageTypeGameAction = "game_action"
-	MessageTypeGameState  = "game_state"
+// const (
+// 	MessageTypeChat       = "chat"
+// 	MessageTypeGameAction = "game_action"
+// 	MessageTypeGameState  = "game_state"
 
-	GameActionCreateCharacter = "create_character"
-	GameActionStartGame       = "start_game"
-	GameActionEndTurn         = "end_turn"
-	GameActionMove            = "move"
-)
+// 	GameActionCreateCharacter = "create_character"
+// 	GameActionStartGame       = "start_game"
+// 	GameActionEndTurn         = "end_turn"
+// 	GameActionMove            = "move"
+// )
+
+type Message interface {
+	GetType() string
+}
+
+func (bm BaseMessage) GetType() string {
+	return bm.Type
+}
 
 type BaseMessage struct {
 	MessageID string `json:"messageId"`

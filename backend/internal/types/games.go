@@ -15,6 +15,7 @@ type Player struct {
 	ID             string    `json:"id"`
 	Position       *Position `json:"position"`
 	Character      Character `json:"character"`
+	Health         int       `json:"health"`
 	ActionPoints   int       `json:"actionPoints"`
 	MovementPoints int       `json:"movementPoints"`
 	IsCurrentTurn  bool      `json:"isCurrentTurn"`
@@ -24,7 +25,7 @@ type GameState struct {
 	Players     map[string]*Player `json:"players"`
 	CurrentTurn string             `json:"currentTurn"`
 	TurnNumber  int                `json:"turnNumber"`
-	Status      string             `json:"status"`
+	GameStatus  string             `json:"status"`
 }
 
 const (
