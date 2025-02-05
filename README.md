@@ -7,9 +7,11 @@ A turn-based online game inspired by Dofus, focusing on the combat system. This 
 ## Project Overview
 
 ### Current Stage: WebSocket Foundation
+
 The current implementation focuses on establishing the WebSocket infrastructure that will be used throughout the game. A basic chat system has been implemented as a proof of concept for real-time communication between clients.
 
 ### Planned Features
+
 - ⚔️ Turn-based combat system
 - 🎮 Character movement and positioning
 - 🎲 Combat mechanics and abilities
@@ -17,6 +19,7 @@ The current implementation focuses on establishing the WebSocket infrastructure 
 - 👥 Multiplayer combat sessions
 
 ## Current Features (WebSocket Implementation)
+
 - Real-time WebSocket communication
 - Multi-client support
 - Message broadcasting system
@@ -24,7 +27,8 @@ The current implementation focuses on establishing the WebSocket infrastructure 
 - Game state management
 
 ## Project Structure
-```
+
+```mermaid
 project/
 ├── backend/               # Go server
 │   ├── cmd/
@@ -41,6 +45,7 @@ project/
 ```
 
 ## Tech Stack
+
 - **Backend**: Go with Gorilla WebSocket
 - **Frontend**: React + TypeScript
 - **Styling**: Tailwind CSS
@@ -49,11 +54,13 @@ project/
 ## Getting Started
 
 ### Prerequisites
+
 - Go 1.21+
 - Node.js 18+
 - npm 9+
 
 ### Backend Setup
+
 ```bash
 cd backend
 go mod init game-server
@@ -62,6 +69,7 @@ go run cmd/server/main.go
 ```
 
 ### Frontend Setup
+
 ```bash
 cd frontend
 npm install
@@ -71,41 +79,47 @@ npm run dev
 ## Development Roadmap
 
 ### Phase 1: Communication Infrastructure ✅
+
 - [x] WebSocket implementation
 - [x] Real-time chat system
 - [x] Client connection management
 
 ### Phase 2: Game Engine (Upcoming)
+
 - [x] Game state management
 - [ ] Turn system implementation
 - [ ] Combat mechanics
 - [ ] Character movement
 
 ### Phase 3: Combat System (Planned)
+
 - [ ] Battle initialization
 - [ ] Combat actions
 - [ ] Spell system
 - [ ] Effect management
 
 ### Phase 4: User Interface (Planned)
+
 - [x] Battle grid
 - [ ] Character animations
 - [ ] Combat UI
 - [ ] Ability interface
 
-
 ## Next Steps
+
 1. Implement game state management
 2. Add battle grid system
 3. Develop basic combat mechanics
 4. Create character movement system
 
 ## Development Notes
+
 - The current WebSocket implementation will be extended to handle game state updates
 - The message system will be expanded to include game actions and state changes
 - Future updates will include game-specific message types and handlers
 
 ## Acknowledgments
+
 - Inspired by Dofus combat system
 - Built with modern web technologies
 - Community contributions welcome
