@@ -94,6 +94,14 @@ func (h *Hub) Run() {
 
 			case "create_character":
 				log.Printf("[Character] Creating character for UserID: %s", msgObj.UserID)
+				var characterMessage types.CreateCharacter
+				if err := json.Unmarshal(message, &characterMessage); err != nil {
+					log.Printf("[Error] Invalid message type for 'chat': %v", err)
+					continue
+				}
+
+				h.broadcastMessage(message)
+
 			case "game_action":
 				log.Printf("[Game] Processing game action from UserID: %s", msgObj.UserID)
 

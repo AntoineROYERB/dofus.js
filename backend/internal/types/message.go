@@ -32,6 +32,12 @@ type ChatMessage struct {
 	Content string `json:"content"`
 }
 
+type CreateCharacter struct {
+	BaseMessage
+	Type    string `json:"type"`
+	Content string `json:"content"`
+}
+
 type GameActionMessage struct {
 	BaseMessage
 	Type      string     `json:"type"`

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useWebSocket } from "../../context/WebSocketContext";
+import { Position } from "../../types/game";
 
 // Available colors for players
 const PLAYER_COLORS = [
@@ -21,7 +22,8 @@ export const GameBoard: React.FC = () => {
   const [characterName, setCharacterName] = useState(
     `Player ${userId.slice(0, 4)}`
   );
-  const [selectedColor, setSelectedColor] = useState(PLAYER_COLORS[0]);
+  const [selectedColor, setSelectedColor] = useState<String>(PLAYER_COLORS[0]);
+  const [firstPosition, setFirstPosition] = useState<Position>({ x: 0, y: 0 });
 
   // Game state checks
   const isMyTurn = gameState?.currentTurn === userId;
@@ -39,6 +41,7 @@ export const GameBoard: React.FC = () => {
         name: characterName,
         color: selectedColor,
         symbol: characterName ? characterName[0].toUpperCase() : "P",
+        position: firstPosition,
       },
     });
   };
@@ -61,10 +64,12 @@ export const GameBoard: React.FC = () => {
 
   // Handle cell click
   const handleCellClick = (index: number) => {
-    if (!isMyTurn || gameStatus !== "playing") return;
-
+    console.log("Cell color:", index);
     const x = index % gridSize;
     const y = Math.floor(index / gridSize);
+    console.log("Clicked cell:", x, y);
+    setFirstPosition({ x, y });
+    if (!isMyTurn || gameStatus !== "playing") return;
 
     sendGameAction({
       type: "move",
@@ -163,55 +168,35 @@ export const GameBoard: React.FC = () => {
       )}
 
       {/* Game Grid */}
-      <div
-        className="grid gap-1"
-        style={{
-          gridTemplateColumns: `repeat(${gridSize}, minmax(0, 1fr))`,
-        }}
-      >
-        {Array.from({ length: gridSize * gridSize }).map((_, index) => (
-          <div
-            key={index}
-            onClick={() => handleCellClick(index)}
-            className={`
-              w-full pt-[100%] relative 
-              ${
-                isMyTurn
-                  ? "cursor-pointer hover:bg-blue-100"
-                  : "cursor-not-allowed"
-              }
-              bg-gray-100
-              transition-colors border border-gray-200
-              ${isMyTurn ? "hover:border-blue-400" : ""}
-            `}
-          >
-            {gameState?.players &&
-              Object.values(gameState.players).map((player, i) => {
-                if (
-                  player.position?.x === index % gridSize &&
-                  player.position?.y === Math.floor(index / gridSize)
-                ) {
-                  return (
-                    <div
-                      key={i}
-                      className="absolute inset-0 flex items-center justify-center"
-                      style={{ backgroundColor: player.character.color }}
-                    >
-                      <span
-                        className={`
-                      text-white text-xs font-bold
-                      ${player.isCurrentTurn ? "ring-2 ring-white" : ""}
-                    `}
-                      >
-                        {player.character.symbol}
-                      </span>
-                    </div>
-                  );
+      <div className="bg-white p-4 rounded-lg shadow">
+        <div
+          className="grid gap-1"
+          style={{
+            gridTemplateColumns: `repeat(${gridSize}, minmax(0, 1fr))`,
+          }}
+        >
+          {Array.from({ length: gridSize * gridSize }).map((_, index) => {
+            const x = index % gridSize;
+            const y = Math.floor(index / gridSize);
+            const isFirstPosition =
+              firstPosition.x === x && firstPosition.y === y;
+
+            return (
+              <div
+                key={index}
+                onClick={() => handleCellClick(index)}
+                className={`
+                w-full pt-[100%] relative cursor-pointer transition-colors border border-gray-200
+                ${
+                  isFirstPosition
+                    ? `bg-stone-300`
+                    : "bg-gray-100 hover:bg-blue-100"
                 }
-                return null;
-              })}
-          </div>
-        ))}
+              `}
+              ></div>
+            );
+          })}
+        </div>
       </div>
 
       {/* Game Controls */}
