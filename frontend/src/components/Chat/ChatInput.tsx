@@ -1,14 +1,25 @@
 import React, { useState } from "react";
 import { useWebSocket } from "../../context/WebSocketContext";
+import { generateMessageId } from "../../providers/WebSocketProvider";
+import { ChatMessage } from "../../types/message";
 
 export const ChatInput: React.FC = () => {
   const [message, setMessage] = useState("");
-  const { sendChatMessage, connected } = useWebSocket();
+  const { sendChatMessage, connected, userId, userName } = useWebSocket();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (message.trim()) {
-      sendChatMessage(message.trim());
+      const { messageId, timestamp } = generateMessageId();
+      const chatMessage: ChatMessage = {
+        type: "chat",
+        userId,
+        userName,
+        timestamp,
+        messageId,
+        content: message.trim(),
+      };
+      sendChatMessage(chatMessage);
       setMessage("");
     }
   };
