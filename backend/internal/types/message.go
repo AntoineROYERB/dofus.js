@@ -1,46 +1,25 @@
 package types
 
-// const (
-// 	MessageTypeChat       = "chat"
-// 	MessageTypeGameAction = "game_action"
-// 	MessageTypeGameState  = "game_state"
-
-// 	GameActionCreateCharacter = "create_character"
-// 	GameActionStartGame       = "start_game"
-// 	GameActionEndTurn         = "end_turn"
-// 	GameActionMove            = "move"
-// )
-
-type Message interface {
-	GetType() string
-}
-
-func (bm BaseMessage) GetType() string {
-	return bm.Type
-}
-
 type BaseMessage struct {
 	MessageID string `json:"messageId"`
 	Timestamp int64  `json:"timestamp"`
-	UserID    string `json:"userId,omitempty"`
+	UserName  string `json:"userName"`
+	UserID    string `json:"userId"`
 	Type      string `json:"type"`
 }
 
 type ChatMessage struct {
 	BaseMessage
-	Type    string `json:"type"`
 	Content string `json:"content"`
 }
 
 type CreateCharacter struct {
 	BaseMessage
-	Type    string `json:"type"`
-	Content string `json:"content"`
+	Character *Character `json:"character,omitempty"`
 }
 
 type GameActionMessage struct {
 	BaseMessage
-	Type      string     `json:"type"`
 	Action    string     `json:"action"`
 	PlayerID  string     `json:"playerId"`
 	Position  *Position  `json:"position,omitempty"`
@@ -49,6 +28,5 @@ type GameActionMessage struct {
 
 type GameStateMessage struct {
 	BaseMessage
-	Type  string    `json:"type"`
 	State GameState `json:"state"`
 }

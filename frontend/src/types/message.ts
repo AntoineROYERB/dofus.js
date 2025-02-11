@@ -1,39 +1,41 @@
-import { Position, Character, GameState } from './game';
+import { GameAction, Player } from './game';
+
+
+export type UserInfo = {
+    id: string;
+    name: string;
+}
 
 export type BaseMessage = {
     messageId: string;
     timestamp: number;
-    userId: string;
+    user: UserInfo;
     type: MessageType;
-    userName: string;
+    gameStatus: gameStatus;
+    
 }
-
-
 export interface UserInitMessage extends BaseMessage {
     type: 'user_init';
-    userId: string;
-    userName: string;
- }
+    gameStatus: 'create_character';
+    }
  
 export interface ChatMessage extends BaseMessage {
     type: 'chat';
     content: string;
 }
 
-export interface GameActionMessage extends BaseMessage {
-    type: 'game_action';
-    action: GameActionType;
-    playerId: string;
-    position?: Position;
-    character?: Character;
+export interface PlayerMessage extends Player {
+    status: string,
 }
 
 export interface GameStateMessage extends BaseMessage {
     type: 'game_state';
-    state: GameState;
+    turnNumber: number;
+    state: GameAction[];
+    players: { [key: string]: PlayerMessage };
 }
 
-export type Message = ChatMessage | GameActionMessage | GameStateMessage;
+
 
 export type MessageType = 'chat' | 'game_action' | 'game_state' | 'user_init';
-export type GameActionType = 'create_character' | 'start_game' | 'end_turn' | 'move';
+export type gameStatus = 'create_character' | 'start_game' | 'end_turn' | 'move';
