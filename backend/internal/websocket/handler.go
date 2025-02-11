@@ -1,9 +1,13 @@
 package websocket
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
+	"game-server/internal/types"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/gorilla/websocket"
 )
@@ -18,44 +22,68 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
+func generateUniqueID() string {
+	bytes := make([]byte, 8)
+	rand.Read(bytes)
+	return hex.EncodeToString(bytes)
+}
+
+var activeSessions = make(map[string]bool) // Structure pour stocker les sessions actives
+
 // HandleWebSocket upgrades HTTP connections to WebSocket connections
 func (h *Hub) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
-	// Configure upgrader to allow any origin
-	upgrader.CheckOrigin = func(r *http.Request) bool {
-		return true
-	}
-
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Printf("Error upgrading connection: %v", err)
+		log.Printf("[Error] Upgrading connection: %v", err)
+		return
+	}
+	id := generateUniqueID()
+
+	// Vérifier si l'utilisateur est déjà connecté
+	if activeSessions[id] {
+		log.Printf("[Info] User %s already initialized, skipping init message.", id)
+		return
+	}
+	// Enregistrer la session active
+	activeSessions[id] = true
+
+	initUser := &types.User{
+		ID:   id,
+		Name: "Guest-" + id[len(id)-6:],
+	}
+
+	// Send initialization message
+	initMsg, err := json.Marshal(map[string]interface{}{
+		"type":       "user_init",
+		"messageId":  "init-" + id,
+		"Timestamp":  time.Now(),
+		"user":       initUser,
+		"gameStatus": "creating_player",
+	})
+	if err != nil {
+		log.Printf("[Error] Marshaling init message: %v", err)
+		conn.Close()
 		return
 	}
 
-	// Create new user
-	user := h.userManager.CreateGuestUser()
-
-	initMsg, _ := json.Marshal(map[string]interface{}{
-		"type":     "user_init",
-		"userId":   user.ID,
-		"userName": user.Name,
-	})
-
-	conn.WriteMessage(websocket.TextMessage, initMsg)
+	if err := conn.WriteMessage(websocket.TextMessage, initMsg); err != nil {
+		log.Printf("[Error] Sending init message: %v", err)
+		conn.Close()
+		return
+	}
 
 	client := &Client{
-		ID:   user.ID,
+		ID:   id,
 		Conn: conn,
 		Send: make(chan []byte, 256),
 		Hub:  h,
-		User: user,
+		User: initUser,
 	}
 
-	log.Printf("[Debug] New WebSocket connection established for client %s", client.ID)
+	log.Printf("[New Connection] Client %s (%s)", id, "Guest-"+id[len(id)-6:])
 
-	// Register the client before starting the pumps
 	h.Register <- client
 
-	// Start the pumps in separate goroutines
 	go client.WritePump()
 	go client.ReadPump()
 }

@@ -1,24 +1,80 @@
-// internal/websocket/hub.go
 package websocket
 
 import (
 	"encoding/json"
 	"game-server/internal/game"
 	"game-server/internal/types"
-	"game-server/internal/user"
 	"log"
 	"sync"
 )
 
+type MessageHandler func(*Hub, []byte)
+
+var messageHandlers = map[string]MessageHandler{
+	"chat":             handleChatMessage,
+	"create_character": handleCreateCharacterMessage,
+	// "ready_to_start":   handleReadyToStartMessage,
+	// "start_game":       handleGameActionMessage,
+	// "end_turn":         handleGameActionMessage,
+	// "move":             handleGameActionMessage,
+}
+
+func handleChatMessage(h *Hub, message []byte) {
+	var chatMessage types.ChatMessage
+	if err := json.Unmarshal(message, &chatMessage); err != nil {
+		log.Printf("[Error] Invalid chat message: %v", err)
+		return
+	}
+	log.Printf("[Chat] Message received from UserID: %s, Content: %s", chatMessage.UserID, chatMessage.Content)
+	h.broadcastMessage(message)
+}
+
+func handleCreateCharacterMessage(h *Hub, message []byte) {
+	var createCharacterMessage types.CreateCharacter
+	if err := json.Unmarshal(message, &createCharacterMessage); err != nil {
+		log.Printf("[Error] Invalid create character message: %v", err)
+		return
+	}
+
+	newPlayer := types.Player{
+		Character:     createCharacterMessage.Character,
+		IsCurrentTurn: false,
+		UserName:      createCharacterMessage.UserName,
+		UserID:        createCharacterMessage.UserID,
+		Status:        "waiting-room",
+	}
+
+	// Store player in Hub
+	h.mutex.Lock()
+	h.Players[createCharacterMessage.UserID] = newPlayer
+	h.mutex.Unlock()
+
+	//
+
+	newState := types.GameState{
+		MessageType: "game_state",
+		Players:     h.Players,
+		TurnNumber:  0,
+		GameStatus:  "starting",
+	}
+	// Broadcast updated state
+	stateMsg, _ := json.Marshal(map[string]interface{}{
+		"type":  "game_state",
+		"state": newState,
+	})
+	h.broadcastMessage(stateMsg)
+}
+
 type Hub struct {
-	Clients           map[*Client]bool
-	Broadcast         chan []byte
-	Register          chan *Client
-	Unregister        chan *Client
-	mutex             sync.Mutex
-	processedMessages sync.Map
-	gameManager       *game.GameManager
-	userManager       *user.UserManager
+	Clients     map[*Client]bool
+	Broadcast   chan []byte
+	Register    chan *Client
+	Unregister  chan *Client
+	mutex       sync.Mutex
+	gameManager *game.GameManager
+	Players     map[string]types.Player // Add this to store players
+
+	// userManager *user.UserManager
 }
 
 func NewHub() *Hub {
@@ -27,8 +83,8 @@ func NewHub() *Hub {
 		Register:    make(chan *Client),
 		Unregister:  make(chan *Client),
 		Clients:     make(map[*Client]bool),
+		Players:     make(map[string]types.Player), // Initialize players map
 		gameManager: game.NewGameManager(),
-		userManager: user.NewUserManager(),
 	}
 }
 
@@ -69,69 +125,18 @@ func (h *Hub) Run() {
 		case message := <-h.Broadcast:
 			log.Printf("[Debug] Received broadcast message: %s", string(message))
 
-			var msgObj types.BaseMessage
-
-			if err := json.Unmarshal(message, &msgObj); err != nil {
-				log.Printf("[Error] Failed to parse message: %v", err)
-				return
+			// 1. Désérialiser uniquement le type
+			var baseMsg types.BaseMessage
+			if err := json.Unmarshal(message, &baseMsg); err != nil {
+				log.Printf("[Error] Failed to parse message type: %v", err)
+				continue
 			}
 
-			log.Printf("[Debug] Message map: %v", msgObj)
-
-			// Handle the message based on its type
-			switch msgObj.GetType() {
-			case "chat":
-
-				var chatMessage types.ChatMessage
-				if err := json.Unmarshal(message, &chatMessage); err != nil {
-					log.Printf("[Error] Invalid message type for 'chat': %v", err)
-					continue
-				}
-
-				log.Printf("[Chat] Message received from UserID: %s, Content: %s", chatMessage.UserID, chatMessage.Content)
-				// h.broadcastMessage(message, chatMessage.UserID)
-				h.broadcastMessage(message)
-
-			case "create_character":
-				log.Printf("[Character] Creating character for UserID: %s", msgObj.UserID)
-				var characterMessage types.CreateCharacter
-				if err := json.Unmarshal(message, &characterMessage); err != nil {
-					log.Printf("[Error] Invalid message type for 'chat': %v", err)
-					continue
-				}
-
-				h.broadcastMessage(message)
-
-			case "game_action":
-				log.Printf("[Game] Processing game action from UserID: %s", msgObj.UserID)
-
-				var action game.GameAction
-				if err := json.Unmarshal(message, &action); err != nil {
-					log.Printf("[Error] Parsing game action: %v", err)
-					continue
-				}
-
-				if err := h.gameManager.HandleAction(action); err != nil {
-					log.Printf("[Error] Handling game action: %v", err)
-					continue
-				}
-
-				// Récupération de l'état mis à jour du jeu
-				newState := h.gameManager.GetState()
-				stateMsg, err := json.Marshal(map[string]interface{}{
-					"type":      "game_state",
-					"messageId": msgObj.MessageID + "-state",
-					"state":     newState,
-				})
-				if err != nil {
-					log.Printf("[Error] Failed to marshal game state: %v", err)
-					continue
-				}
-
-				log.Printf("[Debug] Sending updated game state: %s", string(stateMsg))
-
-			default:
-				log.Printf("[Warning] Unrecognized message type: %s", msgObj.Type)
+			// 2. Vérifier si un handler existe
+			if handler, exists := messageHandlers[baseMsg.Type]; exists {
+				handler(h, message) // Appeler dynamiquement la fonction
+			} else {
+				log.Printf("[Warning] Unrecognized message type: %s", baseMsg.Type)
 			}
 
 		}
