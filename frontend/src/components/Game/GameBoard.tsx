@@ -1,10 +1,11 @@
 import React, { useState } from "react";
 import { useWebSocket } from "../../context/WebSocketContext";
-import { Position } from "../../types/game";
+import { Character, Position } from "../../types/game";
 import { CharacterCreation } from "./CharacterCreation";
 import { Grid } from "./Grid";
 import { MainButton } from "./Button";
 import { GameInfoPanel } from "./GameInfoPanel";
+import { generateMessageId } from "../../providers/WebSocketProvider";
 
 // Available colors for players
 const PLAYER_COLORS = [
@@ -32,7 +33,7 @@ export const GameBoard: React.FC = () => {
   // Local state for character creation
   const [selectedColor, setSelectedColor] = useState<string>(PLAYER_COLORS[0]);
   const [firstPosition, setFirstPosition] = useState<Position>({ x: 0, y: 0 });
-
+  const [characterName, setCharacterName] = useState<string>(userName);
   // Game state checks
   const latestGameState =
     gameRecord.length > 0 ? gameRecord[gameRecord.length - 1] : null;
@@ -40,6 +41,30 @@ export const GameBoard: React.FC = () => {
   const isMyTurn = latestGameState?.players[userId].isCurrentTurn;
   const isPlayerReady = false;
 
+  const handleColorClick = (color: string) => {
+    setSelectedColor(color);
+  };
+
+  const handleCreateCharacter = () => {
+    const { messageId, timestamp } = generateMessageId();
+    sendGameAction({
+      type: "create_character",
+      messageId,
+      timestamp,
+      character: {
+        name: characterName,
+        color: selectedColor,
+        symbol: characterName ? characterName[0].toUpperCase() : "P",
+        position: firstPosition,
+        actionPoints: 6,
+        movementPoints: 3,
+        isCurrentTurn: false,
+      },
+      userId,
+      userName,
+      isCurrentTurn: false,
+    });
+  };
   const handleStartGame = () => {
     // const { messageId, timestamp } = generateMessageId();
     console.log("Attempting to start game...");
@@ -104,12 +129,10 @@ export const GameBoard: React.FC = () => {
         />
       ) : (
         <CharacterCreation
-          userId={userId}
-          userName={userName}
-          sendGameAction={sendGameAction}
           selectedColor={selectedColor}
           setSelectedColor={setSelectedColor}
-          selectedPosition={firstPosition}
+          handleSubmitClick={handleCreateCharacter}
+          handleColorClick={handleColorClick}
         />
       )}
       <Grid

@@ -16,46 +16,18 @@ const PLAYER_COLORS = [
 ];
 
 interface CharacterCreationProps {
-  userId: string;
-  userName: string;
-  sendGameAction: (action: CreateCharacterAction) => void;
   selectedColor: string;
   setSelectedColor: (color: string) => void;
-  selectedPosition: Position;
+  handleSubmitClick: () => void;
+  handleColorClick: (color: string) => void;
 }
 
 export const CharacterCreation: React.FC<CharacterCreationProps> = ({
-  userId,
-  userName,
-  sendGameAction,
   selectedColor,
-  setSelectedColor,
-  selectedPosition,
+  handleSubmitClick,
+  handleColorClick,
 }) => {
   const [characterName, setCharacterName] = useState("");
-
-  const handleCreateCharacter = () => {
-    const { messageId, timestamp } = generateMessageId();
-
-    sendGameAction({
-      type: "create_character",
-      messageId,
-      timestamp,
-      character: {
-        name: characterName,
-        color: selectedColor,
-        symbol: characterName ? characterName[0].toUpperCase() : "P",
-        position: selectedPosition,
-        actionPoints: 6,
-        movementPoints: 3,
-        isCurrentTurn: false,
-      },
-      userId,
-      userName,
-      isCurrentTurn: false,
-    });
-  };
-
   return (
     <div className="mb-4 p-4 border rounded-lg">
       <h3 className="text-lg font-bold mb-4">Create Your Character</h3>
@@ -82,7 +54,7 @@ export const CharacterCreation: React.FC<CharacterCreationProps> = ({
             {PLAYER_COLORS.map((color) => (
               <div
                 key={color}
-                onClick={() => setSelectedColor(color)}
+                onClick={() => handleColorClick(color)}
                 className={`w-8 h-8 rounded-full cursor-pointer ${
                   color === selectedColor
                     ? "ring-2 ring-offset-2 ring-black"
@@ -95,7 +67,7 @@ export const CharacterCreation: React.FC<CharacterCreationProps> = ({
         </div>
         {/* Create Button */}
         <button
-          onClick={handleCreateCharacter}
+          onClick={handleSubmitClick}
           className="w-full py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
         >
           Create Character
