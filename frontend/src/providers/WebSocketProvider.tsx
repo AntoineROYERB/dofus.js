@@ -53,9 +53,6 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
           setUserName(data.user.name);
           setGameStatus(data.gameStatus);
           break;
-        // case "game_state":
-        //   setGameRecord(data);
-        //   break;
         case "chat":
           console.log("[WebSocket] Processing chat message:", data);
 

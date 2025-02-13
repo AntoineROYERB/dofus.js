@@ -14,6 +14,7 @@ export type BaseMessage = {
 };
 export interface UserInitMessage extends BaseMessage {
   type: "user_init";
+  user: UserInfo;
   gameStatus: "create_character";
 }
 

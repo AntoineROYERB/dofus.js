@@ -149,6 +149,7 @@ export const GameBoard: React.FC = () => {
         handleEndTurn={handleEndTurn}
         isPlayerReady={isPlayerReady}
         isMyTurn={isMyTurn}
+        handleSubmitClick={handleCreateCharacter}
       />
     </div>
   );
