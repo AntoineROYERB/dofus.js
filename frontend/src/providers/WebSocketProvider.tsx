@@ -73,10 +73,11 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
       setGameRecord([...gameRecord, data.state]);
     }
   }, []);
+
   const connectWebSocket = useCallback(() => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       console.log("[WebSocket] Already connected");
-      return wsRef.current;
+      return;
     }
 
     try {
@@ -86,9 +87,9 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 
       ws.onopen = () => {
         setConnected(true);
-        if (reconnectTimeoutRef.current) {
-          clearTimeout(reconnectTimeoutRef.current);
-        }
+        // if (reconnectTimeoutRef.current) {
+        //   clearTimeout(reconnectTimeoutRef.current);
+        // }
       };
 
       ws.onclose = () => {
@@ -115,28 +116,56 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
           console.error("[WebSocket] Error parsing message:", error);
         }
       };
-
       setSocket(ws);
       return ws;
     } catch (error) {
       console.error("[WebSocket] Connection error:", error);
-      return null;
     }
   }, [handleChatMessage, handleGameStatesRecord]);
 
+  // useEffect(() => {
+  //   const ws = connectWebSocket();
+
+  //   return () => {
+  //     if (reconnectTimeoutRef.current) {
+  //       clearTimeout(reconnectTimeoutRef.current);
+  //     }
+  //     if (ws?.readyState === WebSocket.OPEN) {
+  //       ws.close();
+  //       wsRef.current = null;
+  //     }
+  //   };
+  // }, [connectWebSocket]);
+
   useEffect(() => {
-    const ws = connectWebSocket();
+    if (!wsRef.current) {
+      connectWebSocket();
+    }
 
     return () => {
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
       }
-      if (ws?.readyState === WebSocket.OPEN) {
-        ws.close();
+      if (wsRef.current?.readyState === WebSocket.OPEN) {
+        wsRef.current.close();
         wsRef.current = null;
       }
     };
-  }, [connectWebSocket]);
+  }, []);
+
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (socket?.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({ type: "disconnect", userId }));
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [socket, userId]);
 
   const sendChatMessage = (chatMessage: ChatMessage) => {
     if (socket?.readyState === WebSocket.OPEN && userId) {
