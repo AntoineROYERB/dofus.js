@@ -24,16 +24,15 @@ export const GameInfoPanel: React.FC<GameInfoPanelProps> = ({
     ? Object.values(latestGameState.players).filter(
         (player) => player.status === "waiting-room"
       ).length
-    : 0; // Retourne 0 si latestGameState ou latestGameState.players est null/undefined
+    : 0;
 
   const readyPlayersNames = latestGameState?.players
     ? Object.values(latestGameState.players)
         .filter((player) => player.status === "waiting-room")
         .map((player) => player.userName)
-    : []; // Retourne un tableau vide si latestGameState ou latestGameState.players est null/undefined
+    : [];
   const isMyTurn = false;
 
-  console.log("qjefnqou", latestGameState?.turnNumber);
   return (
     <>
       {currentPlayer && (

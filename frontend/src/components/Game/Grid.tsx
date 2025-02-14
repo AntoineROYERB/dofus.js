@@ -1,4 +1,5 @@
-import { Player, Position } from "../../types/game";
+import { Position } from "../../types/game";
+import { GameStateMessage } from "../../types/message";
 
 // src/components/Game/Grid.tsx
 interface GridProps {
@@ -6,7 +7,7 @@ interface GridProps {
   selectedPosition: Position;
   onCellClick: (index: number) => void;
   selectedColor?: string;
-  players?: Record<string, Player>; // For showing other players
+  latestGameState?: GameStateMessage | null;
 }
 
 export const Grid: React.FC<GridProps> = ({
@@ -14,8 +15,22 @@ export const Grid: React.FC<GridProps> = ({
   selectedPosition,
   onCellClick,
   selectedColor,
-  players,
+  latestGameState,
 }) => {
+  //Helper function to find player on a cell
+  const players = latestGameState?.players;
+
+  const findPlayerOnCell = (x: number, y: number) => {
+    return (
+      players &&
+      Object.values(players).find(
+        (player) =>
+          player?.character?.position?.x === x &&
+          player?.character?.position?.y === y
+      )
+    );
+  };
+
   return (
     <div className="bg-white p-4 rounded-lg shadow">
       <div
@@ -27,17 +42,12 @@ export const Grid: React.FC<GridProps> = ({
         {Array.from({ length: gridSize * gridSize }).map((_, index) => {
           const x = index % gridSize;
           const y = Math.floor(index / gridSize);
+
           const isSelectedPosition =
             selectedPosition.x === x && selectedPosition.y === y;
 
           // Check if any player is on this cell
-          const playerOnCell =
-            players &&
-            Object.values(players).find(
-              (player) =>
-                player.character?.position?.x === x &&
-                player.character?.position?.y === y
-            );
+          const playerOnCell = findPlayerOnCell(x, y);
 
           return (
             <div
@@ -53,10 +63,10 @@ export const Grid: React.FC<GridProps> = ({
                   }
                 `}
               style={
-                playerOnCell
-                  ? { backgroundColor: playerOnCell.character.color }
-                  : isSelectedPosition
+                isSelectedPosition
                   ? { backgroundColor: selectedColor }
+                  : playerOnCell
+                  ? { backgroundColor: playerOnCell.character.color }
                   : undefined
               }
             >

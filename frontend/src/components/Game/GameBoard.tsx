@@ -38,9 +38,8 @@ export const GameBoard: React.FC = () => {
   const latestGameState =
     gameRecord.length > 0 ? gameRecord[gameRecord.length - 1] : null;
   const currentPlayer = latestGameState?.players[userId];
-  const isMyTurn = latestGameState?.players[userId].isCurrentTurn;
+  const isMyTurn = latestGameState?.players[userId]?.isCurrentTurn;
   const isPlayerReady = false;
-
   const handleColorClick = (color: string) => {
     setSelectedColor(color);
   };
@@ -140,6 +139,7 @@ export const GameBoard: React.FC = () => {
         selectedPosition={firstPosition}
         onCellClick={handleCellClick}
         selectedColor={selectedColor}
+        latestGameState={latestGameState}
       />
 
       <MainButton
