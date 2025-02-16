@@ -65,13 +65,6 @@ export const CharacterCreation: React.FC<CharacterCreationProps> = ({
             ))}
           </div>
         </div>
-        {/* Create Button */}
-        <button
-          onClick={handleSubmitClick}
-          className="w-full py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-        >
-          Create Character
-        </button>
       </div>
     </div>
   );
