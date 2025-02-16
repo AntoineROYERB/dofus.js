@@ -30,3 +30,7 @@ type GameStateMessage struct {
 	BaseMessage
 	State GameState `json:"state"`
 }
+
+type DisconnectMessage struct {
+	BaseMessage
+}
