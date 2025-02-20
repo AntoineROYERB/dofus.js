@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useWebSocket } from "../../context/WebSocketContext";
-import { Character, Position } from "../../types/game";
+import { Position } from "../../types/game";
 import { CharacterCreation } from "./CharacterCreation";
 import { Grid } from "./Grid";
 import { MainButton } from "./Button";
@@ -39,10 +39,14 @@ export const GameBoard: React.FC = () => {
     gameRecord.length > 0 ? gameRecord[gameRecord.length - 1] : null;
   const currentPlayer = latestGameState?.players[userId];
   const isMyTurn = latestGameState?.players[userId]?.isCurrentTurn;
-  const isPlayerReady = false;
+  const isPlayerReady = latestGameState?.players[userId]?.isReady;
   const handleColorClick = (color: string) => {
     setSelectedColor(color);
   };
+
+  const userHasCharacter = latestGameState?.players
+    ? Object.keys(latestGameState.players).includes(userId)
+    : false;
 
   const handleCreateCharacter = () => {
     const { messageId, timestamp } = generateMessageId();
@@ -64,6 +68,17 @@ export const GameBoard: React.FC = () => {
       isCurrentTurn: false,
     });
   };
+
+  const handleReadyClick = () => {
+    const { messageId, timestamp } = generateMessageId();
+    sendGameAction({
+      type: "ready_to_start",
+      messageId,
+      timestamp,
+      userId,
+    });
+  };
+
   const handleStartGame = () => {
     // const { messageId, timestamp } = generateMessageId();
     console.log("Attempting to start game...");
@@ -99,7 +114,6 @@ export const GameBoard: React.FC = () => {
     // });
   };
 
-  // Handle cell click
   const handleCellClick = (index: number) => {
     const x = index % gridSize;
     const y = Math.floor(index / gridSize);
@@ -130,8 +144,10 @@ export const GameBoard: React.FC = () => {
         <CharacterCreation
           selectedColor={selectedColor}
           setSelectedColor={setSelectedColor}
-          handleSubmitClick={handleCreateCharacter}
           handleColorClick={handleColorClick}
+          handleCharacterName={(handleCharactereName) =>
+            setCharacterName(handleCharactereName)
+          }
         />
       )}
       <Grid
@@ -145,11 +161,12 @@ export const GameBoard: React.FC = () => {
       <MainButton
         gameStatus={gameStatus}
         connected={connected}
-        handleStartGame={handleStartGame}
+        handleReadyClick={handleReadyClick}
         handleEndTurn={handleEndTurn}
         isPlayerReady={isPlayerReady}
         isMyTurn={isMyTurn}
         handleSubmitClick={handleCreateCharacter}
+        userHasCharacter={userHasCharacter}
       />
     </div>
   );

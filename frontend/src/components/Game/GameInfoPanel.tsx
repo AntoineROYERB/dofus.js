@@ -16,22 +16,21 @@ export const GameInfoPanel: React.FC<GameInfoPanelProps> = ({
 }) => {
   const latestGameState =
     gameRecord.length > 0 ? gameRecord[gameRecord.length - 1] : null;
+
   const totalPlayers = latestGameState?.players
     ? Object.keys(latestGameState?.players).length
     : 0;
 
-  const readyPlayersCount = latestGameState?.players
-    ? Object.values(latestGameState.players).filter(
-        (player) => player.status === "waiting-room"
-      ).length
-    : 0;
-
-  const readyPlayersNames = latestGameState?.players
-    ? Object.values(latestGameState.players)
-        .filter((player) => player.status === "waiting-room")
-        .map((player) => player.userName)
+  // Count ready players and get their names
+  const readyPlayers = latestGameState?.players
+    ? Object.values(latestGameState.players).filter((player) => player.isReady)
     : [];
-  const isMyTurn = false;
+
+  const readyPlayersCount = readyPlayers.length;
+  const readyPlayersNames = readyPlayers.map((player) => player.userName);
+
+  // Check if it's current player's turn
+  const isMyTurn = currentPlayer?.isCurrentTurn || false;
 
   return (
     <>
@@ -71,18 +70,18 @@ export const GameInfoPanel: React.FC<GameInfoPanelProps> = ({
             </div>
           </div>
 
-          {/* Update status display */}
-          {gameStatus === "starting" && (
-            <div className="text-sm text-gray-600 mb-2">
-              <div>Total Players: {totalPlayers}</div>
-              <div>
-                Players Ready: {readyPlayersCount}/{totalPlayers}
-                {readyPlayersCount > 0 && (
-                  <span className="ml-2 italic">({readyPlayersNames})</span>
-                )}
-              </div>
+          {/* Player Status Display */}
+          <div className="text-sm text-gray-600 mb-2">
+            <div>Connected Players: {totalPlayers}</div>
+            <div>
+              Ready: {readyPlayersCount}/{totalPlayers}
+              {readyPlayersCount > 0 && (
+                <div className="mt-1 italic text-xs">
+                  Ready players: {readyPlayersNames.join(", ")}
+                </div>
+              )}
             </div>
-          )}
+          </div>
         </>
       )}
     </>

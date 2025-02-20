@@ -1,8 +1,5 @@
 // src/components/Game/CharacterCreation.tsx
 import React, { useState } from "react";
-import { Position, Character, CreateCharacterAction } from "../../types/game";
-import { generateMessageId } from "../../providers/WebSocketProvider";
-import { Grid } from "./Grid";
 
 const PLAYER_COLORS = [
   "red",
@@ -18,14 +15,14 @@ const PLAYER_COLORS = [
 interface CharacterCreationProps {
   selectedColor: string;
   setSelectedColor: (color: string) => void;
-  handleSubmitClick: () => void;
   handleColorClick: (color: string) => void;
+  handleCharacterName: (name: string) => void;
 }
 
 export const CharacterCreation: React.FC<CharacterCreationProps> = ({
   selectedColor,
-  handleSubmitClick,
   handleColorClick,
+  handleCharacterName,
 }) => {
   const [characterName, setCharacterName] = useState("");
   return (
@@ -39,7 +36,11 @@ export const CharacterCreation: React.FC<CharacterCreationProps> = ({
           </label>
           <input
             value={characterName}
-            onChange={(e) => setCharacterName(e.target.value)}
+            onChange={(e) => {
+              setCharacterName(e.target.value);
+
+              handleCharacterName(e.target.value);
+            }}
             className="w-full p-2 border rounded"
             placeholder="Enter character name"
           />
