@@ -21,6 +21,7 @@ type Player struct {
 	Character     *Character `json:"character"`
 	Status        string     `json:"status"`
 	IsCurrentTurn bool       `json:"isCurrentTurn"`
+	IsReady       bool       `json:"isReady"`
 }
 
 type GameState struct {

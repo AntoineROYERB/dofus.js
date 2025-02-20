@@ -15,7 +15,7 @@ var messageHandlers = map[string]MessageHandler{
 	"chat":             handleChatMessage,
 	"create_character": handleCreateCharacterMessage,
 	"disconnect":       handleDisconnectMessage,
-	// "ready_to_start":   handleReadyToStartMessage,
+	"ready_to_start":   handleReadyToStartMessage,
 	// "start_game":       handleGameActionMessage,
 	// "end_turn":         handleGameActionMessage,
 	// "move":             handleGameActionMessage,
@@ -74,6 +74,43 @@ func handleCreateCharacterMessage(h *Hub, message []byte) {
 	}
 }
 
+func handleReadyToStartMessage(h *Hub, message []byte) {
+	var readyMessage types.IsReadyMessage
+	if err := json.Unmarshal(message, &readyMessage); err != nil {
+		log.Printf("[Error] Invalid ready to start message: %v", err)
+		return
+	}
+
+	// Update player status
+	h.playerReadyToStart(readyMessage)
+
+	// Check if all players are ready and there are at least 2 players
+	players := h.GetPlayers()
+	if len(players) >= 2 {
+		allReady := true
+		for _, player := range players {
+			if !player.IsReady {
+				allReady = false
+				break
+			}
+		}
+
+		// If all players are ready, start the game
+		if allReady {
+			if err := h.gameManager.StartGame(players); err != nil {
+				log.Printf("[Error] Failed to start game: %v", err)
+				return
+			}
+			h.setFirstCharacter()
+		}
+	}
+
+	// Broadcast the updated state
+	if err := h.BroadcastGameState(); err != nil {
+		log.Printf("[Error] Failed to broadcast game state: %v", err)
+	}
+}
+
 type Hub struct {
 	// Client management
 	Clients    map[*Client]bool
@@ -105,6 +142,33 @@ func NewHub() *Hub {
 	}
 }
 
+func (h *Hub) playerReadyToStart(readyMessage types.IsReadyMessage) {
+	h.mutex.Lock()
+	defer h.mutex.Unlock()
+
+	if player, ok := h.Players[readyMessage.UserID]; ok {
+		player.IsReady = true
+		h.Players[readyMessage.UserID] = player
+	}
+}
+
+func (h *Hub) setFirstCharacter() {
+	players := h.GetPlayers()
+
+	// First player in the map
+	var firstPlayerID string
+	for k := range players {
+		firstPlayerID = k
+		break
+	}
+
+	// Define the first Player character as the current turn
+	firstPlayer := players[firstPlayerID]
+	firstPlayer.Character.IsCurrentTurn = true
+	firstPlayer.IsCurrentTurn = true
+	h.Players[firstPlayerID] = firstPlayer
+}
+
 // AddPlayer safely adds a new player to the hub
 func (h *Hub) AddPlayer(userID string, player types.Player) {
 	h.mutex.Lock()
@@ -132,6 +196,7 @@ func (h *Hub) GetPlayers() map[string]types.Player {
 }
 
 func (h *Hub) BroadcastGameState() error {
+
 	state := types.GameState{
 		MessageType: "game_state",
 		Players:     h.GetPlayers(),
@@ -155,6 +220,7 @@ func (h *Hub) broadcastMessage(message []byte) {
 	h.mutex.Lock()
 	defer h.mutex.Unlock()
 
+	log.Printf("[Debug] Broadcasting message: %s", string(message))
 	// Store message in game history through game manager
 	if err := h.gameManager.AddToHistory(message); err != nil {
 		log.Printf("[Error] Failed to add message to history: %v", err)

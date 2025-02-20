@@ -1,48 +1,62 @@
 interface mainButtonProps {
   gameStatus: string;
   connected: boolean;
-  handleStartGame: () => void;
+  handleReadyClick: () => void;
   handleEndTurn: () => void;
-  isPlayerReady: boolean;
-  isMyTurn: boolean | undefined; // Assuming isMyTurn is a boolean that you forgot to define
+  isPlayerReady: boolean | undefined;
+  isMyTurn: boolean | undefined;
   handleSubmitClick: () => void;
+  userHasCharacter: boolean;
 }
 
 export const MainButton: React.FC<mainButtonProps> = ({
   gameStatus,
   connected,
-  handleStartGame,
+  handleReadyClick,
   handleEndTurn,
   isPlayerReady,
   isMyTurn, // Don't forget to pass this prop to the component
   handleSubmitClick,
+  userHasCharacter,
 }) => {
   return (
     <div className="mt-4 flex justify-between">
       {/* Create Button */}
-      <button
-        onClick={handleSubmitClick}
-        className="w-full py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-      >
-        Create Character
-      </button>
 
-      {gameStatus === "waiting" && !isPlayerReady && (
+      {gameStatus === "creating_player" && userHasCharacter && (
         <button
-          className="px-4 py-2 bg-blue-500 text-white rounded disabled:bg-gray-300 hover:bg-blue-600"
+          className="w-full py-2 bg-blue-500 text-white rounded disabled:bg-gray-300 hover:bg-blue-600"
+          disabled={!connected || isPlayerReady}
+          onClick={handleReadyClick}
+        >
+          {isPlayerReady ? "Waiting for others..." : "Ready ?"}
+        </button>
+      )}
+      {/* {gameStatus === "waiting" && !isPlayerReady && (
+        <button
+          className="w-full py-2 bg-blue-500 text-white rounded disabled:bg-gray-300 hover:bg-blue-600"
           disabled={!connected || isPlayerReady}
           onClick={handleStartGame}
         >
-          {isPlayerReady ? "Waiting for others..." : "Ready"}
+          {isPlayerReady ? "Waiting for others..." : "Ready ?"}
         </button>
-      )}
+      )} */}
       {gameStatus === "playing" && (
         <button
-          className="px-4 py-2 bg-red-500 text-white rounded disabled:bg-gray-300 hover:bg-red-600"
+          className="w-full py-2 bg-blue-500 text-white rounded disabled:bg-gray-300 hover:bg-blue-600"
           disabled={!isMyTurn}
           onClick={handleEndTurn}
         >
           End Turn
+        </button>
+      )}
+      {gameStatus === "creating_player" && !userHasCharacter && (
+        <button
+          className="w-full py-2 bg-blue-500 text-white rounded disabled:bg-gray-300 hover:bg-blue-600"
+          disabled={!connected || isPlayerReady}
+          onClick={handleSubmitClick}
+        >
+          Create Character
         </button>
       )}
     </div>

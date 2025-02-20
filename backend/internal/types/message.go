@@ -26,6 +26,12 @@ type GameActionMessage struct {
 	Character *Character `json:"character,omitempty"`
 }
 
+type IsReadyMessage struct {
+	MessageID string `json:"messageId"`
+	Timestamp int64  `json:"timestamp"`
+	UserID    string `json:"userId"`
+}
+
 type GameStateMessage struct {
 	BaseMessage
 	State GameState `json:"state"`
