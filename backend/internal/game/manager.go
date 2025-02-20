@@ -90,8 +90,16 @@ func (gm *GameManager) HandleAction(action types.GameActionMessage) error {
 		}
 		return gm.addPlayer(action)
 
+	case "ready_to_start":
+		readyMessage := types.IsReadyMessage{
+			UserID:    action.UserID,
+			MessageID: action.MessageID,
+			Timestamp: action.Timestamp,
+		}
+		return gm.playerReadyToStart(readyMessage)
 	case "start_game":
-		return gm.startGame()
+		players := gm.GetCurrentState().Players
+		return gm.StartGame(players)
 
 	case "end_turn":
 		// return gm.EndTurn(action.PlayerID)
@@ -138,34 +146,60 @@ func (gm *GameManager) addPlayer(action types.GameActionMessage) error {
 	return nil
 }
 
-func (gm *GameManager) startGame() error {
+func (gm *GameManager) playerReadyToStart(action types.IsReadyMessage) error {
 	gm.mutex.Lock()
 	defer gm.mutex.Unlock()
 
 	currentState := gm.state[len(gm.state)-1]
 
-	if len(currentState.Players) < 2 {
-		return errors.New("not enough players to start game")
+	// Find player and set ready status
+	_, exists := currentState.Players[action.UserID]
+	if !exists {
+		return errors.New("player not found")
 	}
 
-	// Create new state with game started
+	// Create new state with updated player ready status
 	newState := &types.GameState{
 		MessageType: "game_state",
 		Players:     make(map[string]types.Player),
-		GameStatus:  GameStatusInProgress,
-		TurnNumber:  1,
+		GameStatus:  currentState.GameStatus,
+		TurnNumber:  currentState.TurnNumber,
 	}
 
-	// Copy players and set first player's turn
-	firstPlayer := true
+	// Copy existing players and update the ready status for the specific player
 	for k, v := range currentState.Players {
-		v.IsCurrentTurn = firstPlayer
+		if k == action.UserID {
+			v.IsReady = true
+		}
 		newState.Players[k] = v
-		firstPlayer = false
+	}
+
+	// Check if all players are ready
+	allReady := true
+	for _, p := range newState.Players {
+		if !p.IsReady {
+			allReady = false
+			break
+		}
+	}
+
+	// If all players are ready, update game status
+	if allReady && len(newState.Players) >= 2 {
+		newState.GameStatus = GameStatusWaiting
 	}
 
 	gm.state = append(gm.state, newState)
 	return nil
+}
+
+// func to increment turn number
+func (gm *GameManager) IncrementTurnNumber() {
+	gm.mutex.Lock()
+	defer gm.mutex.Unlock()
+
+	currentState := gm.GetCurrentState()
+	currentState.TurnNumber++
+	gm.state = append(gm.state, currentState)
 }
 
 func (gm *GameManager) endTurn(playerID string) error {
@@ -247,5 +281,35 @@ func (gm *GameManager) movePlayer(playerID string, newPosition types.Position) e
 	}
 
 	gm.state = append(gm.state, newState)
+	return nil
+}
+
+func (gm *GameManager) StartGame(players map[string]types.Player) error {
+	gm.mutex.Lock()
+	defer gm.mutex.Unlock()
+
+	// Check if we have minimum number of players
+	if len(players) < 2 {
+		return errors.New("not enough players to start game")
+	}
+
+	// Check if all players are ready
+	for _, player := range players {
+		if !player.IsReady {
+			return errors.New("not all players are ready")
+		}
+	}
+
+	// Update the game state
+	// Create new state with game started
+	newState := &types.GameState{
+		MessageType: "game_state",
+		Players:     players,
+		GameStatus:  "playing",
+		TurnNumber:  1,
+	}
+
+	gm.state = append(gm.state, newState)
+	log.Printf("[Game] Game started with %d players", len(newState.Players))
 	return nil
 }
