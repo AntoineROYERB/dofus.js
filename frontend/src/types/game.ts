@@ -1,9 +1,9 @@
 export type Position = {
-    x: number;
-    y: number;
-}
+  x: number;
+  y: number;
+};
 
-export type Character  = {
+export type Character = {
   name: string;
   color: string;
   symbol: string;
@@ -11,8 +11,8 @@ export type Character  = {
   actionPoints: number;
   movementPoints: number;
   isCurrentTurn: boolean;
-}
-export interface Player { 
+};
+export interface Player {
   messageId: string;
   timestamp: number;
   userId: string;
@@ -22,30 +22,42 @@ export interface Player {
 }
 
 export interface CreateCharacterAction extends Player {
-  type: 'create_character';
+  type: "create_character";
   character: Character;
 }
 
 export interface StartGameAction extends Player {
-  type: 'start_game';
+  type: "start_game";
   Players: { [key: string]: Player };
 }
 
 export interface EndTurnAction extends Player {
-  type: 'end_turn';
+  type: "end_turn";
 }
 
 export interface MoveAction extends Player {
-  type: 'move';
+  type: "move";
   position: Position;
 }
-export interface ReadyToStartAction extends Player {
-  type: 'ready_to_start';
+export interface ReadyToStartAction {
+  type: "ready_to_start";
+  userId: string;
+  timestamp: number;
+  messageId: string;
 }
 
-export type GameAction = StartGameAction | EndTurnAction | MoveAction | CreateCharacterAction | ReadyToStartAction;
+export type GameAction =
+  | StartGameAction
+  | EndTurnAction
+  | MoveAction
+  | CreateCharacterAction
+  | ReadyToStartAction;
 
-export type GameStatus = 'creating_player' | 'waiting' | 'in_progress' | 'game_over';
+export type GameStatus =
+  | "creating_player"
+  | "waiting"
+  | "in_progress"
+  | "game_over";
 
 export type GameStatusRecord = (GameAction & {
   messageId: string;
