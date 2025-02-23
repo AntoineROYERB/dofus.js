@@ -9,108 +9,6 @@ import (
 	"sync"
 )
 
-type MessageHandler func(*Hub, []byte)
-
-var messageHandlers = map[string]MessageHandler{
-	"chat":             handleChatMessage,
-	"create_character": handleCreateCharacterMessage,
-	"disconnect":       handleDisconnectMessage,
-	"ready_to_start":   handleReadyToStartMessage,
-	// "start_game":       handleGameActionMessage,
-	// "end_turn":         handleGameActionMessage,
-	// "move":             handleGameActionMessage,
-}
-
-func handleDisconnectMessage(h *Hub, message []byte) {
-	var disconnectMessage types.DisconnectMessage
-	if err := json.Unmarshal(message, &disconnectMessage); err != nil {
-		log.Printf("[Error] Invalid disconnect message: %v", err)
-		return
-
-	}
-
-	log.Printf("[Disconnect] User %s left the game", disconnectMessage.UserName)
-
-	// Use the safe method to remove player
-	h.RemovePlayer(disconnectMessage.UserID)
-
-	// Broadcast the updated state
-	if err := h.BroadcastGameState(); err != nil {
-		log.Printf("[Error] Failed to broadcast game state: %v", err)
-	}
-}
-
-func handleChatMessage(h *Hub, message []byte) {
-	var chatMessage types.ChatMessage
-	if err := json.Unmarshal(message, &chatMessage); err != nil {
-		log.Printf("[Error] Invalid chat message: %v", err)
-		return
-	}
-	log.Printf("[Chat] Message received from UserID: %s, Content: %s", chatMessage.UserID, chatMessage.Content)
-	h.broadcastMessage(message)
-}
-
-func handleCreateCharacterMessage(h *Hub, message []byte) {
-	var createCharacterMessage types.CreateCharacter
-	if err := json.Unmarshal(message, &createCharacterMessage); err != nil {
-		log.Printf("[Error] Invalid create character message: %v", err)
-		return
-	}
-
-	newPlayer := types.Player{
-		Character:     createCharacterMessage.Character,
-		IsCurrentTurn: false,
-		UserName:      createCharacterMessage.UserName,
-		UserID:        createCharacterMessage.UserID,
-		Status:        "waiting-room",
-	}
-
-	// Use the safe method to add player
-	h.AddPlayer(createCharacterMessage.UserID, newPlayer)
-
-	// Broadcast the updated state
-	if err := h.BroadcastGameState(); err != nil {
-		log.Printf("[Error] Failed to broadcast game state: %v", err)
-	}
-}
-
-func handleReadyToStartMessage(h *Hub, message []byte) {
-	var readyMessage types.IsReadyMessage
-	if err := json.Unmarshal(message, &readyMessage); err != nil {
-		log.Printf("[Error] Invalid ready to start message: %v", err)
-		return
-	}
-
-	// Update player status
-	h.playerReadyToStart(readyMessage)
-
-	// Check if all players are ready and there are at least 2 players
-	players := h.GetPlayers()
-	if len(players) >= 2 {
-		allReady := true
-		for _, player := range players {
-			if !player.IsReady {
-				allReady = false
-				break
-			}
-		}
-
-		// If all players are ready, start the game
-		if allReady {
-			if err := h.gameManager.StartGame(players); err != nil {
-				log.Printf("[Error] Failed to start game: %v", err)
-				return
-			}
-			h.setFirstCharacter()
-		}
-	}
-
-	// Broadcast the updated state
-	if err := h.BroadcastGameState(); err != nil {
-		log.Printf("[Error] Failed to broadcast game state: %v", err)
-	}
-}
-
 type Hub struct {
 	// Client management
 	Clients    map[*Client]bool
@@ -119,8 +17,8 @@ type Hub struct {
 	Broadcast  chan []byte
 
 	// Game state
-	Players     map[string]types.Player
-	gameManager *game.GameManager
+	playerManager *game.PlayerManager
+	gameManager   *game.GameManager
 
 	// Concurrency control
 	mutex sync.Mutex
@@ -135,71 +33,17 @@ func NewHub() *Hub {
 
 		// Initialize maps
 		Clients: make(map[*Client]bool),
-		Players: make(map[string]types.Player),
 
-		// Initialize game manager
-		gameManager: game.NewGameManager(),
+		playerManager: game.NewPlayerManager(),
+		gameManager:   game.NewGameManager(),
 	}
-}
-
-func (h *Hub) playerReadyToStart(readyMessage types.IsReadyMessage) {
-	h.mutex.Lock()
-	defer h.mutex.Unlock()
-
-	if player, ok := h.Players[readyMessage.UserID]; ok {
-		player.IsReady = true
-		h.Players[readyMessage.UserID] = player
-	}
-}
-
-func (h *Hub) setFirstCharacter() {
-	players := h.GetPlayers()
-
-	// First player in the map
-	var firstPlayerID string
-	for k := range players {
-		firstPlayerID = k
-		break
-	}
-
-	// Define the first Player character as the current turn
-	firstPlayer := players[firstPlayerID]
-	firstPlayer.Character.IsCurrentTurn = true
-	firstPlayer.IsCurrentTurn = true
-	h.Players[firstPlayerID] = firstPlayer
-}
-
-// AddPlayer safely adds a new player to the hub
-func (h *Hub) AddPlayer(userID string, player types.Player) {
-	h.mutex.Lock()
-	defer h.mutex.Unlock()
-	h.Players[userID] = player
-}
-
-// RemovePlayer safely removes a player from the hub
-func (h *Hub) RemovePlayer(userID string) {
-	h.mutex.Lock()
-	defer h.mutex.Unlock()
-	delete(h.Players, userID)
-}
-
-// GetPlayers safely returns a copy of the current players map
-func (h *Hub) GetPlayers() map[string]types.Player {
-	h.mutex.Lock()
-	defer h.mutex.Unlock()
-
-	players := make(map[string]types.Player, len(h.Players))
-	for k, v := range h.Players {
-		players[k] = v
-	}
-	return players
 }
 
 func (h *Hub) BroadcastGameState() error {
 
 	state := types.GameState{
 		MessageType: "game_state",
-		Players:     h.GetPlayers(),
+		Players:     h.playerManager.GetPlayers(),
 		TurnNumber:  h.gameManager.GetTurnNumber(),
 		GameStatus:  h.gameManager.GetStatus(),
 	}

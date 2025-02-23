@@ -4,7 +4,7 @@ import { GameAction } from "../types/game";
 
 interface WebSocketContextType {
   chatMessages: ChatMessage[];
-  gameStatus: string;
+  // gameStatus: string;
   sendChatMessage: (message: ChatMessage) => void;
   sendGameAction: (action: GameAction) => void;
   connected: boolean;

@@ -30,7 +30,7 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
   );
   const [socket, setSocket] = useState<WebSocket | null>(null);
   const [connected, setConnected] = useState(false);
-  const [gameStatus, setGameStatus] = useState<string>("waiting");
+  // const [gameStatus, setGameStatus] = useState<string>("waiting");
   const [gameRecord, setGameRecord] = useState<GameStateMessage[]>([]);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const wsRef = useRef<WebSocket | null>(null);
@@ -51,7 +51,7 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 
           setUserId(data.user.id);
           setUserName(data.user.name);
-          setGameStatus(data.gameStatus);
+          // setGameStatus(data.gameStatus);
           break;
         case "chat":
           console.log("[WebSocket] Processing chat message:", data);
@@ -87,9 +87,6 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 
       ws.onopen = () => {
         setConnected(true);
-        // if (reconnectTimeoutRef.current) {
-        //   clearTimeout(reconnectTimeoutRef.current);
-        // }
       };
 
       ws.onclose = () => {
@@ -105,6 +102,7 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 
       ws.onerror = (error) => {
         console.error("[WebSocket] Error:", error);
+        ws.close();
       };
 
       ws.onmessage = (event) => {
@@ -122,20 +120,6 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
       console.error("[WebSocket] Connection error:", error);
     }
   }, [handleChatMessage, handleGameStatesRecord]);
-
-  // useEffect(() => {
-  //   const ws = connectWebSocket();
-
-  //   return () => {
-  //     if (reconnectTimeoutRef.current) {
-  //       clearTimeout(reconnectTimeoutRef.current);
-  //     }
-  //     if (ws?.readyState === WebSocket.OPEN) {
-  //       ws.close();
-  //       wsRef.current = null;
-  //     }
-  //   };
-  // }, [connectWebSocket]);
 
   useEffect(() => {
     if (!wsRef.current) {
@@ -190,7 +174,7 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
     <WebSocketContext.Provider
       value={{
         chatMessages,
-        gameStatus,
+        // gameStatus,
         sendChatMessage,
         sendGameAction,
         connected,

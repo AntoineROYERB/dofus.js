@@ -32,6 +32,12 @@ type IsReadyMessage struct {
 	UserID    string `json:"userId"`
 }
 
+type MoveMessage struct {
+	MessageID string   `json:"messageId"`
+	UserID    string   `json:"userId"`
+	Position  Position `json:"position"`
+}
+
 type GameStateMessage struct {
 	BaseMessage
 	State GameState `json:"state"`
