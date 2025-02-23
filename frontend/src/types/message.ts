@@ -32,7 +32,7 @@ export interface GameStateMessage extends BaseMessage {
   type: "game_state";
   turnNumber: number;
   state: GameAction[];
-  gameStatus: gameStatus;
+  status: gameStatus;
 
   players: { [key: string]: PlayerMessage };
 }

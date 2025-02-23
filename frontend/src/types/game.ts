@@ -35,9 +35,10 @@ export interface EndTurnAction extends Player {
   type: "end_turn";
 }
 
-export interface MoveAction extends Player {
+export interface MoveAction {
   type: "move";
   position: Position;
+  userId: string;
 }
 export interface ReadyToStartAction {
   type: "ready_to_start";
@@ -53,11 +54,16 @@ export type GameAction =
   | CreateCharacterAction
   | ReadyToStartAction;
 
-export type GameStatus =
-  | "creating_player"
-  | "waiting"
-  | "in_progress"
-  | "game_over";
+// First, define the game status constants
+export const GAME_STATUS = {
+  CREATING_PLAYER: "creating_player",
+  WAITING_FOR_PLAYERS: "waiting_for_players",
+  PLAYING: "playing",
+  IN_PROGRESS: "in_progress",
+  GAME_OVER: "game_over",
+} as const;
+
+export type GameStatus = (typeof GAME_STATUS)[keyof typeof GAME_STATUS];
 
 export type GameStatusRecord = (GameAction & {
   messageId: string;
