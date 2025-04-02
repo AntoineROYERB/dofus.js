@@ -11,8 +11,8 @@ export const ChatWindow: React.FC = () => {
   }, [chatMessages]);
 
   return (
-    <div className="border rounded-lg bg-white shadow-sm">
-      <div className="h-[400px] overflow-y-auto p-4">
+    <div className="w-full h-full border rounded-lg bg-white shadow-sm">
+      <div className="overflow-y-auto p-4">
         {chatMessages.length === 0 ? (
           <div className="text-gray-400 text-center">No messages yet</div>
         ) : (
