@@ -25,7 +25,7 @@ export const ChatInput: React.FC = () => {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="mt-4">
+    <form onSubmit={handleSubmit} className="">
       <div className="flex gap-2">
         <input
           type="text"

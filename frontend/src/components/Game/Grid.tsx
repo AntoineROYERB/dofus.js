@@ -1,7 +1,7 @@
 import { CSSProperties, useState } from "react";
 import { Position } from "../../types/game";
 import { GameStateMessage } from "../../types/message";
-
+import { Tile } from "./Tile";
 interface GridProps {
   gridSize: number;
   selectedPosition: Position;
@@ -9,18 +9,6 @@ interface GridProps {
   selectedColor?: string;
   latestGameState?: GameStateMessage | null;
   userId: string;
-}
-
-interface CellProps {
-  x: number;
-  y: number;
-  isSelected: boolean;
-  playerOnCell: any; // Type could be more specific based on your Player type
-  selectedColor?: string;
-  onCellClick: ({ x, y }: Position) => void;
-  onMouseEnter: (x: number, y: number) => void;
-  onMouseLeave: () => void;
-  style: CSSProperties;
 }
 
 const calculatePath = (start: Position, end: Position): Position[] => {
@@ -51,36 +39,6 @@ const IsWithinRange = (p1: Position, p2: Position, n: number): boolean => {
   const distance = Math.abs(p1.x - p2.x) + Math.abs(p1.y - p2.y);
   return distance <= n;
 };
-
-const Cell: React.FC<CellProps> = ({
-  x,
-  y,
-  isSelected,
-  playerOnCell,
-  selectedColor,
-  onCellClick,
-  onMouseEnter,
-  onMouseLeave,
-  style,
-}) => (
-  <div
-    onClick={() => onCellClick({ x, y })}
-    onMouseEnter={() => onMouseEnter(x, y)}
-    onMouseLeave={onMouseLeave}
-    className={`
-      w-full pt-[100%] relative cursor-pointer 
-      transition-colors border border-gray-200 
-      ${!playerOnCell && !isSelected ? "bg-gray-100 hover:bg-blue-100" : ""}
-    `}
-    style={style}
-  >
-    {playerOnCell && (
-      <div className="absolute inset-0 flex items-center justify-center text-white font-bold">
-        {playerOnCell.character.symbol}
-      </div>
-    )}
-  </div>
-);
 
 export const Grid: React.FC<GridProps> = ({
   gridSize,
@@ -165,27 +123,25 @@ export const Grid: React.FC<GridProps> = ({
   };
 
   return (
-    <div className="bg-white p-4 rounded-lg shadow">
+    <div className="bg-white rounded-lg shadow">
       <div
-        className="grid gap-1"
+        className="grid"
         style={{
-          gridTemplateColumns: `repeat(${gridSize}, minmax(0, 1fr))`,
+          gridTemplateColumns: `repeat(15, minmax(0, 1fr))`,
+          gridTemplateRows: `repeat(20, minmax(0, 1fr))`,
         }}
       >
-        {Array.from({ length: gridSize * gridSize }).map((_, index) => {
-          const x = index % gridSize;
-          const y = Math.floor(index / gridSize);
-          const playerOnCell = findPlayerOnCell(x, y);
-          const isSelected =
-            selectedPosition.x === x && selectedPosition.y === y;
+        {Array.from({ length: 15 * 20 }).map((_, index) => {
+          const x = index % 15;
+          const y = Math.floor(index / 15);
 
           return (
-            <Cell
+            <Tile
               key={index}
               x={x}
               y={y}
-              isSelected={isSelected}
-              playerOnCell={playerOnCell}
+              isSelected={selectedPosition.x === x && selectedPosition.y === y}
+              playerOnCell={findPlayerOnCell(x, y)}
               selectedColor={selectedColor}
               onCellClick={onCellClick}
               onMouseEnter={handleMouseEnter}

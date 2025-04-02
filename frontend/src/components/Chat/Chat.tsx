@@ -2,22 +2,18 @@ import React from "react";
 import { ChatWindow } from "./ChatWindow";
 import { ChatInput } from "./ChatInput";
 import { ConnectionStatus } from "../ConnectionStatus";
-import { useWebSocket } from "../../context/WebSocketContext";
 
 export const Chat: React.FC = () => {
-  const { userName } = useWebSocket();
   return (
-    <div className="max-w-2xl mx-auto p-4">
-      <div className="flex justify-between items-center mb-4">
-        <div>
-          <h2 className="text-2xl font-bold">Chat Room</h2>
-          <p className="text-sm text-gray-600">
-            Logged in as: {userName || "Connecting..."}
-          </p>
-        </div>
-        <ConnectionStatus />
+    <div className="flex flex-col h-full">
+      {/* Keep ConnectionStatus fixed at the top */}
+      <ConnectionStatus />
+
+      {/* Scrollable chat window */}
+      <div className="flex-1 overflow-y-auto">
+        <ChatWindow />
       </div>
-      <ChatWindow />
+
       <ChatInput />
     </div>
   );

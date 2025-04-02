@@ -3,9 +3,10 @@ import { useWebSocket } from "../../context/WebSocketContext";
 import { GameStatus, Position, GAME_STATUS } from "../../types/game";
 import { CharacterCreation } from "./CharacterCreation";
 import { Grid } from "./Grid";
-import { MainButton } from "./Button";
 import { GameInfoPanel } from "./GameInfoPanel";
+import { MainButton } from "./Button";
 import { generateMessageId } from "../../providers/WebSocketProvider";
+import { IsometricGrid } from "./IsometricGrid";
 
 // Available colors for players
 const PLAYER_COLORS = [
@@ -25,17 +26,13 @@ const IsWithinRange = (p1: Position, p2: Position, n: number): boolean => {
   return distance <= n;
 };
 
-export const GameBoard: React.FC = () => {
-  const {
-    userId,
-    userName,
-    connected,
-    // gameStatus,
-    sendGameAction,
-    gameRecord,
-  } = useWebSocket();
+export const IsometricGameBoard: React.FC = () => {
+  const { userId, userName, connected, sendGameAction, gameRecord } =
+    useWebSocket();
 
-  const gridSize = 15;
+  // Board dimensions - 15x20 grid as requested
+  const gridSize = { width: 15, height: 7 };
+
   // Local state for character creation
   const [selectedColor, setSelectedColor] = useState<string>(PLAYER_COLORS[0]);
   const [selectedPosition, setSelectedPosition] = useState<Position>({
@@ -43,12 +40,15 @@ export const GameBoard: React.FC = () => {
     y: 0,
   });
   const [characterName, setCharacterName] = useState<string>(userName);
+  const [viewMode, setViewMode] = useState<"isometric" | "2d">("isometric");
+
   // Game state checks
   const latestGameState =
     gameRecord.length > 0 ? gameRecord[gameRecord.length - 1] : null;
   const currentPlayer = latestGameState?.players[userId];
   const isMyTurn = latestGameState?.players[userId]?.isCurrentTurn;
   const isPlayerReady = latestGameState?.players[userId]?.isReady;
+
   const handleColorClick = (color: string) => {
     setSelectedColor(color);
   };
@@ -73,7 +73,7 @@ export const GameBoard: React.FC = () => {
         symbol: characterName ? characterName[0].toUpperCase() : "P",
         position: selectedPosition,
         actionPoints: 6,
-        movementPoints: 3,
+        movementPoints: 4,
         isCurrentTurn: false,
       },
       userId,
@@ -125,32 +125,67 @@ export const GameBoard: React.FC = () => {
   };
 
   return (
-    <div className="flex-1">
-      {currentPlayer ? (
-        <GameInfoPanel
-          currentPlayer={currentPlayer}
-          connected={connected}
-          gameStatus={gameStatus}
-          gameRecord={gameRecord}
+    <div className="flex flex-col h-full">
+      <div className="flex justify-between items-center bg-gray-100 ">
+        {currentPlayer ? (
+          <GameInfoPanel
+            currentPlayer={currentPlayer}
+            connected={connected}
+            gameStatus={gameStatus}
+            gameRecord={gameRecord}
+          />
+        ) : (
+          <CharacterCreation
+            selectedColor={selectedColor}
+            setSelectedColor={setSelectedColor}
+            handleColorClick={handleColorClick}
+            handleCharacterName={(handleCharactereName) =>
+              setCharacterName(handleCharactereName)
+            }
+          />
+        )}
+
+        <div className="flex gap-2">
+          <button
+            className={`px-4 py-2 rounded ${
+              viewMode === "2d" ? "bg-blue-500 text-white" : "bg-gray-200"
+            }`}
+            onClick={() => setViewMode("2d")}
+          >
+            2D View
+          </button>
+          <button
+            className={`px-4 py-2 rounded ${
+              viewMode === "isometric"
+                ? "bg-blue-500 text-white"
+                : "bg-gray-200"
+            }`}
+            onClick={() => setViewMode("isometric")}
+          >
+            Isometric View
+          </button>
+        </div>
+      </div>
+
+      {viewMode === "isometric" ? (
+        <IsometricGrid
+          gridSize={gridSize}
+          selectedPosition={selectedPosition}
+          onCellClick={handleCellClick}
+          selectedColor={selectedColor}
+          latestGameState={latestGameState}
+          userId={userId}
         />
       ) : (
-        <CharacterCreation
+        <Grid
+          gridSize={15}
+          selectedPosition={selectedPosition}
+          onCellClick={handleCellClick}
           selectedColor={selectedColor}
-          setSelectedColor={setSelectedColor}
-          handleColorClick={handleColorClick}
-          handleCharacterName={(handleCharactereName) =>
-            setCharacterName(handleCharactereName)
-          }
+          latestGameState={latestGameState}
+          userId={userId}
         />
       )}
-      <Grid
-        gridSize={gridSize}
-        selectedPosition={selectedPosition}
-        onCellClick={handleCellClick}
-        selectedColor={selectedColor}
-        latestGameState={latestGameState}
-        userId={userId}
-      />
 
       <MainButton
         gameStatus={gameStatus}

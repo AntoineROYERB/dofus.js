@@ -1,22 +1,19 @@
 // src/App.tsx
 import { WebSocketProvider } from "./providers/WebSocketProvider";
 import { Chat } from "./components/Chat/Chat";
-import { GameBoard } from "./components/Game/GameBoard";
-
+import { IsometricGameBoard } from "./components/Game/IsometricGameBoard";
 function App() {
   return (
     <WebSocketProvider>
-      <div className="min-h-screen bg-gray-100 p-6">
-        <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <h2 className="text-xl font-bold mb-4">Game Board</h2>
-            <GameBoard />
-          </div>
-          <div>
-            <h2 className="text-xl font-bold mb-4">Chat</h2>
-            <Chat />
-          </div>
+      <div className="grid grid-cols-3 h-screen">
+        <div className="col-span-3 h-[80vh] overflow-hidden">
+          <IsometricGameBoard />
         </div>
+        <div className="h-[20vh] overflow-hidden">
+          <Chat />
+        </div>
+        <div>2</div>
+        <div>3</div>
       </div>
     </WebSocketProvider>
   );
