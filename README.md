@@ -2,7 +2,7 @@
 
 A turn-based online game inspired by Dofus, focusing on the combat system. This repository currently contains the foundational WebSocket implementation with a basic chat system, which will serve as the base for real-time game communications.
 
-![image](src/chatngameboard.png)
+![image](src/isometricBoard-2-04-25.png)
 
 ## Project Overview
 
@@ -25,6 +25,7 @@ The current implementation focuses on establishing the WebSocket infrastructure 
 - Message broadcasting system
 - Connection state management
 - Game state management
+- Isometric board rendering
 
 ## Project Structure
 
@@ -86,7 +87,7 @@ npm run dev
 
 ### Phase 2: Game Engine (Upcoming)
 
-- [x] Game state management
+- [x] Game state management 
 - [ ] Turn system implementation
 - [ ] Combat mechanics
 - [ ] Character movement
@@ -100,7 +101,7 @@ npm run dev
 
 ### Phase 4: User Interface (Planned)
 
-- [x] Battle grid
+- [x] Isometric Grid rendering
 - [ ] Character animations
 - [ ] Combat UI
 - [ ] Ability interface
@@ -114,8 +115,6 @@ npm run dev
 
 ## Development Notes
 
-- The current WebSocket implementation will be extended to handle game state updates
-- The message system will be expanded to include game actions and state changes
 - Future updates will include game-specific message types and handlers
 
 ## Acknowledgments
