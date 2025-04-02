@@ -1,8 +1,7 @@
 // src/App.tsx
 import { WebSocketProvider } from "./providers/WebSocketProvider";
 import { Chat } from "./components/Chat/Chat";
-import { IsometricGameBoard } from "./components/Game/isometricGameBoard";
-
+import { IsometricGameBoard } from "./components/Game/IsometricGameBoard";
 function App() {
   return (
     <WebSocketProvider>

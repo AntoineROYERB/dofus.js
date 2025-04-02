@@ -87,7 +87,7 @@ npm run dev
 
 ### Phase 2: Game Engine (Upcoming)
 
-- [x] Game state management 
+- [x] Game state management
 - [ ] Turn system implementation
 - [ ] Combat mechanics
 - [ ] Character movement
