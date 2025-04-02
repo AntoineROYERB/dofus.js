@@ -123,27 +123,25 @@ export const Grid: React.FC<GridProps> = ({
   };
 
   return (
-    <div className="bg-white p-4 rounded-lg shadow">
+    <div className="bg-white rounded-lg shadow">
       <div
-        className="grid gap-1 "
+        className="grid"
         style={{
-          gridTemplateColumns: `repeat(${gridSize}, minmax(0, 1fr))`,
+          gridTemplateColumns: `repeat(15, minmax(0, 1fr))`,
+          gridTemplateRows: `repeat(20, minmax(0, 1fr))`,
         }}
       >
-        {Array.from({ length: gridSize * gridSize }).map((_, index) => {
-          const x = index % gridSize;
-          const y = Math.floor(index / gridSize);
-          const playerOnCell = findPlayerOnCell(x, y);
-          const isSelected =
-            selectedPosition.x === x && selectedPosition.y === y;
+        {Array.from({ length: 15 * 20 }).map((_, index) => {
+          const x = index % 15;
+          const y = Math.floor(index / 15);
 
           return (
             <Tile
               key={index}
               x={x}
               y={y}
-              isSelected={isSelected}
-              playerOnCell={playerOnCell}
+              isSelected={selectedPosition.x === x && selectedPosition.y === y}
+              playerOnCell={findPlayerOnCell(x, y)}
               selectedColor={selectedColor}
               onCellClick={onCellClick}
               onMouseEnter={handleMouseEnter}

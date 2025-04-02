@@ -6,6 +6,7 @@ import { Grid } from "./Grid";
 import { MainButton } from "./Button";
 import { GameInfoPanel } from "./GameInfoPanel";
 import { generateMessageId } from "../../providers/WebSocketProvider";
+
 // Available colors for players
 const PLAYER_COLORS = [
   "red",
@@ -34,7 +35,7 @@ export const GameBoard: React.FC = () => {
     gameRecord,
   } = useWebSocket();
 
-  const gridSize = 10;
+  const gridSize = 15;
   // Local state for character creation
   const [selectedColor, setSelectedColor] = useState<string>(PLAYER_COLORS[0]);
   const [selectedPosition, setSelectedPosition] = useState<Position>({
@@ -72,7 +73,7 @@ export const GameBoard: React.FC = () => {
         symbol: characterName ? characterName[0].toUpperCase() : "P",
         position: selectedPosition,
         actionPoints: 6,
-        movementPoints: 4,
+        movementPoints: 3,
         isCurrentTurn: false,
       },
       userId,
@@ -124,7 +125,7 @@ export const GameBoard: React.FC = () => {
   };
 
   return (
-    <div className="bg-white p-4 rounded-lg shadow">
+    <div className="flex-1">
       {currentPlayer ? (
         <GameInfoPanel
           currentPlayer={currentPlayer}

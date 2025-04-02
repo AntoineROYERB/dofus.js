@@ -20,12 +20,12 @@ export const MainButton: React.FC<mainButtonProps> = ({
   userHasCharacter,
 }) => {
   return (
-    <div className="mt-4 flex justify-between">
+    <div className="flex justify-between">
       {/* Create Button */}
 
       {gameStatus === "creating_player" && userHasCharacter && (
         <button
-          className="w-full py-2 bg-blue-500 text-white rounded disabled:bg-gray-300 hover:bg-blue-600"
+          className="w-full  bg-blue-500 text-white rounded disabled:bg-gray-300 hover:bg-blue-600"
           disabled={!connected || isPlayerReady}
           onClick={handleReadyClick}
         >

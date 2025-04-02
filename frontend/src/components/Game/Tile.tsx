@@ -30,7 +30,7 @@ export const Tile: React.FC<TileProps> = ({
     onMouseLeave={onMouseLeave}
     className={`
       w-full pt-[100%] relative cursor-pointer 
-      transition-colors border border-gray-200 rotate-[0deg]
+      transition-colors border border-gray-200
       ${!playerOnCell && !isSelected ? "bg-gray-100 hover:bg-blue-100" : ""}
     `}
     style={style}
