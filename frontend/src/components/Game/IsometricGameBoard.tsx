@@ -30,8 +30,7 @@ export const IsometricGameBoard: React.FC = () => {
   const { userId, userName, connected, sendGameAction, gameRecord } =
     useWebSocket();
 
-  // Board dimensions - 15x20 grid as requested
-  const gridSize = { width: 15, height: 7 };
+  const gridSize = 11;
 
   // Local state for character creation
   const [selectedColor, setSelectedColor] = useState<string>(PLAYER_COLORS[0]);
