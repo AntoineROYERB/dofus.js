@@ -3,7 +3,7 @@ import { Position } from "../../types/game";
 import { GameStateMessage } from "../../types/message";
 
 interface IsometricGridProps {
-  gridSize: { width: number; height: number };
+  gridSize: number;
   selectedPosition: Position;
   onCellClick: ({ x, y }: Position) => void;
   selectedColor?: string;
@@ -81,8 +81,7 @@ export const IsometricGrid: React.FC<IsometricGridProps> = ({
       const containerHeight = containerRef.current.clientHeight;
 
       // For a diamond grid, we need to account for both axes
-      const size = Math.max(gridSize.width, gridSize.height);
-      const radius = Math.floor(size / 2);
+      const radius = Math.floor(gridSize / 2);
 
       // Calculate maximum width based on diamond shape
       // The max width of the diamond is 2*radius+1 tiles
@@ -183,8 +182,7 @@ export const IsometricGrid: React.FC<IsometricGridProps> = ({
   // Generate isometric coordinates in a diamond pattern
   const generateIsometricCoordinates = () => {
     const coordinates = [];
-    const size = Math.max(gridSize.width, gridSize.height);
-    const radius = Math.floor(size / 2);
+    const radius = Math.floor(gridSize / 2);
 
     // Loop through a square area and filter to create a diamond
     for (let x = -radius; x <= radius; x++) {
