@@ -130,7 +130,6 @@ export const IsometricGameBoard: React.FC = () => {
           <GameInfoPanel
             currentPlayer={currentPlayer}
             connected={connected}
-            gameStatus={gameStatus}
             gameRecord={gameRecord}
           />
         ) : (
@@ -177,7 +176,6 @@ export const IsometricGameBoard: React.FC = () => {
         />
       ) : (
         <Grid
-          gridSize={15}
           selectedPosition={selectedPosition}
           onCellClick={handleCellClick}
           selectedColor={selectedColor}

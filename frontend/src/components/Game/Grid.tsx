@@ -3,7 +3,6 @@ import { Position } from "../../types/game";
 import { GameStateMessage } from "../../types/message";
 import { Tile } from "./Tile";
 interface GridProps {
-  gridSize: number;
   selectedPosition: Position;
   onCellClick: ({ x, y }: Position) => void;
   selectedColor?: string;
@@ -41,7 +40,6 @@ const IsWithinRange = (p1: Position, p2: Position, n: number): boolean => {
 };
 
 export const Grid: React.FC<GridProps> = ({
-  gridSize,
   selectedPosition,
   onCellClick,
   selectedColor,
@@ -142,7 +140,6 @@ export const Grid: React.FC<GridProps> = ({
               y={y}
               isSelected={selectedPosition.x === x && selectedPosition.y === y}
               playerOnCell={findPlayerOnCell(x, y)}
-              selectedColor={selectedColor}
               onCellClick={onCellClick}
               onMouseEnter={handleMouseEnter}
               onMouseLeave={handleMouseLeave}

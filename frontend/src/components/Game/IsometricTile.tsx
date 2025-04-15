@@ -44,11 +44,6 @@ export const IsometricTile: React.FC<IsometricTileProps> = ({
   const hitWidth = width * hitAreaExpansion;
   const hitHeight = height * hitAreaExpansion;
 
-  // Generate points for the diamond shape (visual display)
-  const points = `${width / 2},0 ${width},${height / 2} ${
-    width / 2
-  },${height} 0,${height / 2}`;
-
   // Generate points for the hit area (slightly larger)
   const hitPoints = `${hitWidth / 2},0 ${hitWidth},${hitHeight / 2} ${
     hitWidth / 2
@@ -195,7 +190,7 @@ export const IsometricTile: React.FC<IsometricTileProps> = ({
     }
   };
 
-  const handlePointerLeave = (e: React.PointerEvent) => {
+  const handlePointerLeave = () => {
     // Only process leave events if we're not capturing
     if (!pointerCaptured) {
       setHovered(false);

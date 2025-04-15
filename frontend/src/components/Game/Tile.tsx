@@ -6,7 +6,6 @@ interface TileProps {
   y: number;
   isSelected: boolean;
   playerOnCell: any; // Type could be more specific based on your Player type
-  selectedColor?: string;
   onCellClick: ({ x, y }: Position) => void;
   onMouseEnter: (x: number, y: number) => void;
   onMouseLeave: () => void;
@@ -18,7 +17,6 @@ export const Tile: React.FC<TileProps> = ({
   y,
   isSelected,
   playerOnCell,
-  selectedColor,
   onCellClick,
   onMouseEnter,
   onMouseLeave,

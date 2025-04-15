@@ -26,16 +26,9 @@ const IsWithinRange = (p1: Position, p2: Position, n: number): boolean => {
 };
 
 export const GameBoard: React.FC = () => {
-  const {
-    userId,
-    userName,
-    connected,
-    // gameStatus,
-    sendGameAction,
-    gameRecord,
-  } = useWebSocket();
+  const { userId, userName, connected, sendGameAction, gameRecord } =
+    useWebSocket();
 
-  const gridSize = 15;
   // Local state for character creation
   const [selectedColor, setSelectedColor] = useState<string>(PLAYER_COLORS[0]);
   const [selectedPosition, setSelectedPosition] = useState<Position>({
@@ -130,7 +123,6 @@ export const GameBoard: React.FC = () => {
         <GameInfoPanel
           currentPlayer={currentPlayer}
           connected={connected}
-          gameStatus={gameStatus}
           gameRecord={gameRecord}
         />
       ) : (
@@ -144,7 +136,6 @@ export const GameBoard: React.FC = () => {
         />
       )}
       <Grid
-        gridSize={gridSize}
         selectedPosition={selectedPosition}
         onCellClick={handleCellClick}
         selectedColor={selectedColor}

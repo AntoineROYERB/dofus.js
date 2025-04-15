@@ -62,7 +62,7 @@ export const IsometricGrid: React.FC<IsometricGridProps> = ({
   const [pathCells, setPathCells] = useState<Position[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
   const [tileSize, setTileSize] = useState({ width: 40, height: 20 });
-  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  const [, setMousePosition] = useState({ x: 0, y: 0 });
 
   // Track whether mouse is inside the grid container
   const [isMouseInContainer, setIsMouseInContainer] = useState(false);

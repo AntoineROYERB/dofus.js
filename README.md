@@ -35,13 +35,14 @@ project/
 │   ├── cmd/
 │   │   └── server/       # Server entry point
 │   └── internal/
-│       ├── models/       # Data structures
+│       ├── game/         # Game logic
+│       ├── types/        # Type definitions
 │       └── websocket/    # WebSocket implementation
 └── frontend/             # React client
     ├── src/
     │   ├── components/   # React components
     │   ├── providers/    # Context providers
-    │   └── types/       # TypeScript definitions
+    │   └── types/        # TypeScript definitions
     └── package.json
 ```
 
@@ -60,7 +61,28 @@ project/
 - Node.js 18+
 - npm 9+
 
-### Backend Setup
+### Running with Docker
+
+The easiest way to get started is by using Docker:
+```bash 
+#Build and start the application
+docker-compose up --build
+
+# Access the application at http://localhost
+```
+
+### Docker Configuration
+
+The application is containerized using Docker:
+
+- `Dockerfile.backend`: Go backend container
+- `Dockerfile.frontend`: React frontend container with Nginx
+- `nginx.conf`: Nginx configuration for serving the frontend and proxying WebSocket connections
+- `docker-compose.yml`: Orchestrates the multi-container setup
+
+### Manual Setup
+
+#### Backend Setup
 
 ```bash
 cd backend
@@ -69,7 +91,7 @@ go get github.com/gorilla/websocket
 go run cmd/server/main.go
 ```
 
-### Frontend Setup
+#### Frontend Setup
 
 ```bash
 cd frontend
@@ -115,7 +137,9 @@ npm run dev
 
 ## Development Notes
 
-- Future updates will include game-specific message types and handlers
+- The backend handles WebSocket connections and maintains the game state
+- The frontend connects to the backend via WebSocket for real-time updates
+- Nginx serves as a proxy for WebSocket connections in the Docker setup
 
 ## Acknowledgments
 

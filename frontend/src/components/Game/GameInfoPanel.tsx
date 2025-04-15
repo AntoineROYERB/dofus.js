@@ -4,14 +4,12 @@ import { PlayerMessage, GameStateMessage } from "../../types/message";
 interface GameInfoPanelProps {
   currentPlayer: PlayerMessage | undefined;
   connected: boolean;
-  gameStatus: string;
   gameRecord: GameStateMessage[];
 }
 
 export const GameInfoPanel: React.FC<GameInfoPanelProps> = ({
   currentPlayer,
   connected,
-  gameStatus,
   gameRecord,
 }) => {
   const latestGameState =

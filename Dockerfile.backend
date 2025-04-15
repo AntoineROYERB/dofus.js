@@ -1,0 +1,21 @@
+FROM golang:1.23.0
+
+WORKDIR /app
+
+# Copy go mod and sum files
+COPY backend/go.mod backend/go.sum ./
+
+# Download all dependencies
+RUN go mod download
+
+# Copy the source code
+COPY backend/ ./
+
+# Build the application
+RUN go build -o server ./cmd/server
+
+# Expose port 8080
+EXPOSE 8080
+
+# Run the application
+CMD ["./server"]

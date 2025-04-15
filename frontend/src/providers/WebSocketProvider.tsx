@@ -82,7 +82,12 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 
     try {
       console.log("[WebSocket] Connecting...");
-      const ws = new WebSocket(`ws://localhost:8080/ws`);
+      const isDev = import.meta.env.DEV;
+      const wsUrl = isDev
+        ? `ws://localhost:8080/ws`
+        : `ws://${window.location.hostname}/ws`;
+
+      const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
 
       ws.onopen = () => {
