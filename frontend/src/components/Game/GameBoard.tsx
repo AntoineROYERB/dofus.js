@@ -3,8 +3,8 @@ import { useWebSocket } from "../../context/WebSocketContext";
 import { GameStatus, Position, GAME_STATUS } from "../../types/game";
 import { CharacterCreation } from "./CharacterCreation";
 import { Grid } from "./Grid";
-import { MainButton } from "./Button";
 import { GameInfoPanel } from "./GameInfoPanel";
+import { MainButton } from "./Button";
 import { generateMessageId } from "../../providers/WebSocketProvider";
 
 // Available colors for players
@@ -29,6 +29,8 @@ export const GameBoard: React.FC = () => {
   const { userId, userName, connected, sendGameAction, gameRecord } =
     useWebSocket();
 
+  const gridSize = 11;
+
   // Local state for character creation
   const [selectedColor, setSelectedColor] = useState<string>(PLAYER_COLORS[0]);
   const [selectedPosition, setSelectedPosition] = useState<Position>({
@@ -36,12 +38,14 @@ export const GameBoard: React.FC = () => {
     y: 0,
   });
   const [characterName, setCharacterName] = useState<string>(userName);
+
   // Game state checks
   const latestGameState =
     gameRecord.length > 0 ? gameRecord[gameRecord.length - 1] : null;
   const currentPlayer = latestGameState?.players[userId];
   const isMyTurn = latestGameState?.players[userId]?.isCurrentTurn;
   const isPlayerReady = latestGameState?.players[userId]?.isReady;
+
   const handleColorClick = (color: string) => {
     setSelectedColor(color);
   };
@@ -66,7 +70,7 @@ export const GameBoard: React.FC = () => {
         symbol: characterName ? characterName[0].toUpperCase() : "P",
         position: selectedPosition,
         actionPoints: 6,
-        movementPoints: 3,
+        movementPoints: 4,
         isCurrentTurn: false,
       },
       userId,
@@ -118,24 +122,28 @@ export const GameBoard: React.FC = () => {
   };
 
   return (
-    <div className="flex-1">
-      {currentPlayer ? (
-        <GameInfoPanel
-          currentPlayer={currentPlayer}
-          connected={connected}
-          gameRecord={gameRecord}
-        />
-      ) : (
-        <CharacterCreation
-          selectedColor={selectedColor}
-          setSelectedColor={setSelectedColor}
-          handleColorClick={handleColorClick}
-          handleCharacterName={(handleCharactereName) =>
-            setCharacterName(handleCharactereName)
-          }
-        />
-      )}
+    <div className="flex flex-col h-full">
+      <div className="flex justify-between items-center bg-gray-100 ">
+        {currentPlayer ? (
+          <GameInfoPanel
+            currentPlayer={currentPlayer}
+            connected={connected}
+            gameRecord={gameRecord}
+          />
+        ) : (
+          <CharacterCreation
+            selectedColor={selectedColor}
+            setSelectedColor={setSelectedColor}
+            handleColorClick={handleColorClick}
+            handleCharacterName={(handleCharactereName) =>
+              setCharacterName(handleCharactereName)
+            }
+          />
+        )}
+      </div>
+
       <Grid
+        gridSize={gridSize}
         selectedPosition={selectedPosition}
         onCellClick={handleCellClick}
         selectedColor={selectedColor}
