@@ -42,12 +42,18 @@ const calculatePath = (start: Position, end: Position): Position[] => {
   return path;
 };
 
+// Check if position is within movement range using Manhattan distance
 const IsWithinRange = (p1: Position, p2: Position, PM: number): boolean => {
   if (!p1 || !p2) return false;
 
-  // Modified Manhattan distance for isometric coordinates
-  const distance = Math.abs(p2.x - p1.x) + Math.abs(p2.y - p1.y);
-  return distance <= PM;
+  const dx = p2.x - p1.x;
+  const dy = p2.y - p1.y;
+
+  // Manhattan-like movement for diamond grid
+  const distance = Math.abs(dx) + Math.abs(dy);
+  const inGrid = Math.abs(p2.x) + Math.abs(p2.y) <= Math.floor(15 / 2);
+
+  return distance <= PM && inGrid;
 };
 
 export const Grid: React.FC<GridProps> = ({
@@ -111,16 +117,24 @@ export const Grid: React.FC<GridProps> = ({
   // Update path when hovering over cells
   useEffect(() => {
     if (characterPosition && hoveredPosition && currentPlayer?.isCurrentTurn) {
-      const path = calculatePath(characterPosition, hoveredPosition);
+      // Check if the hovered position is within movement range
+      if (
+        movementPoints !== undefined &&
+        IsWithinRange(characterPosition, hoveredPosition, movementPoints)
+      ) {
+        const path = calculatePath(characterPosition, hoveredPosition);
 
-      // Filter path to respect movement points
-      // Start from index 1 to exclude the starting position
-      const filteredPath = path.slice(
-        1,
-        movementPoints !== undefined ? movementPoints + 1 : undefined
-      );
+        // Filter path to respect movement points
+        // Start from index 1 to exclude the starting position
+        const filteredPath = path.slice(
+          1,
+          movementPoints !== undefined ? movementPoints + 1 : undefined
+        );
 
-      setPathCells(filteredPath);
+        setPathCells(filteredPath);
+      } else {
+        setPathCells([]);
+      }
     } else {
       setPathCells([]);
     }
@@ -261,6 +275,30 @@ export const Grid: React.FC<GridProps> = ({
     return tile || null;
   };
 
+  // Modified handleClick for tile selection with movement validation
+  const handleClick = (e: MouseEvent) => {
+    if (
+      !containerRef.current ||
+      !characterPosition ||
+      !currentPlayer?.isCurrentTurn
+    )
+      return;
+
+    const tile = findTileUnderMouse(e.clientX, e.clientY);
+    if (tile) {
+      // Check if tile is within movement range and not occupied
+      const isInRange =
+        movementPoints !== undefined &&
+        IsWithinRange(characterPosition, tile, movementPoints);
+      const isOccupied = findPlayerOnCell(tile.x, tile.y) !== undefined;
+
+      // Only allow movement to valid tiles
+      if (isInRange && !isOccupied) {
+        onCellClick(tile);
+      }
+    }
+  };
+
   // Handle mouse movement in the container
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -291,16 +329,6 @@ export const Grid: React.FC<GridProps> = ({
       setPathCells([]);
     };
 
-    // Handle click for tile selection
-    const handleClick = (e: MouseEvent) => {
-      if (!containerRef.current) return;
-
-      const tile = findTileUnderMouse(e.clientX, e.clientY);
-      if (tile) {
-        onCellClick(tile);
-      }
-    };
-
     // Add event listeners
     document.addEventListener("mousemove", handleMouseMove);
 
@@ -325,7 +353,14 @@ export const Grid: React.FC<GridProps> = ({
         containerRef.current.removeEventListener("click", handleClick);
       }
     };
-  }, [isMouseInContainer, tileSize.width, tileSize.height]);
+  }, [
+    isMouseInContainer,
+    tileSize.width,
+    tileSize.height,
+    characterPosition,
+    movementPoints,
+    currentPlayer?.isCurrentTurn,
+  ]);
 
   // This is our drawing function, no event handlers needed on individual tiles
   const renderTile = (x: number, y: number) => {
@@ -333,6 +368,14 @@ export const Grid: React.FC<GridProps> = ({
     const playerOnCell = findPlayerOnCell(x, y);
     const style = getCellStyle(x, y);
     const isHovered = hoveredPosition?.x === x && hoveredPosition?.y === y;
+
+    // Determine if this tile is a valid movement target
+    const isValidTarget =
+      characterPosition &&
+      currentPlayer?.isCurrentTurn &&
+      movementPoints !== undefined &&
+      IsWithinRange(characterPosition, { x, y }, movementPoints) &&
+      !playerOnCell; // Not occupied by another player
 
     // Generate points for diamond
     const points = `${tileSize.width / 2},0 ${tileSize.width},${
@@ -369,15 +412,17 @@ export const Grid: React.FC<GridProps> = ({
           width: `${tileSize.width}px`,
           height: `${tileSize.height}px`,
           zIndex,
-          pointerEvents: "none", // Important! No pointer events on tiles
+          pointerEvents: isValidTarget ? "auto" : "none", // Enable pointer events only on valid tiles
+          cursor: isValidTarget ? "pointer" : "default",
         }}
+        onClick={isValidTarget ? () => onCellClick({ x, y }) : undefined}
       >
         <svg
           width={tileSize.width}
           height={tileSize.height}
           viewBox={`0 0 ${tileSize.width} ${tileSize.height}`}
           preserveAspectRatio="none"
-          style={{ pointerEvents: "none" }} // No pointer events on SVG either
+          style={{ pointerEvents: "none" }} // No pointer events on SVG itself
         >
           {/* Diamond shape */}
           <polygon
@@ -469,13 +514,7 @@ export const Grid: React.FC<GridProps> = ({
   });
 
   return (
-    <div
-      ref={containerRef}
-      className="w-full h-full relative overflow-hidden"
-      style={{
-        cursor: hoveredPosition ? "pointer" : "default",
-      }}
-    >
+    <div ref={containerRef} className="w-full h-full relative overflow-hidden">
       {sortedCoordinates.map(({ x, y }) => renderTile(x, y))}
     </div>
   );
