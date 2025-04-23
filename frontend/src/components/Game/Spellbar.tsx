@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Heart, Star, Diamond } from "lucide-react";
+import { Heart, Star, Diamond, LucideIcon } from "lucide-react";
 
 interface Spell {
   id: number;
@@ -7,224 +7,214 @@ interface Spell {
   bgColor: string;
   borderColor: string;
   icon: string;
+  APCost: number;
+  range: number;
+  needsLineOfSight: boolean;
+  maxCastsPerTurn: number;
+  areaOfEffect: "none" | "circle" | "cross" | "line";
+  damage: number;
+  description?: string;
+
+  type?: "Fire" | "Water" | "Air" | "Earth" | "Neutral";
+  criticalChance?: number; // in %
+  criticalDamage?: number;
+  castInLineOnly?: boolean;
+  castOnEmptyCell?: boolean;
+  cooldown?: number; // in turns
+  isWeapon?: boolean;
 }
 
-const SpellBar: React.FC = () => {
+const SPELLS: Spell[] = [
+  {
+    id: 1,
+    name: "Fireball",
+    bgColor: "bg-red-100",
+    borderColor: "border-red-600",
+    icon: "🔥",
+    APCost: 4,
+    range: 6,
+    needsLineOfSight: true,
+    maxCastsPerTurn: 2,
+    areaOfEffect: "circle",
+    damage: 30,
+    description:
+      "🔴 Type: Fire\n🧪 Damage: 30 (45 crit.)\n💧 Cost: 4 AP\n🎯 Range: 6\n📦 AoE: Circle\n👁️ Line of Sight: Yes\n♻️ Cooldown: 1 turn",
+    type: "Fire",
+    criticalChance: 15,
+    criticalDamage: 45,
+    castInLineOnly: false,
+    castOnEmptyCell: false,
+    cooldown: 1,
+    isWeapon: false,
+  },
+  {
+    id: 2,
+    name: "Ice Spike",
+    bgColor: "bg-blue-100",
+    borderColor: "border-blue-600",
+    icon: "❄️",
+    APCost: 3,
+    range: 5,
+    needsLineOfSight: true,
+    maxCastsPerTurn: 3,
+    areaOfEffect: "line",
+    damage: 20,
+    description:
+      "🔵 Type: Water\n🧪 Damage: 20 (30 crit.)\n💧 Cost: 3 AP\n🎯 Range: 5\n📏 AoE: Line\n📐 Cast in Line: Yes\n👁️ Line of Sight: Yes",
+    type: "Water",
+    criticalChance: 10,
+    criticalDamage: 30,
+    castInLineOnly: true,
+    castOnEmptyCell: false,
+    cooldown: 0,
+    isWeapon: false,
+  },
+  {
+    id: 3,
+    name: "Poison Dart",
+    bgColor: "bg-green-100",
+    borderColor: "border-green-700",
+    icon: "☠️",
+    APCost: 2,
+    range: 4,
+    needsLineOfSight: true,
+    maxCastsPerTurn: 4,
+    areaOfEffect: "none",
+    damage: 10,
+    description:
+      "🟢 Type: Air\n🧪 Damage: 10 (15 crit.)\n💧 Cost: 2 AP\n🎯 Range: 4\n📦 AoE: None\n🎯 Cast on Empty Cell: Yes\n👁️ Line of Sight: Yes",
+    type: "Air",
+    criticalChance: 20,
+    criticalDamage: 15,
+    castInLineOnly: false,
+    castOnEmptyCell: true,
+    cooldown: 0,
+    isWeapon: false,
+  },
+];
+
+interface SpellBarProps {
+  handleSpellClick: (spellId: number) => void;
+}
+
+const SpellBar: React.FC<SpellBarProps> = ({ handleSpellClick }) => {
+  const [selectedSpellId, setSelectedSpellId] = useState<number | null>(null);
   const [health, setHealth] = useState({ current: 100, max: 100 });
 
-  const spells: Spell[] = [
-    {
-      id: 1,
-      name: "Spell 1",
-      bgColor: "bg-amber-100",
-      borderColor: "border-amber-700",
-      icon: "🔮",
-    },
-    {
-      id: 2,
-      name: "Spell 2",
-      bgColor: "bg-stone-200",
-      borderColor: "border-stone-600",
-      icon: "⚗️",
-    },
-    {
-      id: 3,
-      name: "Spell 3",
-      bgColor: "bg-green-100",
-      borderColor: "border-green-700",
-      icon: "🌿",
-    },
-    {
-      id: 4,
-      name: "Spell 4",
-      bgColor: "bg-red-100",
-      borderColor: "border-red-600",
-      icon: "🔥",
-    },
-    {
-      id: 5,
-      name: "Spell 5",
-      bgColor: "bg-gray-200",
-      borderColor: "border-gray-700",
-      icon: "⚔️",
-    },
-    {
-      id: 6,
-      name: "Spell 6",
-      bgColor: "bg-amber-200",
-      borderColor: "border-amber-800",
-      icon: "🛡️",
-    },
-    {
-      id: 7,
-      name: "Spell 7",
-      bgColor: "bg-purple-100",
-      borderColor: "border-purple-600",
-      icon: "✨",
-    },
-    {
-      id: 8,
-      name: "Spell 8",
-      bgColor: "bg-pink-100",
-      borderColor: "border-pink-700",
-      icon: "💕",
-    },
-    {
-      id: 9,
-      name: "Spell 9",
-      bgColor: "bg-cyan-100",
-      borderColor: "border-cyan-600",
-      icon: "💧",
-    },
-    {
-      id: 10,
-      name: "Spell 10",
-      bgColor: "bg-purple-200",
-      borderColor: "border-purple-700",
-      icon: "🌀",
-    },
-    {
-      id: 11,
-      name: "Spell 11",
-      bgColor: "bg-amber-100",
-      borderColor: "border-amber-700",
-      icon: "🏺",
-    },
-    {
-      id: 12,
-      name: "Spell 12",
-      bgColor: "bg-stone-200",
-      borderColor: "border-stone-600",
-      icon: "🗿",
-    },
-    {
-      id: 13,
-      name: "Spell 13",
-      bgColor: "bg-amber-200",
-      borderColor: "border-amber-800",
-      icon: "🪙",
-    },
-    {
-      id: 14,
-      name: "Spell 14",
-      bgColor: "bg-blue-100",
-      borderColor: "border-blue-600",
-      icon: "❄️",
-    },
-    {
-      id: 15,
-      name: "Spell 15",
-      bgColor: "bg-gray-200",
-      borderColor: "border-gray-700",
-      icon: "🗡️",
-    },
-    {
-      id: 16,
-      name: "Spell 16",
-      bgColor: "bg-yellow-100",
-      borderColor: "border-yellow-600",
-      icon: "⚡",
-    },
-    {
-      id: 17,
-      name: "Spell 17",
-      bgColor: "bg-amber-100",
-      borderColor: "border-amber-700",
-      icon: "🌟",
-    },
-    {
-      id: 18,
-      name: "Spell 18",
-      bgColor: "bg-pink-100",
-      borderColor: "border-pink-700",
-      icon: "🌸",
-    },
-    {
-      id: 19,
-      name: "Spell 19",
-      bgColor: "bg-amber-200",
-      borderColor: "border-amber-800",
-      icon: "🔱",
-    },
-    {
-      id: 20,
-      name: "Spell 20",
-      bgColor: "bg-purple-100",
-      borderColor: "border-purple-600",
-      icon: "🔮",
-    },
-  ];
+  const Tooltip: React.FC<{ text: string }> = ({ text }) => (
+    <div className="absolute z-50 bottom-full mb-2 left-1/2 -translate-x-1/2 w-48 bg-white text-gray-800 text-xs p-2 rounded-md border border-gray-300 shadow-xl whitespace-pre-line">
+      {text}
+    </div>
+  );
+
+  const SpellRow = (start: number, end: number) => {
+    const spellsSlice = SPELLS.slice(start, end);
+    const spells = [
+      ...spellsSlice,
+      ...Array(10 - spellsSlice.length).fill(null),
+    ];
+
+    return (
+      <div className="grid grid-cols-10 gap-1 mb-1 last:mb-0">
+        {spells.map((spell, index) => (
+          <div
+            key={spell ? spell.id : `empty-${start + index}`}
+            className="relative group"
+          >
+            <div
+              className={`aspect-square border-2 rounded-md flex items-center justify-center overflow-hidden transition ${
+                spell
+                  ? `${spell.bgColor} ${spell.borderColor}`
+                  : "bg-gray-100 border-gray-300"
+              } ${
+                spell && selectedSpellId === spell.id
+                  ? "brightness-125 shadow-md"
+                  : spell
+                  ? "hover:brightness-110 hover:shadow-sm"
+                  : ""
+              }`}
+              title={spell?.name ?? ""}
+              onClick={() => {
+                if (spell) {
+                  const newSelected =
+                    selectedSpellId === spell.id ? null : spell.id;
+                  setSelectedSpellId(newSelected);
+                  handleSpellClick(spell.id);
+                }
+              }}
+            >
+              <span className="text-xs sm:text-sm md:text-base lg:text-lg">
+                {spell?.icon ?? ""}
+              </span>
+            </div>
+
+            {spell?.description && (
+              <div className="hidden group-hover:block">
+                <Tooltip text={spell.description} />
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  interface HeartStatProps {
+    current: number;
+    max: number;
+  }
+
+  const HeartStat: React.FC<HeartStatProps> = ({ current, max }) => {
+    return (
+      <div className="relative w-full aspect-square max-w-full">
+        <Heart className="text-red-600 w-full h-full" fill="red" stroke="red" />
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <span className="text-xs text-white font-bold">{current}</span>
+          <span className="text-xs text-white font-bold">{max}</span>
+        </div>
+      </div>
+    );
+  };
+
+  interface StatIconProps {
+    Icon: LucideIcon;
+    color: string;
+    fill: string;
+    value: number;
+  }
+
+  const StatIcon: React.FC<StatIconProps> = ({ Icon, color, fill, value }) => {
+    return (
+      <div className="w-1/2 aspect-square relative flex items-center justify-center">
+        <Icon
+          className={`w-full h-full`}
+          color={color}
+          fill={fill}
+          stroke={color}
+        />
+        <div className="absolute inset-0 flex items-center justify-center">
+          <span className="text-white text-sm sm:text-base font-bold">
+            {value}
+          </span>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="flex w-full h-full">
       <div className="bg-white rounded-md shadow-md border border-gray-300 flex w-full">
-        {/* First column: contains the heart and action buttons */}
         <div className="flex-none flex flex-col items-center justify-center p-2 w-1/6">
-          {/* Red heart icon with health points inside */}
-          <div className="relative w-full aspect-square max-w-full">
-            {/* Heart icon - responsive size */}
-            <Heart className="text-red-600 fill-red-600 w-full h-full" />
-
-            {/* Health points displayed over the heart */}
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-xs text-white font-bold">
-                {health.current}
-              </span>
-              <span className="text-xs text-white font-bold">{health.max}</span>
-            </div>
-          </div>
-
-          {/* Action buttons below the heart */}
+          <HeartStat current={health.current} max={health.max} />
           <div className="flex mt-2 w-full justify-center">
-            {/* Star with a number inside */}
-            <div className="w-1/2 aspect-square relative flex items-center justify-center">
-              <Star className="text-blue-600 fill-blue-600 w-full h-full" />
-              <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-white text-sm sm:text-base">6</span>
-              </div>
-            </div>
-
-            {/* Diamond with a number inside */}
-            <div className="w-1/2 aspect-square relative flex items-center justify-center">
-              <Diamond className="text-green-600 fill-green-600 w-full h-full" />
-              <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-white text-sm sm:text-base">3</span>
-              </div>
-            </div>
+            <StatIcon Icon={Star} color="#2563eb" fill="#2563eb" value={6} />
+            <StatIcon Icon={Diamond} color="#16a34a" fill="#16a34a" value={3} />
           </div>
         </div>
 
-        {/* Second column: contains two rows of spells */}
         <div className="flex-1 flex flex-col justify-center p-1 sm:p-2">
-          {/* Spell bar - row 1 */}
-          <div className="grid grid-cols-10 gap-1 mb-1">
-            {spells.slice(0, 10).map((spell) => (
-              <div
-                key={spell.id}
-                className={`aspect-square ${spell.bgColor} ${spell.borderColor} border-2 rounded-md flex items-center justify-center overflow-hidden`}
-                title={spell.name}
-              >
-                <span className="text-xs sm:text-sm md:text-base lg:text-lg">
-                  {spell.icon}
-                </span>
-              </div>
-            ))}
-          </div>
-
-          {/* Spell bar - row 2 */}
-          <div className="grid grid-cols-10 gap-1">
-            {spells.slice(10, 20).map((spell) => (
-              <div
-                key={spell.id}
-                className={`aspect-square ${spell.bgColor} ${spell.borderColor} border-2 rounded-md flex items-center justify-center overflow-hidden`}
-                title={spell.name}
-              >
-                <span className="text-xs sm:text-sm md:text-base lg:text-lg">
-                  {spell.icon}
-                </span>
-              </div>
-            ))}
-          </div>
+          {SpellRow(0, 10)}
+          {SpellRow(10, 20)}
         </div>
       </div>
     </div>
