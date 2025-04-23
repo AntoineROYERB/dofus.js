@@ -1,7 +1,14 @@
 # Build stage
-FROM node:20-alpine AS build
+FROM node:20.11.1-alpine AS build
+
+# Add non-root user
+RUN addgroup -S nonroot && \
+    adduser -S nonroot -G nonroot
 
 WORKDIR /app
+RUN chown nonroot:nonroot /app
+
+USER nonroot
 
 # Copy package files to leverage Docker cache
 COPY frontend/package*.json ./
