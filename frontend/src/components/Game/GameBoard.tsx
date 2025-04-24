@@ -1,7 +1,7 @@
 import React from "react";
 import { Position } from "../../types/game";
 import { GameStateMessage } from "../../types/message";
-import { Grid } from "./Grid";
+import { Grid } from "./Grid/Grid";
 
 interface GameBoardProps {
   gridSize: number;
