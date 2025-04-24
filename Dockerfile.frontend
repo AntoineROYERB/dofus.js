@@ -1,14 +1,7 @@
 # Build stage
 FROM node:20.11.1-alpine AS build
 
-# Add non-root user
-RUN addgroup -S nonroot && \
-    adduser -S nonroot -G nonroot
-
 WORKDIR /app
-RUN chown nonroot:nonroot /app
-
-USER nonroot
 
 # Copy package files to leverage Docker cache
 COPY frontend/package*.json ./
@@ -19,7 +12,12 @@ RUN npm ci
 # Copy the frontend code
 COPY frontend/ ./
 
-# Build the app (since you're using Vite)
+# Create any needed temp directories with proper permissions
+RUN mkdir -p node_modules/.vite-temp && \
+    mkdir -p node_modules/.tmp && \
+    chmod -R 777 node_modules/.vite-temp node_modules/.tmp
+
+# Build the app (staying as root for the build process)
 RUN npm run build
 
 # Production stage
