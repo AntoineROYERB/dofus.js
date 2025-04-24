@@ -21,6 +21,14 @@ export interface Player {
   isCurrentTurn: boolean;
 }
 
+export interface CastSpellAction {
+  type: "spell_cast";
+  userId: string;
+  messageId: string;
+  timestamp: number;
+  spellId: number;
+  TargetPosition: Position;
+}
 export interface CreateCharacterAction extends Player {
   type: "create_character";
   character: Character;
@@ -52,7 +60,8 @@ export type GameAction =
   | EndTurnAction
   | MoveAction
   | CreateCharacterAction
-  | ReadyToStartAction;
+  | ReadyToStartAction
+  | CastSpellAction;
 
 // First, define the game status constants
 export const GAME_STATUS = {

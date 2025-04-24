@@ -38,7 +38,7 @@ const SPELLS: Spell[] = [
     areaOfEffect: "circle",
     damage: 30,
     description:
-      "🔴 Type: Fire\n🧪 Damage: 30 (45 crit.)\n💧 Cost: 4 AP\n🎯 Range: 6\n📦 AoE: Circle\n👁️ Line of Sight: Yes\n♻️ Cooldown: 1 turn",
+      "🔴 Type: Fire\n🧪 Damage: 30 (45 crit.)\n💧 Cost: 4 AP\n🎯 Range: 6\n📏 AoE: Circle\n👁️ Line of Sight: Yes\n♻️ Cooldown: 1 turn",
     type: "Fire",
     criticalChance: 15,
     criticalDamage: 45,
@@ -60,7 +60,7 @@ const SPELLS: Spell[] = [
     areaOfEffect: "line",
     damage: 20,
     description:
-      "🔵 Type: Water\n🧪 Damage: 20 (30 crit.)\n💧 Cost: 3 AP\n🎯 Range: 5\n📏 AoE: Line\n📐 Cast in Line: Yes\n👁️ Line of Sight: Yes",
+      "🔵 Type: Water\n🧪 Damage: 20 (30 crit.)\n💧 Cost: 3 AP\n🎯 Range: 5\n📏 AoE: Line\n👁️ Line of Sight: Yes\n♻️ Cooldown: 1 turn",
     type: "Water",
     criticalChance: 10,
     criticalDamage: 30,
@@ -82,7 +82,7 @@ const SPELLS: Spell[] = [
     areaOfEffect: "none",
     damage: 10,
     description:
-      "🟢 Type: Air\n🧪 Damage: 10 (15 crit.)\n💧 Cost: 2 AP\n🎯 Range: 4\n📦 AoE: None\n🎯 Cast on Empty Cell: Yes\n👁️ Line of Sight: Yes",
+      "🟢 Type: Air\n🧪 Damage: 10 (15 crit.)\n💧 Cost: 2 AP\n🎯 Range: 4\n📏 AoE: None\n👁️ Line of Sight: Yes\n♻️ Cooldown: 1 turn",
     type: "Air",
     criticalChance: 20,
     criticalDamage: 15,
@@ -99,7 +99,7 @@ interface SpellBarProps {
 
 const SpellBar: React.FC<SpellBarProps> = ({ handleSpellClick }) => {
   const [selectedSpellId, setSelectedSpellId] = useState<number | null>(null);
-  const [health, setHealth] = useState({ current: 100, max: 100 });
+  const [health, _] = useState({ current: 100, max: 100 });
 
   const Tooltip: React.FC<{ text: string }> = ({ text }) => (
     <div className="absolute z-50 bottom-full mb-2 left-1/2 -translate-x-1/2 w-48 bg-white text-gray-800 text-xs p-2 rounded-md border border-gray-300 shadow-xl whitespace-pre-line">
