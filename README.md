@@ -2,7 +2,7 @@
 
 A turn-based online game inspired by Dofus, focusing on the combat system. This repository currently contains the foundational WebSocket implementation with a basic chat system, which will serve as the base for real-time game communications.
 
-![image](src/isometricBoard-2-04-25.png)
+![image](src/spellPanel-24-04-25.png)
 
 ## Project Overview
 
@@ -64,7 +64,8 @@ project/
 ### Running with Docker
 
 The easiest way to get started is by using Docker:
-```bash 
+
+```bash
 #Build and start the application
 docker-compose up --build
 
