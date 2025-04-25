@@ -109,6 +109,17 @@ export const Tile: React.FC<TileProps> = ({
             tileSize={tileSize}
           />
         )}
+        <text
+          x="50%"
+          y="50%"
+          dominantBaseline="middle"
+          textAnchor="middle"
+          fontSize="10"
+          fill="#000"
+          pointerEvents="none"
+        >
+          ({x}, {y})
+        </text>
       </svg>
     </div>
   );

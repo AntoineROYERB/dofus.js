@@ -9,7 +9,7 @@ export const isoToScreen = (
   tileSize: { width: number; height: number },
   centerX: number,
   centerY: number
-) => {
+): Position => {
   // Calculate screen position using isometric projection
   const screenX = (x - y) * tileSize.width * 0.5;
   const screenY = (x + y) * tileSize.height * 0.5;
@@ -30,7 +30,7 @@ export const screenToIso = (
   tileSize: { width: number; height: number },
   centerX: number,
   centerY: number
-) => {
+): Position => {
   // Adjust to make coordinates relative to center
   const relX = screenX - centerX;
   const relY = screenY - centerY;
@@ -70,7 +70,7 @@ export const generateIsometricCoordinates = (gridSize: number): Position[] => {
  */
 export const sortCoordinates = (coordinates: Position[]): Position[] => {
   return [...coordinates].sort((a, b) => {
-    // Sort by sum of coordinates (y + x) for isometric ordering
-    return a.y + a.x - (b.y + b.x);
+    // Deterministic sort: by sum, then x, then y
+    return a.y + a.x - (b.y + b.x) || a.x - b.x || a.y - b.y;
   });
 };
