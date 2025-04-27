@@ -11,7 +11,6 @@ import { CharacterCreation } from "./components/Game/CharacterCreation";
 import { GameInfoPanel } from "./components/Game/GameInfoPanel";
 import { MainButton } from "./components/Game/Button";
 import { useWebSocket } from "./context/WebSocketContext";
-import constants from "../../shared/constants.json";
 
 // Available colors for players
 const PLAYER_COLORS = [
@@ -162,7 +161,7 @@ function GameContainer() {
     <div className="grid grid-cols-3 h-screen max-h-screen">
       <div className="col-span-3 h-[80vh]">
         <GameBoard
-          gridSize={constants.GRID_SIZE}
+          gridSize={15}
           handleSelectedPosition={handleSelectedPosition}
           selectedPosition={selectedPosition}
           selectedSpellId={selectedSpellId}
