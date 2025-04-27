@@ -110,21 +110,21 @@ npm run dev
 
 ### Phase 2: Game Engine (Upcoming)
 
+- [x] Isometric Grid rendering
 - [x] Game state management
+- [ ] Battle initialization
 - [ ] Turn system implementation
 - [ ] Combat mechanics
 - [ ] Character movement
 
 ### Phase 3: Combat System (Planned)
 
-- [ ] Battle initialization
 - [ ] Combat actions
 - [ ] Spell system
 - [ ] Effect management
 
 ### Phase 4: User Interface (Planned)
 
-- [x] Isometric Grid rendering
 - [ ] Character animations
 - [ ] Combat UI
 - [ ] Ability interface
