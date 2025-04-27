@@ -43,4 +43,5 @@ export type gameStatus =
   | "create_character"
   | "start_game"
   | "end_turn"
-  | "move";
+  | "move"
+  | "position_characters";

@@ -6,13 +6,14 @@ type Position struct {
 }
 
 type Character struct {
-	Name           string   `json:"name"`
-	Color          string   `json:"color"`
-	Symbol         string   `json:"symbol"`
-	Position       Position `json:"position"`
-	ActionPoints   int      `json:"actionPoints"`
-	MovementPoints int      `json:"movementPoints"`
-	IsCurrentTurn  bool     `json:"isCurrentTurn"`
+	Name             string      `json:"name"`
+	Color            string      `json:"color"`
+	Symbol           string      `json:"symbol"`
+	Position         *Position   `json:"position"`
+	ActionPoints     int         `json:"actionPoints"`
+	MovementPoints   int         `json:"movementPoints"`
+	IsCurrentTurn    bool        `json:"isCurrentTurn"`
+	InitialPositions []*Position `json:"initialPositions"`
 }
 
 type Player struct {

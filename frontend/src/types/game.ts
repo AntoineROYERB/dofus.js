@@ -7,10 +7,11 @@ export type Character = {
   name: string;
   color: string;
   symbol: string;
-  position: Position;
+  position?: Position;
   actionPoints: number;
   movementPoints: number;
   isCurrentTurn: boolean;
+  initialPositions?: Position[];
 };
 export interface Player {
   messageId: string;
