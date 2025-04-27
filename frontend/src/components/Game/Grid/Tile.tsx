@@ -16,7 +16,6 @@ interface TileProps {
   };
   isHovered: boolean;
   isSelected: boolean | null;
-  isInPath: boolean;
   isValidTarget?: boolean;
   selectedColor?: string;
   style?: CSSProperties;
@@ -31,7 +30,6 @@ export const Tile: React.FC<TileProps> = ({
   screenPosition,
   isHovered,
   isSelected,
-  isInPath,
   isValidTarget,
   selectedColor,
   style,

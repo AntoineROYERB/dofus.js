@@ -409,7 +409,6 @@ export const Grid: React.FC<GridProps> = ({
         const playerOnCell = findPlayerOnCell(x, y);
         const style = getCellStyle(x, y);
         const isHovered = hoveredPosition?.x === x && hoveredPosition?.y === y;
-        const isInPath = isInPathCells(x, y);
         const isValidInitial = isPositioningPhase && isInitialPosition(x, y);
 
         // Determine if this tile is a valid movement target
@@ -445,7 +444,6 @@ export const Grid: React.FC<GridProps> = ({
               selectedPosition.x === x &&
               selectedPosition.y === y
             }
-            isInPath={isInPath}
             isValidTarget={isValidTarget}
             selectedColor={selectedColor}
             style={style}
