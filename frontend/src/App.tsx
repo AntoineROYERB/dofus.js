@@ -11,6 +11,7 @@ import { CharacterCreation } from "./components/Game/CharacterCreation";
 import { GameInfoPanel } from "./components/Game/GameInfoPanel";
 import { MainButton } from "./components/Game/Button";
 import { useWebSocket } from "./context/WebSocketContext";
+import constants from "../../shared/constants.json";
 
 // Available colors for players
 const PLAYER_COLORS = [
@@ -34,10 +35,9 @@ function GameContainer() {
   const { userId, userName, connected, sendGameAction, gameRecord } =
     useWebSocket();
   const [selectedSpellId, setSelectedSpellId] = useState<number | null>(null);
-  const [selectedPosition, setSelectedPosition] = useState<Position>({
-    x: 0,
-    y: 0,
-  });
+  const [selectedPosition, setSelectedPosition] = useState<Position | null>(
+    null
+  );
   const [selectedColor, setSelectedColor] = useState<string>(PLAYER_COLORS[0]);
   const [characterName, setCharacterName] = useState<string>(userName);
 
@@ -54,9 +54,14 @@ function GameContainer() {
     ? Object.keys(latestGameState.players).includes(userId)
     : false;
 
-  const handleSelectedPosition = (position: Position) => {
-    setSelectedPosition(position);
-    console.log(`Selected position: ${position.x}, ${position.y}`);
+  const handleSelectedPosition = (position: Position | null) => {
+    if (position) {
+      setSelectedPosition(position);
+      console.log(`Selected position: ${position.x}, ${position.y}`);
+    } else {
+      setSelectedPosition(null);
+      console.log("No position selected");
+    }
   };
 
   const handleSpellClick = (spellId: number) => {
@@ -93,7 +98,6 @@ function GameContainer() {
         name: characterName,
         color: selectedColor,
         symbol: characterName ? characterName[0].toUpperCase() : "P",
-        position: selectedPosition,
         actionPoints: 6,
         movementPoints: 4,
         isCurrentTurn: false,
@@ -158,7 +162,7 @@ function GameContainer() {
     <div className="grid grid-cols-3 h-screen max-h-screen">
       <div className="col-span-3 h-[80vh]">
         <GameBoard
-          gridSize={15}
+          gridSize={constants.GRID_SIZE}
           handleSelectedPosition={handleSelectedPosition}
           selectedPosition={selectedPosition}
           selectedSpellId={selectedSpellId}

@@ -2,18 +2,21 @@
 package game
 
 import (
+	"encoding/json"
 	"errors"
 	"game-server/internal/types"
 	"log"
+	"math/rand"
 	"sync"
 )
 
 // Game status constants
 const (
-	GameStatusHasNotStarted = "creating_player"
-	GameStatusWaiting       = "waiting"
-	GameStatusInProgress    = "in_progress"
-	GameStatusGameOver      = "game_over"
+	GameStatusHasNotStarted      = "creating_player"
+	GameStatusWaiting            = "waiting"
+	GameStatusInProgress         = "in_progress"
+	GameStatusGameOver           = "game_over"
+	GameStatusPositionCharacters = "position_characters"
 )
 
 type GameManager struct {
@@ -276,7 +279,7 @@ func (gm *GameManager) MovePlayer(playerID string, newPosition types.Position) e
 	//Copy players and update position
 	for k, v := range currentState.Players {
 		if k == playerID {
-			v.Character.Position = newPosition
+			v.Character.Position = &newPosition
 		}
 		newState.Players[k] = v
 	}
@@ -301,16 +304,78 @@ func (gm *GameManager) StartGame(players map[string]types.Player) error {
 		}
 	}
 
+	// For each character, create 3 random initial positions
+	for id, player := range players {
+		player.Character.InitialPositions = generateInitialPositions()
+		players[id] = player
+	}
+
 	// Update the game state
 	// Create new state with game started
 	newState := &types.GameState{
 		MessageType: "game_state",
 		Players:     players,
-		GameStatus:  "playing",
-		TurnNumber:  1,
+		GameStatus:  GameStatusPositionCharacters,
+		TurnNumber:  0,
 	}
 
 	gm.state = append(gm.state, newState)
 	log.Printf("[Game] Game started with %d players", len(newState.Players))
 	return nil
+}
+
+// generateInitialPositions generates 3 random initial positions for a character
+func generateInitialPositions() []*types.Position {
+	// Create a hexagonal grid of positions in a circular pattern
+	// This generates all positions where abs(x) + abs(y) <= 7 and neither x nor y is 0
+	var allowedPositions []*types.Position
+
+	// Define the radius of our hexagonal grid
+	radius := 7
+
+	// Generate positions within the radius
+	for x := -radius; x <= radius; x++ {
+		for y := -radius; y <= radius; y++ {
+			// Skip positions where sum of absolute values exceeds radius
+			if abs(x)+abs(y) > radius {
+				continue
+			}
+
+			// Skip the center position (0,0) and any positions on the axes
+			if x == 0 || y == 0 {
+				continue
+			}
+
+			// Add position to our list
+			allowedPositions = append(allowedPositions, &types.Position{X: x, Y: y})
+		}
+	}
+
+	// Determine the number of positions to return (more flexible than hardcoded 3)
+	numPositions := 3
+	if len(allowedPositions) < numPositions {
+		numPositions = len(allowedPositions)
+	}
+
+	// Shuffle the positions
+	rand.Shuffle(len(allowedPositions), func(i, j int) {
+		allowedPositions[i], allowedPositions[j] = allowedPositions[j], allowedPositions[i]
+	})
+
+	// Take the first numPositions elements
+	positions := allowedPositions[:numPositions]
+
+	// Log the generated positions
+	jsonPositions, _ := json.Marshal(positions)
+	log.Printf("[Game] Generated initial positions: %s", jsonPositions)
+
+	return positions
+}
+
+// Simple absolute value function for integers
+func abs(n int) int {
+	if n < 0 {
+		return -n
+	}
+	return n
 }
