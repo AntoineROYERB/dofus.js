@@ -5,8 +5,8 @@ import { Grid } from "./Grid/Grid";
 
 interface GameBoardProps {
   gridSize: number;
-  handleSelectedPosition: (position: Position) => void;
-  selectedPosition: Position;
+  handleSelectedPosition: (position: Position | null) => void;
+  selectedPosition: Position | null;
   selectedSpellId: number | null;
   handleCellClick: (position: Position) => void;
   selectedColor: string;

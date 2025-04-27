@@ -1,18 +1,7 @@
 import React, { CSSProperties } from "react";
-import { Position } from "../../../types/game";
 import { darkenColor, lightenColor } from "../utils/colorUtils";
 import { Character } from "./Character";
-
-interface PlayerCharacter {
-  color: string;
-  symbol: string;
-  position: Position;
-}
-
-interface Player {
-  character: PlayerCharacter;
-  isCurrentTurn?: boolean;
-}
+import { Player } from "../../../types/game";
 
 interface TileProps {
   x: number;
@@ -26,9 +15,9 @@ interface TileProps {
     y: number;
   };
   isHovered: boolean;
-  isSelected: boolean;
+  isSelected: boolean | null;
   isInPath: boolean;
-  isValidTarget: boolean;
+  isValidTarget?: boolean;
   selectedColor?: string;
   style?: CSSProperties;
   player?: Player;

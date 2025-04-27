@@ -52,3 +52,27 @@ export const isWithinRange = (
 
   return distance <= movementPoints && inGrid;
 };
+
+/**
+ * Generate N unique random positions within grid
+ */
+export const generateUniqueRandomPositions = (
+  count: number,
+  gridSize: number
+): Position[] => {
+  const positions: Position[] = [];
+  const used = new Set<string>();
+
+  while (positions.length < count) {
+    const x = Math.floor(Math.random() * gridSize);
+    const y = Math.floor(Math.random() * gridSize);
+    const key = `${x},${y}`;
+
+    if (!used.has(key)) {
+      used.add(key);
+      positions.push({ x, y });
+    }
+  }
+
+  return positions;
+};

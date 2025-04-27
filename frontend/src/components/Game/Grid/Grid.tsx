@@ -12,7 +12,7 @@ import { Tile } from "./Tile";
 
 interface GridProps {
   gridSize: number;
-  selectedPosition: Position;
+  selectedPosition: Position | null;
   onCellClick: ({ x, y }: Position) => void;
   selectedColor?: string;
   latestGameState?: GameStateMessage | null;
@@ -40,6 +40,40 @@ export const Grid: React.FC<GridProps> = ({
   const currentPlayer = players?.[userId];
   const movementPoints = currentPlayer?.character.movementPoints;
   const characterPosition = currentPlayer?.character.position;
+
+  // Get initial positions from the current player's character
+  const initialPositions = currentPlayer?.character.initialPositions || [];
+
+  // Check if we're in the positioning phase
+  const isPositioningPhase = latestGameState?.status === "position_characters";
+
+  // Collect all players' initial positions for rendering
+  const allPlayersInitialPositions = React.useMemo(() => {
+    if (!players || !isPositioningPhase) return [];
+
+    const positionsWithOwners: Array<{
+      position: Position;
+      playerId: string;
+      color: string;
+      isCurrentPlayer: boolean;
+    }> = [];
+
+    Object.entries(players).forEach(([playerId, playerData]) => {
+      const isCurrentPlayer = playerId === userId;
+      const playerColor = playerData?.character.color;
+
+      playerData?.character.initialPositions?.forEach((position) => {
+        positionsWithOwners.push({
+          position,
+          playerId,
+          color: playerColor,
+          isCurrentPlayer,
+        });
+      });
+    });
+
+    return positionsWithOwners;
+  }, [players, userId, isPositioningPhase]);
 
   // Calculate tile size to maximize usage of container space
   useEffect(() => {
@@ -77,9 +111,14 @@ export const Grid: React.FC<GridProps> = ({
     return () => window.removeEventListener("resize", calculateTileSize);
   }, [gridSize, containerRef.current]);
 
-  // Update path when hovering over cells
+  // Update path when hovering over cells (only for movement, not for initial positioning)
   useEffect(() => {
-    if (characterPosition && hoveredPosition && currentPlayer?.isCurrentTurn) {
+    if (
+      characterPosition &&
+      hoveredPosition &&
+      currentPlayer?.isCurrentTurn &&
+      !isPositioningPhase
+    ) {
       // Check if the hovered position is within movement range
       if (
         movementPoints !== undefined &&
@@ -119,6 +158,19 @@ export const Grid: React.FC<GridProps> = ({
     );
   };
 
+  // Find if a position is one of the initial positions for any player
+  const findInitialPositionOwner = (x: number, y: number) => {
+    const match = allPlayersInitialPositions.find(
+      (item) => item.position.x === x && item.position.y === y
+    );
+    return match;
+  };
+
+  // Check if a position is one of the initial positions for the current player
+  const isInitialPosition = (x: number, y: number): boolean => {
+    return initialPositions.some((pos) => pos.x === x && pos.y === y);
+  };
+
   const getCellStyle = (x: number, y: number): CSSProperties => {
     const pos = { x, y };
     const playerOnCell = findPlayerOnCell(x, y);
@@ -131,15 +183,78 @@ export const Grid: React.FC<GridProps> = ({
 
     const isCharacterTurn = currentPlayer?.isCurrentTurn;
 
-    if (playerOnCell) {
+    // Check if this position is an initial position for any player
+    const initialPositionOwner = isPositioningPhase
+      ? findInitialPositionOwner(x, y)
+      : null;
+
+    // If we're in positioning phase and this is an initial position
+    if (isPositioningPhase && initialPositionOwner) {
+      const isCurrentPlayerInitial = initialPositionOwner.isCurrentPlayer;
+
+      // Current player's initial position styling
+      if (isCurrentPlayerInitial) {
+        if (isHoveredCell) {
+          return {
+            backgroundColor: "#32CD32", // Brighter green on hover
+            opacity: 0.9,
+            boxShadow: "0 0 10px #ffffff",
+            border: "2px solid white",
+          };
+        }
+
+        if (
+          selectedPosition &&
+          selectedPosition.x === x &&
+          selectedPosition.y === y
+        ) {
+          return {
+            backgroundColor: currentPlayer?.character.color,
+            opacity: 0.9,
+            boxShadow: "0 0 10px #ffffff",
+            border: "2px solid white",
+          };
+        }
+        // Default style for current player's initial positions
+        return {
+          backgroundColor: "#90ee90", // Light green for current player's initial positions
+          opacity: 0.6,
+          border: "1px dashed white",
+        };
+      }
+      // Opponent's initial position styling
+      else {
+        if (isHoveredCell) {
+          return {
+            backgroundColor: initialPositionOwner.color,
+            opacity: 0.9,
+            boxShadow: "0 0 10px #ffffff",
+            border: "2px solid white",
+          };
+        }
+
+        // Default style for opponent's initial positions
+        return {
+          backgroundColor: initialPositionOwner.color,
+          opacity: 0.4,
+          border: "1px dashed white",
+        };
+      }
+    }
+
+    if (!isPositioningPhase && playerOnCell) {
       return { backgroundColor: playerOnCell.character.color };
     }
 
-    if (selectedPosition.x === x && selectedPosition.y === y) {
+    if (
+      selectedPosition &&
+      selectedPosition.x === x &&
+      selectedPosition.y === y
+    ) {
       return { backgroundColor: selectedColor };
     }
 
-    if (isCharacterTurn && isInMovementRange) {
+    if (isCharacterTurn && isInMovementRange && !isPositioningPhase) {
       if (isHoveredCell) {
         return { backgroundColor: "rgba(255, 0, 0, 0.6)" }; // Red for hovered cell
       }
@@ -190,24 +305,30 @@ export const Grid: React.FC<GridProps> = ({
 
   // Modified handleClick for tile selection with movement validation
   const handleClick = (e: MouseEvent) => {
-    if (
-      !containerRef.current ||
-      !characterPosition ||
-      !currentPlayer?.isCurrentTurn
-    )
-      return;
+    if (!containerRef.current) return;
 
     const tile = findTileUnderMouse(e.clientX, e.clientY);
     if (tile) {
-      // Check if tile is within movement range and not occupied
-      const isInRange =
-        movementPoints !== undefined &&
-        isWithinRange(characterPosition, tile, movementPoints);
-      const isOccupied = findPlayerOnCell(tile.x, tile.y) !== undefined;
+      // In positioning phase, allow clicking only on valid initial positions
+      if (isPositioningPhase) {
+        if (isInitialPosition(tile.x, tile.y)) {
+          onCellClick(tile);
+        }
+        return;
+      }
 
-      // Only allow movement to valid tiles
-      if (isInRange && !isOccupied) {
-        onCellClick(tile);
+      // Normal movement logic during game
+      if (characterPosition && currentPlayer?.isCurrentTurn) {
+        // Check if tile is within movement range and not occupied
+        const isInRange =
+          movementPoints !== undefined &&
+          isWithinRange(characterPosition, tile, movementPoints);
+        const isOccupied = findPlayerOnCell(tile.x, tile.y) !== undefined;
+
+        // Only allow movement to valid tiles
+        if (isInRange && !isOccupied) {
+          onCellClick(tile);
+        }
       }
     }
   };
@@ -273,6 +394,8 @@ export const Grid: React.FC<GridProps> = ({
     characterPosition,
     movementPoints,
     currentPlayer?.isCurrentTurn,
+    isPositioningPhase,
+    initialPositions,
   ]);
 
   // Sort coordinates for rendering order (back to front)
@@ -287,16 +410,16 @@ export const Grid: React.FC<GridProps> = ({
         const style = getCellStyle(x, y);
         const isHovered = hoveredPosition?.x === x && hoveredPosition?.y === y;
         const isInPath = isInPathCells(x, y);
+        const isValidInitial = isPositioningPhase && isInitialPosition(x, y);
 
         // Determine if this tile is a valid movement target
-        const isValidTarget =
-          characterPosition &&
-          currentPlayer?.isCurrentTurn &&
-          movementPoints !== undefined &&
-          isWithinRange(characterPosition, { x, y }, movementPoints) &&
-          !playerOnCell
-            ? true
-            : false; // Not occupied by another player
+        const isValidTarget = isPositioningPhase
+          ? isValidInitial
+          : characterPosition &&
+            currentPlayer?.isCurrentTurn &&
+            movementPoints !== undefined &&
+            isWithinRange(characterPosition, { x, y }, movementPoints) &&
+            !playerOnCell;
 
         // Get center coordinates for container
         const centerX = containerRef.current
@@ -317,7 +440,11 @@ export const Grid: React.FC<GridProps> = ({
             tileSize={tileSize}
             screenPosition={screenPosition}
             isHovered={isHovered}
-            isSelected={selectedPosition.x === x && selectedPosition.y === y}
+            isSelected={
+              selectedPosition &&
+              selectedPosition.x === x &&
+              selectedPosition.y === y
+            }
             isInPath={isInPath}
             isValidTarget={isValidTarget}
             selectedColor={selectedColor}
