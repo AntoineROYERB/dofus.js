@@ -1,8 +1,7 @@
 import React, { CSSProperties } from "react";
 import { darkenColor, lightenColor } from "../utils/colorUtils";
-import { Character } from "./Character";
 import { Player } from "../../../types/game";
-
+import { TILE_COLOR } from "../../../constants";
 interface TileProps {
   x: number;
   y: number;
@@ -42,22 +41,17 @@ export const Tile: React.FC<TileProps> = ({
   } ${tileSize.width / 2},${tileSize.height} 0,${tileSize.height / 2}`;
 
   // Base color for the tile
-  const baseColor = isSelected ? selectedColor ?? "#f0f0f0" : "#f0f0f0";
 
   // Calculate alternating pattern for checkerboard effect
   const tileBaseColor =
     (Math.abs(x) + Math.abs(y)) % 2 === 0
-      ? baseColor
-      : darkenColor(baseColor, 10);
+      ? TILE_COLOR
+      : darkenColor(TILE_COLOR, 10);
 
   // Apply hover effect and style colors
   const tileColor = isHovered
     ? lightenColor((style?.backgroundColor as string) || tileBaseColor, 15)
     : style?.backgroundColor || tileBaseColor;
-
-  // Calculate z-index based on position (tiles with higher y values should appear on top)
-  const zIndex = y * 100 + x + (isHovered ? 1000 : 0);
-
   return (
     <div
       className="absolute"
@@ -66,7 +60,6 @@ export const Tile: React.FC<TileProps> = ({
         top: `${screenPosition.y - tileSize.height / 2}px`,
         width: `${tileSize.width}px`,
         height: `${tileSize.height}px`,
-        zIndex,
         pointerEvents: isValidTarget ? "auto" : "none", // Enable pointer events only on valid tiles
         cursor: isValidTarget ? "pointer" : "default",
       }}
@@ -87,15 +80,6 @@ export const Tile: React.FC<TileProps> = ({
           strokeWidth="0.5"
           style={{ pointerEvents: "none" }}
         />
-
-        {/* Player character */}
-        {player && (
-          <Character
-            color={player.character.color}
-            symbol={player.character.symbol}
-            tileSize={tileSize}
-          />
-        )}
         <text
           x="50%"
           y="50%"
@@ -107,6 +91,16 @@ export const Tile: React.FC<TileProps> = ({
         >
           ({x}, {y})
         </text>
+        {isSelected && player && (
+          <ellipse
+            cx={tileSize.width / 2}
+            cy={tileSize.height / 2}
+            rx={tileSize.width * 0.15}
+            ry={tileSize.height * 0.2}
+            fill={selectedColor}
+            stroke="#000"
+          />
+        )}
       </svg>
     </div>
   );

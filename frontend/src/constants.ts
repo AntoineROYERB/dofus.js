@@ -9,3 +9,5 @@ export const PLAYER_COLORS = [
   "#008080", // teal
   "#4b0082", // indigo
 ];
+
+export const TILE_COLOR = "#f0f0f0";
