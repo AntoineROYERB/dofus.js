@@ -1,6 +1,7 @@
 package websocket
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"game-server/internal/game"
@@ -64,7 +65,12 @@ func (h *Hub) broadcastMessage(message []byte) {
 	h.mutex.Lock()
 	defer h.mutex.Unlock()
 
-	log.Printf("[Debug] Broadcasting message: %s", string(message))
+	var prettyJSON bytes.Buffer
+	if err := json.Indent(&prettyJSON, message, "", "  "); err != nil {
+		log.Printf("[Debug] Broadcasting message (raw): %s", string(message))
+	} else {
+		log.Printf("[Debug] Broadcasting message:\n%s", prettyJSON.String())
+	}
 	// Store message in game history through game manager
 	if err := h.gameManager.AddToHistory(message); err != nil {
 		log.Printf("[Error] Failed to add message to history: %v", err)
