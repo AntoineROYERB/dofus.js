@@ -9,11 +9,12 @@ import (
 type MessageHandler func(*Hub, []byte)
 
 var messageHandlers = map[string]MessageHandler{
-	"chat":             handleChatMessage,
-	"create_character": handleCreateCharacterMessage,
-	"disconnect":       handleDisconnectMessage,
-	"ready_to_start":   handleReadyToStartMessage,
-	"move":             handleMoveMessage,
+	"chat":                 handleChatMessage,
+	"create_character":     handleCreateCharacterMessage,
+	"disconnect":           handleDisconnectMessage,
+	"ready_to_start":       handleReadyToStartMessage,
+	"move":                 handleMoveMessage,
+	"character_positioned": handleCharacterPositionedMessage,
 }
 
 func handleDisconnectMessage(h *Hub, message []byte) {
@@ -116,6 +117,25 @@ func handleMoveMessage(h *Hub, message []byte) {
 	// Update player position
 	if err := h.gameManager.MovePlayer(moveMessage.UserID, moveMessage.Position); err != nil {
 		log.Printf("[Error] Failed to start game: %v", err)
+		return
+	}
+
+	// Broadcast the updated state
+	if err := h.BroadcastGameState(); err != nil {
+		log.Printf("[Error] Failed to broadcast game state: %v", err)
+	}
+}
+
+func handleCharacterPositionedMessage(h *Hub, message []byte) {
+	var positionedMessage types.CharacterPositionedMessage
+	if err := json.Unmarshal(message, &positionedMessage); err != nil {
+		log.Printf("[Error] Invalid character positioned message: %v", err)
+		return
+	}
+	log.Printf("[Position] Message received from UserID: %s, Position: %+v", positionedMessage.UserID, positionedMessage.Position)
+	// Update player position
+	if err := h.gameManager.MovePlayer(positionedMessage.UserID, positionedMessage.Position); err != nil {
+		log.Printf("[Error] Failed to position character: %v", err)
 		return
 	}
 

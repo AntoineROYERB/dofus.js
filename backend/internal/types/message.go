@@ -46,3 +46,9 @@ type GameStateMessage struct {
 type DisconnectMessage struct {
 	BaseMessage
 }
+
+type CharacterPositionedMessage struct {
+	BaseMessage
+	Position Position `json:"position"`
+	UserID   string   `json:"userId"`
+}

@@ -83,41 +83,6 @@ func (gm *GameManager) GetTurnNumber() int {
 	return gm.GetCurrentState().TurnNumber
 }
 
-func (gm *GameManager) HandleAction(action types.GameActionMessage) error {
-	log.Printf("[Game] Handling action: %+v", action)
-
-	switch action.Type {
-	case "create_character":
-		if action.Character == nil {
-			return errors.New("character data is required")
-		}
-		return gm.addPlayer(action)
-
-	case "ready_to_start":
-		readyMessage := types.IsReadyMessage{
-			UserID:    action.UserID,
-			MessageID: action.MessageID,
-			Timestamp: action.Timestamp,
-		}
-		return gm.playerReadyToStart(readyMessage)
-	case "start_game":
-		players := gm.GetCurrentState().Players
-		return gm.StartGame(players)
-
-	case "end_turn":
-		// return gm.EndTurn(action.PlayerID)
-
-	case "move":
-		if action.Position == nil {
-			return errors.New("position is required for move action")
-		}
-		log.Printf("MOOOOOVEEEEE")
-		return gm.MovePlayer(action.PlayerID, *action.Position)
-	}
-
-	return errors.New("unknown action type")
-}
-
 func (gm *GameManager) addPlayer(action types.GameActionMessage) error {
 	gm.mutex.Lock()
 	defer gm.mutex.Unlock()
@@ -259,14 +224,14 @@ func (gm *GameManager) MovePlayer(playerID string, newPosition types.Position) e
 
 	currentState := gm.state[len(gm.state)-1]
 
-	player, exists := currentState.Players[playerID]
-	if !exists {
-		return errors.New("player not found")
-	}
+	// player, exists := currentState.Players[playerID]
+	// if !exists {
+	// 	return errors.New("player not found")
+	// }
 
-	if !player.Character.IsCurrentTurn {
-		return errors.New("not character's turn")
-	}
+	// if !player.Character.IsCurrentTurn {
+	// 	return errors.New("not character's turn")
+	// }
 
 	// Create new state with updated position
 	newState := &types.GameState{
