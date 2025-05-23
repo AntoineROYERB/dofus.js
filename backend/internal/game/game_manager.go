@@ -115,52 +115,6 @@ func (gm *GameManager) addPlayer(action types.GameActionMessage) error {
 	return nil
 }
 
-func (gm *GameManager) playerReadyToStart(action types.IsReadyMessage) error {
-	gm.mutex.Lock()
-	defer gm.mutex.Unlock()
-
-	currentState := gm.state[len(gm.state)-1]
-
-	// Find player and set ready status
-	_, exists := currentState.Players[action.UserID]
-	if !exists {
-		return errors.New("player not found")
-	}
-
-	// Create new state with updated player ready status
-	newState := &types.GameState{
-		MessageType: "game_state",
-		Players:     make(map[string]types.Player),
-		GameStatus:  currentState.GameStatus,
-		TurnNumber:  currentState.TurnNumber,
-	}
-
-	// Copy existing players and update the ready status for the specific player
-	for k, v := range currentState.Players {
-		if k == action.UserID {
-			v.IsReady = true
-		}
-		newState.Players[k] = v
-	}
-
-	// Check if all players are ready
-	allReady := true
-	for _, p := range newState.Players {
-		if !p.IsReady {
-			allReady = false
-			break
-		}
-	}
-
-	// If all players are ready, update game status
-	if allReady && len(newState.Players) >= 2 {
-		newState.GameStatus = GameStatusWaiting
-	}
-
-	gm.state = append(gm.state, newState)
-	return nil
-}
-
 // func to increment turn number
 func (gm *GameManager) IncrementTurnNumber() {
 	gm.mutex.Lock()
@@ -171,51 +125,12 @@ func (gm *GameManager) IncrementTurnNumber() {
 	gm.state = append(gm.state, currentState)
 }
 
-func (gm *GameManager) endTurn(playerID string) error {
+func (gm *GameManager) SetGameStatus(status string) {
 	gm.mutex.Lock()
 	defer gm.mutex.Unlock()
-
 	currentState := gm.state[len(gm.state)-1]
-
-	if currentState.GameStatus != GameStatusInProgress {
-		return errors.New("game is not in progress")
-	}
-
-	// Create new state for next turn
-	newState := &types.GameState{
-		MessageType: "game_state",
-		Players:     make(map[string]types.Player),
-		GameStatus:  GameStatusInProgress,
-		TurnNumber:  currentState.TurnNumber + 1,
-	}
-
-	// Find next player in turn order
-	players := make([]string, 0, len(currentState.Players))
-	for k := range currentState.Players {
-		players = append(players, k)
-	}
-
-	var currentPlayerIndex int
-	for i, pid := range players {
-		if currentState.Players[pid].IsCurrentTurn {
-			currentPlayerIndex = i
-			break
-		}
-	}
-
-	// Calculate next player's index
-	nextPlayerIndex := (currentPlayerIndex + 1) % len(players)
-	nextPlayerId := players[nextPlayerIndex]
-
-	// Copy players and update turns
-	for k, v := range currentState.Players {
-		player := v                                // Create a copy of the player
-		player.IsCurrentTurn = (k == nextPlayerId) // Set IsCurrentTurn based on next player
-		newState.Players[k] = player
-	}
-
-	gm.state = append(gm.state, newState)
-	return nil
+	currentState.GameStatus = status
+	gm.state = append(gm.state, currentState)
 }
 
 func (gm *GameManager) MovePlayer(playerID string, newPosition types.Position) error {
@@ -223,15 +138,6 @@ func (gm *GameManager) MovePlayer(playerID string, newPosition types.Position) e
 	defer gm.mutex.Unlock()
 
 	currentState := gm.state[len(gm.state)-1]
-
-	// player, exists := currentState.Players[playerID]
-	// if !exists {
-	// 	return errors.New("player not found")
-	// }
-
-	// if !player.Character.IsCurrentTurn {
-	// 	return errors.New("not character's turn")
-	// }
 
 	// Create new state with updated position
 	newState := &types.GameState{

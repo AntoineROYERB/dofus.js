@@ -139,6 +139,19 @@ func handleCharacterPositionedMessage(h *Hub, message []byte) {
 		return
 	}
 
+	// CHeck if all players have positioned their characters
+	players := h.playerManager.GetPlayers()
+	allPositioned := true
+	for _, player := range players {
+		if player.Character.Position == nil {
+			allPositioned = false
+			break
+		}
+	}
+	if allPositioned {
+		// If all players have positioned their characters, update the game status to "in_progress"
+		h.gameManager.SetGameStatus(types.GameStatusPlaying)
+	}
 	// Broadcast the updated state
 	if err := h.BroadcastGameState(); err != nil {
 		log.Printf("[Error] Failed to broadcast game state: %v", err)
