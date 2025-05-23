@@ -106,6 +106,16 @@ function GameContainer() {
     });
   };
 
+  const handleFightClick = () => {
+    const { messageId, timestamp } = generateMessageId();
+    sendGameAction({
+      type: "character_positioned",
+      messageId,
+      timestamp,
+      userId,
+      selectedPosition: selectedPosition,
+    });
+  };
   const handleEndTurn = () => {
     // const { messageId, timestamp } = generateMessageId();
     // sendGameAction({
@@ -193,6 +203,8 @@ function GameContainer() {
             isMyTurn={isMyTurn}
             handleSubmitClick={handleCreateCharacter}
             userHasCharacter={userHasCharacter}
+            handleFightClick={handleFightClick}
+            selectedPosition={selectedPosition}
           />
         </div>
       </div>

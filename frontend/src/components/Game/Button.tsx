@@ -1,12 +1,16 @@
+import { Position } from "../../types/game";
+
 interface mainButtonProps {
   gameStatus: string;
   connected: boolean;
   handleReadyClick: () => void;
   handleEndTurn: () => void;
+  handleFightClick: () => void;
   isPlayerReady: boolean | undefined;
   isMyTurn: boolean | undefined;
   handleSubmitClick: () => void;
   userHasCharacter: boolean;
+  selectedPosition: Position | null;
 }
 
 export const MainButton: React.FC<mainButtonProps> = ({
@@ -17,7 +21,9 @@ export const MainButton: React.FC<mainButtonProps> = ({
   isPlayerReady,
   isMyTurn,
   handleSubmitClick,
+  handleFightClick,
   userHasCharacter,
+  selectedPosition,
 }) => {
   return (
     <div className="px-2">
@@ -48,6 +54,16 @@ export const MainButton: React.FC<mainButtonProps> = ({
           onClick={handleSubmitClick}
         >
           Create Character
+        </button>
+      )}
+
+      {gameStatus === "position_characters" && (
+        <button
+          className="w-full py-1 bg-blue-500 text-white rounded disabled:bg-gray-300 hover:bg-blue-600 text-sm"
+          disabled={!selectedPosition}
+          onClick={handleFightClick}
+        >
+          Fight
         </button>
       )}
     </div>

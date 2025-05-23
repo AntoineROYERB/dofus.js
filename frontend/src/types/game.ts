@@ -56,13 +56,22 @@ export interface ReadyToStartAction {
   messageId: string;
 }
 
+export interface CharacterPositionedAction {
+  type: "character_positioned";
+  userId: string;
+  selectedPosition: Position | null;
+  messageId: string;
+  timestamp: number;
+}
+
 export type GameAction =
   | StartGameAction
   | EndTurnAction
   | MoveAction
   | CreateCharacterAction
   | ReadyToStartAction
-  | CastSpellAction;
+  | CastSpellAction
+  | CharacterPositionedAction;
 
 // First, define the game status constants
 export const GAME_STATUS = {
