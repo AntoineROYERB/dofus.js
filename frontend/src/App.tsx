@@ -11,18 +11,7 @@ import { CharacterCreation } from "./components/Game/CharacterCreation";
 import { GameInfoPanel } from "./components/Game/GameInfoPanel";
 import { MainButton } from "./components/Game/Button";
 import { useWebSocket } from "./context/WebSocketContext";
-
-// Available colors for players
-const PLAYER_COLORS = [
-  "red",
-  "blue",
-  "green",
-  "purple",
-  "orange",
-  "pink",
-  "teal",
-  "indigo",
-];
+import { PLAYER_COLORS } from "./constants";
 
 const IsWithinRange = (p1: Position, p2: Position, n: number): boolean => {
   if (!p1 || !p2) return false;

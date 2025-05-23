@@ -1,15 +1,5 @@
 import React, { useState } from "react";
-
-const PLAYER_COLORS = [
-  "red",
-  "blue",
-  "green",
-  "purple",
-  "orange",
-  "pink",
-  "teal",
-  "indigo",
-];
+import { PLAYER_COLORS } from "../../constants";
 
 interface CharacterCreationProps {
   selectedColor: string;
