@@ -91,13 +91,13 @@ export const Tile: React.FC<TileProps> = ({
         >
           ({x}, {y})
         </text>
-        {isSelected && player && (
+        {player && (
           <ellipse
             cx={tileSize.width / 2}
             cy={tileSize.height / 2}
             rx={tileSize.width * 0.15}
             ry={tileSize.height * 0.2}
-            fill={selectedColor}
+            fill={player.character.color}
             stroke="#000"
           />
         )}

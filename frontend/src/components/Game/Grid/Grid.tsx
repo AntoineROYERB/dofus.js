@@ -226,7 +226,7 @@ export const Grid: React.FC<GridProps> = ({
     }
 
     if (!isPositioningPhase && playerOnCell) {
-      return { backgroundColor: playerOnCell.character.color };
+      return {}; // Don't apply background color to the tile; let Tile handle ellipse fill
     }
 
     if (
