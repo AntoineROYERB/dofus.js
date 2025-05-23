@@ -41,6 +41,8 @@ function GameContainer() {
   const userHasCharacter = latestGameState?.players
     ? Object.keys(latestGameState.players).includes(userId)
     : false;
+  const characterPosition =
+    latestGameState?.players[userId]?.character?.position;
 
   const handleSelectedPosition = (position: Position | null) => {
     if (position) {
@@ -113,7 +115,7 @@ function GameContainer() {
       messageId,
       timestamp,
       userId,
-      selectedPosition: selectedPosition,
+      position: selectedPosition,
     });
   };
   const handleEndTurn = () => {
@@ -204,7 +206,7 @@ function GameContainer() {
             handleSubmitClick={handleCreateCharacter}
             userHasCharacter={userHasCharacter}
             handleFightClick={handleFightClick}
-            selectedPosition={selectedPosition}
+            selectedPosition={characterPosition}
           />
         </div>
       </div>

@@ -59,7 +59,7 @@ export interface ReadyToStartAction {
 export interface CharacterPositionedAction {
   type: "character_positioned";
   userId: string;
-  selectedPosition: Position | null;
+  position: Position | null;
   messageId: string;
   timestamp: number;
 }

@@ -10,7 +10,7 @@ interface mainButtonProps {
   isMyTurn: boolean | undefined;
   handleSubmitClick: () => void;
   userHasCharacter: boolean;
-  selectedPosition: Position | null;
+  selectedPosition: Position | undefined;
 }
 
 export const MainButton: React.FC<mainButtonProps> = ({
@@ -60,7 +60,7 @@ export const MainButton: React.FC<mainButtonProps> = ({
       {gameStatus === "position_characters" && (
         <button
           className="w-full py-1 bg-blue-500 text-white rounded disabled:bg-gray-300 hover:bg-blue-600 text-sm"
-          disabled={!selectedPosition}
+          disabled={selectedPosition != null}
           onClick={handleFightClick}
         >
           Fight
