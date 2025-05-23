@@ -203,18 +203,6 @@ export const Grid: React.FC<GridProps> = ({
           };
         }
 
-        if (
-          selectedPosition &&
-          selectedPosition.x === x &&
-          selectedPosition.y === y
-        ) {
-          return {
-            backgroundColor: currentPlayer?.character.color,
-            opacity: 0.9,
-            boxShadow: "0 0 10px #ffffff",
-            border: "2px solid white",
-          };
-        }
         // Default style for current player's initial positions
         return {
           backgroundColor: "#90ee90", // Light green for current player's initial positions
@@ -227,17 +215,12 @@ export const Grid: React.FC<GridProps> = ({
         if (isHoveredCell) {
           return {
             backgroundColor: initialPositionOwner.color,
-            opacity: 0.9,
-            boxShadow: "0 0 10px #ffffff",
-            border: "2px solid white",
           };
         }
 
         // Default style for opponent's initial positions
         return {
           backgroundColor: initialPositionOwner.color,
-          opacity: 0.4,
-          border: "1px dashed white",
         };
       }
     }
@@ -447,7 +430,15 @@ export const Grid: React.FC<GridProps> = ({
             isValidTarget={isValidTarget}
             selectedColor={selectedColor}
             style={style}
-            player={playerOnCell}
+            player={
+              playerOnCell ??
+              (selectedPosition &&
+              selectedPosition.x === x &&
+              selectedPosition.y === y &&
+              currentPlayer
+                ? currentPlayer
+                : undefined)
+            }
             onClick={() => onCellClick({ x, y })}
           />
         );
