@@ -114,8 +114,13 @@ func handleMoveMessage(h *Hub, message []byte) {
 		return
 	}
 
+	// Update player postion points
+	if err := h.gameManager.UpdatePlayerPM(moveMessage.UserID, moveMessage.Position); err != nil {
+		log.Printf("[Error] Failed to update player position points: %v", err)
+		return
+	}
 	// Update player position
-	if err := h.gameManager.MovePlayer(moveMessage.UserID, moveMessage.Position); err != nil {
+	if err := h.gameManager.UpdatePlayerPosition(moveMessage.UserID, moveMessage.Position); err != nil {
 		log.Printf("[Error] Failed to start game: %v", err)
 		return
 	}
@@ -126,6 +131,9 @@ func handleMoveMessage(h *Hub, message []byte) {
 	}
 }
 
+// handleCharacterPositionedMessage handles the "character_positioned" message.
+// It is called when a player has placed their character during the setup phase.
+// Once all players have placed their characters, the game status is set to "in_progress".
 func handleCharacterPositionedMessage(h *Hub, message []byte) {
 	var positionedMessage types.CharacterPositionedMessage
 	if err := json.Unmarshal(message, &positionedMessage); err != nil {
@@ -134,7 +142,7 @@ func handleCharacterPositionedMessage(h *Hub, message []byte) {
 	}
 	log.Printf("[Position] Message received from UserID: %s, Position: %+v", positionedMessage.UserID, positionedMessage.Position)
 	// Update player position
-	if err := h.gameManager.MovePlayer(positionedMessage.UserID, positionedMessage.Position); err != nil {
+	if err := h.gameManager.UpdatePlayerPosition(positionedMessage.UserID, positionedMessage.Position); err != nil {
 		log.Printf("[Error] Failed to position character: %v", err)
 		return
 	}

@@ -14,9 +14,7 @@ interface TileProps {
     y: number;
   };
   isHovered: boolean;
-  isSelected: boolean | null;
   isValidTarget?: boolean;
-  selectedColor?: string;
   style?: CSSProperties;
   player?: Player;
   onClick?: () => void;
@@ -28,9 +26,7 @@ export const Tile: React.FC<TileProps> = ({
   tileSize,
   screenPosition,
   isHovered,
-  isSelected,
   isValidTarget,
-  selectedColor,
   style,
   player,
   onClick,

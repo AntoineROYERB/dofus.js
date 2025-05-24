@@ -133,7 +133,7 @@ func (gm *GameManager) SetGameStatus(status string) {
 	gm.state = append(gm.state, currentState)
 }
 
-func (gm *GameManager) MovePlayer(playerID string, newPosition types.Position) error {
+func (gm *GameManager) UpdatePlayerPosition(playerID string, newPosition types.Position) error {
 	gm.mutex.Lock()
 	defer gm.mutex.Unlock()
 
@@ -151,6 +151,43 @@ func (gm *GameManager) MovePlayer(playerID string, newPosition types.Position) e
 	for k, v := range currentState.Players {
 		if k == playerID {
 			v.Character.Position = &newPosition
+		}
+		newState.Players[k] = v
+	}
+
+	gm.state = append(gm.state, newState)
+	return nil
+}
+
+func (gm *GameManager) UpdatePlayerPM(playerID string, newPosition types.Position) error {
+	gm.mutex.Lock()
+	defer gm.mutex.Unlock()
+
+	currentState := gm.state[len(gm.state)-1]
+
+	originalPos := currentState.Players[playerID].Character.Position
+
+	// Create new state with updated position points
+	newState := &types.GameState{
+		MessageType: "game_state",
+		Players:     make(map[string]types.Player),
+		GameStatus:  currentState.GameStatus,
+		TurnNumber:  currentState.TurnNumber,
+	}
+
+	// Calculate distance moved
+	distance := func(p1, p2 *types.Position) int {
+		dx := p2.X - p1.X
+		dy := p2.Y - p1.Y
+		return abs(dx) + abs(dy)
+	}
+	log.Printf("[Game] Distance moved by player %s: %d", playerID, distance(originalPos, &newPosition))
+
+	// Copy players and update movement points directly on v before assigning to newState.Players[k]
+	for k, v := range currentState.Players {
+		if k == playerID {
+			v.Character.MovementPoints -= distance(originalPos, &newPosition)
+
 		}
 		newState.Players[k] = v
 	}

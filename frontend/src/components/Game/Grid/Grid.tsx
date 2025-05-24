@@ -310,7 +310,15 @@ export const Grid: React.FC<GridProps> = ({
 
         // Only allow movement to valid tiles
         if (isInRange && !isOccupied) {
+          const path = calculatePath(characterPosition, tile);
+          const cost = path.length - 1; // exclude starting tile
           onCellClick(tile);
+          if (currentPlayer?.character) {
+            currentPlayer.character.movementPoints -= cost;
+            console.log(
+              `Movement points remaining: ${currentPlayer.character.movementPoints}`
+            );
+          }
         }
       }
     }
@@ -422,13 +430,7 @@ export const Grid: React.FC<GridProps> = ({
             tileSize={tileSize}
             screenPosition={screenPosition}
             isHovered={isHovered}
-            isSelected={
-              selectedPosition &&
-              selectedPosition.x === x &&
-              selectedPosition.y === y
-            }
             isValidTarget={isValidTarget}
-            selectedColor={selectedColor}
             style={style}
             player={
               playerOnCell ??

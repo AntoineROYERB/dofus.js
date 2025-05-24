@@ -42,6 +42,14 @@ func (pm *PlayerManager) GetPlayers() map[string]types.Player {
 	return players
 }
 
+func (pm *PlayerManager) GetPlayer(userID string) (types.Player, bool) {
+	pm.mutex.Lock()
+	defer pm.mutex.Unlock()
+
+	player, ok := pm.players[userID]
+	return player, ok
+}
+
 func (pm *PlayerManager) PlayerReadyToStart(readyMessage types.IsReadyMessage) {
 	pm.mutex.Lock()
 	defer pm.mutex.Unlock()

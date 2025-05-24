@@ -22,6 +22,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   latestGameState,
   userId,
 }) => {
+  // print characters
+  console.log("Latest Game State:", latestGameState?.players);
   return (
     <div className="flex flex-col h-full">
       <Grid
