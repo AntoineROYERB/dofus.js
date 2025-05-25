@@ -2,6 +2,8 @@
 package websocket
 
 import (
+	"bytes"
+	"encoding/json"
 	"game-server/internal/types"
 	"log"
 	"time"
@@ -51,7 +53,12 @@ func (c *Client) ReadPump() {
 			}
 			break
 		}
-		log.Printf("[Debug] Received message from client %s:\n%s", c.ID, string(message))
+		var prettyJSON bytes.Buffer
+		if err := json.Indent(&prettyJSON, message, "", "  "); err != nil {
+			log.Printf("[Debug] Received (non-JSON) message from client %s:\n%s", c.ID, string(message))
+		} else {
+			log.Printf("[Debug] Received JSON message from client %s:\n%s", c.ID, prettyJSON.String())
+		}
 		c.Hub.Broadcast <- message
 	}
 }

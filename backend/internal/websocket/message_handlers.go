@@ -140,7 +140,6 @@ func handleCharacterPositionedMessage(h *Hub, message []byte) {
 		log.Printf("[Error] Invalid character positioned message: %v", err)
 		return
 	}
-	log.Printf("[Position] Message received from UserID: %s, Position: %+v", positionedMessage.UserID, positionedMessage.Position)
 	// Update player position
 	if err := h.gameManager.UpdatePlayerPosition(positionedMessage.UserID, positionedMessage.Position); err != nil {
 		log.Printf("[Error] Failed to position character: %v", err)
@@ -156,9 +155,13 @@ func handleCharacterPositionedMessage(h *Hub, message []byte) {
 			break
 		}
 	}
+	log.Printf("[Debug] All players positioned: %v", allPositioned)
 	if allPositioned {
+
 		// If all players have positioned their characters, update the game status to "in_progress"
 		h.gameManager.SetGameStatus(types.GameStatusPlaying)
+		// Set the turn number to 1
+		h.gameManager.IncrementTurnNumber()
 	}
 	// Broadcast the updated state
 	if err := h.BroadcastGameState(); err != nil {

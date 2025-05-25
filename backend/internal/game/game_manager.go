@@ -83,51 +83,20 @@ func (gm *GameManager) GetTurnNumber() int {
 	return gm.GetCurrentState().TurnNumber
 }
 
-func (gm *GameManager) addPlayer(action types.GameActionMessage) error {
-	gm.mutex.Lock()
-	defer gm.mutex.Unlock()
-
-	currentState := gm.state[len(gm.state)-1]
-
-	// Create new player
-	newPlayer := types.Player{
-		UserID:        action.UserID,
-		UserName:      action.UserName,
-		Character:     action.Character,
-		IsCurrentTurn: false,
-	}
-
-	// Create new state with the added player
-	newState := &types.GameState{
-		MessageType: "game_state",
-		Players:     make(map[string]types.Player),
-		GameStatus:  GameStatusWaiting,
-		TurnNumber:  currentState.TurnNumber,
-	}
-
-	// Copy existing players and add new player
-	for k, v := range currentState.Players {
-		newState.Players[k] = v
-	}
-	newState.Players[action.UserID] = newPlayer
-
-	gm.state = append(gm.state, newState)
-	return nil
-}
-
 // func to increment turn number
 func (gm *GameManager) IncrementTurnNumber() {
 	gm.mutex.Lock()
 	defer gm.mutex.Unlock()
 
-	currentState := gm.GetCurrentState()
-	currentState.TurnNumber++
+	currentState := gm.state[len(gm.state)-1]
+	currentState.TurnNumber = currentState.TurnNumber + 1
 	gm.state = append(gm.state, currentState)
 }
 
 func (gm *GameManager) SetGameStatus(status string) {
 	gm.mutex.Lock()
 	defer gm.mutex.Unlock()
+
 	currentState := gm.state[len(gm.state)-1]
 	currentState.GameStatus = status
 	gm.state = append(gm.state, currentState)

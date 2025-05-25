@@ -140,6 +140,12 @@ function GameContainer() {
   const handleCellClick = (position: Position) => {
     handleSelectedPosition(position);
 
+    // Check if the position is in the character.initialPositions
+    const isInitialPosition = currentCharacter?.initialPositions?.some(
+      (initialPosition) =>
+        initialPosition.x === position.x && initialPosition.y === position.y
+    );
+
     const isInRange =
       currentCharacter?.position &&
       currentCharacter.movementPoints &&
@@ -148,11 +154,17 @@ function GameContainer() {
         position,
         currentCharacter.movementPoints
       );
-
+    console.log(
+      `Cell clicked at position: (${position.x}, ${position.y}), isInRange: ${isInRange}`
+    );
+    console.log("Game status:", gameStatus);
     if (gameStatus === "playing" && isMyTurn) {
       if (selectedSpellId) {
         handleCastSpell(position, selectedSpellId);
-      } else if (isInRange) {
+      } else if (
+        isInRange ||
+        (isInitialPosition && latestGameState.turnNumber === 0)
+      ) {
         handleMove(position);
       }
     }
@@ -184,7 +196,7 @@ function GameContainer() {
             <GameInfoPanel
               currentPlayer={currentPlayer}
               connected={connected}
-              gameRecord={gameRecord}
+              latestGameState={latestGameState}
             />
           ) : (
             <CharacterCreation

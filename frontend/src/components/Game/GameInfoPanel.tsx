@@ -4,17 +4,14 @@ import { PlayerMessage, GameStateMessage } from "../../types/message";
 interface GameInfoPanelProps {
   currentPlayer: PlayerMessage | undefined;
   connected: boolean;
-  gameRecord: GameStateMessage[];
+  latestGameState: GameStateMessage | null;
 }
 
 export const GameInfoPanel: React.FC<GameInfoPanelProps> = ({
   currentPlayer,
   connected,
-  gameRecord,
+  latestGameState,
 }) => {
-  const latestGameState =
-    gameRecord.length > 0 ? gameRecord[gameRecord.length - 1] : null;
-
   const totalPlayers = latestGameState?.players
     ? Object.keys(latestGameState?.players).length
     : 0;
@@ -49,9 +46,9 @@ export const GameInfoPanel: React.FC<GameInfoPanelProps> = ({
                 }`}
               />
             </div>
-            {gameRecord && (
+            {latestGameState && (
               <span className="text-xs">
-                Turn: {latestGameState?.turnNumber}
+                Turn: {latestGameState?.turnNumber || 0}
                 {isMyTurn && (
                   <span className="ml-1 text-green-500 font-bold">
                     Your Turn!
