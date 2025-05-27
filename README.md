@@ -112,10 +112,10 @@ npm run dev
 
 - [x] Isometric Grid rendering
 - [x] Game state management
-- [ ] Battle initialization
-- [ ] Turn system implementation
+- [x] Battle initialization
+- [x] Turn system implementation
+- [x] Character movement
 - [ ] Combat mechanics
-- [ ] Character movement
 
 ### Phase 3: Combat System (Planned)
 
