@@ -91,6 +91,7 @@ function GameContainer() {
         actionPoints: 6,
         movementPoints: 4,
         isCurrentTurn: false,
+        hasPlayedThisTurn: false,
       },
       userId,
       userName,
@@ -118,22 +119,25 @@ function GameContainer() {
       position: selectedPosition,
     });
   };
-  const handleEndTurn = () => {
-    // const { messageId, timestamp } = generateMessageId();
-    // sendGameAction({
-    //   type: "end_turn",
-    //   messageId,
-    //   timestamp,
-    //   userId,
-    //   userName,
-    // });
+  const handleEndTurnClick = () => {
+    const { messageId, timestamp } = generateMessageId();
+    sendGameAction({
+      type: "end_turn",
+      messageId,
+      timestamp,
+      userId,
+    });
   };
 
   const handleMove = (position: Position) => {
+    const { messageId, timestamp } = generateMessageId();
+
     sendGameAction({
       type: "move",
       userId,
       position,
+      messageId,
+      timestamp,
     });
   };
 
@@ -212,7 +216,7 @@ function GameContainer() {
             gameStatus={gameStatus}
             connected={connected}
             handleReadyClick={handleReadyClick}
-            handleEndTurn={handleEndTurn}
+            handleEndTurnClick={handleEndTurnClick}
             isPlayerReady={isPlayerReady}
             isMyTurn={isMyTurn}
             handleSubmitClick={handleCreateCharacter}

@@ -12,6 +12,7 @@ export type Character = {
   movementPoints: number;
   isCurrentTurn: boolean;
   initialPositions?: Position[];
+  hasPlayedThisTurn: boolean;
 };
 export interface Player {
   messageId: string;
@@ -40,14 +41,19 @@ export interface StartGameAction extends Player {
   Players: { [key: string]: Player };
 }
 
-export interface EndTurnAction extends Player {
+export interface EndTurnAction {
   type: "end_turn";
+  userId: string;
+  messageId: string;
+  timestamp: number;
 }
 
 export interface MoveAction {
   type: "move";
   position: Position;
   userId: string;
+  messageId: string;
+  timestamp: number;
 }
 export interface ReadyToStartAction {
   type: "ready_to_start";

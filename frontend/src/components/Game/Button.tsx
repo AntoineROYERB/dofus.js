@@ -4,7 +4,7 @@ interface mainButtonProps {
   gameStatus: string;
   connected: boolean;
   handleReadyClick: () => void;
-  handleEndTurn: () => void;
+  handleEndTurnClick: () => void;
   handleFightClick: () => void;
   isPlayerReady: boolean | undefined;
   isMyTurn: boolean | undefined;
@@ -17,7 +17,7 @@ export const MainButton: React.FC<mainButtonProps> = ({
   gameStatus,
   connected,
   handleReadyClick,
-  handleEndTurn,
+  handleEndTurnClick,
   isPlayerReady,
   isMyTurn,
   handleSubmitClick,
@@ -41,7 +41,7 @@ export const MainButton: React.FC<mainButtonProps> = ({
         <button
           className="w-full py-1 bg-blue-500 text-white rounded disabled:bg-gray-300 hover:bg-blue-600 text-sm"
           disabled={!isMyTurn}
-          onClick={handleEndTurn}
+          onClick={handleEndTurnClick}
         >
           End Turn
         </button>
