@@ -38,6 +38,12 @@ type MoveMessage struct {
 	Position  Position `json:"position"`
 }
 
+type EndTurnMessage struct {
+	MessageID string `json:"messageId"`
+	Timestamp int64  `json:"timestamp"`
+	UserID    string `json:"userId"`
+}
+
 type GameStateMessage struct {
 	BaseMessage
 	State GameState `json:"state"`

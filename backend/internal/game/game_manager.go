@@ -93,6 +93,81 @@ func (gm *GameManager) IncrementTurnNumber() {
 	gm.state = append(gm.state, currentState)
 }
 
+// Return the first character with HasPlayedThisTurn = false
+func (gm *GameManager) GetNextCharacter() (*types.Character, error) {
+	gm.mutex.RLock()
+	defer gm.mutex.RUnlock()
+
+	currentState := gm.state[len(gm.state)-1]
+
+	for _, player := range currentState.Players {
+		if !player.Character.HasPlayedThisTurn {
+			return player.Character, nil
+		}
+	}
+
+	return nil, errors.New("no characters available for next turn")
+}
+
+func (gm *GameManager) SetHasPlayedThisTurn(userID string, HasPlayedThisTurn bool) error {
+	gm.mutex.Lock()
+	defer gm.mutex.Unlock()
+
+	currentState := gm.state[len(gm.state)-1]
+
+	// Check if player exists
+	player, exists := currentState.Players[userID]
+	if !exists {
+		return errors.New("player not found")
+	}
+
+	// Create new state with updated hasPlayedThisTurn
+	newState := &types.GameState{
+		MessageType: "game_state",
+		Players:     make(map[string]types.Player),
+		GameStatus:  currentState.GameStatus,
+		TurnNumber:  currentState.TurnNumber,
+	}
+
+	// Update hasPlayedThisTurn for the player
+	player.Character.HasPlayedThisTurn = HasPlayedThisTurn
+
+	// Copy players to new state
+	for k, v := range currentState.Players {
+		if k == userID {
+			v = player // Update the specific player
+		}
+		newState.Players[k] = v
+	}
+
+	gm.state = append(gm.state, newState)
+	return nil
+}
+
+// Given a character name, set it's IsCurrentTurn field
+func (gm *GameManager) SetCharacterCurrentTurn(CharacterName string, isCurrent bool) error {
+	gm.mutex.Lock()
+	defer gm.mutex.Unlock()
+
+	currentState := gm.state[len(gm.state)-1]
+	// Create new state with updated isCurrentTurn
+	newState := &types.GameState{
+		MessageType: "game_state",
+		Players:     make(map[string]types.Player),
+		GameStatus:  currentState.GameStatus,
+		TurnNumber:  currentState.TurnNumber,
+	}
+	// Copy players to new state, updating isCurrentTurn for the specified character
+	for k, v := range currentState.Players {
+		if v.Character.Name == CharacterName {
+			v.Character.IsCurrentTurn = isCurrent
+		}
+		newState.Players[k] = v
+	}
+	gm.state = append(gm.state, newState)
+	return nil
+}
+
 func (gm *GameManager) SetGameStatus(status string) {
 	gm.mutex.Lock()
 	defer gm.mutex.Unlock()

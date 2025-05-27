@@ -15,6 +15,91 @@ var messageHandlers = map[string]MessageHandler{
 	"ready_to_start":       handleReadyToStartMessage,
 	"move":                 handleMoveMessage,
 	"character_positioned": handleCharacterPositionedMessage,
+	"end_turn":             handleEndTurnMessage,
+}
+
+// Final turn handler for the end turn message.
+// 1. Update the character's hasPlayedThisTurn to true
+// 2. Update the player's isCurrentTurn to false
+// 3. Find the next character in the turn that has not played this turn
+// 4. Set the next character's isCurrentTurn to true
+// 5. Set isCurrentTurn to true of the next players with the next character as current turn
+// 6. Broadcast the updated state
+func handleEndTurnMessage(h *Hub, message []byte) {
+	var endTurnMessage types.EndTurnMessage
+	if err := json.Unmarshal(message, &endTurnMessage); err != nil {
+		log.Printf("[Error] Invalid end turn message: %v", err)
+		return
+	}
+
+	// Update character hasPlayedThisTurn to true
+	if err := h.gameManager.SetHasPlayedThisTurn(endTurnMessage.UserID, true); err != nil {
+		log.Printf("[Error] Failed to update player hasPlayedThisTurn: %v", err)
+		return
+	}
+
+	// Update player's isCurrentTurn to false
+	if err := h.playerManager.SetPlayerCurrentTurn(endTurnMessage.UserID, false); err != nil {
+		log.Printf("[Error] Failed to update player's game state: %v", err)
+		return
+	}
+	// Check if all players have played this turn
+	players := h.playerManager.GetPlayers()
+	allPlayed := true
+	for _, player := range players {
+		if !player.Character.HasPlayedThisTurn {
+			allPlayed = false
+			break
+		}
+	}
+
+	if allPlayed {
+		for userID := range players {
+			// Reset character's HasPlayedThisTurn
+			if err := h.gameManager.SetHasPlayedThisTurn(userID, false); err != nil {
+				log.Printf("[Error] Failed to reset player hasPlayedThisTurn: %v", err)
+				return
+			}
+			// Reset the player's MP
+			if err := h.playerManager.ResetMPs(userID); err != nil {
+				log.Printf("[Error] Failed to reset player MP: %v", err)
+				return
+			}
+
+		}
+		h.gameManager.IncrementTurnNumber()
+		h.playerManager.SetFirstCharacter()
+	} else {
+		// Find the next character in the turn that has not played this turn
+		nextCharacter, err := h.gameManager.GetNextCharacter()
+		if err != nil {
+			log.Printf("[Error] Failed to get next character: %v", err)
+			return
+		}
+
+		// Set the next character's isCurrentTurn to True
+		if err := h.gameManager.SetCharacterCurrentTurn(nextCharacter.Name, true); err != nil {
+			log.Printf("[Error] Failed to set next player as current turn: %v", err)
+			return
+		}
+
+		// Get the user ID given a character name
+		nextUserID := h.playerManager.GetUserIDWithCharacterName(nextCharacter.Name)
+		if nextUserID == "" {
+			log.Printf("[Error] No player has the current turn character")
+			return
+		}
+
+		// Update the player whose turn it is now
+		if err := h.playerManager.SetPlayerCurrentTurn(nextUserID, true); err != nil {
+			log.Printf("[Error] Failed to update player's game state: %v", err)
+			return
+		}
+	}
+	// Broadcast the updated state
+	if err := h.BroadcastGameState(); err != nil {
+		log.Printf("[Error] Failed to broadcast game state: %v", err)
+	}
 }
 
 func handleDisconnectMessage(h *Hub, message []byte) {

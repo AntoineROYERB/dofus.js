@@ -1,7 +1,9 @@
 package game
 
 import (
+	"fmt"
 	"game-server/internal/types"
+	"log"
 	"sync"
 )
 
@@ -42,6 +44,18 @@ func (pm *PlayerManager) GetPlayers() map[string]types.Player {
 	return players
 }
 
+func (pm *PlayerManager) GetUserIDWithCharacterName(characterName string) string {
+	pm.mutex.Lock()
+	defer pm.mutex.Unlock()
+
+	for userID, player := range pm.players {
+		if player.Character.Name == characterName {
+			return userID
+		}
+	}
+	return ""
+}
+
 func (pm *PlayerManager) GetPlayer(userID string) (types.Player, bool) {
 	pm.mutex.Lock()
 	defer pm.mutex.Unlock()
@@ -60,6 +74,20 @@ func (pm *PlayerManager) PlayerReadyToStart(readyMessage types.IsReadyMessage) {
 	}
 }
 
+func (pm *PlayerManager) ResetMPs(UserID string) error {
+	pm.mutex.Lock()
+	defer pm.mutex.Unlock()
+
+	player, ok := pm.players[UserID]
+	if !ok {
+		return fmt.Errorf("player with ID %s not found", UserID)
+	}
+	player.Character.MovementPoints = 4 // Reset the character's movement points to the default value
+	pm.players[UserID] = player
+	log.Printf("[Debug] Reset MP for player %s to %d", UserID, player.Character.MovementPoints)
+	return nil
+}
+
 func (pm *PlayerManager) SetFirstCharacter() {
 	players := pm.GetPlayers()
 
@@ -76,4 +104,19 @@ func (pm *PlayerManager) SetFirstCharacter() {
 	firstPlayer.IsCurrentTurn = true
 
 	pm.UpdatePlayer(firstPlayerID, firstPlayer)
+}
+
+func (pm *PlayerManager) SetPlayerCurrentTurn(userID string, isCurrentTurn bool) error {
+	pm.mutex.Lock()
+	defer pm.mutex.Unlock()
+
+	log.Printf("[Debug] Setting player %s current turn to %t", userID, isCurrentTurn)
+	player, ok := pm.players[userID]
+	if !ok {
+		return fmt.Errorf("player with ID %s not found", userID)
+	}
+
+	player.IsCurrentTurn = isCurrentTurn
+	pm.players[userID] = player
+	return nil
 }
