@@ -23,5 +23,5 @@
     "incremental": false,
 
   },
-  "include": ["src"]
+  "include": ["src", "data/spellList.ts"]
 }
