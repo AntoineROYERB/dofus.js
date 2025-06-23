@@ -55,8 +55,7 @@ function GameContainer() {
   };
 
   const handleSpellClick = (spellId: number) => {
-    setSelectedSpellId(spellId);
-    console.log(`Spell ${spellId} selected`);
+    setSelectedSpellId((prevId) => (prevId === spellId ? null : spellId));
   };
 
   const handleColorClick = (color: string) => {
@@ -119,6 +118,7 @@ function GameContainer() {
       position: selectedPosition,
     });
   };
+
   const handleEndTurnClick = () => {
     const { messageId, timestamp } = generateMessageId();
     sendGameAction({
@@ -158,14 +158,18 @@ function GameContainer() {
         position,
         currentCharacter.movementPoints
       );
-    console.log(
-      `Cell clicked at position: (${position.x}, ${position.y}), isInRange: ${isInRange}`
-    );
-    console.log("Game status:", gameStatus);
+
     if (gameStatus === "playing" && isMyTurn) {
       if (selectedSpellId) {
+        console.log(
+          `Casting spell with ID ${selectedSpellId} at position (${position.x}, ${position.y})`
+        );
         handleCastSpell(position, selectedSpellId);
-      } else if (
+        setSelectedSpellId(null); // Reset after casting
+        return;
+      }
+
+      if (
         isInRange ||
         (isInitialPosition && latestGameState.turnNumber === 0)
       ) {
@@ -183,7 +187,6 @@ function GameContainer() {
           selectedPosition={selectedPosition}
           selectedSpellId={selectedSpellId}
           handleCellClick={handleCellClick}
-          selectedColor={selectedColor}
           latestGameState={latestGameState}
           userId={userId}
         />
@@ -192,7 +195,10 @@ function GameContainer() {
         <Chat />
       </div>
       <div className="h-[20vh]">
-        <SpellBar handleSpellClick={handleSpellClick} />
+        <SpellBar
+          handleSpellClick={handleSpellClick}
+          selectedSpellId={selectedSpellId}
+        />
       </div>
       <div className="h-[20vh] flex flex-col">
         <div className="flex-grow overflow-y-auto">

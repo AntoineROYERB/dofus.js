@@ -9,26 +9,31 @@ import {
 } from "../utils/isoUtils";
 import { calculatePath, isWithinRange } from "../utils/pathUtils";
 import { Tile } from "./Tile";
+import {
+  isInSpellAffectedArea,
+  calculateImpactedCells,
+} from "../utils/spellUtils";
 
 interface GridProps {
   gridSize: number;
   selectedPosition: Position | null;
   onCellClick: ({ x, y }: Position) => void;
-  selectedColor?: string;
   latestGameState?: GameStateMessage | null;
   userId: string;
+  selectedSpellId: number | null;
 }
 
 export const Grid: React.FC<GridProps> = ({
   gridSize,
   selectedPosition,
   onCellClick,
-  selectedColor,
   latestGameState,
   userId,
+  selectedSpellId,
 }) => {
   const [hoveredPosition, setHoveredPosition] = useState<Position | null>(null);
   const [pathCells, setPathCells] = useState<Position[]>([]);
+  const [impactedCells, setImpactedCells] = useState<Position[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
   const [tileSize, setTileSize] = useState({ width: 40, height: 20 });
   const [, setMousePosition] = useState({ x: 0, y: 0 });
@@ -111,7 +116,8 @@ export const Grid: React.FC<GridProps> = ({
     return () => window.removeEventListener("resize", calculateTileSize);
   }, [gridSize, containerRef.current]);
 
-  // Update path when hovering over cells (only for movement, not for initial positioning)
+  // Update path when hovering over cells and character is active
+  // Also update impacted cells for spells
   useEffect(() => {
     if (
       characterPosition &&
@@ -132,19 +138,28 @@ export const Grid: React.FC<GridProps> = ({
           1,
           movementPoints !== undefined ? movementPoints + 1 : undefined
         );
-
         setPathCells(filteredPath);
       } else {
         setPathCells([]);
       }
-    } else {
-      setPathCells([]);
+
+      if (selectedSpellId) {
+        const impactedCell = calculateImpactedCells(
+          selectedSpellId,
+          hoveredPosition,
+          characterPosition
+        );
+        setImpactedCells(impactedCell);
+      } else {
+        setImpactedCells([]);
+      }
     }
   }, [
     hoveredPosition,
     characterPosition,
     movementPoints,
     currentPlayer?.isCurrentTurn,
+    selectedSpellId,
   ]);
 
   const findPlayerOnCell = (x: number, y: number) => {
@@ -172,23 +187,31 @@ export const Grid: React.FC<GridProps> = ({
   };
 
   const getCellStyle = (x: number, y: number): CSSProperties => {
-    const pos = { x, y };
-    const playerOnCell = findPlayerOnCell(x, y);
     const isHoveredCell = hoveredPosition?.x === x && hoveredPosition?.y === y;
-    const isPathCell = isInPathCells(x, y);
-    const isInMovementRange =
-      characterPosition &&
-      movementPoints !== undefined &&
-      isWithinRange(characterPosition, pos, movementPoints);
-
     const isCharacterTurn = currentPlayer?.isCurrentTurn;
 
+    const isPathCell = isInPathCells(x, y);
+
+    const isInRange =
+      characterPosition &&
+      movementPoints !== undefined &&
+      isWithinRange(characterPosition, { x, y }, movementPoints);
+
+    const isInSpellRange =
+      characterPosition &&
+      selectedSpellId &&
+      isInSpellAffectedArea({ x, y }, characterPosition, selectedSpellId);
+
+    const isImpactedCell = impactedCells.some(
+      (pos) => pos.x === x && pos.y === y
+    );
+
+    // If the tile is in the affected area of a spell, apply special styling
     // Check if this position is an initial position for any player
     const initialPositionOwner = isPositioningPhase
       ? findInitialPositionOwner(x, y)
       : null;
 
-    // If we're in positioning phase and this is an initial position
     if (isPositioningPhase && initialPositionOwner) {
       const isCurrentPlayerInitial = initialPositionOwner.isCurrentPlayer;
 
@@ -196,7 +219,7 @@ export const Grid: React.FC<GridProps> = ({
       if (isCurrentPlayerInitial) {
         if (isHoveredCell) {
           return {
-            backgroundColor: "#32CD32", // Brighter green on hover
+            backgroundColor: "rgba(50, 205, 50, 1)", // Brighter green on hover
             opacity: 0.9,
             boxShadow: "0 0 10px #ffffff",
             border: "2px solid white",
@@ -205,7 +228,7 @@ export const Grid: React.FC<GridProps> = ({
 
         // Default style for current player's initial positions
         return {
-          backgroundColor: "#90ee90", // Light green for current player's initial positions
+          backgroundColor: "rgba(144, 238, 144, 1)", // Light green for current player's initial positions
           opacity: 0.6,
           border: "1px dashed white",
         };
@@ -225,26 +248,30 @@ export const Grid: React.FC<GridProps> = ({
       }
     }
 
-    if (!isPositioningPhase && playerOnCell) {
-      return {}; // Don't apply background color to the tile; let Tile handle ellipse fill
-    }
-
-    if (
-      selectedPosition &&
-      selectedPosition.x === x &&
-      selectedPosition.y === y
-    ) {
-      return { backgroundColor: selectedColor };
-    }
-
-    if (isCharacterTurn && isInMovementRange && !isPositioningPhase) {
-      if (isHoveredCell) {
-        return { backgroundColor: "rgba(255, 0, 0, 0.6)" }; // Red for hovered cell
+    // Range coloring logic applies only if tile is not already affected (above)
+    if (isCharacterTurn && selectedSpellId) {
+      if (
+        characterPosition &&
+        isImpactedCell &&
+        hoveredPosition &&
+        isInSpellAffectedArea(
+          hoveredPosition,
+          characterPosition,
+          selectedSpellId
+        )
+      ) {
+        return { backgroundColor: "rgba(255, 165, 0, 0.5)" }; // Orange for impacted cell
       }
-      if (isPathCell) {
-        return { backgroundColor: "rgba(255, 165, 0, 0.5)" }; // Orange for path
+      if (isInSpellRange) {
+        return {
+          backgroundColor: "rgba(160, 191, 255, 1)", // Blue for spell range
+        };
       }
-      return { backgroundColor: "rgba(0, 255, 0, 0.2)" }; // Green for cells in range
+    }
+    if (!selectedSpellId && isCharacterTurn && isInRange) {
+      if (isHoveredCell) return { backgroundColor: "rgba(255, 0, 0, 0.6)" };
+      if (isPathCell) return { backgroundColor: "rgba(255, 165, 0, 0.5)" };
+      return { backgroundColor: "rgba(0, 255, 0, 0.2)" };
     }
 
     return {};
@@ -385,8 +412,6 @@ export const Grid: React.FC<GridProps> = ({
     characterPosition,
     movementPoints,
     currentPlayer?.isCurrentTurn,
-    isPositioningPhase,
-    initialPositions,
   ]);
 
   // Sort coordinates for rendering order (back to front)

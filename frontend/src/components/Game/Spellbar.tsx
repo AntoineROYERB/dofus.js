@@ -1,13 +1,16 @@
-import React, { useState } from "react";
+import React from "react";
 import { Heart, Star, Diamond, LucideIcon } from "lucide-react";
 import { SPELLS, Spell } from "../../../data/spells";
 interface SpellBarProps {
   handleSpellClick: (spellId: number) => void;
+  selectedSpellId: number | null;
 }
 
-const SpellBar: React.FC<SpellBarProps> = ({ handleSpellClick }) => {
-  const [selectedSpellId, setSelectedSpellId] = useState<number | null>(null);
-  const [health, _] = useState({ current: 100, max: 100 });
+const SpellBar: React.FC<SpellBarProps> = ({
+  handleSpellClick,
+  selectedSpellId,
+}) => {
+  const [health, _] = React.useState({ current: 100, max: 100 });
 
   const Tooltip: React.FC<{ text: string }> = ({ text }) => (
     <div className="absolute z-50 bottom-full mb-2 left-1/2 -translate-x-1/2 w-48 bg-white text-gray-800 text-xs p-2 rounded-md border border-gray-300 shadow-xl whitespace-pre-line">
@@ -46,7 +49,6 @@ const SpellBar: React.FC<SpellBarProps> = ({ handleSpellClick }) => {
                 if (spell) {
                   const newSelected =
                     selectedSpellId === spell.id ? null : spell.id;
-                  setSelectedSpellId(newSelected);
                   handleSpellClick(spell.id);
                 }
               }}

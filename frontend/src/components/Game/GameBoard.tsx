@@ -9,7 +9,6 @@ interface GameBoardProps {
   selectedPosition: Position | null;
   selectedSpellId: number | null;
   handleCellClick: (position: Position) => void;
-  selectedColor: string;
   latestGameState: GameStateMessage | null;
   userId: string;
 }
@@ -18,21 +17,19 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   gridSize,
   selectedPosition,
   handleCellClick,
-  selectedColor,
   latestGameState,
   userId,
+  selectedSpellId,
 }) => {
-  // print characters
-  console.log("Latest Game State:", latestGameState?.players);
   return (
     <div className="flex flex-col h-full">
       <Grid
         gridSize={gridSize}
         selectedPosition={selectedPosition}
         onCellClick={handleCellClick}
-        selectedColor={selectedColor}
         latestGameState={latestGameState}
         userId={userId}
+        selectedSpellId={selectedSpellId}
       />
     </div>
   );
