@@ -45,3 +45,8 @@ export type gameStatus =
   | "end_turn"
   | "move"
   | "position_characters";
+
+export interface GameOverMessage {
+  type: "game_over";
+  winner: string;
+}

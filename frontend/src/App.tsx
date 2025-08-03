@@ -10,6 +10,7 @@ import { Position, GameStatus, GAME_STATUS } from "./types/game";
 import { CharacterCreation } from "./components/Game/CharacterCreation";
 import { GameInfoPanel } from "./components/Game/GameInfoPanel";
 import { MainButton } from "./components/Game/Button";
+import { GameOverModal } from "./components/Game/GameOverModal";
 import { useWebSocket } from "./context/WebSocketContext";
 import { PLAYER_COLORS } from "./constants";
 
@@ -20,7 +21,7 @@ const IsWithinRange = (p1: Position, p2: Position, n: number): boolean => {
 };
 
 function GameContainer() {
-  const { userId, userName, connected, sendGameAction, gameRecord } =
+  const { userId, userName, connected, sendGameAction, gameRecord, winner } =
     useWebSocket();
   const [selectedSpellId, setSelectedSpellId] = useState<number | null>(null);
   const [selectedPosition, setSelectedPosition] = useState<Position | null>(
@@ -242,6 +243,19 @@ function GameContainer() {
           />
         </div>
       </div>
+      {winner && (
+        <GameOverModal
+          winner={winner}
+          onPlayAgain={() => {
+            // Logic to restart the game (e.g., refresh page or send reset message)
+            window.location.reload();
+          }}
+          onExit={() => {
+            // Logic to exit to menu (e.g., redirect to a landing page)
+            alert("Exiting game. Implement your navigation here.");
+          }}
+        />
+      )}
     </div>
   );
 }

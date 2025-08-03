@@ -153,6 +153,8 @@ At the core of this real-time game is a robust WebSocket-based messaging system 
 - [x] Character movement
 - [x] Initial character positioning (hidden until all players confirm)
 - [x] Spell casting with Area of Effect (AoE) and AP validation
+- [x] Game Over condition detection
+- [x] AP reset at turn end
 
 ### Phase 3: Combat System (Upcoming)
 

@@ -11,6 +11,7 @@ interface WebSocketContextType {
   userId: string;
   userName: string;
   gameRecord: GameStateMessage[];
+  winner: string | null;
 }
 
 export const WebSocketContext = createContext<WebSocketContextType | null>(

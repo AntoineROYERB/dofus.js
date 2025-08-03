@@ -67,6 +67,11 @@ func handleEndTurnMessage(h *Hub, message []byte) {
 				log.Printf("[Error] Failed to reset player MP: %v", err)
 				return
 			}
+			// Reset the player's AP
+			if err := h.playerManager.ResetAPs(userID); err != nil {
+				log.Printf("[Error] Failed to reset player AP: %v", err)
+				return
+			}
 
 		}
 		h.gameManager.IncrementTurnNumber()
@@ -97,7 +102,28 @@ func handleEndTurnMessage(h *Hub, message []byte) {
 			log.Printf("[Error] Failed to update player's game state: %v", err)
 			return
 		}
+		// Reset the player's AP
+		if err := h.playerManager.ResetAPs(nextUserID); err != nil {
+			log.Printf("[Error] Failed to reset player AP: %v", err)
+			return
+		}
 	}
+
+	// Check for game over condition
+	winnerID, gameOver := h.gameManager.CheckGameOver()
+	if gameOver {
+		log.Printf("[Game Over] Winner: %s", winnerID)
+		// Get winner's name
+		winnerPlayer, exists := h.playerManager.GetPlayer(winnerID)
+		winnerName := ""
+		if exists {
+			winnerName = winnerPlayer.UserName
+		}
+		gameOverMessage, _ := json.Marshal(types.GameOverMessage{Type: "game_over", Winner: winnerName})
+		h.broadcastMessage(gameOverMessage)
+		return
+	}
+
 	// Broadcast the updated state
 	if err := h.BroadcastGameState(); err != nil {
 		log.Printf("[Error] Failed to broadcast game state: %v", err)
@@ -261,6 +287,21 @@ func handleCastSpellMessage(h *Hub, message []byte) {
 		return
 	}
 
+	// Check for game over condition
+	winnerID, gameOver := h.gameManager.CheckGameOver()
+	if gameOver {
+		log.Printf("[Game Over] Winner: %s", winnerID)
+		// Get winner's name
+		winnerPlayer, exists := h.playerManager.GetPlayer(winnerID)
+		winnerName := ""
+		if exists {
+			winnerName = winnerPlayer.UserName
+		}
+		gameOverMessage, _ := json.Marshal(types.GameOverMessage{Type: "game_over", Winner: winnerName})
+		h.broadcastMessage(gameOverMessage)
+		return
+	}
+
 	// Broadcast the updated state
 	if err := h.BroadcastGameState(); err != nil {
 		log.Printf("[Error] Failed to broadcast game state: %v", err)
@@ -282,6 +323,21 @@ func handleMoveMessage(h *Hub, message []byte) {
 	// Update player position
 	if err := h.gameManager.UpdatePlayerPosition(moveMessage.UserID, moveMessage.Position); err != nil {
 		log.Printf("[Error] Failed to start game: %v", err)
+		return
+	}
+
+	// Check for game over condition
+	winnerID, gameOver := h.gameManager.CheckGameOver()
+	if gameOver {
+		log.Printf("[Game Over] Winner: %s", winnerID)
+		// Get winner's name
+		winnerPlayer, exists := h.playerManager.GetPlayer(winnerID)
+		winnerName := ""
+		if exists {
+			winnerName = winnerPlayer.UserName
+		}
+		gameOverMessage, _ := json.Marshal(types.GameOverMessage{Type: "game_over", Winner: winnerName})
+		h.broadcastMessage(gameOverMessage)
 		return
 	}
 

@@ -134,3 +134,18 @@ func (pm *PlayerManager) SetPlayerHasPositioned(userID string, hasPositioned boo
 	pm.players[userID] = player
 	return nil
 }
+
+func (pm *PlayerManager) ResetAPs(userID string) error {
+	pm.mutex.Lock()
+	defer pm.mutex.Unlock()
+
+	player, ok := pm.players[userID]
+	if !ok {
+		return fmt.Errorf("player with ID %s not found", userID)
+	}
+
+	player.Character.ActionPoints = 6 // Reset AP to default value
+	pm.players[userID] = player
+	log.Printf("[Debug] Reset AP for player %s to %d", userID, player.Character.ActionPoints)
+	return nil
+}

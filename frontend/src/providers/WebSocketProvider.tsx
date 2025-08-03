@@ -4,6 +4,7 @@ import {
   ChatMessage,
   GameStateMessage,
   UserInitMessage,
+  GameOverMessage,
 } from "../types/message";
 import { GameAction } from "../types/game";
 
@@ -33,11 +34,12 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
   // const [gameStatus, setGameStatus] = useState<string>("waiting");
   const [gameRecord, setGameRecord] = useState<GameStateMessage[]>([]);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [winner, setWinner] = useState<string | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout>();
 
   const handleChatMessage = useCallback(
-    (data: ChatMessage | UserInitMessage) => {
+    (data: ChatMessage | UserInitMessage | GameOverMessage) => {
       console.log("[WebSocket] Processing message:", data);
 
       switch (data.type) {
@@ -57,6 +59,10 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
           console.log("[WebSocket] Processing chat message:", data);
 
           setChatMessages((prev) => [...prev, data]);
+          break;
+        case "game_over":
+          console.log("[WebSocket] Game Over message:", data);
+          setWinner(data.winner);
           break;
         default:
           if (Array.isArray(data)) handleGameStatesRecord(data);
@@ -186,6 +192,7 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
         userId,
         userName,
         gameRecord,
+        winner,
       }}
     >
       {children}

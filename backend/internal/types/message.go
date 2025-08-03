@@ -66,3 +66,8 @@ type CharacterPositionedMessage struct {
 	Position Position `json:"position"`
 	UserID   string   `json:"userId"`
 }
+
+type GameOverMessage struct {
+	Type   string `json:"type"`
+	Winner string `json:"winner"`
+}

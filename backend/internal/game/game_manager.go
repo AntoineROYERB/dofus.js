@@ -110,6 +110,27 @@ func (gm *GameManager) GetNextCharacter() (*types.Character, error) {
 	return nil, errors.New("no characters available for next turn")
 }
 
+// CheckGameOver checks if the game has ended and returns the winner's ID if so.
+func (gm *GameManager) CheckGameOver() (string, bool) {
+	gm.mutex.RLock()
+	defer gm.mutex.RUnlock()
+
+	currentState := gm.state[len(gm.state)-1]
+
+	alivePlayers := []string{}
+	for userID, player := range currentState.Players {
+		if player.Character.IsAlive {
+			alivePlayers = append(alivePlayers, userID)
+		}
+	}
+
+	if len(alivePlayers) == 1 {
+		return alivePlayers[0], true // Game over, return the winner's ID
+	}
+
+	return "", false // Game not over
+}
+
 func (gm *GameManager) SetHasPlayedThisTurn(userID string, HasPlayedThisTurn bool) error {
 	gm.mutex.Lock()
 	defer gm.mutex.Unlock()
