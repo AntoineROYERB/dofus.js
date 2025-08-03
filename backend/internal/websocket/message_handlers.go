@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"game-server/internal/types"
 	"log"
+	"strconv"
 )
 
 type MessageHandler func(*Hub, []byte)
@@ -16,6 +17,7 @@ var messageHandlers = map[string]MessageHandler{
 	"move":                 handleMoveMessage,
 	"character_positioned": handleCharacterPositionedMessage,
 	"end_turn":             handleEndTurnMessage,
+	"cast_spell":           handleCastSpellMessage,
 }
 
 // Final turn handler for the end turn message.
@@ -138,6 +140,10 @@ func handleCreateCharacterMessage(h *Hub, message []byte) {
 		return
 	}
 
+	// Set initial health and alive status on the backend
+	createCharacterMessage.Character.Health = 100
+	createCharacterMessage.Character.IsAlive = true
+
 	newPlayer := types.Player{
 		Character:     createCharacterMessage.Character,
 		IsCurrentTurn: false,
@@ -184,6 +190,75 @@ func handleReadyToStartMessage(h *Hub, message []byte) {
 			}
 			h.playerManager.SetFirstCharacter()
 		}
+	}
+
+	// Broadcast the updated state
+	if err := h.BroadcastGameState(); err != nil {
+		log.Printf("[Error] Failed to broadcast game state: %v", err)
+	}
+}
+
+/*
+1. Unmarshal the message into a CastSpellMessage struct.
+2. Retrieve the AP cost from the total AP of the player.
+3. Apply damage or effects of the spell to target positions.
+4. Broadcast the updated game state to all players.
+*/
+func handleCastSpellMessage(h *Hub, message []byte) {
+	var castSpellMessage types.CastSpellMessage
+	if err := json.Unmarshal(message, &castSpellMessage); err != nil {
+		log.Printf("[Error] Invalid cast spell message: %v", err)
+		return
+	}
+
+	spellIDStr := strconv.Itoa(castSpellMessage.SpellID)
+
+	// Get the casting player's current AP
+	currentPlayer, exists := h.playerManager.GetPlayer(castSpellMessage.UserID)
+	if !exists || currentPlayer.Character == nil {
+		log.Printf("[Error] Caster player or character not found for UserID: %s", castSpellMessage.UserID)
+		return
+	}
+	currentAP := currentPlayer.Character.ActionPoints
+
+	// Compute the spell cost
+	spellCost, err := h.gameManager.GetSpellCost(spellIDStr)
+	if err != nil {
+		log.Printf("[Error] Failed to get spell cost: %v", err)
+		return
+	}
+
+	// Check if player has enough AP
+	if currentAP < spellCost {
+		log.Printf("[Error] Player %s does not have enough AP to cast spell %s. Current AP: %d, Required AP: %d", castSpellMessage.UserID, spellIDStr, currentAP, spellCost)
+		return
+	}
+
+	// Retrieve AP cost from the total AP of the player
+	if err := h.gameManager.UpdatePlayerAP(castSpellMessage.UserID, spellCost); err != nil {
+		log.Printf("[Error] Failed to update player AP: %v", err)
+		return
+	}
+
+	// Get caster's position
+	casterPlayer, exists := h.playerManager.GetPlayer(castSpellMessage.UserID)
+	if !exists {
+		log.Printf("[Error] Failed to get caster's player data")
+		return
+	}
+	casterPosition := casterPlayer.Character.Position
+
+	// Get affected positions
+	affectedPositions, err := h.gameManager.GetAffectedPositions(spellIDStr, castSpellMessage.TargetPosition, *casterPosition)
+	if err != nil {
+		log.Printf("[Error] Failed to get affected positions: %v", err)
+		return
+	}
+
+	// Apply damage or effects of the spell to target positions
+	if err := h.gameManager.ApplySpellDamages(spellIDStr, affectedPositions); err != nil {
+		log.Printf("[Error] Failed to apply spell damages: %v", err)
+		return
 	}
 
 	// Broadcast the updated state

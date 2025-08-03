@@ -32,6 +32,14 @@ type IsReadyMessage struct {
 	UserID    string `json:"userId"`
 }
 
+type CastSpellMessage struct {
+	MessageID      string   `json:"messageId"`
+	Timestamp      int64    `json:"timestamp"`
+	UserID         string   `json:"userId"`
+	SpellID        int      `json:"spellId"`
+	TargetPosition Position `json:"targetPosition"`
+}
+
 type MoveMessage struct {
 	MessageID string   `json:"messageId"`
 	UserID    string   `json:"userId"`

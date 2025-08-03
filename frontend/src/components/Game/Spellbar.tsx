@@ -1,16 +1,19 @@
 import React from "react";
 import { Heart, Star, Diamond, LucideIcon } from "lucide-react";
 import { SPELLS, Spell } from "../../../data/spells";
+import { PlayerMessage } from "../../types/message";
+
 interface SpellBarProps {
   handleSpellClick: (spellId: number) => void;
   selectedSpellId: number | null;
+  currentPlayer: PlayerMessage | undefined;
 }
 
 const SpellBar: React.FC<SpellBarProps> = ({
   handleSpellClick,
   selectedSpellId,
+  currentPlayer,
 }) => {
-  const [health, _] = React.useState({ current: 100, max: 100 });
 
   const Tooltip: React.FC<{ text: string }> = ({ text }) => (
     <div className="absolute z-50 bottom-full mb-2 left-1/2 -translate-x-1/2 w-48 bg-white text-gray-800 text-xs p-2 rounded-md border border-gray-300 shadow-xl whitespace-pre-line">
@@ -115,7 +118,10 @@ const SpellBar: React.FC<SpellBarProps> = ({
     <div className="flex w-full h-full">
       <div className="bg-white rounded-md shadow-md border border-gray-300 flex w-full">
         <div className="flex-none flex flex-col items-center justify-center p-2 w-1/6">
-          <HeartStat current={health.current} max={health.max} />
+          <HeartStat
+            current={currentPlayer?.character?.health ?? 0}
+            max={100} // Assuming max health is 100 for now
+          />
           <div className="flex mt-2 w-full justify-center">
             <StatIcon Icon={Star} color="#2563eb" fill="#2563eb" value={6} />
             <StatIcon Icon={Diamond} color="#16a34a" fill="#16a34a" value={3} />

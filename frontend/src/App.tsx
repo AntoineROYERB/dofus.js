@@ -68,7 +68,7 @@ function GameContainer() {
       `Casting spell ${spellId} at position (${position.x}, ${position.y})`
     );
     sendGameAction({
-      type: "spell_cast",
+      type: "cast_spell",
       userId,
       messageId,
       timestamp,
@@ -142,32 +142,34 @@ function GameContainer() {
   };
 
   const handleCellClick = (position: Position) => {
+    console.log(`Cell clicked at position: (${position.x}, ${position.y})`);
+
+    if (gameStatus === "playing" && isMyTurn && selectedSpellId) {
+      handleCastSpell(position, selectedSpellId);
+      setSelectedSpellId(null); // Reset after casting
+      return;
+    }
+
     handleSelectedPosition(position);
 
-    // Check if the position is in the character.initialPositions
     const isInitialPosition = currentCharacter?.initialPositions?.some(
       (initialPosition) =>
         initialPosition.x === position.x && initialPosition.y === position.y
     );
 
-    const isInRange =
-      currentCharacter?.position &&
-      currentCharacter.movementPoints &&
-      IsWithinRange(
-        currentCharacter?.position,
-        position,
-        currentCharacter.movementPoints
-      );
-
-    if (gameStatus === "playing" && isMyTurn) {
-      if (selectedSpellId) {
-        console.log(
-          `Casting spell with ID ${selectedSpellId} at position (${position.x}, ${position.y})`
-        );
-        handleCastSpell(position, selectedSpellId);
-        setSelectedSpellId(null); // Reset after casting
-        return;
+    if (gameStatus === GAME_STATUS.POSITION_CHARACTERS) {
+      if (isInitialPosition) {
+        handleFightClick();
       }
+    } else if (gameStatus === "playing" && isMyTurn) {
+      const isInRange =
+        currentCharacter?.position &&
+        currentCharacter.movementPoints &&
+        IsWithinRange(
+          currentCharacter?.position,
+          position,
+          currentCharacter.movementPoints
+        );
 
       if (
         isInRange ||
@@ -198,6 +200,7 @@ function GameContainer() {
         <SpellBar
           handleSpellClick={handleSpellClick}
           selectedSpellId={selectedSpellId}
+          currentPlayer={currentPlayer}
         />
       </div>
       <div className="h-[20vh] flex flex-col">

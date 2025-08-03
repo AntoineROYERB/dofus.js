@@ -24,12 +24,12 @@ export interface Player {
 }
 
 export interface CastSpellAction {
-  type: "spell_cast";
+  type: "cast_spell";
   userId: string;
   messageId: string;
   timestamp: number;
   spellId: number;
-  TargetPosition: Position;
+  targetPosition: Position;
 }
 export interface CreateCharacterAction extends Player {
   type: "create_character";

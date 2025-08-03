@@ -127,6 +127,7 @@ func (gm *GameManager) SetHasPlayedThisTurn(userID string, HasPlayedThisTurn boo
 		Players:     make(map[string]types.Player),
 		GameStatus:  currentState.GameStatus,
 		TurnNumber:  currentState.TurnNumber,
+		Spells:      currentState.Spells,
 	}
 
 	// Update hasPlayedThisTurn for the player
@@ -156,6 +157,7 @@ func (gm *GameManager) SetCharacterCurrentTurn(CharacterName string, isCurrent b
 		Players:     make(map[string]types.Player),
 		GameStatus:  currentState.GameStatus,
 		TurnNumber:  currentState.TurnNumber,
+		Spells:      currentState.Spells,
 	}
 	// Copy players to new state, updating isCurrentTurn for the specified character
 	for k, v := range currentState.Players {
@@ -189,12 +191,149 @@ func (gm *GameManager) UpdatePlayerPosition(playerID string, newPosition types.P
 		Players:     make(map[string]types.Player),
 		GameStatus:  currentState.GameStatus,
 		TurnNumber:  currentState.TurnNumber,
+		Spells:      currentState.Spells,
 	}
 
 	//Copy players and update position
 	for k, v := range currentState.Players {
 		if k == playerID {
 			v.Character.Position = &newPosition
+		}
+		newState.Players[k] = v
+	}
+
+	gm.state = append(gm.state, newState)
+	return nil
+}
+
+func (gm *GameManager) ApplySpellDamages(spellID string, affectedPositions []types.Position) error {
+	gm.mutex.Lock()
+	defer gm.mutex.Unlock()
+
+	currentState := gm.state[len(gm.state)-1]
+
+	// Find the spell in the spell list
+	spell, exists := currentState.Spells[spellID]
+	if !exists {
+		return errors.New("spell not found")
+	}
+
+	// Apply damage to all players in the affected positions
+	for _, position := range affectedPositions {
+		for _, v := range currentState.Players {
+			if v.Character.Position != nil && v.Character.Position.X == position.X && v.Character.Position.Y == position.Y {
+				v.Character.Health -= spell.Damage
+				if v.Character.Health <= 0 {
+					v.Character.IsAlive = false
+				}
+			}
+		}
+	}
+
+	gm.state = append(gm.state, currentState)
+	return nil
+}
+
+func (gm *GameManager) GetSpellCost(spellID string) (int, error) {
+	// This function should return the cost of the spell based on its ID
+	// For now, we will return a fixed cost for demonstration purposes
+	switch spellID {
+	case "1":
+		return 4, nil
+	case "2":
+		return 3, nil
+	case "3":
+		return 2, nil
+	case "4":
+		return 5, nil
+	default:
+		return 0, errors.New("unknown spell ID")
+	}
+}
+
+func (gm *GameManager) GetAffectedPositions(spellID string, targetPosition types.Position, casterPosition types.Position) ([]types.Position, error) {
+	currentState := gm.GetCurrentState()
+	spell, exists := currentState.Spells[spellID]
+	if !exists {
+		return nil, errors.New("spell not found")
+	}
+
+	var affectedPositions []types.Position
+	pattern := []types.Position{}
+	rotatePattern := false
+
+	switch spell.AreaOfEffect {
+	case "none":
+		pattern = append(pattern, types.Position{X: 0, Y: 0})
+	case "circle":
+		pattern = append(pattern, []types.Position{
+			{X: 2, Y: 0},
+			{X: 1, Y: 1},
+			{X: 0, Y: 2},
+			{X: -1, Y: 1},
+			{X: -2, Y: 0},
+			{X: 1, Y: -1},
+			{X: 0, Y: -2},
+			{X: -1, Y: -1},
+		}...
+		)
+	case "line":
+		pattern = append(pattern, []types.Position{
+			{X: 0, Y: 0},
+			{X: 0, Y: 1},
+			{X: 0, Y: 2},
+		}...
+		)
+		rotatePattern = true
+	case "cross":
+		pattern = append(pattern, []types.Position{
+			{X: 0, Y: 0},
+			{X: 0, Y: 1},
+			{X: 1, Y: 0},
+			{X: -1, Y: 0},
+			{X: 0, Y: -1},
+		}...
+		)
+		rotatePattern = true
+	}
+
+	direction := ""
+	if rotatePattern {
+		direction = getDirection(casterPosition, targetPosition)
+	}
+
+	for _, offset := range pattern {
+		transformed := offset
+		if rotatePattern {
+			transformed = rotate(offset, direction)
+		}
+		affectedPositions = append(affectedPositions, types.Position{
+			X: targetPosition.X + transformed.X,
+			Y: targetPosition.Y + transformed.Y,
+		})
+	}
+
+	return affectedPositions, nil
+}
+func (gm *GameManager) UpdatePlayerAP(playerID string, newActionPoints int) error {
+	gm.mutex.Lock()
+	defer gm.mutex.Unlock()
+
+	currentState := gm.state[len(gm.state)-1]
+
+	// Create new state with updated action points
+	newState := &types.GameState{
+		MessageType: "game_state",
+		Players:     make(map[string]types.Player),
+		GameStatus:  currentState.GameStatus,
+		TurnNumber:  currentState.TurnNumber,
+		Spells:      currentState.Spells,
+	}
+
+	// Copy players and update action points
+	for k, v := range currentState.Players {
+		if k == playerID {
+			v.Character.ActionPoints = v.Character.ActionPoints - newActionPoints
 		}
 		newState.Players[k] = v
 	}
@@ -217,6 +356,7 @@ func (gm *GameManager) UpdatePlayerPM(playerID string, newPosition types.Positio
 		Players:     make(map[string]types.Player),
 		GameStatus:  currentState.GameStatus,
 		TurnNumber:  currentState.TurnNumber,
+		Spells:      currentState.Spells,
 	}
 
 	// Calculate distance moved
@@ -269,11 +409,21 @@ func (gm *GameManager) StartGame(players map[string]types.Player) error {
 		Players:     players,
 		GameStatus:  GameStatusPositionCharacters,
 		TurnNumber:  0,
+		Spells:      initializeSpells(),
 	}
 
 	gm.state = append(gm.state, newState)
 	log.Printf("[Game] Game started with %d players", len(newState.Players))
 	return nil
+}
+
+func initializeSpells() map[string]types.Spell {
+	spells := make(map[string]types.Spell)
+	spells["1"] = types.Spell{ID: 1, Name: "Fireball", APCost: 4, Range: 6, Damage: 30, AreaOfEffect: "circle"}
+	spells["2"] = types.Spell{ID: 2, Name: "Ice Spike", APCost: 3, Range: 5, Damage: 20, AreaOfEffect: "line"}
+	spells["3"] = types.Spell{ID: 3, Name: "Poison Dart", APCost: 2, Range: 4, Damage: 10, AreaOfEffect: "none"}
+	spells["4"] = types.Spell{ID: 4, Name: "Gwendo na Gwendo", APCost: 5, Range: 3, Damage: 25, AreaOfEffect: "cross"}
+	return spells
 }
 
 // generateInitialPositions generates 3 random initial positions for a character
@@ -330,4 +480,34 @@ func abs(n int) int {
 		return -n
 	}
 	return n
+}
+
+func getDirection(from, to types.Position) string {
+	if from.X == to.X {
+		if from.Y > to.Y {
+			return "down"
+		}
+		return "up"
+	}
+	if from.Y == to.Y {
+		if from.X > to.X {
+			return "left"
+		}
+		return "right"
+	}
+	return ""
+}
+
+func rotate(pos types.Position, direction string) types.Position {
+	switch direction {
+	case "up":
+		return pos
+	case "down":
+		return types.Position{X: -pos.X, Y: -pos.Y}
+	case "left":
+		return types.Position{X: -pos.Y, Y: pos.X}
+	case "right":
+		return types.Position{X: pos.Y, Y: -pos.X}
+	}
+	return pos
 }
