@@ -282,12 +282,17 @@ func (gm *GameManager) ApplySpellDamages(spellID string, affectedPositions []typ
 
 	// Apply damage to all players in the affected positions
 	for _, position := range affectedPositions {
-		for _, v := range currentState.Players {
+		log.Printf("[Debug] Checking position: %+v", position)
+		for userID, v := range currentState.Players {
 			if v.Character.Position != nil && v.Character.Position.X == position.X && v.Character.Position.Y == position.Y {
+				log.Printf("[Debug] Applying %d damage to player %s at position %+v (current health: %d)", spell.Damage, userID, *v.Character.Position, v.Character.Health)
 				v.Character.Health -= spell.Damage
 				if v.Character.Health <= 0 {
 					v.Character.IsAlive = false
+					log.Printf("[Debug] Player %s is now dead.", userID)
 				}
+				// Update the player in the current state
+				currentState.Players[userID] = v
 			}
 		}
 	}
@@ -308,6 +313,8 @@ func (gm *GameManager) GetSpellCost(spellID string) (int, error) {
 		return 2, nil
 	case "4":
 		return 5, nil
+	case "5":
+		return 0, nil // Kill spell costs 0 AP
 	default:
 		return 0, errors.New("unknown spell ID")
 	}
@@ -485,6 +492,7 @@ func initializeSpells() map[string]types.Spell {
 	spells["2"] = types.Spell{ID: 2, Name: "Ice Spike", APCost: 3, Range: 5, Damage: 20, AreaOfEffect: "line"}
 	spells["3"] = types.Spell{ID: 3, Name: "Poison Dart", APCost: 2, Range: 4, Damage: 10, AreaOfEffect: "none"}
 	spells["4"] = types.Spell{ID: 4, Name: "Gwendo na Gwendo", APCost: 5, Range: 3, Damage: 25, AreaOfEffect: "cross"}
+	spells["5"] = types.Spell{ID: 5, Name: "Kill", APCost: 0, Range: 0, Damage: 9999, AreaOfEffect: "none"}
 	return spells
 }
 
