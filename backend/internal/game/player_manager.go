@@ -120,3 +120,17 @@ func (pm *PlayerManager) SetPlayerCurrentTurn(userID string, isCurrentTurn bool)
 	pm.players[userID] = player
 	return nil
 }
+
+func (pm *PlayerManager) SetPlayerHasPositioned(userID string, hasPositioned bool) error {
+	pm.mutex.Lock()
+	defer pm.mutex.Unlock()
+
+	player, ok := pm.players[userID]
+	if !ok {
+		return fmt.Errorf("player with ID %s not found", userID)
+	}
+
+	player.HasPositioned = hasPositioned
+	pm.players[userID] = player
+	return nil
+}

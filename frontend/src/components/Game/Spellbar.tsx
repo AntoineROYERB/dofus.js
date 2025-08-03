@@ -123,8 +123,8 @@ const SpellBar: React.FC<SpellBarProps> = ({
             max={100} // Assuming max health is 100 for now
           />
           <div className="flex mt-2 w-full justify-center">
-            <StatIcon Icon={Star} color="#2563eb" fill="#2563eb" value={6} />
-            <StatIcon Icon={Diamond} color="#16a34a" fill="#16a34a" value={3} />
+            <StatIcon Icon={Star} color="#2563eb" fill="#2563eb" value={currentPlayer?.character?.actionPoints ?? 0} />
+            <StatIcon Icon={Diamond} color="#16a34a" fill="#16a34a" value={currentPlayer?.character?.movementPoints ?? 0} />
           </div>
         </div>
 

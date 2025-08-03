@@ -300,29 +300,33 @@ func handleCharacterPositionedMessage(h *Hub, message []byte) {
 		log.Printf("[Error] Invalid character positioned message: %v", err)
 		return
 	}
-	// Update player position
-	if err := h.gameManager.UpdatePlayerPosition(positionedMessage.UserID, positionedMessage.Position); err != nil {
-		log.Printf("[Error] Failed to position character: %v", err)
+
+	// Store the chosen initial position
+	h.gameManager.SetChosenInitialPosition(positionedMessage.UserID, positionedMessage.Position)
+
+	// Set player as positioned
+	if err := h.playerManager.SetPlayerHasPositioned(positionedMessage.UserID, true); err != nil {
+		log.Printf("[Error] Failed to set player as positioned: %v", err)
 		return
 	}
 
-	// CHeck if all players have positioned their characters
+	// Check if all players have positioned their characters
 	players := h.playerManager.GetPlayers()
-	allPositioned := true
-	for _, player := range players {
-		if player.Character.Position == nil {
-			allPositioned = false
-			break
+	if h.gameManager.AreAllPlayersPositioned(len(players)) {
+		// Apply all chosen positions to the game state
+		if err := h.gameManager.ApplyAllChosenPositions(); err != nil {
+			log.Printf("[Error] Failed to apply chosen positions: %v", err)
+			return
 		}
-	}
-	log.Printf("[Debug] All players positioned: %v", allPositioned)
-	if allPositioned {
 
 		// If all players have positioned their characters, update the game status to "in_progress"
 		h.gameManager.SetGameStatus(types.GameStatusPlaying)
 		// Set the turn number to 1
 		h.gameManager.IncrementTurnNumber()
+		// Set the first character to play
+		h.playerManager.SetFirstCharacter()
 	}
+
 	// Broadcast the updated state
 	if err := h.BroadcastGameState(); err != nil {
 		log.Printf("[Error] Failed to broadcast game state: %v", err)

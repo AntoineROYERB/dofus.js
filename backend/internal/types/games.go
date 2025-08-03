@@ -26,6 +26,7 @@ type Player struct {
 	Status        string     `json:"status"`
 	IsCurrentTurn bool       `json:"isCurrentTurn"`
 	IsReady       bool       `json:"isReady"`
+	HasPositioned bool       `json:"hasPositioned"`
 }
 
 type GameState struct {

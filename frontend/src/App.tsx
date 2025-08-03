@@ -44,6 +44,8 @@ function GameContainer() {
   const characterPosition =
     latestGameState?.players[userId]?.character?.position;
 
+  const isPlayerPositioned = latestGameState?.players[userId]?.hasPositioned;
+
   const handleSelectedPosition = (position: Position | null) => {
     if (position) {
       setSelectedPosition(position);
@@ -144,24 +146,28 @@ function GameContainer() {
   const handleCellClick = (position: Position) => {
     console.log(`Cell clicked at position: (${position.x}, ${position.y})`);
 
+    // If in positioning phase and player has already positioned, do nothing.
+    if (gameStatus === GAME_STATUS.POSITION_CHARACTERS && isPlayerPositioned) {
+      return;
+    }
+
+    // Spell casting logic (highest priority)
     if (gameStatus === "playing" && isMyTurn && selectedSpellId) {
       handleCastSpell(position, selectedSpellId);
       setSelectedSpellId(null); // Reset after casting
       return;
     }
 
+    // Always update selectedPosition if not in the "locked" state
     handleSelectedPosition(position);
 
-    const isInitialPosition = currentCharacter?.initialPositions?.some(
-      (initialPosition) =>
-        initialPosition.x === position.x && initialPosition.y === position.y
-    );
+    // Movement logic (only if not casting spell and in playing phase)
+    if (gameStatus === "playing" && isMyTurn) {
+      const isInitialPosition = currentCharacter?.initialPositions?.some(
+        (initialPosition) =>
+          initialPosition.x === position.x && initialPosition.y === position.y
+      );
 
-    if (gameStatus === GAME_STATUS.POSITION_CHARACTERS) {
-      if (isInitialPosition) {
-        handleFightClick();
-      }
-    } else if (gameStatus === "playing" && isMyTurn) {
       const isInRange =
         currentCharacter?.position &&
         currentCharacter.movementPoints &&
@@ -231,7 +237,8 @@ function GameContainer() {
             handleSubmitClick={handleCreateCharacter}
             userHasCharacter={userHasCharacter}
             handleFightClick={handleFightClick}
-            selectedPosition={characterPosition}
+            selectedPosition={selectedPosition}
+            isPlayerPositioned={isPlayerPositioned}
           />
         </div>
       </div>

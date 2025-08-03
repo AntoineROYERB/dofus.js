@@ -20,9 +20,10 @@ const (
 )
 
 type GameManager struct {
-	state          []*types.GameState
-	messageHistory [][]byte // Add this field to store message history
-	mutex          sync.RWMutex
+	state                  []*types.GameState
+	messageHistory         [][]byte // Add this field to store message history
+	chosenInitialPositions map[string]types.Position
+	mutex                  sync.RWMutex
 }
 
 func NewGameManager() *GameManager {
@@ -33,8 +34,8 @@ func NewGameManager() *GameManager {
 			GameStatus:  GameStatusHasNotStarted,
 			TurnNumber:  0,
 		}},
-		messageHistory: make([][]byte, 0), // Initialize message history
-
+		messageHistory:         make([][]byte, 0), // Initialize message history
+		chosenInitialPositions: make(map[string]types.Position),
 	}
 }
 
@@ -177,6 +178,46 @@ func (gm *GameManager) SetGameStatus(status string) {
 	currentState := gm.state[len(gm.state)-1]
 	currentState.GameStatus = status
 	gm.state = append(gm.state, currentState)
+}
+
+func (gm *GameManager) SetChosenInitialPosition(userID string, position types.Position) {
+	gm.mutex.Lock()
+	defer gm.mutex.Unlock()
+	gm.chosenInitialPositions[userID] = position
+}
+
+func (gm *GameManager) AreAllPlayersPositioned(totalPlayers int) bool {
+	gm.mutex.RLock()
+	defer gm.mutex.RUnlock()
+	return len(gm.chosenInitialPositions) == totalPlayers
+}
+
+func (gm *GameManager) ApplyAllChosenPositions() error {
+	gm.mutex.Lock()
+	defer gm.mutex.Unlock()
+
+	currentState := gm.state[len(gm.state)-1]
+	newState := &types.GameState{
+		MessageType: "game_state",
+		Players:     make(map[string]types.Player),
+		GameStatus:  currentState.GameStatus,
+		TurnNumber:  currentState.TurnNumber,
+		Spells:      currentState.Spells,
+	}
+
+	for userID, player := range currentState.Players {
+		if chosenPos, ok := gm.chosenInitialPositions[userID]; ok {
+			player.Character.Position = &chosenPos
+		} else {
+			// If a player hasn't chosen a position, they might be a spectator or an error occurred
+			log.Printf("[Warning] Player %s did not choose an initial position.", userID)
+		}
+		newState.Players[userID] = player
+	}
+
+	gm.state = append(gm.state, newState)
+	gm.chosenInitialPositions = make(map[string]types.Position) // Clear chosen positions
+	return nil
 }
 
 func (gm *GameManager) UpdatePlayerPosition(playerID string, newPosition types.Position) error {

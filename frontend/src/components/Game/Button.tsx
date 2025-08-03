@@ -11,6 +11,7 @@ interface mainButtonProps {
   handleSubmitClick: () => void;
   userHasCharacter: boolean;
   selectedPosition: Position | undefined;
+  isPlayerPositioned: boolean | undefined;
 }
 
 export const MainButton: React.FC<mainButtonProps> = ({
@@ -24,6 +25,7 @@ export const MainButton: React.FC<mainButtonProps> = ({
   handleFightClick,
   userHasCharacter,
   selectedPosition,
+  isPlayerPositioned,
 }) => {
   return (
     <div className="px-2">
@@ -60,10 +62,10 @@ export const MainButton: React.FC<mainButtonProps> = ({
       {gameStatus === "position_characters" && (
         <button
           className="w-full py-1 bg-blue-500 text-white rounded disabled:bg-gray-300 hover:bg-blue-600 text-sm"
-          disabled={selectedPosition != null}
+          disabled={selectedPosition === null || isPlayerPositioned}
           onClick={handleFightClick}
         >
-          Fight
+          {isPlayerPositioned ? "Waiting for others..." : "Fight"}
         </button>
       )}
     </div>
