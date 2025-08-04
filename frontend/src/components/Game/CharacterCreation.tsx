@@ -15,7 +15,7 @@ export const CharacterCreation: React.FC<CharacterCreationProps> = ({
 }) => {
   const [characterName, setCharacterName] = useState("");
   return (
-    <div className="p-2 flex-grow overflow-y-auto">
+    <div className="p-2">
       <h3 className="text-sm font-medium mb-1">Create Your Character</h3>
       <div className="space-y-2">
         {/* Name Input */}

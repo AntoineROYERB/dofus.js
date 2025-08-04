@@ -188,8 +188,9 @@ function GameContainer() {
   };
 
   return (
-    <div className="grid grid-cols-3 h-screen max-h-screen">
-      <div className="col-span-3 h-[80vh]">
+    <div className="flex flex-col h-screen max-h-screen bg-gray-900 text-white">
+      {/* Game Board */}
+      <div className="flex-shrink-0 h-[60vh] md:h-[75vh] rounded-lg overflow-hidden shadow-lg m-2 md:m-4">
         <GameBoard
           gridSize={15}
           handleSelectedPosition={handleSelectedPosition}
@@ -200,58 +201,70 @@ function GameContainer() {
           userId={userId}
         />
       </div>
-      <div className="h-[20vh] overflow-y-auto">
-        <Chat />
-      </div>
-      <div className="h-[20vh]">
-        <SpellBar
-          handleSpellClick={handleSpellClick}
-          selectedSpellId={selectedSpellId}
-          currentPlayer={currentPlayer}
-        />
-      </div>
-      <div className="h-[20vh] flex flex-col">
-        <div className="flex-grow overflow-y-auto">
-          {currentPlayer ? (
-            <GameInfoPanel
-              currentPlayer={currentPlayer}
-              connected={connected}
-              latestGameState={latestGameState}
-            />
-          ) : (
-            <CharacterCreation
-              selectedColor={selectedColor}
-              setSelectedColor={setSelectedColor}
-              handleColorClick={handleColorClick}
-              handleCharacterName={(name) => setCharacterName(name)}
-            />
-          )}
+
+      {/* Panels section */}
+      <div className="flex-grow grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-4 mt-2 md:mt-4 min-h-0 px-2 md:px-4 pb-2 md:pb-4">
+        {/* Chat Panel (Left) */}
+        <div className="bg-gray-800 rounded-lg p-2 flex flex-col overflow-y-auto">
+          <Chat />
         </div>
-        <div className="pb-1">
-          <MainButton
-            gameStatus={gameStatus}
-            connected={connected}
-            handleReadyClick={handleReadyClick}
-            handleEndTurnClick={handleEndTurnClick}
-            isPlayerReady={isPlayerReady}
-            isMyTurn={isMyTurn}
-            handleSubmitClick={handleCreateCharacter}
-            userHasCharacter={userHasCharacter}
-            handleFightClick={handleFightClick}
-            selectedPosition={selectedPosition}
-            isPlayerPositioned={isPlayerPositioned}
+
+        {/* SpellBar Panel (Center) */}
+        <div className="bg-gray-800 rounded-lg p-2 overflow-y-auto">
+          <SpellBar
+            handleSpellClick={handleSpellClick}
+            selectedSpellId={selectedSpellId}
+            currentPlayer={currentPlayer}
           />
         </div>
+
+        {/* Info/Action Panel (Right) */}
+        <div className="bg-gray-800 rounded-lg flex flex-col-reverse p-2">
+          {/* Button is at the bottom because of flex-col-reverse */}
+          <div className="flex-shrink-0 pt-2">
+            <MainButton
+              gameStatus={gameStatus}
+              connected={connected}
+              handleReadyClick={handleReadyClick}
+              handleEndTurnClick={handleEndTurnClick}
+              isPlayerReady={isPlayerReady}
+              isMyTurn={isMyTurn}
+              handleSubmitClick={handleCreateCharacter}
+              userHasCharacter={userHasCharacter}
+              handleFightClick={handleFightClick}
+              selectedPosition={selectedPosition}
+              isPlayerPositioned={isPlayerPositioned}
+            />
+          </div>
+
+          <div
+            className={`flex-grow ${currentPlayer ? "overflow-y-auto" : ""}`}
+          >
+            {currentPlayer ? (
+              <GameInfoPanel
+                currentPlayer={currentPlayer}
+                connected={connected}
+                latestGameState={latestGameState}
+              />
+            ) : (
+              <CharacterCreation
+                selectedColor={selectedColor}
+                setSelectedColor={setSelectedColor}
+                handleColorClick={handleColorClick}
+                handleCharacterName={(name) => setCharacterName(name)}
+              />
+            )}
+          </div>
+        </div>
       </div>
+
       {winner && (
         <GameOverModal
           winner={winner}
           onPlayAgain={() => {
-            // Logic to restart the game (e.g., refresh page or send reset message)
             window.location.reload();
           }}
           onExit={() => {
-            // Logic to exit to menu (e.g., redirect to a landing page)
             alert("Exiting game. Implement your navigation here.");
           }}
         />
