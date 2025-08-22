@@ -1,16 +1,38 @@
 import React from "react";
 import { PlayerMessage, GameStateMessage } from "../../types/message";
+import { MainButton } from "./Button";
+import { GameStatus, Position } from "../../types/game";
 
 interface GameInfoPanelProps {
   currentPlayer: PlayerMessage | undefined;
   connected: boolean;
   latestGameState: GameStateMessage | null;
+  gameStatus: GameStatus;
+  handleReadyClick: () => void;
+  handleEndTurnClick: () => void;
+  isPlayerReady: boolean | undefined;
+  isMyTurn: boolean | undefined;
+  handleSubmitClick: () => void;
+  userHasCharacter: boolean;
+  handleFightClick: () => void;
+  selectedPosition: Position | undefined;
+  isPlayerPositioned: boolean | undefined;
 }
 
 export const GameInfoPanel: React.FC<GameInfoPanelProps> = ({
   currentPlayer,
   connected,
   latestGameState,
+  gameStatus,
+  handleReadyClick,
+  handleEndTurnClick,
+  isPlayerReady,
+  isMyTurn,
+  handleSubmitClick,
+  userHasCharacter,
+  handleFightClick,
+  selectedPosition,
+  isPlayerPositioned,
 }) => {
   const totalPlayers = latestGameState?.players
     ? Object.keys(latestGameState?.players).length
@@ -23,9 +45,6 @@ export const GameInfoPanel: React.FC<GameInfoPanelProps> = ({
 
   const readyPlayersCount = readyPlayers.length;
   const readyPlayersNames = readyPlayers.map((player) => player.userName);
-
-  // Check if it's current player's turn
-  const isMyTurn = currentPlayer?.isCurrentTurn || false;
 
   return (
     <div className="p-2 text-sm h-full">
@@ -79,6 +98,22 @@ export const GameInfoPanel: React.FC<GameInfoPanelProps> = ({
           </div>
         </>
       )}
+      {/* Button is at the bottom */}
+      <div className="flex-shrink-0 pt-2">
+        <MainButton
+          gameStatus={gameStatus}
+          connected={connected}
+          handleReadyClick={handleReadyClick}
+          handleEndTurnClick={handleEndTurnClick}
+          isPlayerReady={isPlayerReady}
+          isMyTurn={isMyTurn}
+          handleSubmitClick={handleSubmitClick}
+          userHasCharacter={userHasCharacter}
+          handleFightClick={handleFightClick}
+          selectedPosition={selectedPosition}
+          isPlayerPositioned={isPlayerPositioned}
+        />
+      </div>
     </div>
   );
 };
