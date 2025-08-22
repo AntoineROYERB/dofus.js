@@ -33,7 +33,7 @@ export const ChatInput: React.FC = () => {
           onChange={(e) => setMessage(e.target.value)}
           disabled={!connected}
           placeholder={connected ? "Type a message..." : "Connecting..."}
-          className="flex-1 p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="flex-1 p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
         />
         <button
           type="submit"

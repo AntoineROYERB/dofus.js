@@ -18,7 +18,7 @@ export const ConnectionStatus: React.FC = () => {
         />
         {connected ? "Connected" : "Disconnected"}
       </div>
-      <p className="text-sm text-gray-600">
+      <p className="text-sm text-white">
         Logged in as: {userName || "Connecting..."}
       </p>
     </div>
