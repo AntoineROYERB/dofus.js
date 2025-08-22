@@ -62,7 +62,7 @@ export const MainButton: React.FC<mainButtonProps> = ({
       {gameStatus === "position_characters" && (
         <button
           className="w-full py-1 bg-blue-500 text-white rounded disabled:bg-gray-300 hover:bg-blue-600 text-sm"
-          disabled={selectedPosition === null || isPlayerPositioned}
+          disabled={!selectedPosition || isPlayerPositioned}
           onClick={handleFightClick}
         >
           {isPlayerPositioned ? "Waiting for others..." : "Fight"}

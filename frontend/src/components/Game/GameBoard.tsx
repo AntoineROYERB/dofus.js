@@ -22,15 +22,17 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   selectedSpellId,
 }) => {
   return (
-    <div className="flex flex-col h-full">
-      <Grid
-        gridSize={gridSize}
-        selectedPosition={selectedPosition}
-        onCellClick={handleCellClick}
-        latestGameState={latestGameState}
-        userId={userId}
-        selectedSpellId={selectedSpellId}
-      />
+    <div className="absolute inset-0 z-0">
+      <div className="flex flex-col h-full">
+        <Grid
+          gridSize={gridSize}
+          selectedPosition={selectedPosition}
+          onCellClick={handleCellClick}
+          latestGameState={latestGameState}
+          userId={userId}
+          selectedSpellId={selectedSpellId}
+        />
+      </div>
     </div>
   );
 };

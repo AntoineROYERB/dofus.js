@@ -26,6 +26,7 @@ export interface ChatMessage extends BaseMessage {
 export interface PlayerMessage extends Player {
   status: string;
   isReady: boolean;
+  hasPositioned: boolean;
 }
 
 export interface GameStateMessage extends BaseMessage {

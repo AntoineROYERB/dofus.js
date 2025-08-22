@@ -13,6 +13,7 @@ export type Character = {
   isCurrentTurn: boolean;
   initialPositions?: Position[];
   hasPlayedThisTurn: boolean;
+  health: number;
 };
 export interface Player {
   messageId: string;
@@ -83,6 +84,7 @@ export type GameAction =
 export const GAME_STATUS = {
   CREATING_PLAYER: "creating_player",
   WAITING_FOR_PLAYERS: "waiting_for_players",
+  POSITION_CHARACTERS: "position_characters",
   PLAYING: "playing",
   IN_PROGRESS: "in_progress",
   GAME_OVER: "game_over",

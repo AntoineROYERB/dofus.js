@@ -9,7 +9,7 @@ import SpellBar from "./components/Game/Spellbar";
 import { Position, GameStatus, GAME_STATUS } from "./types/game";
 import { CharacterCreation } from "./components/Game/CharacterCreation";
 import { GameInfoPanel } from "./components/Game/GameInfoPanel";
-import { MainButton } from "./components/Game/Button";
+
 import { GameOverModal } from "./components/Game/GameOverModal";
 import { useWebSocket } from "./context/WebSocketContext";
 import { PLAYER_COLORS } from "./constants";
@@ -39,11 +39,7 @@ function GameContainer() {
   const currentCharacter = currentPlayer?.character;
   const gameStatus: GameStatus =
     (latestGameState?.status as GameStatus) || GAME_STATUS.CREATING_PLAYER;
-  const userHasCharacter = latestGameState?.players
-    ? Object.keys(latestGameState.players).includes(userId)
-    : false;
-  const characterPosition =
-    latestGameState?.players[userId]?.character?.position;
+  const userHasCharacter = !!currentPlayer;
 
   const isPlayerPositioned = latestGameState?.players[userId]?.hasPositioned;
 
@@ -76,7 +72,7 @@ function GameContainer() {
       messageId,
       timestamp,
       spellId,
-      TargetPosition: position,
+      targetPosition: position,
     });
   };
 
@@ -89,11 +85,12 @@ function GameContainer() {
       character: {
         name: characterName,
         color: selectedColor,
-        symbol: characterName ? characterName[0].toUpperCase() : "P",
+        symbol: (characterName || "P")[0].toUpperCase(),
         actionPoints: 6,
         movementPoints: 4,
         isCurrentTurn: false,
         hasPlayedThisTurn: false,
+        health: 100,
       },
       userId,
       userName,
@@ -153,7 +150,7 @@ function GameContainer() {
     }
 
     // Spell casting logic (highest priority)
-    if (gameStatus === "playing" && isMyTurn && selectedSpellId) {
+    if (gameStatus === "playing" && isMyTurn && selectedSpellId !== null) {
       handleCastSpell(position, selectedSpellId);
       setSelectedSpellId(null); // Reset after casting
       return;
@@ -188,72 +185,68 @@ function GameContainer() {
   };
 
   return (
-    <div className="flex flex-col h-screen max-h-screen bg-gray-900 text-white">
-      {/* Game Board */}
-      <div className="flex-shrink-0 h-[60vh] md:h-[75vh] rounded-lg overflow-hidden shadow-lg m-2 md:m-4">
-        <GameBoard
-          gridSize={15}
-          handleSelectedPosition={handleSelectedPosition}
-          selectedPosition={selectedPosition}
-          selectedSpellId={selectedSpellId}
-          handleCellClick={handleCellClick}
-          latestGameState={latestGameState}
-          userId={userId}
-        />
-      </div>
+    <div className="relative h-screen max-h-screen bg-white-900 text-white">
+      <GameBoard
+        gridSize={15}
+        handleSelectedPosition={handleSelectedPosition}
+        selectedPosition={selectedPosition}
+        selectedSpellId={selectedSpellId}
+        handleCellClick={handleCellClick}
+        latestGameState={latestGameState}
+        userId={userId}
+      />
 
       {/* Panels section */}
-      <div className="flex-grow grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-4 mt-2 md:mt-4 min-h-0 px-2 md:px-4 pb-2 md:pb-4">
-        {/* Chat Panel (Left) */}
-        <div className="bg-gray-800 rounded-lg p-2 flex flex-col overflow-y-auto">
+      <div className="absolute bottom-0 left-0 right-0 z-10 p-2 md:p-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-4 items-end">
           <Chat />
-        </div>
-
-        {/* SpellBar Panel (Center) */}
-        <div className="bg-gray-800 rounded-lg p-2 overflow-y-auto">
           <SpellBar
             handleSpellClick={handleSpellClick}
             selectedSpellId={selectedSpellId}
             currentPlayer={currentPlayer}
           />
-        </div>
 
-        {/* Info/Action Panel (Right) */}
-        <div className="bg-gray-800 rounded-lg flex flex-col-reverse p-2">
-          {/* Button is at the bottom because of flex-col-reverse */}
-          <div className="flex-shrink-0 pt-2">
-            <MainButton
-              gameStatus={gameStatus}
-              connected={connected}
-              handleReadyClick={handleReadyClick}
-              handleEndTurnClick={handleEndTurnClick}
-              isPlayerReady={isPlayerReady}
-              isMyTurn={isMyTurn}
-              handleSubmitClick={handleCreateCharacter}
-              userHasCharacter={userHasCharacter}
-              handleFightClick={handleFightClick}
-              selectedPosition={selectedPosition}
-              isPlayerPositioned={isPlayerPositioned}
-            />
-          </div>
-
-          <div
-            className={`flex-grow ${currentPlayer ? "overflow-y-auto" : ""}`}
-          >
-            {currentPlayer ? (
-              <GameInfoPanel
-                currentPlayer={currentPlayer}
-                connected={connected}
-                latestGameState={latestGameState}
-              />
-            ) : (
-              <CharacterCreation
-                selectedColor={selectedColor}
-                setSelectedColor={setSelectedColor}
-                handleColorClick={handleColorClick}
-                handleCharacterName={(name) => setCharacterName(name)}
-              />
-            )}
+          {/* Info/Action Panel (Right) */}
+          <div className="bg-gray-800/80 backdrop-blur-sm rounded-lg flex flex-col  overflow-y-auto p-2">
+            <div
+              className={`flex-grow ${currentPlayer ? "overflow-y-auto" : ""}`}
+            >
+              {currentPlayer ? (
+                <GameInfoPanel
+                  currentPlayer={currentPlayer}
+                  connected={connected}
+                  latestGameState={latestGameState}
+                  gameStatus={gameStatus}
+                  handleReadyClick={handleReadyClick}
+                  handleEndTurnClick={handleEndTurnClick}
+                  isPlayerReady={isPlayerReady}
+                  isMyTurn={isMyTurn}
+                  handleSubmitClick={handleCreateCharacter}
+                  userHasCharacter={userHasCharacter}
+                  handleFightClick={handleFightClick}
+                  selectedPosition={selectedPosition ?? undefined}
+                  isPlayerPositioned={isPlayerPositioned}
+                />
+              ) : (
+                <CharacterCreation
+                  selectedColor={selectedColor}
+                  setSelectedColor={setSelectedColor}
+                  handleColorClick={handleColorClick}
+                  handleCharacterName={(name) => setCharacterName(name)}
+                  gameStatus={gameStatus}
+                  connected={connected}
+                  handleReadyClick={handleReadyClick}
+                  handleEndTurnClick={handleEndTurnClick}
+                  isPlayerReady={isPlayerReady}
+                  isMyTurn={isMyTurn}
+                  handleSubmitClick={handleCreateCharacter}
+                  userHasCharacter={userHasCharacter}
+                  handleFightClick={handleFightClick}
+                  selectedPosition={selectedPosition ?? undefined}
+                  isPlayerPositioned={isPlayerPositioned}
+                />
+              )}
+            </div>
           </div>
         </div>
       </div>
