@@ -429,19 +429,23 @@ export const Grid: React.FC<GridProps> = ({
 
         // Determine if this tile is a valid movement target
         const isValidTarget = isPositioningPhase
-          ? isValidInitial
-          : (characterPosition &&
+          ? !!isValidInitial
+          : !!(
+              characterPosition &&
               currentPlayer?.isCurrentTurn &&
               movementPoints !== undefined &&
               isWithinRange(characterPosition, { x, y }, movementPoints) &&
-              !playerOnCell) ||
-            (selectedSpellId &&
+              !playerOnCell
+            ) ||
+            !!(
+              selectedSpellId &&
               characterPosition &&
               isInSpellAffectedArea(
                 { x, y },
                 characterPosition,
                 selectedSpellId
-              ));
+              )
+            );
 
         // Determine if this tile is a valid spell target
 
