@@ -27,25 +27,6 @@ The current implementation focuses on establishing the WebSocket infrastructure 
 - Game state management
 - Isometric board rendering
 
-## Project Structure
-
-```mermaid
-project/
-├── backend/               # Go server
-│   ├── cmd/
-│   │   └── server/       # Server entry point
-│   └── internal/
-│       ├── game/         # Game logic
-│       ├── types/        # Type definitions
-│       └── websocket/    # WebSocket implementation
-└── frontend/             # React client
-    ├── src/
-    │   ├── components/   # React components
-    │   ├── providers/    # Context providers
-    │   └── types/        # TypeScript definitions
-    └── package.json
-```
-
 ## Tech Stack
 
 - **Backend**: Go with Gorilla WebSocket
