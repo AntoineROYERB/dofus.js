@@ -2,7 +2,7 @@
 
 A turn-based online game inspired by Dofus, focusing on the combat system. This repository currently contains the foundational WebSocket implementation with a basic chat system, which will serve as the base for real-time game communications.
 
-![image](src/character_shape-27-05-25.png)
+![image](src/menu-02-09-25.png)
 
 ## Project Overview
 
