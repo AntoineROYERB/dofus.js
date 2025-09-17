@@ -1,5 +1,11 @@
 import { useState } from "react";
 import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Link,
+} from "react-router-dom";
+import {
   WebSocketProvider,
   generateMessageId,
 } from "./providers/WebSocketProvider";
@@ -9,6 +15,7 @@ import SpellBar from "./components/Game/Spellbar";
 import { Position, GameStatus, GAME_STATUS } from "./types/game";
 import { CharacterCreation } from "./components/Game/CharacterCreation";
 import { GameInfoPanel } from "./components/Game/GameInfoPanel";
+import AnimationPage from "./pages/AnimationPage";
 
 import { GameOverModal } from "./components/Game/GameOverModal";
 import { useWebSocket } from "./context/WebSocketContext";
@@ -251,6 +258,14 @@ function GameContainer() {
         </div>
       </div>
 
+      <div className="absolute top-4 right-4">
+        <Link to="/animation">
+          <button className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-700">
+            Animation Page
+          </button>
+        </Link>
+      </div>
+
       {winner && (
         <GameOverModal
           winner={winner}
@@ -269,7 +284,12 @@ function GameContainer() {
 function App() {
   return (
     <WebSocketProvider>
-      <GameContainer />
+      <Router>
+        <Routes>
+          <Route path="/" element={<GameContainer />} />
+          <Route path="/animation" element={<AnimationPage />} />
+        </Routes>
+      </Router>
     </WebSocketProvider>
   );
 }
