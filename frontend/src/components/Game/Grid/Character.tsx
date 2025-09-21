@@ -2,11 +2,12 @@ import React from "react";
 import SpriteAnimation, { Direction } from "../SpriteAnimation";
 import IdleImage from "../../../animation/Idle.png";
 import WalkImage from "../../../animation/Walk.png";
+import AttackImage from "../../../animation/Attack.png";
 import { Position } from "../../../types/game";
 
 interface CharacterProps {
   screenPosition: Position;
-  animation: "idle" | "walk";
+  animation: "idle" | "walk" | "attack";
   direction: Direction;
   scale: number;
 }
@@ -42,6 +43,22 @@ const animationConfig = {
       E: 5,
       NE: 6,
       N: 7,
+    },
+  },
+  attack: {
+    spriteSheet: AttackImage,
+    framesPerDirection: 7,
+    frameWidth: 384,
+    frameHeight: 384,
+    directionMap: {
+      N: 0,
+      NW: 1,
+      W: 2,
+      SW: 3,
+      S: 4,
+      SE: 5,
+      E: 6,
+      NE: 7,
     },
   },
 };

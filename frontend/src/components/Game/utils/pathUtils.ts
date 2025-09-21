@@ -76,3 +76,23 @@ export const generateUniqueRandomPositions = (
 
   return positions;
 };
+
+/** Give the direction based on the difference between two positions */
+export const getDirection = (
+  from: Position,
+  to: Position
+): "N" | "NE" | "E" | "SE" | "S" | "SW" | "W" | "NW" => {
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+
+  if (dx > 0 && dy > 0) return "S";
+  if (dx > 0 && dy < 0) return "E";
+  if (dx < 0 && dy > 0) return "W";
+  if (dx < 0 && dy < 0) return "N";
+  if (dx > 0 && dy === 0) return "SE";
+  if (dx < 0 && dy === 0) return "NW";
+  if (dx === 0 && dy > 0) return "SW";
+  if (dx === 0 && dy < 0) return "NE";
+
+  return "S"; // Default direction if no movement
+};

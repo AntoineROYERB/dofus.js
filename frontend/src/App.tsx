@@ -1,10 +1,5 @@
 import { useState } from "react";
-import {
-  BrowserRouter as Router,
-  Routes,
-  Route,
-  Link,
-} from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
 import {
   WebSocketProvider,
   generateMessageId,
@@ -156,18 +151,11 @@ function GameContainer() {
       return;
     }
 
-    // Spell casting logic (highest priority)
-    if (gameStatus === "playing" && isMyTurn && selectedSpellId !== null) {
-      handleCastSpell(position, selectedSpellId);
-      setSelectedSpellId(null); // Reset after casting
-      return;
-    }
-
     // Always update selectedPosition if not in the "locked" state
     handleSelectedPosition(position);
 
     // Movement logic (only if not casting spell and in playing phase)
-    if (gameStatus === "playing" && isMyTurn) {
+    if (gameStatus === "playing" && isMyTurn && selectedSpellId == null) {
       const isInitialPosition = currentCharacter?.initialPositions?.some(
         (initialPosition) =>
           initialPosition.x === position.x && initialPosition.y === position.y
@@ -188,6 +176,13 @@ function GameContainer() {
       ) {
         handleMove(position);
       }
+    }
+
+    // Spell casting logic (highest priority)
+    if (gameStatus === "playing" && isMyTurn && selectedSpellId !== null) {
+      handleCastSpell(position, selectedSpellId);
+      setSelectedSpellId(null); // Reset after casting
+      return;
     }
   };
 

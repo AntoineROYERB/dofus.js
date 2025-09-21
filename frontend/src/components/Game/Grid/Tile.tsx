@@ -1,7 +1,8 @@
-import React, { CSSProperties } from "react";
-import { darkenColor, lightenColor } from "../utils/colorUtils";
-import { Player } from "../../../types/game";
+import React from "react";
+import { darkenColor } from "../utils/colorUtils";
+import { Position } from "../../../types/game";
 import { TILE_COLOR } from "../../../constants";
+
 interface TileProps {
   x: number;
   y: number;
@@ -9,15 +10,24 @@ interface TileProps {
     width: number;
     height: number;
   };
-  screenPosition: {
-    x: number;
-    y: number;
-  };
+  screenPosition: Position;
   isHovered: boolean;
   isValidTarget?: boolean;
-  style?: CSSProperties;
-  player?: Player;
   onClick?: () => void;
+  isPositioningPhase: boolean;
+  allPlayersInitialPositions: Array<{
+    position: Position;
+    playerId: string;
+    color: string;
+    isCurrentPlayer: boolean;
+  }>;
+  isCharacterTurn: boolean;
+  selectedSpellId: number | null;
+  isImpactedCell: boolean;
+  isInSpellRange: boolean;
+  isInRange: boolean;
+  isPathCell: boolean;
+  hoveredPosition: Position | null;
 }
 
 export const Tile: React.FC<TileProps> = ({
@@ -27,9 +37,16 @@ export const Tile: React.FC<TileProps> = ({
   screenPosition,
   isHovered,
   isValidTarget,
-  style,
-  player,
   onClick,
+  isPositioningPhase,
+  allPlayersInitialPositions,
+  isCharacterTurn,
+  selectedSpellId,
+  isImpactedCell,
+  isInSpellRange,
+  isInRange,
+  isPathCell,
+  hoveredPosition,
 }) => {
   // Generate points for diamond
   const points = `${tileSize.width / 2},0 ${tileSize.width},${
@@ -44,10 +61,45 @@ export const Tile: React.FC<TileProps> = ({
       ? TILE_COLOR
       : darkenColor(TILE_COLOR, 10);
 
-  // Apply hover effect and style colors
-  const tileColor = isHovered
-    ? lightenColor((style?.backgroundColor as string) || tileBaseColor, 15)
-    : style?.backgroundColor || tileBaseColor;
+  // Find if this tile is an initial position for any player
+  const initialPositionOwner =
+    isPositioningPhase && allPlayersInitialPositions
+      ? allPlayersInitialPositions.find(
+          (item) => item.position.x === x && item.position.y === y
+        )
+      : undefined;
+
+  const getTileFillColor = (): string => {
+    if (isPositioningPhase && initialPositionOwner) {
+      const isCurrentPlayerInitial = initialPositionOwner.isCurrentPlayer;
+
+      if (isCurrentPlayerInitial) {
+        return isHovered ? "rgba(50, 205, 50, 1)" : "rgba(144, 238, 144, 0.6)";
+      } else {
+        return initialPositionOwner.color;
+      }
+    }
+
+    if (isCharacterTurn && selectedSpellId) {
+      if (isImpactedCell && hoveredPosition && isInSpellRange) {
+        return "rgba(255, 165, 0, 0.5)";
+      }
+      if (isInSpellRange) {
+        return "rgba(160, 191, 255, 1)";
+      }
+    }
+
+    if (!selectedSpellId && isCharacterTurn && isInRange) {
+      if (isHovered) return "rgba(255, 0, 0, 0.6)";
+      if (isPathCell) return "rgba(255, 165, 0, 0.5)";
+      return "rgba(0, 255, 0, 0.2)";
+    }
+
+    return tileBaseColor;
+  };
+
+  const tileColor = getTileFillColor();
+
   return (
     <div
       className="absolute"
@@ -58,6 +110,7 @@ export const Tile: React.FC<TileProps> = ({
         height: `${tileSize.height}px`,
         pointerEvents: isValidTarget ? "auto" : "none", // Enable pointer events only on valid tiles
         cursor: isValidTarget ? "pointer" : "default",
+        clipPath: "polygon(50% 0, 100% 50%, 50% 100%, 0 50%)",
       }}
       onClick={isValidTarget ? onClick : undefined}
     >
@@ -66,7 +119,7 @@ export const Tile: React.FC<TileProps> = ({
         height={tileSize.height}
         viewBox={`0 0 ${tileSize.width} ${tileSize.height}`}
         preserveAspectRatio="none"
-        style={{ pointerEvents: "none" }}
+        style={{ pointerEvents: "none", overflow: "visible" }}
       >
         {/* Diamond shape */}
         <polygon
@@ -87,16 +140,6 @@ export const Tile: React.FC<TileProps> = ({
         >
           ({x}, {y})
         </text>
-        {player && (
-          <ellipse
-            cx={tileSize.width / 2}
-            cy={tileSize.height / 2}
-            rx={tileSize.width * 0.15}
-            ry={tileSize.height * 0.2}
-            fill={player.character.color}
-            stroke="#000"
-          />
-        )}
       </svg>
     </div>
   );
