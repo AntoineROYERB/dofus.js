@@ -1,45 +1,71 @@
 import React from "react";
+import SpriteAnimation, { Direction } from "../SpriteAnimation";
+import IdleImage from "../../../animation/Idle.png";
+import WalkImage from "../../../animation/Walk.png";
+import { Position } from "../../../types/game";
 
 interface CharacterProps {
-  color: string;
-  symbol: string;
-  tileSize: {
-    width: number;
-    height: number;
-  };
+  screenPosition: Position;
+  animation: "idle" | "walk";
+  direction: Direction;
+  scale: number;
 }
 
-export const Character: React.FC<CharacterProps> = ({
-  color,
-  symbol,
-  tileSize,
-}) => {
-  return (
-    <g>
-      {/* Character base */}
-      <ellipse
-        cx={tileSize.width / 2}
-        cy={tileSize.height / 2 + 2}
-        rx={tileSize.width / 5}
-        ry={tileSize.height / 5}
-        fill={color}
-        stroke="#000"
-        strokeWidth="0.5"
-      />
+const animationConfig = {
+  idle: {
+    spriteSheet: IdleImage,
+    framesPerDirection: 23,
+    frameWidth: 256,
+    frameHeight: 256,
+    directionMap: {
+      NW: 0,
+      W: 1,
+      SW: 2,
+      S: 3,
+      SE: 4,
+      E: 5,
+      NE: 6,
+      N: 7,
+    },
+  },
+  walk: {
+    spriteSheet: WalkImage,
+    framesPerDirection: 7,
+    frameWidth: 256,
+    frameHeight: 256,
+    directionMap: {
+      NW: 0,
+      W: 1,
+      SW: 2,
+      S: 3,
+      SE: 4,
+      E: 5,
+      NE: 6,
+      N: 7,
+    },
+  },
+};
 
-      {/* Character symbol */}
-      <text
-        x={tileSize.width / 2}
-        y={tileSize.height / 2 + 2}
-        textAnchor="middle"
-        dominantBaseline="middle"
-        fill="#fff"
-        fontWeight="bold"
-        fontSize={tileSize.height / 2.5}
-        style={{ textShadow: "0px 0px 1px #000" }}
-      >
-        {symbol}
-      </text>
-    </g>
+export const Character: React.FC<CharacterProps> = ({
+  screenPosition,
+  animation,
+  direction,
+  scale,
+}) => {
+  const config = animationConfig[animation];
+
+  return (
+    <div
+      className="absolute"
+      style={{
+        left: `${screenPosition.x - config.frameWidth * scale * 0.5}px`,
+        top: `${screenPosition.y - config.frameHeight * scale * 0.7}px`, // Adjust to better center the character
+        width: `${config.frameWidth * scale}px`,
+        height: `${config.frameHeight * scale}px`,
+        pointerEvents: "none",
+      }}
+    >
+      <SpriteAnimation {...config} direction={direction} scale={scale} />
+    </div>
   );
 };
