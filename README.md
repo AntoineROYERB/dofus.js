@@ -2,7 +2,7 @@
 
 A turn-based online game inspired by Dofus, focusing on the combat system. This repository currently contains the foundational WebSocket implementation with a basic chat system, which will serve as the base for real-time game communications.
 
-![image](src/menu-02-09-25.png)
+![image](src/characterAnimation-21-09-25.png)
 
 ## Project Overview
 
@@ -12,16 +12,16 @@ The current implementation focuses on establishing the WebSocket infrastructure 
 
 ### Planned Features
 
-- ⚔️ Turn-based combat system
-- 🎮 Character movement and positioning
-- 🎲 Combat mechanics and abilities
-- 🌍 Battle arena implementation
 - 👥 Multiplayer combat sessions
+- 🌍 Battle arena implementation
+- 🎲 Combat mechanics and abilities
 
 ## Current Features (WebSocket Implementation)
 
+- ⚔️ Turn-based combat system
+- 🎮 Character movement and positioning
+- Basic chat functionality
 - Real-time WebSocket communication
-- Multi-client support
 - Message broadcasting system
 - Connection state management
 - Game state management
@@ -33,6 +33,26 @@ The current implementation focuses on establishing the WebSocket infrastructure 
 - **Frontend**: React + TypeScript
 - **Styling**: Tailwind CSS
 - **Build Tool**: Vite
+
+## Character Animations
+
+Our animation system is designed to be extensible and is powered by sprite sheets and a custom React hook.
+
+### The Animation Pipeline
+
+1.  **Sprite Sheets:** We use sprite sheets for different character states:
+    *   `Idle.png`: For when the character is standing still.
+    *   `Walk.png`: For when the character is moving across the grid.
+    *   `Attack.png`: For when the character is casting a spell.
+
+2.  **`SpriteAnimation` Component:** This React component is the workhorse of our animation system. It takes a sprite sheet, animation parameters (like frame width, height, and frames per direction), and a direction, and renders the correct animation frame by drawing on a `<canvas>` element.
+
+3.  **`useCharacterAnimations` Hook:** This custom hook is the brain behind the animations. It listens to changes in the game state and determines which animation to play for each character.
+    *   It detects character movement and triggers the "walk" animation.
+    *   It detects when a spell is cast (by observing changes in Action Points) and triggers the "attack" animation.
+    *   When a character is not performing any action, it defaults to the "idle" animation.
+
+This system allows us to create a dynamic and visually engaging combat experience.
 
 ## Getting Started
 
@@ -139,32 +159,18 @@ At the core of this real-time game is a robust WebSocket-based messaging system 
 
 ### Phase 3: Combat System (Upcoming)
 
+- [x] Character animations
 - [ ] Advanced combat actions (e.g., buffs, debuffs)
 - [ ] Comprehensive spell system (e.g., different spell effects)
 - [ ] Effect management (e.g., status effects)
 
 ### Phase 4: User Interface (Planned)
 
-- [ ] Character animations
 - [ ] Combat UI enhancements
 - [ ] Ability interface improvements
-
-## Next Steps
-
-1. Refine spell effects and add more diverse combat mechanics.
-2. Implement character animations for movement and actions.
-3. Enhance the user interface for a more immersive experience.
-
-
 
 ## Development Notes
 
 - The backend handles WebSocket connections and maintains the game state
 - The frontend connects to the backend via WebSocket for real-time updates
 - Nginx serves as a proxy for WebSocket connections in the Docker setup
-
-## Acknowledgments
-
-- Inspired by Dofus combat system
-- Built with modern web technologies
-- Community contributions welcome
