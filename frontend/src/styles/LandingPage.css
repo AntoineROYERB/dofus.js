@@ -1,0 +1,356 @@
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=Inter:wght@400;600&display=swap');
+
+:root {
+    --primary-bg: #0a0a1a;
+    --secondary-bg: #1a1a3a;
+    --accent-gold: #ffd700;
+    --accent-orange: #ff8c00;
+    --text-light: #e0e0e0;
+    --text-dark: #a0a0a0;
+}
+
+body {
+    margin: 0;
+    font-family: 'Inter', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background-color: var(--primary-bg);
+    overflow: hidden; /* Prevent scrolling */
+}
+
+.landing-page-new {
+    height: 100vh;
+    width: 100vw;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    color: white;
+    position: relative;
+    text-align: center;
+    overflow: hidden; /* Ensure no overflow from children */
+}
+
+.landing-page-new::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, var(--secondary-bg) 0%, var(--primary-bg) 50%, var(--secondary-bg) 100%);
+    z-index: -2;
+}
+
+.stars, .twinkling {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+.stars {
+    background: #000 url(https://www.script-tutorials.com/demos/360/images/stars.png) repeat top center;
+    z-index: -1;
+}
+
+.twinkling {
+    background: transparent url(https://www.script-tutorials.com/demos/360/images/twinkling.png) repeat top center;
+    z-index: 0;
+    animation: move-twink-back 200s linear infinite;
+}
+
+@keyframes move-twink-back {
+    from {background-position:0 0;}
+    to {background-position:-10000px 5000px;}
+}
+
+.landing-grid-container {
+    display: grid;
+    grid-template-columns: 1fr 1.5fr 1fr;
+    gap: 1vmin;
+    width: 98vw;
+    height: 98vh;
+    align-items: stretch;
+    justify-content: center;
+    z-index: 1;
+    padding: 1vmin;
+    box-sizing: border-box;
+}
+
+.intro-section,
+.center-section,
+.right-section {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 2vmin;
+    background-color: rgba(0, 0, 0, 0.4);
+    border-radius: 0;
+    box-shadow: 0 0 1.5vmin rgba(0, 0, 0, 0.5);
+    box-sizing: border-box;
+    overflow: hidden;
+}
+
+.intro-section {
+    text-align: left;
+    align-items: flex-start;
+    justify-content: center;
+}
+
+.game-title-new {
+    font-family: 'Cinzel', serif;
+    font-size: clamp(1.5rem, 4vw, 3rem);
+    font-weight: 700;
+    color: var(--accent-gold);
+    text-shadow: 0 0 1vmin var(--accent-gold), 0 0 2vmin var(--accent-gold);
+    margin: 0;
+    margin-bottom: 2vh;
+    animation: titleGlow 2s ease-in-out infinite alternate;
+}
+
+@keyframes titleGlow {
+    from { text-shadow: 0 0 1vmin var(--accent-gold), 0 0 2vmin var(--accent-gold); }
+    to { text-shadow: 0 0 1.5vmin var(--accent-gold), 0 0 2.5vmin var(--accent-orange); }
+}
+
+.intro-text {
+    font-size: clamp(0.8rem, 1.8vmin, 1rem);
+    color: var(--text-light);
+    line-height: 1.4;
+    margin-bottom: 1.5vh;
+}
+
+.center-section {
+    justify-content: center;
+    gap: 0.5vmin;
+}
+
+.character-animation-container {
+    width: 100%;
+    max-width: 40vh;
+    aspect-ratio: 1 / 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    line-height: 0;
+}
+
+.character-creation-module {
+    width: 100%;
+    max-width: 350px;
+}
+
+.right-section {
+    justify-content: space-around;
+}
+
+.join-match-button {
+    font-family: 'Inter', sans-serif;
+    font-size: clamp(1rem, 3vmin, 1.5rem);
+    font-weight: 600;
+    color: #ffffff;
+    background: linear-gradient(45deg, #4CAF50, #8BC34A);
+    border: none;
+    padding: clamp(1vmin, 2vmax, 2vmin) clamp(2vmin, 4vmax, 4vmin);
+    border-radius: 50px;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    box-shadow: 0 0 1.5vmin #4CAF50, 0 0 2.5vmin #8BC34A;
+    transition: all 0.3s ease-in-out;
+    animation: pulseGreen 2s infinite;
+}
+
+.join-match-button:hover {
+    transform: translateY(-0.5vmin) scale(1.05);
+    box-shadow: 0 0 2.5vmin #4CAF50, 0 0 4vmin #8BC34A;
+}
+
+@keyframes pulseGreen {
+    0% { box-shadow: 0 0 1.5vmin #4CAF50, 0 0 2.5vmin #8BC34A; }
+    50% { box-shadow: 0 0 2.5vmin #4CAF50, 0 0 4vmin #8BC34A; }
+    100% { box-shadow: 0 0 1.5vmin #4CAF50, 0 0 2.5vmin #8BC34A; }
+}
+
+.additional-elements {
+    text-align: left;
+    width: 100%;
+}
+
+.additional-elements h3 {
+    color: var(--accent-gold);
+    font-size: clamp(0.9rem, 2.5vmin, 1.3rem);
+    margin-bottom: 1vh;
+    border-bottom: 1px solid rgba(255, 215, 0, 0.3);
+    padding-bottom: 0.5vh;
+}
+
+.additional-elements ul {
+    list-style: none;
+    padding: 0;
+    margin-bottom: 1.5vh;
+}
+
+.additional-elements li {
+    margin-bottom: 0.7vh;
+}
+
+.additional-elements a {
+    color: var(--text-light);
+    text-decoration: none;
+    transition: color 0.3s ease;
+    font-size: clamp(0.7rem, 1.8vmin, 0.9rem);
+}
+
+.additional-elements a:hover {
+    color: var(--accent-gold);
+}
+
+.feature-list li {
+    font-size: clamp(0.7rem, 1.8vmin, 0.9rem);
+}
+
+.character-display {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0;
+    width: 100%;
+}
+
+
+
+.character-name {
+    font-family: 'Cinzel', serif;
+    font-size: clamp(1rem, 3vmin, 1.5rem);
+    color: var(--accent-gold);
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+    z-index: 1;
+    position: relative;
+    padding: 0 1vmin;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+.animation-controls {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1vh;
+}
+
+.rotation-controls {
+    display: flex;
+    gap: 1rem;
+}
+
+.rotate-arrow {
+    background-color: rgba(var(--accent-gold), 0.2);
+    border: 1px solid var(--accent-gold);
+    color: var(--accent-gold);
+    padding: 0;
+    margin: 0;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: clamp(1rem, 3vmin, 1.5rem);
+    font-weight: 600;
+    transition: all 0.2s ease;
+    width: clamp(30px, 8vmin, 50px);
+    height: clamp(30px, 8vmin, 50px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.rotate-arrow:hover {
+    background-color: var(--accent-gold);
+    color: var(--primary-bg);
+    box-shadow: 0 0 1vmin var(--accent-gold);
+}
+
+.animation-type-controls {
+    display: flex;
+    gap: 1vmin;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.animation-button {
+    background-color: rgba(var(--accent-orange), 0.2);
+    border: 1px solid var(--accent-orange);
+    color: var(--accent-orange);
+    padding: clamp(0.5vmin, 1vmax, 1vmin) clamp(1vmin, 2vmax, 2vmin);
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: clamp(0.7rem, 2vmin, 1rem);
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+
+.animation-button:hover {
+    background-color: var(--accent-orange);
+    color: var(--primary-bg);
+    box-shadow: 0 0 1vmin var(--accent-orange);
+}
+
+@media (max-width: 900px), (max-height: 600px) {
+    .landing-grid-container {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto 1fr;
+        width: 100vw;
+        height: 100vh;
+        padding: 1vmin;
+        gap: 1vmin;
+    }
+
+    .intro-section {
+        grid-row: 1;
+        flex-direction: row;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 1vmin;
+    }
+
+    .game-title-new {
+        margin: 0;
+        margin-right: 2vmin;
+    }
+
+    .intro-text {
+       display: none;
+    }
+
+    .center-section {
+        grid-row: 2;
+        flex-direction: row;
+        justify-content: space-around;
+        align-items: center;
+    }
+
+    .right-section {
+       display: none;
+    }
+
+    .character-animation-container {
+        max-width: 50vh;
+        max-height: 50vw;
+    }
+}
+
+@media (max-width: 500px) {
+    .center-section {
+        flex-direction: column;
+    }
+    .character-creation-module {
+        transform: scale(0.9);
+    }
+}
