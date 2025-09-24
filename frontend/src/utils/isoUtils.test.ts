@@ -3,7 +3,7 @@ import {
   screenToIso,
   generateIsometricCoordinates,
   sortCoordinates,
-} from "../utils/isoUtils";
+} from "./isoUtils";
 
 describe("isoUtils", () => {
   describe("isoToScreen", () => {

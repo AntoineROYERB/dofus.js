@@ -1,6 +1,5 @@
-import { Spell } from "../../../../data/spells.ts";
-import { Position } from "../../../types/game.ts";
-import { SPELLS } from "../../../../data/spells.ts";
+import { Spell, SPELLS } from "../../data/spells";
+import { Position } from "../types/game";
 
 // Rotate a position based on the direction
 const rotate = (

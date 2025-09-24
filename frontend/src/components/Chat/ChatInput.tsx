@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useWebSocket } from "../../context/WebSocketContext";
-import { generateMessageId } from "../../providers/WebSocketProvider";
+import { generateMessageId } from "../../utils/messageUtils";
 import { ChatMessage } from "../../types/message";
 
 export const ChatInput: React.FC = () => {

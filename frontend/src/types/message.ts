@@ -1,4 +1,4 @@
-import { GameAction, Player } from "./game";
+import { Player } from "./game";
 
 export type UserInfo = {
   id: string;
@@ -23,31 +23,28 @@ export interface ChatMessage extends BaseMessage {
   content: string;
 }
 
-export interface PlayerMessage extends Player {
+export interface GameState {
+  type: "game_state";
+  players: { [key: string]: Player };
+  turnNumber: number;
   status: string;
-  isReady: boolean;
-  hasPositioned: boolean;
+  spells: { [key: string]: any };
 }
 
-export interface GameStateMessage extends BaseMessage {
+export interface GameStateMessage {
   type: "game_state";
-  turnNumber: number;
-  state: GameAction[];
-  status: gameStatus;
-
-  players: { [key: string]: PlayerMessage };
+  state: GameState;
 }
 
 export type MessageType = "chat" | "game_action" | "game_state" | "user_init";
-
-export type gameStatus =
-  | "create_character"
-  | "start_game"
-  | "end_turn"
-  | "move"
-  | "position_characters";
 
 export interface GameOverMessage {
   type: "game_over";
   winner: string;
 }
+
+export type Message =
+  | UserInitMessage
+  | ChatMessage
+  | GameStateMessage
+  | GameOverMessage;

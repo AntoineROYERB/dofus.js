@@ -2,22 +2,16 @@ import React, { useEffect, useState, useCallback, useRef } from "react";
 import { WebSocketContext } from "../context/WebSocketContext";
 import {
   ChatMessage,
+  GameState,
   GameStateMessage,
   UserInitMessage,
   GameOverMessage,
+  Message,
 } from "../types/message";
 import { GameAction } from "../types/game";
 
 type WebSocketProviderProps = {
   children: React.ReactNode;
-};
-
-export const generateMessageId = () => {
-  const timestamp = Date.now();
-  const messageId = `${timestamp}-${Math.random()
-    .toString(36)
-    .substring(2, 8)}`;
-  return { messageId, timestamp };
 };
 
 export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
@@ -31,12 +25,16 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
   );
   const [socket, setSocket] = useState<WebSocket | null>(null);
   const [connected, setConnected] = useState(false);
-  // const [gameStatus, setGameStatus] = useState<string>("waiting");
-  const [gameRecord, setGameRecord] = useState<GameStateMessage[]>([]);
+  const [gameRecord, setGameRecord] = useState<GameState[]>([]);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [winner, setWinner] = useState<string | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout>();
+
+  const handleGameStatesRecord = useCallback((data: GameStateMessage) => {
+    console.log("[WebSocket] Processing state message:", data);
+    setGameRecord((prev) => [...prev, data.state]);
+  }, []);
 
   const handleChatMessage = useCallback(
     (data: ChatMessage | UserInitMessage | GameOverMessage) => {
@@ -45,40 +43,23 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
       switch (data.type) {
         case "user_init":
           console.log("[WebSocket] Processing init message:", data);
-
-          data as UserInitMessage;
-
           localStorage.setItem("userId", data.user.id);
           localStorage.setItem("userName", data.user.name);
-
           setUserId(data.user.id);
           setUserName(data.user.name);
-          // setGameStatus(data.gameStatus);
           break;
         case "chat":
           console.log("[WebSocket] Processing chat message:", data);
-
           setChatMessages((prev) => [...prev, data]);
           break;
         case "game_over":
           console.log("[WebSocket] Game Over message:", data);
           setWinner(data.winner);
           break;
-        default:
-          if (Array.isArray(data)) handleGameStatesRecord(data);
-          break;
       }
     },
     []
   );
-
-  const handleGameStatesRecord = useCallback((data: any) => {
-    console.log("[WebSocket] Processing state message:", data);
-    setGameRecord(data);
-    if (data.type === "game_state") {
-      setGameRecord([...gameRecord, data.state]);
-    }
-  }, []);
 
   const connectWebSocket = useCallback(() => {
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
@@ -118,9 +99,14 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 
       ws.onmessage = (event) => {
         try {
-          const data = JSON.parse(event.data);
-          if (data.type === "game_state") handleGameStatesRecord(data);
-          handleChatMessage(data);
+          const data: Message = JSON.parse(event.data);
+          if (data.type === "game_state") {
+            handleGameStatesRecord(data as GameStateMessage);
+          } else {
+            handleChatMessage(
+              data as ChatMessage | UserInitMessage | GameOverMessage
+            );
+          }
         } catch (error) {
           console.error("[WebSocket] Error parsing message:", error);
         }
@@ -146,7 +132,7 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
         wsRef.current = null;
       }
     };
-  }, []);
+  }, [connectWebSocket]);
 
   useEffect(() => {
     const handleBeforeUnload = () => {
@@ -185,7 +171,6 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
     <WebSocketContext.Provider
       value={{
         chatMessages,
-        // gameStatus,
         sendChatMessage,
         sendGameAction,
         connected,

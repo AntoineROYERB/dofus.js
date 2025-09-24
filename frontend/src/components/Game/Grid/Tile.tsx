@@ -1,5 +1,5 @@
 import React from "react";
-import { darkenColor } from "../utils/colorUtils";
+import { darkenColor } from "../../../utils/colorUtils";
 import { Position } from "../../../types/game";
 import { TILE_COLOR } from "../../../constants";
 

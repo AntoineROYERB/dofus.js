@@ -14,14 +14,16 @@ export type Character = {
   initialPositions?: Position[];
   hasPlayedThisTurn: boolean;
   health: number;
+  isAlive: boolean;
 };
 export interface Player {
-  messageId: string;
-  timestamp: number;
   userId: string;
   userName: string;
   character: Character;
+  status: string;
   isCurrentTurn: boolean;
+  isReady: boolean;
+  hasPositioned: boolean;
 }
 
 export interface CastSpellAction {

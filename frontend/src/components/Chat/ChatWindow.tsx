@@ -1,34 +1,12 @@
-import React, { useState, useCallback, useRef, useEffect } from "react";
+import { useChatWindow } from "../../hooks/useChatWindow";
 import { useWebSocket } from "../../context/WebSocketContext";
 
 export const ChatWindow: React.FC = () => {
   const { chatMessages, userId } = useWebSocket();
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const chatWindowRef = useRef<HTMLDivElement>(null);
-  const [height, setHeight] = useState(200); // Initial height
+  const { height, messagesEndRef, chatWindowRef, startResizing } =
+    useChatWindow(chatMessages);
+
   let lastMessageId: string | null = null;
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [chatMessages]);
-
-  const startResizing = useCallback((mouseDownEvent: React.MouseEvent<HTMLDivElement>) => {
-    const startY = mouseDownEvent.clientY;
-    const startHeight = chatWindowRef.current?.offsetHeight || height;
-
-    const doDrag = (mouseMoveEvent: MouseEvent) => {
-      const newHeight = startHeight - (mouseMoveEvent.clientY - startY);
-      setHeight(newHeight > 100 ? newHeight : 100); // Set a minimum height
-    };
-
-    const stopDrag = () => {
-      window.removeEventListener('mousemove', doDrag);
-      window.removeEventListener('mouseup', stopDrag);
-    };
-
-    window.addEventListener('mousemove', doDrag);
-    window.addEventListener('mouseup', stopDrag);
-  }, [height]);
 
   return (
     <div
@@ -46,9 +24,7 @@ export const ChatWindow: React.FC = () => {
           <div className="text-gray-500 text-center">No messages yet</div>
         ) : (
           chatMessages.map((msg, index) => {
-            if (msg.messageId === lastMessageId) {
-              return null;
-            }
+            if (msg.messageId === lastMessageId) return null;
             lastMessageId = msg.messageId;
 
             return msg.type === "chat" ? (

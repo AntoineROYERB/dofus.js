@@ -4,14 +4,14 @@ import {
   isoToScreen,
   generateIsometricCoordinates,
   sortCoordinates,
-} from "../utils/isoUtils";
-import { isWithinRange } from "../utils/pathUtils";
+} from "../../../utils/isoUtils";
+import { isWithinRange } from "../../../utils/pathUtils";
 import { Tile } from "./Tile";
-import { isInSpellAffectedArea } from "../utils/spellUtils";
+import { isInSpellAffectedArea } from "../../../utils/spellUtils";
 import { Character } from "./Character";
-import { useCharacterAnimations } from "../hooks/useCharacterAnimations";
-import { useGridInteraction } from "../hooks/useGridInteraction";
-import { useTileSize } from "../hooks/useTileSize";
+import { useCharacterAnimations } from "../../../hooks/useCharacterAnimations";
+import { useGridInteraction } from "../../../hooks/useGridInteraction";
+import { useTileSize } from "../../../hooks/useTileSize";
 import { GameStateMessage } from "../../../types/message";
 
 interface GridProps {
