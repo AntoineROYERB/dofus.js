@@ -22,6 +22,12 @@ const SpriteAnimation: React.FC<SpriteAnimationProps> = ({
   scale = 1,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const animationState = useRef({
+    frameX: 0,
+    gameFrame: 0,
+    animationFrameId: 0,
+    lastSpriteSheet: spriteSheet,
+  });
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -35,21 +41,22 @@ const SpriteAnimation: React.FC<SpriteAnimationProps> = ({
 
     const directionRow = directionMap[direction] ?? 0;
 
-    let animationFrameId: number;
-
     const playerImage = new Image();
     playerImage.src = spriteSheet;
 
-    let frameX = 0;
-    let gameFrame = 0;
+    playerImage.onerror = () => {
+      console.error(`Failed to load sprite sheet: ${spriteSheet}`);
+    };
+
     const staggerFrames = 5; // plus grand = plus lent
 
     const animate = () => {
+      if (!ctx) return;
       ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
       ctx.drawImage(
         playerImage,
-        frameX * frameWidth, // X source
+        animationState.current.frameX * frameWidth, // X source
         directionRow * frameHeight, // Y source (ligne pour la direction)
         frameWidth,
         frameHeight,
@@ -59,23 +66,32 @@ const SpriteAnimation: React.FC<SpriteAnimationProps> = ({
         CANVAS_HEIGHT
       );
 
-      if (gameFrame % staggerFrames === 0) {
-        frameX = (frameX + 1) % framesPerDirection;
+      if (animationState.current.gameFrame % staggerFrames === 0) {
+        animationState.current.frameX =
+          (animationState.current.frameX + 1) % framesPerDirection;
       }
 
-      gameFrame++;
-      animationFrameId = requestAnimationFrame(animate);
+      animationState.current.gameFrame++;
+      animationState.current.animationFrameId = requestAnimationFrame(animate);
     };
 
     playerImage.onload = () => {
-      cancelAnimationFrame(animationFrameId);
-      frameX = 0;
-      gameFrame = 0;
+      console.log(
+        `Sprite sheet loaded: ${spriteSheet}. Dimensions: ${playerImage.width}x${playerImage.height}`
+      );
+      cancelAnimationFrame(animationState.current.animationFrameId);
+
+      if (animationState.current.lastSpriteSheet !== spriteSheet) {
+        animationState.current.frameX = 0;
+        animationState.current.gameFrame = 0;
+        animationState.current.lastSpriteSheet = spriteSheet;
+      }
+
       animate();
     };
 
     return () => {
-      cancelAnimationFrame(animationFrameId);
+      cancelAnimationFrame(animationState.current.animationFrameId);
     };
   }, [
     spriteSheet,

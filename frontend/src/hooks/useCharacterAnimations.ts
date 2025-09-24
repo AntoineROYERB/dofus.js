@@ -4,6 +4,7 @@ import { Position } from "../../../types/game";
 import { calculatePath, getDirection } from "../utils/pathUtils";
 import { isoToScreen } from "../utils/isoUtils";
 
+// Only tracks active animations
 interface AnimationState {
   [playerId: string]: {
     type: "move" | "attack";
@@ -13,7 +14,7 @@ interface AnimationState {
     startTime: number;
   };
 }
-
+// What the UI actually renders
 type CharacterRenderState = {
   [playerId: string]: {
     screenPosition: Position;
@@ -26,7 +27,7 @@ const ANIMATION_DURATION = 300; // ms per tile
 const ATTACK_ANIMATION_DURATION = 500; // ms for attack animation
 
 export const useCharacterAnimations = (
-  latestGameState: GameStateMessage | null | undefined,
+  latestGameState: GameStateMessage | null,
   tileSize: { width: number; height: number },
   containerRef: React.RefObject<HTMLDivElement>
 ) => {
@@ -88,16 +89,20 @@ export const useCharacterAnimations = (
             const oldOtherPlayer = prevGameState.current.players[otherPlayerId];
             const newOtherPlayer = latestGameState.players[otherPlayerId];
             if (
-              newOtherPlayer.character.health <
-              oldOtherPlayer.character.health
+              newOtherPlayer.character.health < oldOtherPlayer.character.health
             ) {
               targetPlayer = newOtherPlayer;
               break;
             }
           }
 
-          let direction: "N" | "NE" | "E" | "SE" | "S" | "SW" | "W" | "NW" = "S";
-          if (targetPlayer && newPlayer.character.position && targetPlayer.character.position) {
+          let direction: "N" | "NE" | "E" | "SE" | "S" | "SW" | "W" | "NW" =
+            "S";
+          if (
+            targetPlayer &&
+            newPlayer.character.position &&
+            targetPlayer.character.position
+          ) {
             direction = getDirection(
               newPlayer.character.position,
               targetPlayer.character.position
@@ -148,11 +153,16 @@ export const useCharacterAnimations = (
             }
           } else {
             setAnimationState((prev) => {
-              const { [playerId]: _, ...rest } = prev;
-              return rest;
+              const newPrev = { ...prev };
+              delete newPrev[playerId];
+              return newPrev;
             });
           }
-        } else if (anim.type === "move" && anim.path && anim.step !== undefined) {
+        } else if (
+          anim.type === "move" &&
+          anim.path &&
+          anim.step !== undefined
+        ) {
           const progress = (now - anim.startTime) / ANIMATION_DURATION;
           const startPos = anim.path[anim.step];
           const endPos = anim.path[anim.step + 1];
@@ -180,8 +190,9 @@ export const useCharacterAnimations = (
             } else {
               const lastDirection = anim.direction;
               setAnimationState((prev) => {
-                const { [playerId]: _, ...rest } = prev;
-                return rest;
+                const newPrev = { ...prev };
+                delete newPrev[playerId];
+                return newPrev;
               });
               if (players && players[playerId]?.character?.position) {
                 newRenderState[playerId] = {
@@ -201,7 +212,11 @@ export const useCharacterAnimations = (
               centerX,
               centerY
             );
-            const endScreenPos = getCharacterScreenPos(endPos, centerX, centerY);
+            const endScreenPos = getCharacterScreenPos(
+              endPos,
+              centerX,
+              centerY
+            );
             newRenderState[playerId] = {
               screenPosition: {
                 x:
@@ -243,10 +258,7 @@ export const useCharacterAnimations = (
       }
     };
 
-    if (
-      Object.keys(animationState).length > 0 ||
-      !prevGameState.current
-    ) {
+    if (Object.keys(animationState).length > 0 || !prevGameState.current) {
       animationFrameId = requestAnimationFrame(animate);
     } else {
       animate(); // Run once to set initial idle positions

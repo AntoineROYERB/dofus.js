@@ -1,8 +1,5 @@
 import React from "react";
 import SpriteAnimation, { Direction } from "../SpriteAnimation";
-import IdleImage from "../../../animation/Idle.png";
-import WalkImage from "../../../animation/Walk.png";
-import AttackImage from "../../../animation/Attack.png";
 import { Position } from "../../../types/game";
 
 interface CharacterProps {
@@ -14,7 +11,7 @@ interface CharacterProps {
 
 const animationConfig = {
   idle: {
-    spriteSheet: IdleImage,
+    spriteSheet: "/animation/Idle.png",
     framesPerDirection: 23,
     frameWidth: 256,
     frameHeight: 256,
@@ -30,7 +27,7 @@ const animationConfig = {
     },
   },
   walk: {
-    spriteSheet: WalkImage,
+    spriteSheet: "/animation/Walk.png",
     framesPerDirection: 7,
     frameWidth: 256,
     frameHeight: 256,
@@ -46,8 +43,8 @@ const animationConfig = {
     },
   },
   attack: {
-    spriteSheet: AttackImage,
-    framesPerDirection: 7,
+    spriteSheet: "/animation/Attack.png",
+    framesPerDirection: 6,
     frameWidth: 384,
     frameHeight: 384,
     directionMap: {
