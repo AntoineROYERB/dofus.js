@@ -1,12 +1,12 @@
 import React from "react";
 import { Heart, Star, Diamond, LucideIcon } from "lucide-react";
 import { SPELLS } from "../../../data/spells";
-import { PlayerMessage } from "../../types/message";
+import { Player } from "../../types/game";
 
 interface SpellBarProps {
   handleSpellClick: (spellId: number) => void;
   selectedSpellId: number | null;
-  currentPlayer: PlayerMessage | undefined;
+  currentPlayer: Player | undefined;
 }
 
 const SpellBar: React.FC<SpellBarProps> = ({
@@ -43,8 +43,8 @@ const SpellBar: React.FC<SpellBarProps> = ({
                 spell && selectedSpellId === spell.id
                   ? "brightness-125 shadow-md"
                   : spell
-                  ? "hover:brightness-110 hover:shadow-sm"
-                  : ""
+                    ? "hover:brightness-110 hover:shadow-sm"
+                    : ""
               }`}
               title={spell?.name ?? ""}
               onClick={() => {

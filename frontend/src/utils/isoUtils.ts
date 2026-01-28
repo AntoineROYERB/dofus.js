@@ -1,4 +1,4 @@
-import { Position } from "../../../types/game";
+import { Position } from "../types/game";
 
 /**
  * Convert isometric coordinates to screen position
@@ -8,7 +8,7 @@ export const isoToScreen = (
   y: number,
   tileSize: { width: number; height: number },
   centerX: number,
-  centerY: number
+  centerY: number,
 ): Position => {
   // Calculate screen position using isometric projection
   const screenX = (x - y) * tileSize.width * 0.5;
@@ -29,7 +29,7 @@ export const screenToIso = (
   screenY: number,
   tileSize: { width: number; height: number },
   centerX: number,
-  centerY: number
+  centerY: number,
 ): Position => {
   // Adjust to make coordinates relative to center
   const relX = screenX - centerX;

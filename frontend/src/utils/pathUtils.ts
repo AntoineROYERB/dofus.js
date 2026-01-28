@@ -1,4 +1,4 @@
-import { Position } from "../../../types/game";
+import { Position } from "../types/game";
 
 /**
  * Calculate path using only orthogonal movements (no diagonals)
@@ -39,7 +39,7 @@ export const calculatePath = (start: Position, end: Position): Position[] => {
 export const isWithinRange = (
   p1: Position,
   p2: Position,
-  movementPoints: number
+  movementPoints: number,
 ): boolean => {
   if (!p1 || !p2) return false;
 
@@ -58,7 +58,7 @@ export const isWithinRange = (
  */
 export const generateUniqueRandomPositions = (
   count: number,
-  gridSize: number
+  gridSize: number,
 ): Position[] => {
   const positions: Position[] = [];
   const used = new Set<string>();
@@ -80,7 +80,7 @@ export const generateUniqueRandomPositions = (
 /** Give the direction based on the difference between two positions */
 export const getDirection = (
   from: Position,
-  to: Position
+  to: Position,
 ): "N" | "NE" | "E" | "SE" | "S" | "SW" | "W" | "NW" => {
   const dx = to.x - from.x;
   const dy = to.y - from.y;

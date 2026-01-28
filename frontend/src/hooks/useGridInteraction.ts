@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Position, Player } from "../../../types/game";
+import { Position, Player } from "../types/game";
 import { screenToIso, generateIsometricCoordinates } from "../utils/isoUtils";
 import { calculatePath, isWithinRange } from "../utils/pathUtils";
 import { calculateImpactedCells } from "../utils/spellUtils";
@@ -49,7 +49,7 @@ export const useGridInteraction = ({
         const path = calculatePath(characterPosition, hoveredPosition);
         const filteredPath = path.slice(
           1,
-          movementPoints !== undefined ? movementPoints + 1 : undefined
+          movementPoints !== undefined ? movementPoints + 1 : undefined,
         );
         setPathCells(filteredPath);
       } else {
@@ -60,7 +60,7 @@ export const useGridInteraction = ({
         const impacted = calculateImpactedCells(
           selectedSpellId,
           hoveredPosition,
-          characterPosition
+          characterPosition,
         );
         setImpactedCells(impacted);
       } else {
@@ -92,12 +92,12 @@ export const useGridInteraction = ({
         relativeY,
         tileSize,
         centerX,
-        centerY
+        centerY,
       );
       const coordinates = generateIsometricCoordinates(gridSize);
       return (
         coordinates.find(
-          (coord) => coord.x === isoPos.x && coord.y === isoPos.y
+          (coord) => coord.x === isoPos.x && coord.y === isoPos.y,
         ) || null
       );
     };

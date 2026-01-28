@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import { PLAYER_COLORS } from "../../constants";
 
 interface CharacterCreationFormProps {
