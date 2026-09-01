@@ -11,6 +11,8 @@ interface WebSocketContextType {
   userId: string;
   userName: string;
   gameRecord: GameState[];
+  /** Last action the server refused, with the moment it arrived so repeats re-show. */
+  rejection: { reason: string; at: number } | null;
   winner: string | null;
 }
 

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { generateMessageId } from "./../utils/messageUtils.ts";
 import { Chat } from "../components/Chat/Chat";
@@ -17,8 +17,12 @@ const IsWithinRange = (p1: Position, p2: Position, n: number): boolean => {
 };
 
 function GamePage() {
-  const { userId, userName, connected, sendGameAction, gameRecord, winner } =
+  const { userId, connected, sendGameAction, gameRecord, winner, rejection } =
     useWebSocket();
+  // The character request must go out exactly once, and only once the socket
+  // is open: an early attempt used to be dropped with no retry, leaving the
+  // player on the board with no character at all.
+  const characterRequested = useRef(false);
   const location = useLocation();
   const navigate = useNavigate();
   const { characterName, selectedColor } = location.state || {};
@@ -27,6 +31,16 @@ function GamePage() {
   const [selectedPosition, setSelectedPosition] = useState<Position | null>(
     null
   );
+  const [visibleRejection, setVisibleRejection] = useState<string | null>(null);
+
+  // Show the server's reason for a beat, then let it fade. `rejection` carries
+  // a timestamp so two identical refusals in a row still re-trigger this.
+  useEffect(() => {
+    if (!rejection) return;
+    setVisibleRejection(rejection.reason);
+    const timer = setTimeout(() => setVisibleRejection(null), 4000);
+    return () => clearTimeout(timer);
+  }, [rejection]);
 
   // Game state checks
   const latestGameState =
@@ -42,7 +56,9 @@ function GamePage() {
   const isPlayerPositioned = latestGameState?.players[userId]?.hasPositioned;
 
   useEffect(() => {
+    if (!connected || characterRequested.current) return;
     if (characterName && selectedColor && !userHasCharacter) {
+      characterRequested.current = true;
       const { messageId, timestamp } = generateMessageId();
       sendGameAction({
         type: "create_character",
@@ -52,25 +68,10 @@ function GamePage() {
           name: characterName,
           color: selectedColor,
           symbol: (characterName || "P")[0].toUpperCase(),
-          actionPoints: 6,
-          movementPoints: 4,
-          isCurrentTurn: false,
-          hasPlayedThisTurn: false,
-          health: 100,
-          isAlive: true,
         },
-        userId,
-        userName,
       });
     }
-  }, [
-    characterName,
-    selectedColor,
-    userHasCharacter,
-    sendGameAction,
-    userId,
-    userName,
-  ]);
+  }, [connected, characterName, selectedColor, userHasCharacter, sendGameAction]);
 
   const handleSelectedPosition = (position: Position | null) => {
     setSelectedPosition(position);
@@ -84,7 +85,6 @@ function GamePage() {
     const { messageId, timestamp } = generateMessageId();
     sendGameAction({
       type: "cast_spell",
-      userId,
       messageId,
       timestamp,
       spellId,
@@ -94,45 +94,29 @@ function GamePage() {
 
   const handleReadyClick = () => {
     const { messageId, timestamp } = generateMessageId();
-    sendGameAction({
-      type: "ready_to_start",
-      messageId,
-      timestamp,
-      userId,
-    });
+    sendGameAction({ type: "ready_to_start", messageId, timestamp });
   };
 
   const handleFightClick = () => {
+    if (!selectedPosition) return;
     const { messageId, timestamp } = generateMessageId();
     sendGameAction({
       type: "character_positioned",
       messageId,
       timestamp,
-      userId,
       position: selectedPosition,
     });
   };
 
   const handleEndTurnClick = () => {
     const { messageId, timestamp } = generateMessageId();
-    sendGameAction({
-      type: "end_turn",
-      messageId,
-      timestamp,
-      userId,
-    });
+    sendGameAction({ type: "end_turn", messageId, timestamp });
   };
 
   const handleMove = (position: Position) => {
     const { messageId, timestamp } = generateMessageId();
 
-    sendGameAction({
-      type: "move",
-      userId,
-      position,
-      messageId,
-      timestamp,
-    });
+    sendGameAction({ type: "move", position, messageId, timestamp });
   };
 
   const handleCellClick = (position: Position) => {
@@ -178,6 +162,15 @@ function GamePage() {
 
   return (
     <div className="relative h-screen max-h-screen bg-stone-200 text-stone-800">
+      {visibleRejection && (
+        <div
+          role="status"
+          className="absolute top-4 left-1/2 -translate-x-1/2 z-30 px-4 py-2 rounded-md bg-red-600 text-white text-sm shadow-lg"
+        >
+          {visibleRejection}
+        </div>
+      )}
+
       <GameBoard
         gridSize={15}
         handleSelectedPosition={handleSelectedPosition}
@@ -195,6 +188,7 @@ function GamePage() {
             handleSpellClick={handleSpellClick}
             selectedSpellId={selectedSpellId}
             currentPlayer={currentPlayer}
+            spells={latestGameState?.spells ?? null}
           />
 
           <div className="bg-stone-50/80 backdrop-blur-sm rounded-lg flex flex-col overflow-y-auto p-2 border border-stone-300/50 shadow-lg">

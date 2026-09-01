@@ -12,94 +12,81 @@ export type Character = {
   movementPoints: number;
   isCurrentTurn: boolean;
   initialPositions?: Position[];
-  hasPlayedThisTurn: boolean;
   health: number;
+  maxHealth: number;
   isAlive: boolean;
 };
+
 export interface Player {
   userId: string;
   userName: string;
   character: Character;
-  status: string;
   isCurrentTurn: boolean;
   isReady: boolean;
   hasPositioned: boolean;
 }
 
-export interface CastSpellAction {
-  type: "cast_spell";
-  userId: string;
+/**
+ * Everything a player chooses about their character. Stats are assigned by the
+ * server, which is why they are absent here.
+ */
+export type CharacterAppearance = {
+  name: string;
+  color: string;
+  symbol: string;
+};
+
+/**
+ * Actions carry no user id: the server derives the sender's identity from the
+ * WebSocket connection and ignores anything the payload might claim.
+ */
+type ActionEnvelope = {
   messageId: string;
   timestamp: number;
+};
+
+export interface CastSpellAction extends ActionEnvelope {
+  type: "cast_spell";
   spellId: number;
   targetPosition: Position;
 }
-export interface CreateCharacterAction {
+
+export interface CreateCharacterAction extends ActionEnvelope {
   type: "create_character";
-  messageId: string;
-  timestamp: number;
-  userId: string;
-  userName: string;
-  character: Character;
+  character: CharacterAppearance;
 }
 
-export interface StartGameAction extends Player {
-  type: "start_game";
-  Players: { [key: string]: Player };
-}
-
-export interface EndTurnAction {
+export interface EndTurnAction extends ActionEnvelope {
   type: "end_turn";
-  userId: string;
-  messageId: string;
-  timestamp: number;
 }
 
-export interface MoveAction {
+export interface MoveAction extends ActionEnvelope {
   type: "move";
   position: Position;
-  userId: string;
-  messageId: string;
-  timestamp: number;
-}
-export interface ReadyToStartAction {
-  type: "ready_to_start";
-  userId: string;
-  timestamp: number;
-  messageId: string;
 }
 
-export interface CharacterPositionedAction {
+export interface ReadyToStartAction extends ActionEnvelope {
+  type: "ready_to_start";
+}
+
+export interface CharacterPositionedAction extends ActionEnvelope {
   type: "character_positioned";
-  userId: string;
-  position: Position | null;
-  messageId: string;
-  timestamp: number;
+  position: Position;
 }
 
 export type GameAction =
-  | StartGameAction
+  | CastSpellAction
+  | CreateCharacterAction
   | EndTurnAction
   | MoveAction
-  | CreateCharacterAction
   | ReadyToStartAction
-  | CastSpellAction
   | CharacterPositionedAction;
 
-// First, define the game status constants
 export const GAME_STATUS = {
   CREATING_PLAYER: "creating_player",
-  WAITING_FOR_PLAYERS: "waiting_for_players",
   POSITION_CHARACTERS: "position_characters",
   PLAYING: "playing",
-  IN_PROGRESS: "in_progress",
   GAME_OVER: "game_over",
 } as const;
 
 export type GameStatus = (typeof GAME_STATUS)[keyof typeof GAME_STATUS];
-
-export type GameStatusRecord = (GameAction & {
-  messageId: string;
-  timestamp: number;
-  gameStatus: GameStatus;
-})[];
