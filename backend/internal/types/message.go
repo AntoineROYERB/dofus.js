@@ -1,73 +1,100 @@
 package types
 
+// BaseMessage carries the fields every message has. On inbound messages the
+// server reads only MessageID, Timestamp and Type: UserID and UserName are
+// deliberately absent from inbound payloads so that a client cannot claim an
+// identity. Identity comes from the WebSocket connection, never from JSON.
 type BaseMessage struct {
 	MessageID string `json:"messageId"`
 	Timestamp int64  `json:"timestamp"`
-	UserName  string `json:"userName"`
-	UserID    string `json:"userId"`
 	Type      string `json:"type"`
 }
 
-type ChatMessage struct {
+// ---------------------------------------------------------------------------
+// Inbound: client -> server
+// ---------------------------------------------------------------------------
+
+type ChatMessageIn struct {
 	BaseMessage
 	Content string `json:"content"`
 }
 
-type CreateCharacter struct {
+// CharacterAppearance is everything a client is allowed to choose about its
+// character. Every stat (health, AP, MP) is assigned by the server.
+type CharacterAppearance struct {
+	Name   string `json:"name"`
+	Color  string `json:"color"`
+	Symbol string `json:"symbol"`
+}
+
+type CreateCharacterIn struct {
 	BaseMessage
-	Character *Character `json:"character,omitempty"`
+	Character CharacterAppearance `json:"character"`
 }
 
-type GameActionMessage struct {
+type ReadyToStartIn struct {
 	BaseMessage
-	Action    string     `json:"action"`
-	PlayerID  string     `json:"playerId"`
-	Position  *Position  `json:"position,omitempty"`
-	Character *Character `json:"character,omitempty"`
 }
 
-type IsReadyMessage struct {
-	MessageID string `json:"messageId"`
-	Timestamp int64  `json:"timestamp"`
-	UserID    string `json:"userId"`
+type CharacterPositionedIn struct {
+	BaseMessage
+	Position Position `json:"position"`
 }
 
-type CastSpellMessage struct {
-	MessageID      string   `json:"messageId"`
-	Timestamp      int64    `json:"timestamp"`
-	UserID         string   `json:"userId"`
+type MoveIn struct {
+	BaseMessage
+	Position Position `json:"position"`
+}
+
+type EndTurnIn struct {
+	BaseMessage
+}
+
+type CastSpellIn struct {
+	BaseMessage
 	SpellID        int      `json:"spellId"`
 	TargetPosition Position `json:"targetPosition"`
 }
 
-type MoveMessage struct {
-	MessageID string   `json:"messageId"`
-	UserID    string   `json:"userId"`
-	Position  Position `json:"position"`
+type DisconnectIn struct {
+	BaseMessage
 }
 
-type EndTurnMessage struct {
+// ---------------------------------------------------------------------------
+// Outbound: server -> client
+// ---------------------------------------------------------------------------
+
+type ChatMessageOut struct {
+	Type      string `json:"type"`
 	MessageID string `json:"messageId"`
 	Timestamp int64  `json:"timestamp"`
 	UserID    string `json:"userId"`
+	UserName  string `json:"userName"`
+	Content   string `json:"content"`
 }
 
 type GameStateMessage struct {
-	BaseMessage
+	Type  string    `json:"type"`
 	State GameState `json:"state"`
-}
-
-type DisconnectMessage struct {
-	BaseMessage
-}
-
-type CharacterPositionedMessage struct {
-	BaseMessage
-	Position Position `json:"position"`
-	UserID   string   `json:"userId"`
 }
 
 type GameOverMessage struct {
 	Type   string `json:"type"`
 	Winner string `json:"winner"`
+}
+
+// ActionRejected is sent to the single client whose action was refused, so a
+// rejected move does not simply vanish into the server log.
+type ActionRejected struct {
+	Type      string `json:"type"`
+	MessageID string `json:"messageId"`
+	Action    string `json:"action"`
+	Reason    string `json:"reason"`
+}
+
+type UserInitMessage struct {
+	Type      string `json:"type"`
+	MessageID string `json:"messageId"`
+	Timestamp int64  `json:"timestamp"`
+	User      User   `json:"user"`
 }

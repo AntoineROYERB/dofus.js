@@ -5,57 +5,56 @@ export type UserInfo = {
   name: string;
 };
 
-export type BaseMessage = {
+export interface UserInitMessage {
+  type: "user_init";
+  messageId: string;
+  timestamp: number;
+  user: UserInfo;
+}
+
+export interface ChatMessage {
+  type: "chat";
   messageId: string;
   timestamp: number;
   userId: string;
   userName: string;
-  type: MessageType;
-};
-export interface UserInitMessage extends BaseMessage {
-  type: "user_init";
-  user: UserInfo;
-  gameStatus: "create_character";
-}
-
-export interface ChatMessage extends BaseMessage {
-  type: "chat";
   content: string;
 }
 
 /**
- * Spell as serialised by the Go backend (internal/types/games.go).
- * Kept separate from the client-side `Spell` in data/spells.ts: the server
- * sends plain strings where the client narrows to unions.
+ * A spell, as broadcast by the Go server. This is the only spell catalogue:
+ * the client used to ship its own copy in data/spells.ts, and the two had
+ * already drifted apart.
+ *
+ * `color` is a hex value rather than a CSS class. Class names arriving at
+ * runtime would be stripped by Tailwind's build, which is how the old
+ * bg-brown-100 ended up rendering as nothing.
  */
-export type ServerSpell = {
+export type Spell = {
   id: number;
   name: string;
-  bgColor: string;
-  borderColor: string;
+  color: string;
   icon: string;
   APCost: number;
   range: number;
+  damage: number;
+  areaOfEffect: "none" | "circle" | "cross" | "line";
+  element: string;
+  description: string;
   needsLineOfSight: boolean;
   maxCastsPerTurn: number;
-  damage: number;
-  areaOfEffect: string;
-  type: string;
-  description?: string;
-  criticalChance?: number;
-  criticalDamage?: number;
-  castInLineOnly?: boolean;
-  castOnEmptyCell?: boolean;
-  cooldown?: number;
-  isWeapon?: boolean;
+  cooldown: number;
 };
+
+export type SpellBook = { [spellId: string]: Spell };
 
 export interface GameState {
   type: "game_state";
-  players: { [key: string]: Player };
+  players: { [userId: string]: Player };
   turnNumber: number;
   status: string;
-  spells: { [key: string]: ServerSpell } | null;
+  spells: SpellBook | null;
+  turnOrder: string[] | null;
 }
 
 export interface GameStateMessage {
@@ -63,15 +62,26 @@ export interface GameStateMessage {
   state: GameState;
 }
 
-export type MessageType = "chat" | "game_action" | "game_state" | "user_init";
-
 export interface GameOverMessage {
   type: "game_over";
   winner: string;
+}
+
+/**
+ * Sent to the one client whose action the server refused. Without it a
+ * rejected action would vanish into the server log and the player would wait
+ * for a state update that is never coming.
+ */
+export interface ActionRejectedMessage {
+  type: "action_rejected";
+  messageId: string;
+  action: string;
+  reason: string;
 }
 
 export type Message =
   | UserInitMessage
   | ChatMessage
   | GameStateMessage
-  | GameOverMessage;
+  | GameOverMessage
+  | ActionRejectedMessage;

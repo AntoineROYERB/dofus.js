@@ -7,7 +7,7 @@ import {
 } from "../../../utils/isoUtils";
 import { isWithinRange } from "../../../utils/pathUtils";
 import { Tile } from "./Tile";
-import { isInSpellAffectedArea } from "../../../utils/spellUtils";
+import { isInSpellRange } from "../../../utils/spellUtils";
 import { Character } from "./Character";
 import { useCharacterAnimations } from "../../../hooks/useCharacterAnimations";
 import { useGridInteraction } from "../../../hooks/useGridInteraction";
@@ -34,6 +34,11 @@ export const Grid: React.FC<GridProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
 
   const players = latestGameState?.players;
+  // The spell catalogue is broadcast with the game state; the client keeps no copy.
+  const selectedSpell =
+    selectedSpellId === null
+      ? undefined
+      : latestGameState?.spells?.[String(selectedSpellId)];
   const currentPlayer = players?.[userId];
   const movementPoints = currentPlayer?.character.movementPoints;
   const characterPosition = currentPlayer?.character.position;
@@ -88,7 +93,7 @@ export const Grid: React.FC<GridProps> = ({
     characterPosition,
     movementPoints,
     isCurrentTurn: currentPlayer?.isCurrentTurn || false,
-    selectedSpellId,
+    selectedSpell,
     players,
     initialPositions,
   });
@@ -138,10 +143,10 @@ export const Grid: React.FC<GridProps> = ({
           isWithinRange(characterPosition, { x, y }, movementPoints)
         );
 
-        const isInSpellRange = !!(
+        const isInCastRange = !!(
           characterPosition &&
-          selectedSpellId &&
-          isInSpellAffectedArea({ x, y }, characterPosition, selectedSpellId)
+          selectedSpell &&
+          isInSpellRange({ x, y }, characterPosition, selectedSpell)
         );
 
         const isImpactedCell = impactedCells.some(
@@ -161,13 +166,9 @@ export const Grid: React.FC<GridProps> = ({
               !findPlayerOnCell(x, y)
             ) ||
             !!(
-              selectedSpellId &&
+              selectedSpell &&
               characterPosition &&
-              isInSpellAffectedArea(
-                { x, y },
-                characterPosition,
-                selectedSpellId
-              )
+              isInSpellRange({ x, y }, characterPosition, selectedSpell)
             );
 
         const screenPosition = isoToScreen(x, y, tileSize, centerX, centerY);
@@ -186,7 +187,7 @@ export const Grid: React.FC<GridProps> = ({
             isCharacterTurn={isCharacterTurn}
             selectedSpellId={selectedSpellId}
             isImpactedCell={isImpactedCell}
-            isInSpellRange={isInSpellRange}
+            isInSpellRange={isInCastRange}
             isInRange={isInRange}
             isPathCell={isPathCell}
             hoveredPosition={hoveredPosition}

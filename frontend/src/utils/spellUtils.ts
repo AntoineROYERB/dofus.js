@@ -1,158 +1,101 @@
-import { Spell, SPELLS } from "../../data/spells";
+import { Spell } from "../types/message";
 import { Position } from "../types/game";
 
-// Rotate a position based on the direction
-const rotate = (
-  pos: Position,
-  direction: "up" | "down" | "left" | "right"
-): Position => {
-  const { x, y } = pos;
+type Direction = "up" | "down" | "left" | "right";
+
+// Rotate a pattern offset to face the given direction.
+const rotate = (pos: Position, direction: Direction | null): Position => {
   switch (direction) {
-    case "up":
-      return { x, y };
     case "down":
-      return { x: -x, y: -y };
+      return { x: -pos.x, y: -pos.y };
     case "left":
-      return { x: -y, y: x };
+      return { x: -pos.y, y: pos.x };
     case "right":
-      return { x: y, y: -x };
+      return { x: pos.y, y: -pos.x };
+    default:
+      return pos;
   }
 };
 
-// Get the direction from one position to another
-function getDirection(
-  from: Position,
-  to: Position
-): "up" | "down" | "left" | "right" | null {
-  if (from.x === to.x) {
-    return from.y > to.y ? "down" : "up";
-  } else if (from.y === to.y) {
-    return from.x > to.x ? "left" : "right";
-  }
+// Orientation from one cell to another, for the four axis-aligned cases.
+const getDirection = (from: Position, to: Position): Direction | null => {
+  if (from.x === to.x) return from.y > to.y ? "down" : "up";
+  if (from.y === to.y) return from.x > to.x ? "left" : "right";
   return null;
-}
+};
 
-// Check if a position is within the range of a spell cast by a caster at a specific position
-export function isInSpellAffectedArea(
-  center: Position,
-  casterPos: Position,
-  spellId: number
-): boolean {
-  const dx = center.x - casterPos.x;
-  const dy = center.y - casterPos.y;
-  const spell = SPELLS[spellId - 1];
-  if (!spell) {
-    console.error(`Spell with ID ${spellId} not found`);
-    return false;
-  }
-  const distance = Math.abs(dx) + Math.abs(dy);
-  if (distance > spell.range) {
-    return false;
-  }
-
-  if (
-    spell.castInLineOnly &&
-    center.x !== casterPos.x &&
-    center.y !== casterPos.y
-  ) {
-    return false;
-  }
-  if (spell.castInLineOnly) {
-    return true;
-  }
-  return true;
-}
-
-// Get all cells affected by a spell given its range and the caster's position.
-export function getCellsInRange(spell: Spell, casterPos: Position): Position[] {
-  const affectedCells: Position[] = [];
-  const range = spell.range;
-
-  for (let dx = -range; dx <= range; dx++) {
-    for (let dy = -range; dy <= range; dy++) {
-      if (Math.abs(dx) + Math.abs(dy) <= range) {
-        affectedCells.push({
-          x: casterPos.x + dx,
-          y: casterPos.y + dy,
-        });
-      }
-    }
-  }
-
-  return affectedCells;
-}
-
-// Calculate impacted cells by a spell given its ID and target position.
-export function calculateImpactedCells(
-  spellId: number,
-  targetPos: Position,
-  casterPosition: Position
-): Position[] {
-  const spell = SPELLS[spellId - 1];
-  const impactedCells: Position[] = [];
-
-  if (!spell) {
-    console.error(`Spell with ID ${spellId} not found`);
-    return impactedCells;
-  }
-
-  const applyPattern = (
-    pattern: Position[],
-    rotatePattern: boolean = false
-  ) => {
-    const direction = rotatePattern
-      ? getDirection(casterPosition, targetPos)
-      : null;
-    pattern.forEach((offset) => {
-      const transformed = direction ? rotate(offset, direction) : offset;
-      impactedCells.push({
-        x: targetPos.x + transformed.x,
-        y: targetPos.y + transformed.y,
-      });
-    });
-  };
-
-  switch (spell.areaOfEffect) {
-    case "none":
-      impactedCells.push(targetPos);
-      break;
+/**
+ * These patterns mirror AreaPattern in the Go server. They drive the hover
+ * preview only: the server decides who actually takes damage.
+ */
+const areaPattern = (
+  areaOfEffect: Spell["areaOfEffect"]
+): { pattern: Position[]; rotates: boolean } => {
+  switch (areaOfEffect) {
     case "circle":
-      applyPattern([
-        { x: 2, y: 0 },
-        { x: 1, y: 1 },
-        { x: 0, y: 2 },
-        { x: -1, y: 1 },
-        { x: -2, y: 0 },
-        { x: 1, y: -1 },
-        { x: 0, y: -2 },
-        { x: -1, y: -1 },
-      ]);
-      break;
+      return {
+        pattern: [
+          { x: 0, y: 0 },
+          { x: 2, y: 0 },
+          { x: 1, y: 1 },
+          { x: 0, y: 2 },
+          { x: -1, y: 1 },
+          { x: -2, y: 0 },
+          { x: 1, y: -1 },
+          { x: 0, y: -2 },
+          { x: -1, y: -1 },
+        ],
+        rotates: false,
+      };
     case "line":
-      applyPattern(
-        [
+      return {
+        pattern: [
           { x: 0, y: 0 },
           { x: 0, y: 1 },
           { x: 0, y: 2 },
         ],
-        true
-      );
-      break;
+        rotates: true,
+      };
     case "cross":
-      applyPattern(
-        [
+      return {
+        pattern: [
           { x: 0, y: 0 },
           { x: 0, y: 1 },
           { x: 1, y: 0 },
           { x: -1, y: 0 },
           { x: 0, y: -1 },
         ],
-        true
-      );
-      break;
+        rotates: true,
+      };
     default:
-      console.error(`Unknown area of effect: ${spell.areaOfEffect}`);
+      return { pattern: [{ x: 0, y: 0 }], rotates: false };
   }
+};
 
-  return impactedCells;
+/** Whether a cell is close enough for the caster to target it. */
+export function isInSpellRange(
+  cell: Position,
+  casterPos: Position,
+  spell: Spell | undefined
+): boolean {
+  if (!spell) return false;
+  const distance = Math.abs(cell.x - casterPos.x) + Math.abs(cell.y - casterPos.y);
+  return distance <= spell.range;
+}
+
+/** The cells a spell would cover if it were cast at `targetPos`. */
+export function calculateImpactedCells(
+  spell: Spell | undefined,
+  targetPos: Position,
+  casterPosition: Position
+): Position[] {
+  if (!spell) return [];
+
+  const { pattern, rotates } = areaPattern(spell.areaOfEffect);
+  const direction = rotates ? getDirection(casterPosition, targetPos) : null;
+
+  return pattern.map((offset) => {
+    const transformed = rotate(offset, direction);
+    return { x: targetPos.x + transformed.x, y: targetPos.y + transformed.y };
+  });
 }

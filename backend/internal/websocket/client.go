@@ -2,11 +2,10 @@
 package websocket
 
 import (
-	"bytes"
-	"encoding/json"
-	"game-server/internal/types"
 	"log"
 	"time"
+
+	"game-server/internal/types"
 
 	"github.com/gorilla/websocket"
 )
@@ -19,11 +18,22 @@ type Client struct {
 	User *types.User
 }
 
+// Inbound pairs a payload with the connection it arrived on. ReadPump used to
+// push the raw bytes into the hub and drop the client reference, which left
+// every handler trusting the userId written inside the JSON. Identity now
+// travels with the message and can never be spoofed by a client.
+type Inbound struct {
+	Client *Client
+	Data   []byte
+}
+
 const (
-	writeWait      = 10 * time.Second    // Time allowed to write a message to the peer.
-	pongWait       = 60 * time.Second    // Time allowed to read the next pong message from the peer.
-	pingPeriod     = (pongWait * 9) / 10 // Send pings to peer with this period. Must be less than pongWait.
-	maxMessageSize = 512                 // Maximum message size allowed from peer.
+	writeWait  = 10 * time.Second    // Time allowed to write a message to the peer.
+	pongWait   = 60 * time.Second    // Time allowed to read the next pong message from the peer.
+	pingPeriod = (pongWait * 9) / 10 // Send pings to peer with this period. Must be less than pongWait.
+	// Chat lines and game actions are small, but 512 bytes was tight enough
+	// that a long chat message silently closed the connection.
+	maxMessageSize = 8192
 )
 
 // ReadPump pumps messages from the websocket connection to the hub.
@@ -33,15 +43,14 @@ const (
 // reads from this goroutine.
 func (c *Client) ReadPump() {
 	defer func() {
-		log.Printf("[Debug] ReadPump closing for client %s", c.ID)
 		c.Hub.Unregister <- c
 		c.Conn.Close()
 	}()
 
-	c.Conn.SetReadLimit(maxMessageSize) // Set a reasonable read limit
+	c.Conn.SetReadLimit(maxMessageSize)
 	c.Conn.SetReadDeadline(time.Now().Add(pongWait))
 	c.Conn.SetPongHandler(func(string) error {
-		c.Conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+		c.Conn.SetReadDeadline(time.Now().Add(pongWait))
 		return nil
 	})
 
@@ -53,13 +62,17 @@ func (c *Client) ReadPump() {
 			}
 			break
 		}
-		var prettyJSON bytes.Buffer
-		if err := json.Indent(&prettyJSON, message, "", "  "); err != nil {
-			log.Printf("[Debug] Received (non-JSON) message from client %s:\n%s", c.ID, string(message))
-		} else {
-			log.Printf("[Debug] Received JSON message from client %s:\n%s", c.ID, prettyJSON.String())
-		}
-		c.Hub.Broadcast <- message
+		c.Hub.Inbound <- Inbound{Client: c, Data: message}
+	}
+}
+
+// Trysend delivers a message to this client only, dropping it if the client's
+// buffer is full rather than blocking the hub.
+func (c *Client) TrySend(message []byte) {
+	select {
+	case c.Send <- message:
+	default:
+		log.Printf("[Warning] Dropped message for client %s: send buffer full", c.ID)
 	}
 }
 
@@ -67,7 +80,6 @@ func (c *Client) WritePump() {
 	ticker := time.NewTicker(pingPeriod)
 	defer func() {
 		ticker.Stop()
-		log.Printf("[Debug] WritePump closing for client %s", c.ID)
 		c.Conn.Close()
 	}()
 
@@ -80,21 +92,7 @@ func (c *Client) WritePump() {
 				c.Conn.WriteMessage(websocket.CloseMessage, []byte{})
 				return
 			}
-
-			w, err := c.Conn.NextWriter(websocket.TextMessage)
-			if err != nil {
-				return
-			}
-			w.Write(message)
-
-			// Add queued chat messages to the current websocket message.
-			n := len(c.Send)
-			for i := 0; i < n; i++ {
-				w.Write([]byte{'\n'})
-				w.Write(<-c.Send)
-			}
-
-			if err := w.Close(); err != nil {
+			if err := c.Conn.WriteMessage(websocket.TextMessage, message); err != nil {
 				return
 			}
 		case <-ticker.C:

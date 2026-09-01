@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import { WebSocketContext } from "../context/WebSocketContext";
 import {
+  ActionRejectedMessage,
   ChatMessage,
   GameState,
   GameStateMessage,
@@ -28,6 +29,10 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
   const [gameRecord, setGameRecord] = useState<GameState[]>([]);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [winner, setWinner] = useState<string | null>(null);
+  const [rejection, setRejection] = useState<{
+    reason: string;
+    at: number;
+  } | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout>();
 
@@ -36,7 +41,13 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
   }, []);
 
   const handleChatMessage = useCallback(
-    (data: ChatMessage | UserInitMessage | GameOverMessage) => {
+    (
+      data:
+        | ChatMessage
+        | UserInitMessage
+        | GameOverMessage
+        | ActionRejectedMessage
+    ) => {
       switch (data.type) {
         case "user_init":
           localStorage.setItem("userId", data.user.id);
@@ -49,6 +60,11 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
           break;
         case "game_over":
           setWinner(data.winner);
+          break;
+        case "action_rejected":
+          // The server refused the action. Surface it rather than leaving the
+          // player waiting for a state update that is never coming.
+          setRejection({ reason: data.reason, at: Date.now() });
           break;
       }
     },
@@ -94,7 +110,11 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
             handleGameStatesRecord(data as GameStateMessage);
           } else {
             handleChatMessage(
-              data as ChatMessage | UserInitMessage | GameOverMessage
+              data as
+                | ChatMessage
+                | UserInitMessage
+                | GameOverMessage
+                | ActionRejectedMessage
             );
           }
         } catch (error) {
@@ -138,23 +158,23 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
     };
   }, [socket, userId]);
 
-  const sendChatMessage = (chatMessage: ChatMessage) => {
-    if (socket?.readyState === WebSocket.OPEN && userId) {
-      socket.send(JSON.stringify(chatMessage));
-    } else {
-      console.warn(
-        "[WebSocket] Cannot send message - not connected or no user ID"
-      );
-    }
-  };
+  const sendChatMessage = useCallback(
+    (chatMessage: ChatMessage) => {
+      if (socket?.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify(chatMessage));
+      }
+    },
+    [socket]
+  );
 
-  const sendGameAction = (action: GameAction) => {
-    if (socket?.readyState === WebSocket.OPEN) {
-      socket.send(JSON.stringify(action));
-    } else {
-      console.warn("[WebSocket] Cannot send game action - not connected");
-    }
-  };
+  const sendGameAction = useCallback(
+    (action: GameAction) => {
+      if (socket?.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify(action));
+      }
+    },
+    [socket]
+  );
 
   return (
     <WebSocketContext.Provider
@@ -167,6 +187,7 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
         userName,
         gameRecord,
         winner,
+        rejection,
       }}
     >
       {children}

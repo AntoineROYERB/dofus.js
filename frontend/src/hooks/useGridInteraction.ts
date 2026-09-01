@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Position, Player } from "../types/game";
+import { Spell } from "../types/message";
 import { screenToIso, generateIsometricCoordinates } from "../utils/isoUtils";
 import { calculatePath, isWithinRange } from "../utils/pathUtils";
 import { calculateImpactedCells } from "../utils/spellUtils";
@@ -12,7 +13,7 @@ interface UseGridInteractionProps {
   characterPosition: Position | undefined;
   movementPoints: number | undefined;
   isCurrentTurn: boolean;
-  selectedSpellId: number | null;
+  selectedSpell: Spell | undefined;
   players: { [id: string]: Player } | undefined;
   initialPositions: Position[];
 }
@@ -25,7 +26,7 @@ export const useGridInteraction = ({
   characterPosition,
   movementPoints,
   isCurrentTurn,
-  selectedSpellId,
+  selectedSpell,
   players,
   initialPositions,
 }: UseGridInteractionProps) => {
@@ -56,13 +57,10 @@ export const useGridInteraction = ({
         setPathCells([]);
       }
 
-      if (selectedSpellId) {
-        const impacted = calculateImpactedCells(
-          selectedSpellId,
-          hoveredPosition,
-          characterPosition,
+      if (selectedSpell) {
+        setImpactedCells(
+          calculateImpactedCells(selectedSpell, hoveredPosition, characterPosition),
         );
-        setImpactedCells(impacted);
       } else {
         setImpactedCells([]);
       }
@@ -72,7 +70,7 @@ export const useGridInteraction = ({
     characterPosition,
     movementPoints,
     isCurrentTurn,
-    selectedSpellId,
+    selectedSpell,
     isPositioningPhase,
   ]);
 
@@ -138,7 +136,7 @@ export const useGridInteraction = ({
     isPositioningPhase,
     players,
     initialPositions,
-    selectedSpellId,
+    selectedSpell,
   ]);
 
   return { hoveredPosition, pathCells, impactedCells };

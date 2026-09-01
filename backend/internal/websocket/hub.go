@@ -1,13 +1,13 @@
 package websocket
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
-	"game-server/internal/game"
-	"game-server/internal/types"
 	"log"
 	"sync"
+
+	"game-server/internal/game"
+	"game-server/internal/types"
 )
 
 type Hub struct {
@@ -15,77 +15,86 @@ type Hub struct {
 	Clients    map[*Client]bool
 	Register   chan *Client
 	Unregister chan *Client
-	Broadcast  chan []byte
+	Inbound    chan Inbound
 
-	// Game state
-	playerManager *game.PlayerManager
-	gameManager   *game.GameManager
+	// The single authoritative game state.
+	game *game.Game
 
-	// Concurrency control
+	// Guards Clients only. Game state has its own lock inside game.Game.
 	mutex sync.Mutex
 }
 
 func NewHub() *Hub {
 	return &Hub{
-		// Initialize channels
-		Broadcast:  make(chan []byte),
+		Inbound:    make(chan Inbound),
 		Register:   make(chan *Client),
 		Unregister: make(chan *Client),
-
-		// Initialize maps
-		Clients: make(map[*Client]bool),
-
-		playerManager: game.NewPlayerManager(),
-		gameManager:   game.NewGameManager(),
+		Clients:    make(map[*Client]bool),
+		game:       game.New(),
 	}
 }
 
+// BroadcastGameState sends the authoritative snapshot to everyone. The
+// snapshot is built by the game itself, so the spell catalogue and turn order
+// travel with it; the old version reassembled a partial state by hand and
+// always sent a null spell list.
 func (h *Hub) BroadcastGameState() error {
-
-	state := types.GameState{
-		MessageType: "game_state",
-		Players:     h.playerManager.GetPlayers(),
-		TurnNumber:  h.gameManager.GetTurnNumber(),
-		GameStatus:  h.gameManager.GetStatus(),
-	}
-
-	stateMsg, err := json.Marshal(map[string]interface{}{
-		"type":  "game_state",
-		"state": state,
+	payload, err := json.Marshal(types.GameStateMessage{
+		Type:  "game_state",
+		State: h.game.Snapshot(),
 	})
 	if err != nil {
 		return fmt.Errorf("failed to marshal game state: %w", err)
 	}
-
-	h.broadcastMessage(stateMsg)
+	h.broadcastMessage(payload)
 	return nil
+}
+
+// BroadcastGameOver announces the winner once the game has ended.
+func (h *Hub) BroadcastGameOver() {
+	winner, over := h.game.Winner()
+	if !over {
+		return
+	}
+	payload, err := json.Marshal(types.GameOverMessage{Type: "game_over", Winner: winner})
+	if err != nil {
+		log.Printf("[Error] Failed to marshal game over message: %v", err)
+		return
+	}
+	log.Printf("[Game Over] Winner: %s", winner)
+	h.broadcastMessage(payload)
 }
 
 func (h *Hub) broadcastMessage(message []byte) {
 	h.mutex.Lock()
 	defer h.mutex.Unlock()
 
-	var prettyJSON bytes.Buffer
-	if err := json.Indent(&prettyJSON, message, "", "  "); err != nil {
-		log.Printf("[Debug] Broadcasting message (raw): %s", string(message))
-	} else {
-		log.Printf("[Debug] Broadcasting message:\n%s", prettyJSON.String())
-	}
-	// Store message in game history through game manager
-	if err := h.gameManager.AddToHistory(message); err != nil {
-		log.Printf("[Error] Failed to add message to history: %v", err)
-	}
-
 	for client := range h.Clients {
 		select {
 		case client.Send <- message:
-			log.Printf("[Debug] Sent message to client %s", client.ID)
 		default:
 			close(client.Send)
 			delete(h.Clients, client)
-			log.Printf("[Error] Failed to send to client %s", client.ID)
+			log.Printf("[Error] Dropped client %s: send buffer full", client.ID)
 		}
 	}
+}
+
+// reject tells a single client why its action was refused. Without this a
+// rejected action just vanished into the server log and the client waited
+// forever for a state update that was never coming.
+func (h *Hub) reject(c *Client, action, messageID string, reason error) {
+	log.Printf("[Rejected] %s from %s: %v", action, c.ID, reason)
+	payload, err := json.Marshal(types.ActionRejected{
+		Type:      "action_rejected",
+		MessageID: messageID,
+		Action:    action,
+		Reason:    reason.Error(),
+	})
+	if err != nil {
+		return
+	}
+	c.TrySend(payload)
 }
 
 func (h *Hub) Run() {
@@ -94,35 +103,44 @@ func (h *Hub) Run() {
 		case client := <-h.Register:
 			h.mutex.Lock()
 			h.Clients[client] = true
-			log.Printf("[New Connection] User-%s joined. Total clients: %d", client.ID, len(h.Clients))
+			total := len(h.Clients)
 			h.mutex.Unlock()
+			log.Printf("[New Connection] %s joined. Total clients: %d", client.ID, total)
+
+			// Bring the newcomer up to date with whatever is already going on.
+			if payload, err := json.Marshal(types.GameStateMessage{
+				Type:  "game_state",
+				State: h.game.Snapshot(),
+			}); err == nil {
+				client.TrySend(payload)
+			}
 
 		case client := <-h.Unregister:
 			h.mutex.Lock()
-			if _, ok := h.Clients[client]; ok {
+			_, known := h.Clients[client]
+			if known {
 				delete(h.Clients, client)
 				close(client.Send)
 			}
-			log.Printf("[Disconnection] User %s left. Total clients: %d", client.User.Name, len(h.Clients))
+			total := len(h.Clients)
 			h.mutex.Unlock()
+			if known {
+				log.Printf("[Disconnection] %s left. Total clients: %d", client.User.Name, total)
+			}
 
-		case message := <-h.Broadcast:
-			log.Printf("[Debug] Received broadcast message: %s", string(message))
-
-			// 1. Désérialiser uniquement le type
-			var baseMsg types.BaseMessage
-			if err := json.Unmarshal(message, &baseMsg); err != nil {
-				log.Printf("[Error] Failed to parse message type: %v", err)
+		case msg := <-h.Inbound:
+			var base types.BaseMessage
+			if err := json.Unmarshal(msg.Data, &base); err != nil {
+				log.Printf("[Error] Failed to parse message from %s: %v", msg.Client.ID, err)
 				continue
 			}
 
-			// 2. Vérifier si un handler existe
-			if handler, exists := messageHandlers[baseMsg.Type]; exists {
-				handler(h, message) // Appeler dynamiquement la fonction
-			} else {
-				log.Printf("[Warning] Unrecognized message type: %s", baseMsg.Type)
+			handler, exists := messageHandlers[base.Type]
+			if !exists {
+				log.Printf("[Warning] Unrecognized message type from %s: %s", msg.Client.ID, base.Type)
+				continue
 			}
-
+			handler(h, msg.Client, msg.Data)
 		}
 	}
 }
