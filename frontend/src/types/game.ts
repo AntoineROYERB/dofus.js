@@ -74,7 +74,29 @@ export interface CharacterPositionedAction extends ActionEnvelope {
   position: Position;
 }
 
+export interface CreateRoomAction extends ActionEnvelope {
+  type: "create_room";
+  name: string;
+}
+
+export interface JoinRoomAction extends ActionEnvelope {
+  type: "join_room";
+  roomId: string;
+}
+
+export interface LeaveRoomAction extends ActionEnvelope {
+  type: "leave_room";
+}
+
+export interface PlayAgainAction extends ActionEnvelope {
+  type: "play_again";
+}
+
 export type GameAction =
+  | CreateRoomAction
+  | JoinRoomAction
+  | LeaveRoomAction
+  | PlayAgainAction
   | CastSpellAction
   | CreateCharacterAction
   | EndTurnAction

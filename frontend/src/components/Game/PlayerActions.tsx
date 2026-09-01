@@ -9,7 +9,6 @@ interface PlayerActionsProps {
   handleEndTurnClick: () => void;
   isPlayerReady: boolean | undefined;
   isMyTurn: boolean | undefined;
-  handleSubmitClick: () => void;
   userHasCharacter: boolean;
   handleFightClick: () => void;
   selectedPosition: Position | undefined;
@@ -23,7 +22,6 @@ export const PlayerActions: React.FC<PlayerActionsProps> = ({
   handleEndTurnClick,
   isPlayerReady,
   isMyTurn,
-  handleSubmitClick,
   userHasCharacter,
   handleFightClick,
   selectedPosition,
@@ -40,7 +38,6 @@ export const PlayerActions: React.FC<PlayerActionsProps> = ({
           handleEndTurnClick={handleEndTurnClick}
           isPlayerReady={isPlayerReady}
           isMyTurn={isMyTurn}
-          handleSubmitClick={handleSubmitClick}
           userHasCharacter={userHasCharacter}
           handleFightClick={handleFightClick}
           selectedPosition={selectedPosition}

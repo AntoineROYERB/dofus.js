@@ -5,8 +5,6 @@ import (
 	"log"
 	"time"
 
-	"game-server/internal/types"
-
 	"github.com/gorilla/websocket"
 )
 
@@ -15,7 +13,13 @@ type Client struct {
 	Conn *websocket.Conn
 	Send chan []byte
 	Hub  *Hub
-	User *types.User
+
+	// Session survives this socket, so a reconnecting client comes back as the
+	// same player rather than as a brand new guest.
+	Session *Session
+	// RoomID scopes every broadcast this client takes part in. Only the hub
+	// goroutine writes it.
+	RoomID string
 }
 
 // Inbound pairs a payload with the connection it arrived on. ReadPump used to

@@ -56,6 +56,24 @@ type CastSpellIn struct {
 	TargetPosition Position `json:"targetPosition"`
 }
 
+type CreateRoomIn struct {
+	BaseMessage
+	Name string `json:"name"`
+}
+
+type JoinRoomIn struct {
+	BaseMessage
+	RoomID string `json:"roomId"`
+}
+
+type LeaveRoomIn struct {
+	BaseMessage
+}
+
+type PlayAgainIn struct {
+	BaseMessage
+}
+
 type DisconnectIn struct {
 	BaseMessage
 }
@@ -97,4 +115,23 @@ type UserInitMessage struct {
 	MessageID string `json:"messageId"`
 	Timestamp int64  `json:"timestamp"`
 	User      User   `json:"user"`
+	// Token lets a client come back as the same player after a reload or a
+	// dropped connection. Every reconnect used to mint a brand new identity,
+	// so the player simply lost their character.
+	Token   string `json:"token"`
+	Resumed bool   `json:"resumed"`
+}
+
+// LobbyState lists the open rooms. Sent to clients that are not in a room.
+type LobbyState struct {
+	Type  string        `json:"type"`
+	Rooms []RoomSummary `json:"rooms"`
+}
+
+// RoomJoined tells a client which room it is in, so the UI can switch to the
+// board. RoomID is empty when the client has just left one.
+type RoomJoined struct {
+	Type     string `json:"type"`
+	RoomID   string `json:"roomId"`
+	RoomName string `json:"roomName"`
 }

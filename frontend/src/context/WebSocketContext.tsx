@@ -1,19 +1,23 @@
 import { createContext, useContext } from "react";
-import { ChatMessage, GameState } from "../types/message";
+import { ChatMessage, GameState, RoomSummary } from "../types/message";
 import { GameAction } from "../types/game";
 
 interface WebSocketContextType {
   chatMessages: ChatMessage[];
-  // gameStatus: string;
   sendChatMessage: (message: ChatMessage) => void;
   sendGameAction: (action: GameAction) => void;
   connected: boolean;
   userId: string;
   userName: string;
-  gameRecord: GameState[];
+  /** The latest authoritative snapshot, or null while in the lobby. */
+  gameState: GameState | null;
+  /** Open rooms, refreshed while this client sits in the lobby. */
+  rooms: RoomSummary[];
+  roomId: string;
+  roomName: string;
+  winner: string | null;
   /** Last action the server refused, with the moment it arrived so repeats re-show. */
   rejection: { reason: string; at: number } | null;
-  winner: string | null;
 }
 
 export const WebSocketContext = createContext<WebSocketContextType | null>(
