@@ -3,11 +3,19 @@ package websocket
 import (
 	"encoding/json"
 	"log"
+	"net/http"
 	"sync"
+	"time"
 
+	"game-server/internal/config"
 	"game-server/internal/game"
 	"game-server/internal/types"
+
+	"github.com/gorilla/websocket"
 )
+
+// botThinkDelay paces the computer opponent so a human can follow what it did.
+const botThinkDelay = 700 * time.Millisecond
 
 type Hub struct {
 	Clients    map[*Client]bool
@@ -15,24 +23,43 @@ type Hub struct {
 	Unregister chan *Client
 	Inbound    chan Inbound
 	Forfeits   chan Forfeit
+	// Ticks carries room ids whose turn timer fired: a bot to move, or a turn
+	// that ran out of time.
+	Ticks chan string
 
+	cfg      config.Config
 	lobby    *game.Lobby
 	sessions *Sessions
+	upgrader websocket.Upgrader
+	// roomTimers is only ever touched on the Run goroutine.
+	roomTimers map[string]*time.Timer
 
 	// Guards Clients. Every other mutation happens on the Run goroutine, and
 	// each game keeps its own lock.
 	mutex sync.Mutex
 }
 
-func NewHub() *Hub {
+func NewHub(cfg config.Config) *Hub {
 	return &Hub{
 		Inbound:    make(chan Inbound),
 		Register:   make(chan *Client),
 		Unregister: make(chan *Client),
 		Forfeits:   make(chan Forfeit, 16),
+		Ticks:      make(chan string, 64),
 		Clients:    make(map[*Client]bool),
-		lobby:      game.NewLobby(),
+		cfg:        cfg,
+		lobby:      game.NewLobby(cfg.TurnDuration),
 		sessions:   NewSessions(),
+		roomTimers: make(map[string]*time.Timer),
+		upgrader: websocket.Upgrader{
+			ReadBufferSize:  1024,
+			WriteBufferSize: 1024,
+			// The origin check used to be hardwired to true. It now follows
+			// ALLOWED_ORIGINS, which matters the moment this is deployed.
+			CheckOrigin: func(r *http.Request) bool {
+				return cfg.OriginAllowed(r.Header.Get("Origin"))
+			},
+		},
 	}
 }
 
@@ -65,6 +92,7 @@ func (h *Hub) broadcastGameState(room *game.Room) {
 		return
 	}
 	h.broadcastToRoom(room.ID, payload)
+	h.scheduleRoom(room)
 
 	if winner, over := room.Game.Winner(); over {
 		if payload, err := json.Marshal(types.GameOverMessage{Type: "game_over", Winner: winner}); err == nil {
@@ -132,14 +160,76 @@ func (h *Hub) currentRoom(c *Client) (*game.Room, bool) {
 }
 
 // closeRoomIfEmpty drops a room once nobody is left in it, so the lobby does
-// not fill up with abandoned games.
+// not fill up with abandoned games. Bots do not count: a solo room whose human
+// walked away has nobody in it, however many computer opponents remain.
 func (h *Hub) closeRoomIfEmpty(room *game.Room) bool {
-	if room.Game.PlayerCount() > 0 {
+	if room.Game.HumanCount() > 0 {
 		return false
 	}
 	h.lobby.Remove(room.ID)
 	log.Printf("[Room] %s closed (empty)", room.ID)
 	return true
+}
+
+// ---------------------------------------------------------------------------
+// Turn clock
+// ---------------------------------------------------------------------------
+
+// scheduleRoom arms the next wake-up for a room: soon if a bot has to move,
+// otherwise when the current turn runs out. A turn that never expired meant a
+// player who walked away froze the game for everyone else.
+func (h *Hub) scheduleRoom(room *game.Room) {
+	if timer := h.roomTimers[room.ID]; timer != nil {
+		timer.Stop()
+		delete(h.roomTimers, room.ID)
+	}
+	if room.Game.Status() != types.StatusPlaying {
+		return
+	}
+
+	var delay time.Duration
+	if _, isBot := room.Game.CurrentBot(); isBot {
+		delay = botThinkDelay
+	} else {
+		deadline := room.Game.TurnEndsAt()
+		if deadline.IsZero() {
+			return
+		}
+		if delay = time.Until(deadline); delay < 0 {
+			delay = 0
+		}
+	}
+
+	id := room.ID
+	h.roomTimers[id] = time.AfterFunc(delay, func() {
+		select {
+		case h.Ticks <- id:
+		default: // hub is busy or gone; the next broadcast reschedules
+		}
+	})
+}
+
+func (h *Hub) onTick(roomID string) {
+	delete(h.roomTimers, roomID)
+
+	room, ok := h.lobby.Get(roomID)
+	if !ok {
+		return
+	}
+
+	var changed bool
+	if _, isBot := room.Game.CurrentBot(); isBot {
+		changed = room.Game.PlayBotStep()
+	} else if room.Game.ExpireTurnIfDue(time.Now()) {
+		log.Printf("[Turn] room %s: turn expired", roomID)
+		changed = true
+	}
+
+	if changed {
+		h.broadcastGameState(room) // reschedules on its way out
+		return
+	}
+	h.scheduleRoom(room)
 }
 
 // ---------------------------------------------------------------------------
@@ -157,6 +247,9 @@ func (h *Hub) Run() {
 
 		case forfeit := <-h.Forfeits:
 			h.onForfeit(forfeit)
+
+		case roomID := <-h.Ticks:
+			h.onTick(roomID)
 
 		case msg := <-h.Inbound:
 			var base types.BaseMessage

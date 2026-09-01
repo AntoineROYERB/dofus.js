@@ -78,6 +78,8 @@ export interface GameState {
   status: string;
   spells: SpellBook | null;
   turnOrder: string[];
+  /** Unix time in ms when the current turn is passed on; 0 outside play. */
+  turnEndsAt: number;
 }
 
 export interface GameStateMessage {

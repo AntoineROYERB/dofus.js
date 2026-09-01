@@ -80,6 +80,18 @@ const LobbyPage: React.FC = () => {
     setNewRoomName("");
   };
 
+  // A visitor with no one to play against can still see the whole game.
+  const playSolo = () => {
+    const { messageId, timestamp } = generateMessageId();
+    sendGameAction({
+      type: "create_room",
+      messageId,
+      timestamp,
+      name: `${character?.name ?? "Solo"} vs Cpu`.slice(0, 24),
+      withBot: true,
+    });
+  };
+
   const joinRoom = (id: string) => {
     const { messageId, timestamp } = generateMessageId();
     sendGameAction({ type: "join_room", messageId, timestamp, roomId: id });
@@ -122,6 +134,21 @@ const LobbyPage: React.FC = () => {
             {notice}
           </div>
         )}
+
+        <button
+          type="button"
+          onClick={playSolo}
+          disabled={!connected}
+          className="w-full rounded-lg bg-violet-600 px-5 py-3 font-medium transition hover:bg-violet-500 disabled:bg-gray-700 disabled:text-gray-500 disabled:cursor-not-allowed"
+        >
+          Play against the computer
+        </button>
+
+        <div className="flex items-center gap-3 text-xs uppercase tracking-widest text-gray-500">
+          <span className="h-px flex-1 bg-white/10" />
+          or wait for someone
+          <span className="h-px flex-1 bg-white/10" />
+        </div>
 
         <form onSubmit={createRoom} className="flex gap-2">
           <input

@@ -11,6 +11,7 @@ import { GameOverModal } from "../components/Game/GameOverModal";
 import { useWebSocket } from "../context/WebSocketContext";
 import { readCharacter } from "../utils/characterStorage";
 import { isWithinRange } from "../utils/pathUtils";
+import DesktopOnlyNotice from "../components/DesktopOnlyNotice";
 
 function GamePage() {
   const {
@@ -149,6 +150,8 @@ function GamePage() {
 
   return (
     <div className="relative h-screen max-h-screen bg-stone-200 text-stone-800">
+      <DesktopOnlyNotice />
+
       {visibleRejection && (
         <div
           role="status"

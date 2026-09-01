@@ -3,18 +3,26 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.backend
-    container_name: websocket-backend
-    ports:
-      - "8080:8080"
+    container_name: dofusjs-backend
+    environment:
+      # See .env.example. ALLOWED_ORIGINS must be pinned for a public deploy.
+      PORT: "8080"
+      ALLOWED_ORIGINS: "${ALLOWED_ORIGINS:-*}"
+      TURN_SECONDS: "${TURN_SECONDS:-45}"
+    # Reachable from nginx only: the browser talks to /ws through the proxy, so
+    # there is no reason to publish this port on the host.
+    expose:
+      - "8080"
     restart: unless-stopped
 
   frontend:
     build:
       context: .
       dockerfile: Dockerfile.frontend
-    container_name: websocket-frontend
+    container_name: dofusjs-frontend
     ports:
-      - "80:80"
+      - "${HTTP_PORT:-80}:80"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     restart: unless-stopped

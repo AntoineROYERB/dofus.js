@@ -208,6 +208,31 @@ func TestNewPlayersStartConnected(t *testing.T) {
 	}
 }
 
+// A solo room's last human leaving means the room is empty, however many
+// computer opponents are still standing in it. Counting bots kept finished
+// "vs Cpu" rooms in the lobby list forever.
+func TestBotsDoNotKeepARoomAlive(t *testing.T) {
+	g := New()
+	if _, err := g.AddBot(); err != nil {
+		t.Fatalf("AddBot: %v", err)
+	}
+	if err := g.AddPlayer("human", "User-human", look("Alice")); err != nil {
+		t.Fatalf("AddPlayer: %v", err)
+	}
+
+	if g.PlayerCount() != 2 || g.HumanCount() != 1 {
+		t.Fatalf("counts = %d players / %d humans, want 2 and 1", g.PlayerCount(), g.HumanCount())
+	}
+
+	g.RemovePlayer("human")
+	if g.HumanCount() != 0 {
+		t.Errorf("HumanCount = %d after the only human left, want 0", g.HumanCount())
+	}
+	if g.PlayerCount() == 0 {
+		t.Error("the bot was removed too; only the human should have left")
+	}
+}
+
 // NewLobbyReadyGame builds a two-player game sitting in the placement phase.
 func NewLobbyReadyGame(t *testing.T) *Game {
 	t.Helper()

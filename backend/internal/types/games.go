@@ -41,6 +41,9 @@ type Player struct {
 	// Connected goes false while a player is away; their character stays on
 	// the board so a refresh or a network blip can resume it.
 	Connected bool `json:"connected"`
+	// IsBot marks an opponent the server plays itself, so a lone visitor can
+	// still play a whole match.
+	IsBot bool `json:"isBot"`
 }
 
 // GameState is the snapshot broadcast to every client after each accepted
@@ -52,6 +55,9 @@ type GameState struct {
 	GameStatus  string            `json:"status"`
 	Spells      map[string]Spell  `json:"spells"`
 	TurnOrder   []string          `json:"turnOrder"`
+	// TurnEndsAt is a Unix time in milliseconds, or 0 outside a running turn.
+	// A turn that never expires meant a player who walked away froze the game.
+	TurnEndsAt int64 `json:"turnEndsAt"`
 }
 
 // Spell is the single source of truth for the spell catalogue: the client no

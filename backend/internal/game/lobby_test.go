@@ -8,7 +8,7 @@ import (
 )
 
 func TestLobbyCreateValidatesTheName(t *testing.T) {
-	l := NewLobby()
+	l := NewLobby(DefaultTurnDuration)
 	for _, name := range []string{"", "ab", "a name that is very much too long", "bad<name>"} {
 		if _, err := l.Create(name); !errors.Is(err, ErrInvalidRoom) {
 			t.Errorf("Create(%q) = %v, want ErrInvalidRoom", name, err)
@@ -22,7 +22,7 @@ func TestLobbyCreateValidatesTheName(t *testing.T) {
 func TestLobbyRoomsAreIndependent(t *testing.T) {
 	// The server used to hold a single global game, so two visitors arriving
 	// separately landed in the same match.
-	l := NewLobby()
+	l := NewLobby(DefaultTurnDuration)
 	a, err := l.Create("First Arena")
 	if err != nil {
 		t.Fatalf("Create: %v", err)
@@ -47,7 +47,7 @@ func TestLobbyRoomsAreIndependent(t *testing.T) {
 }
 
 func TestLobbyListIsSortedAndDescribesRooms(t *testing.T) {
-	l := NewLobby()
+	l := NewLobby(DefaultTurnDuration)
 	if _, err := l.Create("Zulu Arena"); err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -75,7 +75,7 @@ func TestLobbyListIsSortedAndDescribesRooms(t *testing.T) {
 }
 
 func TestLobbyRemove(t *testing.T) {
-	l := NewLobby()
+	l := NewLobby(DefaultTurnDuration)
 	room, err := l.Create("Arena One")
 	if err != nil {
 		t.Fatalf("Create: %v", err)
@@ -90,7 +90,7 @@ func TestLobbyRemove(t *testing.T) {
 }
 
 func TestRoomRefusesLatecomersAndOverflow(t *testing.T) {
-	l := NewLobby()
+	l := NewLobby(DefaultTurnDuration)
 	room, err := l.Create("Arena One")
 	if err != nil {
 		t.Fatalf("Create: %v", err)

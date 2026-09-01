@@ -59,6 +59,9 @@ type CastSpellIn struct {
 type CreateRoomIn struct {
 	BaseMessage
 	Name string `json:"name"`
+	// WithBot opens the room with a server-played opponent already in it, so a
+	// lone visitor can play a whole match.
+	WithBot bool `json:"withBot"`
 }
 
 type JoinRoomIn struct {
