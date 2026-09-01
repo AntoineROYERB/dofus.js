@@ -23,12 +23,39 @@ export interface ChatMessage extends BaseMessage {
   content: string;
 }
 
+/**
+ * Spell as serialised by the Go backend (internal/types/games.go).
+ * Kept separate from the client-side `Spell` in data/spells.ts: the server
+ * sends plain strings where the client narrows to unions.
+ */
+export type ServerSpell = {
+  id: number;
+  name: string;
+  bgColor: string;
+  borderColor: string;
+  icon: string;
+  APCost: number;
+  range: number;
+  needsLineOfSight: boolean;
+  maxCastsPerTurn: number;
+  damage: number;
+  areaOfEffect: string;
+  type: string;
+  description?: string;
+  criticalChance?: number;
+  criticalDamage?: number;
+  castInLineOnly?: boolean;
+  castOnEmptyCell?: boolean;
+  cooldown?: number;
+  isWeapon?: boolean;
+};
+
 export interface GameState {
   type: "game_state";
   players: { [key: string]: Player };
   turnNumber: number;
   status: string;
-  spells: { [key: string]: any };
+  spells: { [key: string]: ServerSpell } | null;
 }
 
 export interface GameStateMessage {

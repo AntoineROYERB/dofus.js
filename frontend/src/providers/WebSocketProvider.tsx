@@ -32,28 +32,22 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
   const reconnectTimeoutRef = useRef<NodeJS.Timeout>();
 
   const handleGameStatesRecord = useCallback((data: GameStateMessage) => {
-    console.log("[WebSocket] Processing state message:", data);
     setGameRecord((prev) => [...prev, data.state]);
   }, []);
 
   const handleChatMessage = useCallback(
     (data: ChatMessage | UserInitMessage | GameOverMessage) => {
-      console.log("[WebSocket] Processing message:", data);
-
       switch (data.type) {
         case "user_init":
-          console.log("[WebSocket] Processing init message:", data);
           localStorage.setItem("userId", data.user.id);
           localStorage.setItem("userName", data.user.name);
           setUserId(data.user.id);
           setUserName(data.user.name);
           break;
         case "chat":
-          console.log("[WebSocket] Processing chat message:", data);
           setChatMessages((prev) => [...prev, data]);
           break;
         case "game_over":
-          console.log("[WebSocket] Game Over message:", data);
           setWinner(data.winner);
           break;
       }
@@ -63,12 +57,10 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 
   const connectWebSocket = useCallback(() => {
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      console.log("[WebSocket] Already connected");
       return;
     }
 
     try {
-      console.log("[WebSocket] Connecting...");
       const isDev = import.meta.env.DEV;
       const wsUrl = isDev
         ? `ws://localhost:8080/ws`
@@ -82,12 +74,10 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
       };
 
       ws.onclose = () => {
-        console.log("[WebSocket] Connection closed");
         setConnected(false);
         wsRef.current = null;
 
         reconnectTimeoutRef.current = setTimeout(() => {
-          console.log("[WebSocket] Attempting to reconnect...");
           connectWebSocket();
         }, 2000);
       };
@@ -150,7 +140,6 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 
   const sendChatMessage = (chatMessage: ChatMessage) => {
     if (socket?.readyState === WebSocket.OPEN && userId) {
-      console.log("[WebSocket] Sending message:", chatMessage);
       socket.send(JSON.stringify(chatMessage));
     } else {
       console.warn(

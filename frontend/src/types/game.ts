@@ -34,8 +34,12 @@ export interface CastSpellAction {
   spellId: number;
   targetPosition: Position;
 }
-export interface CreateCharacterAction extends Player {
+export interface CreateCharacterAction {
   type: "create_character";
+  messageId: string;
+  timestamp: number;
+  userId: string;
+  userName: string;
   character: Character;
 }
 

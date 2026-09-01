@@ -1,6 +1,6 @@
 import React from "react";
 import { Position } from "../../types/game";
-import { GameStateMessage } from "../../types/message";
+import { GameState } from "../../types/message";
 import { Grid } from "./Grid/Grid";
 
 interface GameBoardProps {
@@ -9,7 +9,7 @@ interface GameBoardProps {
   selectedPosition: Position | null;
   selectedSpellId: number | null;
   handleCellClick: (position: Position) => void;
-  latestGameState: GameStateMessage | null;
+  latestGameState: GameState | null;
   userId: string;
 }
 
