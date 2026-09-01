@@ -313,8 +313,6 @@ func (gm *GameManager) GetSpellCost(spellID string) (int, error) {
 		return 2, nil
 	case "4":
 		return 5, nil
-	case "5":
-		return 0, nil // Kill spell costs 0 AP
 	default:
 		return 0, errors.New("unknown spell ID")
 	}
@@ -344,14 +342,14 @@ func (gm *GameManager) GetAffectedPositions(spellID string, targetPosition types
 			{X: 1, Y: -1},
 			{X: 0, Y: -2},
 			{X: -1, Y: -1},
-		}...
+		}...,
 		)
 	case "line":
 		pattern = append(pattern, []types.Position{
 			{X: 0, Y: 0},
 			{X: 0, Y: 1},
 			{X: 0, Y: 2},
-		}...
+		}...,
 		)
 		rotatePattern = true
 	case "cross":
@@ -361,7 +359,7 @@ func (gm *GameManager) GetAffectedPositions(spellID string, targetPosition types
 			{X: 1, Y: 0},
 			{X: -1, Y: 0},
 			{X: 0, Y: -1},
-		}...
+		}...,
 		)
 		rotatePattern = true
 	}
@@ -492,7 +490,6 @@ func initializeSpells() map[string]types.Spell {
 	spells["2"] = types.Spell{ID: 2, Name: "Ice Spike", APCost: 3, Range: 5, Damage: 20, AreaOfEffect: "line"}
 	spells["3"] = types.Spell{ID: 3, Name: "Poison Dart", APCost: 2, Range: 4, Damage: 10, AreaOfEffect: "none"}
 	spells["4"] = types.Spell{ID: 4, Name: "Gwendo na Gwendo", APCost: 5, Range: 3, Damage: 25, AreaOfEffect: "cross"}
-	spells["5"] = types.Spell{ID: 5, Name: "Kill", APCost: 0, Range: 0, Damage: 9999, AreaOfEffect: "none"}
 	return spells
 }
 

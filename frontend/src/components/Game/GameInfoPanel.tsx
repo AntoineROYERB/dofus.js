@@ -1,12 +1,12 @@
 import React from "react";
-import { PlayerMessage, GameStateMessage } from "../../types/message";
+import { GameState } from "../../types/message";
 import { MainButton } from "./Button";
-import { GameStatus, Position } from "../../types/game";
+import { GameStatus, Player, Position } from "../../types/game";
 
 interface GameInfoPanelProps {
-  currentPlayer: PlayerMessage | undefined;
+  currentPlayer: Player | undefined;
   connected: boolean;
-  latestGameState: GameStateMessage | null;
+  latestGameState: GameState | null;
   gameStatus: GameStatus;
   handleReadyClick: () => void;
   handleEndTurnClick: () => void;

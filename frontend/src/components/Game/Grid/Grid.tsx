@@ -12,13 +12,13 @@ import { Character } from "./Character";
 import { useCharacterAnimations } from "../../../hooks/useCharacterAnimations";
 import { useGridInteraction } from "../../../hooks/useGridInteraction";
 import { useTileSize } from "../../../hooks/useTileSize";
-import { GameStateMessage } from "../../../types/message";
+import { GameState } from "../../../types/message";
 
 interface GridProps {
   gridSize: number;
   selectedPosition: Position | null;
   onCellClick: ({ x, y }: Position) => void;
-  latestGameState?: GameStateMessage | null;
+  latestGameState?: GameState | null;
   userId: string;
   selectedSpellId: number | null;
 }
@@ -75,7 +75,7 @@ export const Grid: React.FC<GridProps> = ({
   const tileSize = useTileSize(containerRef, gridSize);
 
   const characterRenderState = useCharacterAnimations(
-    latestGameState,
+    latestGameState ?? null,
     tileSize,
     containerRef
   );

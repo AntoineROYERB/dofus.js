@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
+import { ChatMessage } from "../types/message";
 
-export const useChatWindow = (chatMessages: any[]) => {
+export const useChatWindow = (chatMessages: ChatMessage[]) => {
   const [height, setHeight] = useState(200); // Initial height
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatWindowRef = useRef<HTMLDivElement>(null);

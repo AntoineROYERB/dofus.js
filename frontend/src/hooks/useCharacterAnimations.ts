@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import { GameStateMessage } from "../../../types/message";
-import { Position } from "../../../types/game";
+import { GameState } from "../types/message";
+import { Position } from "../types/game";
 import { calculatePath, getDirection } from "../utils/pathUtils";
 import { isoToScreen } from "../utils/isoUtils";
 
@@ -27,14 +27,14 @@ const ANIMATION_DURATION = 300; // ms per tile
 const ATTACK_ANIMATION_DURATION = 500; // ms for attack animation
 
 export const useCharacterAnimations = (
-  latestGameState: GameStateMessage | null,
+  latestGameState: GameState | null,
   tileSize: { width: number; height: number },
   containerRef: React.RefObject<HTMLDivElement>
 ) => {
   const [animationState, setAnimationState] = useState<AnimationState>({});
   const [characterRenderState, setCharacterRenderState] =
     useState<CharacterRenderState>({});
-  const prevGameState = useRef<GameStateMessage | undefined>();
+  const prevGameState = useRef<GameState | undefined>();
   const players = latestGameState?.players;
 
   const getCharacterScreenPos = (

@@ -76,9 +76,6 @@ const SpriteAnimation: React.FC<SpriteAnimationProps> = ({
     };
 
     playerImage.onload = () => {
-      console.log(
-        `Sprite sheet loaded: ${spriteSheet}. Dimensions: ${playerImage.width}x${playerImage.height}`
-      );
       cancelAnimationFrame(animationState.current.animationFrameId);
 
       if (animationState.current.lastSpriteSheet !== spriteSheet) {

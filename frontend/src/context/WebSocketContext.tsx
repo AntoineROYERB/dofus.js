@@ -1,5 +1,5 @@
 import { createContext, useContext } from "react";
-import { ChatMessage, GameStateMessage } from "../types/message";
+import { ChatMessage, GameState } from "../types/message";
 import { GameAction } from "../types/game";
 
 interface WebSocketContextType {
@@ -10,7 +10,7 @@ interface WebSocketContextType {
   connected: boolean;
   userId: string;
   userName: string;
-  gameRecord: GameStateMessage[];
+  gameRecord: GameState[];
   winner: string | null;
 }
 

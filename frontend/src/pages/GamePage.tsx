@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { generateMessageId } from "./../utils/messageUtils.ts";
 import { Chat } from "../components/Chat/Chat";
 import { GameBoard } from "../components/Game/GameBoard";
@@ -20,6 +20,7 @@ function GamePage() {
   const { userId, userName, connected, sendGameAction, gameRecord, winner } =
     useWebSocket();
   const location = useLocation();
+  const navigate = useNavigate();
   const { characterName, selectedColor } = location.state || {};
 
   const [selectedSpellId, setSelectedSpellId] = useState<number | null>(null);
@@ -56,10 +57,10 @@ function GamePage() {
           isCurrentTurn: false,
           hasPlayedThisTurn: false,
           health: 100,
+          isAlive: true,
         },
         userId,
         userName,
-        isCurrentTurn: false,
       });
     }
   }, [
@@ -72,13 +73,7 @@ function GamePage() {
   ]);
 
   const handleSelectedPosition = (position: Position | null) => {
-    if (position) {
-      setSelectedPosition(position);
-      console.log(`Selected position: ${position.x}, ${position.y}`);
-    } else {
-      setSelectedPosition(null);
-      console.log("No position selected");
-    }
+    setSelectedPosition(position);
   };
 
   const handleSpellClick = (spellId: number) => {
@@ -87,9 +82,6 @@ function GamePage() {
 
   const handleCastSpell = (position: Position, spellId: number) => {
     const { messageId, timestamp } = generateMessageId();
-    console.log(
-      `Casting spell ${spellId} at position (${position.x}, ${position.y})`
-    );
     sendGameAction({
       type: "cast_spell",
       userId,
@@ -144,8 +136,6 @@ function GamePage() {
   };
 
   const handleCellClick = (position: Position) => {
-    console.log(`Cell clicked at position: (${position.x}, ${position.y})`);
-
     // If in positioning phase and player has already positioned, do nothing.
     if (gameStatus === GAME_STATUS.POSITION_CHARACTERS && isPlayerPositioned) {
       return;
@@ -157,7 +147,7 @@ function GamePage() {
     // Movement logic (only if not casting spell and in playing phase)
     if (gameStatus === "playing" && isMyTurn && selectedSpellId == null) {
       const isInitialPosition = currentCharacter?.initialPositions?.some(
-        (initialPosition) =>
+        (initialPosition: Position) =>
           initialPosition.x === position.x && initialPosition.y === position.y
       );
 
@@ -172,7 +162,7 @@ function GamePage() {
 
       if (
         isInRange ||
-        (isInitialPosition && latestGameState.turnNumber === 0)
+        (isInitialPosition && latestGameState?.turnNumber === 0)
       ) {
         handleMove(position);
       }
@@ -254,7 +244,7 @@ function GamePage() {
             window.location.reload();
           }}
           onExit={() => {
-            alert("Exiting game. Implement your navigation here.");
+            navigate("/");
           }}
         />
       )}
