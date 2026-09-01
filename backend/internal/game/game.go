@@ -95,13 +95,18 @@ func (g *Game) snapshotLocked() types.GameState {
 		spells[k] = v
 	}
 
+	// Always an array, never null: a nil slice marshals to JSON null and makes
+	// every client guard against it.
+	turnOrder := make([]string, len(g.turnOrder))
+	copy(turnOrder, g.turnOrder)
+
 	return types.GameState{
 		MessageType: "game_state",
 		Players:     players,
 		TurnNumber:  g.turnNumber,
 		GameStatus:  g.status,
 		Spells:      spells,
-		TurnOrder:   append([]string(nil), g.turnOrder...),
+		TurnOrder:   turnOrder,
 	}
 }
 
@@ -144,8 +149,9 @@ func (g *Game) AddPlayer(userID, userName string, look types.CharacterAppearance
 	}
 
 	g.players[userID] = types.Player{
-		UserID:   userID,
-		UserName: userName,
+		UserID:    userID,
+		UserName:  userName,
+		Connected: true,
 		Character: types.Character{
 			Name:           look.Name,
 			Color:          look.Color,
@@ -160,10 +166,112 @@ func (g *Game) AddPlayer(userID, userName string, look types.CharacterAppearance
 	return nil
 }
 
+// RemovePlayer takes a player out for good. Mid-game this is a forfeit, so
+// play has to move on: the turn advances if it was theirs, and the game ends
+// if only one character is left standing.
 func (g *Game) RemovePlayer(userID string) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
+
+	if _, ok := g.players[userID]; !ok {
+		return
+	}
+	wasActing := g.status == types.StatusPlaying &&
+		g.turnIdx < len(g.turnOrder) && g.turnOrder[g.turnIdx] == userID
+
 	delete(g.players, userID)
+	g.turnOrder = removeString(g.turnOrder, userID)
+	if g.turnIdx >= len(g.turnOrder) {
+		g.turnIdx = 0
+	}
+
+	switch g.status {
+	case types.StatusPlaying:
+		if g.checkGameOverLocked() {
+			return
+		}
+		if wasActing {
+			// turnIdx now points at whoever took the leaver's slot, so start
+			// the search one step back to land on them rather than skip them.
+			g.turnIdx = (g.turnIdx - 1 + len(g.turnOrder)) % len(g.turnOrder)
+			g.advanceTurnLocked()
+		} else {
+			g.applyTurnFlagsLocked()
+		}
+	case types.StatusPositionCharacters:
+		if len(g.players) < MinPlayers {
+			g.returnToLobbyLocked()
+			return
+		}
+		for _, p := range g.players {
+			if !p.HasPositioned {
+				return
+			}
+		}
+		g.beginPlayLocked()
+	}
+}
+
+// SetConnected flags a player as present or away without touching their
+// character.
+func (g *Game) SetConnected(userID string, connected bool) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
+	if p, ok := g.players[userID]; ok {
+		p.Connected = connected
+		g.players[userID] = p
+	}
+}
+
+// Restart sets up a rematch between the same players, keeping the characters
+// they created. The client used to "play again" by reloading the page, which
+// did nothing at all to the server.
+func (g *Game) Restart() error {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
+	if g.status != types.StatusGameOver {
+		return ErrWrongPhase
+	}
+	g.returnToLobbyLocked()
+	return nil
+}
+
+func (g *Game) returnToLobbyLocked() {
+	for id, p := range g.players {
+		p.IsReady = false
+		p.HasPositioned = false
+		p.IsCurrentTurn = false
+		p.Character.Health = StartingHealth
+		p.Character.ActionPoints = StartingActionPoints
+		p.Character.MovementPoints = StartingMovementPoints
+		p.Character.IsAlive = true
+		p.Character.IsCurrentTurn = false
+		p.Character.Position = nil
+		p.Character.InitialPositions = nil
+		g.players[id] = p
+	}
+	g.status = types.StatusCreatingPlayer
+	g.turnNumber = 0
+	g.turnIdx = 0
+	g.turnOrder = nil
+	g.winner = ""
+}
+
+// PlayerCount reports how many characters are in the game.
+func (g *Game) PlayerCount() int {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+	return len(g.players)
+}
+
+// HasPlayer reports whether a connection owns a character here.
+func (g *Game) HasPlayer(userID string) bool {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+	_, ok := g.players[userID]
+	return ok
 }
 
 // SetReady marks a player ready and starts the placement phase once everyone
@@ -472,6 +580,16 @@ func (g *Game) sortedPlayerIDsLocked() []string {
 	// random source, not on Go's map iteration order.
 	sort.Strings(ids)
 	return ids
+}
+
+func removeString(list []string, want string) []string {
+	out := list[:0]
+	for _, s := range list {
+		if s != want {
+			out = append(out, s)
+		}
+	}
+	return out
 }
 
 func containsPosition(list []types.Position, p types.Position) bool {

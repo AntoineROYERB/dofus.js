@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { WebSocketProvider } from "./providers/WebSocketProvider";
 import LandingPage from "./pages/LandingPage";
+import LobbyPage from "./pages/LobbyPage";
 import GamePage from "./pages/GamePage";
 
 function App() {
@@ -9,6 +10,7 @@ function App() {
       <Router>
         <Routes>
           <Route path="/" element={<LandingPage />} />
+          <Route path="/lobby" element={<LobbyPage />} />
           <Route path="/game" element={<GamePage />} />
         </Routes>
       </Router>

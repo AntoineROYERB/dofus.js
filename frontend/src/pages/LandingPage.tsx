@@ -4,6 +4,7 @@ import "../styles/LandingPage.css";
 import SpriteAnimation, { Direction } from "../components/Game/SpriteAnimation";
 import { CharacterCreationForm } from "../components/Game/CharacterCreationForm";
 import StarryBackground from "../components/StarryBackground";
+import { saveCharacter } from "../utils/characterStorage";
 
 const LandingPage: React.FC = () => {
   const [selectedColor, setSelectedColor] = useState("#FF0000");
@@ -12,13 +13,10 @@ const LandingPage: React.FC = () => {
   const navigate = useNavigate();
 
   const handleJoinMatch = () => {
-    if (isNameValid) {
-      // Navigate to the game page with character data
-      navigate("/game", { state: { characterName, selectedColor } });
-    } else {
-      // Handle case where the name is not valid
-      alert("Please enter a valid character name.");
-    }
+    if (!isNameValid) return;
+    // Stored rather than passed through router state so it survives a reload.
+    saveCharacter(characterName, selectedColor);
+    navigate("/lobby");
   };
 
   const [currentAnimationType, setCurrentAnimationType] = useState<
@@ -192,8 +190,9 @@ const LandingPage: React.FC = () => {
           <button
             className="join-match-button"
             onClick={handleJoinMatch}
+            disabled={!isNameValid}
           >
-            Join Match
+            Find a Game
           </button>
           <div className="additional-elements">
             <h3>Quick Links</h3>

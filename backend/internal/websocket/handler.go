@@ -1,8 +1,6 @@
 package websocket
 
 import (
-	"crypto/rand"
-	"encoding/hex"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -23,26 +21,24 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
-func generateUniqueID() (string, error) {
-	buf := make([]byte, 8)
-	if _, err := rand.Read(buf); err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(buf), nil
-}
-
 // HandleWebSocket upgrades HTTP connections to WebSocket connections.
 //
-// The connection's generated ID is the player's identity for the rest of the
-// session. There used to be an activeSessions map here, written from every
-// HTTP goroutine without a lock; its lookup could never hit, since the ID it
-// checked had just been generated two lines above.
+// A client may present a resume token as ?token=... to come back as the player
+// it was before. Without one it gets a fresh identity. Either way the identity
+// belongs to the connection for the rest of the session; there used to be an
+// activeSessions map here, written from every HTTP goroutine without a lock,
+// whose lookup could never hit because the id it checked had just been
+// generated two lines above.
 func (h *Hub) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
-	id, err := generateUniqueID()
-	if err != nil {
-		log.Printf("[Error] Generating client ID: %v", err)
-		http.Error(w, "internal error", http.StatusInternalServerError)
-		return
+	session, resumed := h.sessions.Resume(r.URL.Query().Get("token"))
+	if !resumed {
+		var err error
+		session, err = h.sessions.Create()
+		if err != nil {
+			log.Printf("[Error] Creating session: %v", err)
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
 	}
 
 	conn, err := upgrader.Upgrade(w, r, nil)
@@ -51,16 +47,13 @@ func (h *Hub) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	initUser := &types.User{
-		ID:   id,
-		Name: "Guest-" + id[len(id)-6:],
-	}
-
 	initMsg, err := json.Marshal(types.UserInitMessage{
 		Type:      "user_init",
-		MessageID: "init-" + id,
+		MessageID: "init-" + session.UserID,
 		Timestamp: time.Now().UnixMilli(),
-		User:      *initUser,
+		User:      types.User{ID: session.UserID, Name: session.Name},
+		Token:     session.Token,
+		Resumed:   resumed,
 	})
 	if err != nil {
 		log.Printf("[Error] Marshaling init message: %v", err)
@@ -75,18 +68,22 @@ func (h *Hub) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 	}
 
 	client := &Client{
-		ID:   id,
-		Conn: conn,
-		Send: make(chan []byte, 256),
-		Hub:  h,
-		User: initUser,
+		ID:      session.UserID,
+		Conn:    conn,
+		Send:    make(chan []byte, 256),
+		Hub:     h,
+		Session: session,
 	}
 
-	log.Printf("[New Connection] Client %s (%s)", id, initUser.Name)
+	if resumed {
+		log.Printf("[Connection] %s resumed (%s)", session.UserID, session.Name)
+	} else {
+		log.Printf("[Connection] %s new (%s)", session.UserID, session.Name)
+	}
 
-	// Run() sends the newcomer the current state as part of registering it.
-	// Broadcasting from here instead would race: the send can reach the client
-	// map before Run() has finished adding this client to it.
+	// Run() sends the newcomer its lobby or room state as part of registering
+	// it. Doing that from here would race: the send can reach the client map
+	// before Run() has finished adding this client to it.
 	h.Register <- client
 
 	go client.WritePump()

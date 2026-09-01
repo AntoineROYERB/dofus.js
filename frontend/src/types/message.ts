@@ -10,6 +10,29 @@ export interface UserInitMessage {
   messageId: string;
   timestamp: number;
   user: UserInfo;
+  /** Resume token: present it on reconnect to come back as the same player. */
+  token: string;
+  resumed: boolean;
+}
+
+export type RoomSummary = {
+  id: string;
+  name: string;
+  players: number;
+  maxPlayers: number;
+  status: string;
+};
+
+export interface LobbyStateMessage {
+  type: "lobby_state";
+  rooms: RoomSummary[];
+}
+
+/** Which room this client is in. An empty roomId means back in the lobby. */
+export interface RoomJoinedMessage {
+  type: "room_joined";
+  roomId: string;
+  roomName: string;
 }
 
 export interface ChatMessage {
@@ -54,7 +77,7 @@ export interface GameState {
   turnNumber: number;
   status: string;
   spells: SpellBook | null;
-  turnOrder: string[] | null;
+  turnOrder: string[];
 }
 
 export interface GameStateMessage {
@@ -84,4 +107,6 @@ export type Message =
   | ChatMessage
   | GameStateMessage
   | GameOverMessage
-  | ActionRejectedMessage;
+  | ActionRejectedMessage
+  | LobbyStateMessage
+  | RoomJoinedMessage;

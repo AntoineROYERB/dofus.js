@@ -38,6 +38,9 @@ type Player struct {
 	IsCurrentTurn bool      `json:"isCurrentTurn"`
 	IsReady       bool      `json:"isReady"`
 	HasPositioned bool      `json:"hasPositioned"`
+	// Connected goes false while a player is away; their character stays on
+	// the board so a refresh or a network blip can resume it.
+	Connected bool `json:"connected"`
 }
 
 // GameState is the snapshot broadcast to every client after each accepted
@@ -68,6 +71,15 @@ type Spell struct {
 	NeedsLineOfSight bool   `json:"needsLineOfSight"`
 	MaxCastsPerTurn  int    `json:"maxCastsPerTurn"`
 	Cooldown         int    `json:"cooldown"`
+}
+
+// RoomSummary is one line in the lobby list.
+type RoomSummary struct {
+	ID         string `json:"id"`
+	Name       string `json:"name"`
+	Players    int    `json:"players"`
+	MaxPlayers int    `json:"maxPlayers"`
+	Status     string `json:"status"`
 }
 
 // Areas of effect. The client mirrors these patterns for its hover preview;

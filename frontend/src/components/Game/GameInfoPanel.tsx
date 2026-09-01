@@ -12,7 +12,6 @@ interface GameInfoPanelProps {
   handleEndTurnClick: () => void;
   isPlayerReady: boolean | undefined;
   isMyTurn: boolean | undefined;
-  handleSubmitClick: () => void;
   userHasCharacter: boolean;
   handleFightClick: () => void;
   selectedPosition: Position | undefined;
@@ -28,7 +27,6 @@ export const GameInfoPanel: React.FC<GameInfoPanelProps> = ({
   handleEndTurnClick,
   isPlayerReady,
   isMyTurn,
-  handleSubmitClick,
   userHasCharacter,
   handleFightClick,
   selectedPosition,
@@ -107,7 +105,6 @@ export const GameInfoPanel: React.FC<GameInfoPanelProps> = ({
           handleEndTurnClick={handleEndTurnClick}
           isPlayerReady={isPlayerReady}
           isMyTurn={isMyTurn}
-          handleSubmitClick={handleSubmitClick}
           userHasCharacter={userHasCharacter}
           handleFightClick={handleFightClick}
           selectedPosition={selectedPosition}

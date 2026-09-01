@@ -1,31 +1,29 @@
 import { useState, useEffect, useRef } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
-import { generateMessageId } from "./../utils/messageUtils.ts";
+import { useNavigate } from "react-router-dom";
+import { generateMessageId } from "../utils/messageUtils";
 import { Chat } from "../components/Chat/Chat";
 import { GameBoard } from "../components/Game/GameBoard";
 import SpellBar from "../components/Game/Spellbar";
-import { Position, GameStatus, GAME_STATUS } from "../types/game";
+import { GameAction, Position, GameStatus, GAME_STATUS } from "../types/game";
 import { PlayerActions } from "../components/Game/PlayerActions";
 import { GameInfoPanel } from "../components/Game/GameInfoPanel";
 import { GameOverModal } from "../components/Game/GameOverModal";
 import { useWebSocket } from "../context/WebSocketContext";
-
-const IsWithinRange = (p1: Position, p2: Position, n: number): boolean => {
-  if (!p1 || !p2) return false;
-  const distance = Math.abs(p1.x - p2.x) + Math.abs(p1.y - p2.y);
-  return distance <= n;
-};
+import { readCharacter } from "../utils/characterStorage";
+import { isWithinRange } from "../utils/pathUtils";
 
 function GamePage() {
-  const { userId, connected, sendGameAction, gameRecord, winner, rejection } =
-    useWebSocket();
-  // The character request must go out exactly once, and only once the socket
-  // is open: an early attempt used to be dropped with no retry, leaving the
-  // player on the board with no character at all.
-  const characterRequested = useRef(false);
-  const location = useLocation();
+  const {
+    userId,
+    connected,
+    sendGameAction,
+    gameState,
+    roomId,
+    roomName,
+    winner,
+    rejection,
+  } = useWebSocket();
   const navigate = useNavigate();
-  const { characterName, selectedColor } = location.state || {};
 
   const [selectedSpellId, setSelectedSpellId] = useState<number | null>(null);
   const [selectedPosition, setSelectedPosition] = useState<Position | null>(
@@ -33,8 +31,44 @@ function GamePage() {
   );
   const [visibleRejection, setVisibleRejection] = useState<string | null>(null);
 
-  // Show the server's reason for a beat, then let it fade. `rejection` carries
-  // a timestamp so two identical refusals in a row still re-trigger this.
+  // The character request must go out exactly once, and only once the socket
+  // is open: an early attempt used to be dropped with no retry, leaving the
+  // player on the board with no character at all.
+  const characterRequested = useRef(false);
+  const character = readCharacter();
+
+  const currentPlayer = gameState?.players[userId];
+  const isMyTurn = currentPlayer?.isCurrentTurn;
+  const isPlayerReady = currentPlayer?.isReady;
+  const isPlayerPositioned = currentPlayer?.hasPositioned;
+  const currentCharacter = currentPlayer?.character;
+  const gameStatus: GameStatus =
+    (gameState?.status as GameStatus) || GAME_STATUS.CREATING_PLAYER;
+  const userHasCharacter = !!currentPlayer;
+
+  // The server owns room membership; if we are not in one, go back to the list.
+  useEffect(() => {
+    if (!roomId) navigate("/lobby", { replace: true });
+  }, [roomId, navigate]);
+
+  useEffect(() => {
+    if (!character) navigate("/", { replace: true });
+  }, [character, navigate]);
+
+  useEffect(() => {
+    if (!connected || !roomId || !character) return;
+    if (userHasCharacter || characterRequested.current) return;
+
+    characterRequested.current = true;
+    const { messageId, timestamp } = generateMessageId();
+    sendGameAction({
+      type: "create_character",
+      messageId,
+      timestamp,
+      character,
+    });
+  }, [connected, roomId, character, userHasCharacter, sendGameAction]);
+
   useEffect(() => {
     if (!rejection) return;
     setVisibleRejection(rejection.reason);
@@ -42,65 +76,23 @@ function GamePage() {
     return () => clearTimeout(timer);
   }, [rejection]);
 
-  // Game state checks
-  const latestGameState =
-    gameRecord.length > 0 ? gameRecord[gameRecord.length - 1] : null;
-  const currentPlayer = latestGameState?.players[userId];
-  const isMyTurn = latestGameState?.players[userId]?.isCurrentTurn;
-  const isPlayerReady = latestGameState?.players[userId]?.isReady;
-  const currentCharacter = currentPlayer?.character;
-  const gameStatus: GameStatus =
-    (latestGameState?.status as GameStatus) || GAME_STATUS.CREATING_PLAYER;
-  const userHasCharacter = !!currentPlayer;
+  const act = (action: GameAction) => sendGameAction(action);
 
-  const isPlayerPositioned = latestGameState?.players[userId]?.hasPositioned;
-
-  useEffect(() => {
-    if (!connected || characterRequested.current) return;
-    if (characterName && selectedColor && !userHasCharacter) {
-      characterRequested.current = true;
-      const { messageId, timestamp } = generateMessageId();
-      sendGameAction({
-        type: "create_character",
-        messageId,
-        timestamp,
-        character: {
-          name: characterName,
-          color: selectedColor,
-          symbol: (characterName || "P")[0].toUpperCase(),
-        },
-      });
-    }
-  }, [connected, characterName, selectedColor, userHasCharacter, sendGameAction]);
-
-  const handleSelectedPosition = (position: Position | null) => {
+  const handleSelectedPosition = (position: Position | null) =>
     setSelectedPosition(position);
-  };
 
-  const handleSpellClick = (spellId: number) => {
-    setSelectedSpellId((prevId) => (prevId === spellId ? null : spellId));
-  };
-
-  const handleCastSpell = (position: Position, spellId: number) => {
-    const { messageId, timestamp } = generateMessageId();
-    sendGameAction({
-      type: "cast_spell",
-      messageId,
-      timestamp,
-      spellId,
-      targetPosition: position,
-    });
-  };
+  const handleSpellClick = (spellId: number) =>
+    setSelectedSpellId((prev) => (prev === spellId ? null : spellId));
 
   const handleReadyClick = () => {
     const { messageId, timestamp } = generateMessageId();
-    sendGameAction({ type: "ready_to_start", messageId, timestamp });
+    act({ type: "ready_to_start", messageId, timestamp });
   };
 
   const handleFightClick = () => {
     if (!selectedPosition) return;
     const { messageId, timestamp } = generateMessageId();
-    sendGameAction({
+    act({
       type: "character_positioned",
       messageId,
       timestamp,
@@ -110,53 +102,48 @@ function GamePage() {
 
   const handleEndTurnClick = () => {
     const { messageId, timestamp } = generateMessageId();
-    sendGameAction({ type: "end_turn", messageId, timestamp });
+    act({ type: "end_turn", messageId, timestamp });
+    setSelectedSpellId(null);
   };
 
-  const handleMove = (position: Position) => {
+  const handlePlayAgain = () => {
     const { messageId, timestamp } = generateMessageId();
+    act({ type: "play_again", messageId, timestamp });
+    setSelectedPosition(null);
+    setSelectedSpellId(null);
+  };
 
-    sendGameAction({ type: "move", position, messageId, timestamp });
+  const handleLeave = () => {
+    const { messageId, timestamp } = generateMessageId();
+    act({ type: "leave_room", messageId, timestamp });
   };
 
   const handleCellClick = (position: Position) => {
-    // If in positioning phase and player has already positioned, do nothing.
     if (gameStatus === GAME_STATUS.POSITION_CHARACTERS && isPlayerPositioned) {
       return;
     }
-
-    // Always update selectedPosition if not in the "locked" state
     handleSelectedPosition(position);
 
-    // Movement logic (only if not casting spell and in playing phase)
-    if (gameStatus === "playing" && isMyTurn && selectedSpellId == null) {
-      const isInitialPosition = currentCharacter?.initialPositions?.some(
-        (initialPosition: Position) =>
-          initialPosition.x === position.x && initialPosition.y === position.y
-      );
+    if (gameStatus !== GAME_STATUS.PLAYING || !isMyTurn) return;
 
-      const isInRange =
-        currentCharacter?.position &&
-        currentCharacter.movementPoints &&
-        IsWithinRange(
-          currentCharacter?.position,
-          position,
-          currentCharacter.movementPoints
-        );
-
-      if (
-        isInRange ||
-        (isInitialPosition && latestGameState?.turnNumber === 0)
-      ) {
-        handleMove(position);
-      }
+    if (selectedSpellId !== null) {
+      const { messageId, timestamp } = generateMessageId();
+      act({
+        type: "cast_spell",
+        messageId,
+        timestamp,
+        spellId: selectedSpellId,
+        targetPosition: position,
+      });
+      setSelectedSpellId(null);
+      return;
     }
 
-    // Spell casting logic (highest priority)
-    if (gameStatus === "playing" && isMyTurn && selectedSpellId !== null) {
-      handleCastSpell(position, selectedSpellId);
-      setSelectedSpellId(null); // Reset after casting
-      return;
+    const from = currentCharacter?.position;
+    if (!from || !currentCharacter) return;
+    if (isWithinRange(from, position, currentCharacter.movementPoints)) {
+      const { messageId, timestamp } = generateMessageId();
+      act({ type: "move", messageId, timestamp, position });
     }
   };
 
@@ -171,13 +158,26 @@ function GamePage() {
         </div>
       )}
 
+      <div className="absolute top-3 left-3 z-20 flex items-center gap-3">
+        <span className="px-3 py-1 rounded-md bg-stone-800/80 text-stone-100 text-xs">
+          {roomName}
+        </span>
+        <button
+          type="button"
+          onClick={handleLeave}
+          className="px-3 py-1 rounded-md bg-stone-800/80 text-stone-100 text-xs hover:bg-stone-700"
+        >
+          Leave game
+        </button>
+      </div>
+
       <GameBoard
         gridSize={15}
         handleSelectedPosition={handleSelectedPosition}
         selectedPosition={selectedPosition}
         selectedSpellId={selectedSpellId}
         handleCellClick={handleCellClick}
-        latestGameState={latestGameState}
+        latestGameState={gameState}
         userId={userId}
       />
 
@@ -188,7 +188,7 @@ function GamePage() {
             handleSpellClick={handleSpellClick}
             selectedSpellId={selectedSpellId}
             currentPlayer={currentPlayer}
-            spells={latestGameState?.spells ?? null}
+            spells={gameState?.spells ?? null}
           />
 
           <div className="bg-stone-50/80 backdrop-blur-sm rounded-lg flex flex-col overflow-y-auto p-2 border border-stone-300/50 shadow-lg">
@@ -199,13 +199,12 @@ function GamePage() {
                 <GameInfoPanel
                   currentPlayer={currentPlayer}
                   connected={connected}
-                  latestGameState={latestGameState}
+                  latestGameState={gameState}
                   gameStatus={gameStatus}
                   handleReadyClick={handleReadyClick}
                   handleEndTurnClick={handleEndTurnClick}
                   isPlayerReady={isPlayerReady}
                   isMyTurn={isMyTurn}
-                  handleSubmitClick={() => {}}
                   userHasCharacter={userHasCharacter}
                   handleFightClick={handleFightClick}
                   selectedPosition={selectedPosition ?? undefined}
@@ -219,7 +218,6 @@ function GamePage() {
                   handleEndTurnClick={handleEndTurnClick}
                   isPlayerReady={isPlayerReady}
                   isMyTurn={isMyTurn}
-                  handleSubmitClick={() => {}}
                   userHasCharacter={userHasCharacter}
                   handleFightClick={handleFightClick}
                   selectedPosition={selectedPosition ?? undefined}
@@ -234,12 +232,8 @@ function GamePage() {
       {winner && (
         <GameOverModal
           winner={winner}
-          onPlayAgain={() => {
-            window.location.reload();
-          }}
-          onExit={() => {
-            navigate("/");
-          }}
+          onPlayAgain={handlePlayAgain}
+          onExit={handleLeave}
         />
       )}
     </div>

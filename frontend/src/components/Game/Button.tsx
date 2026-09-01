@@ -8,7 +8,6 @@ interface mainButtonProps {
   handleFightClick: () => void;
   isPlayerReady: boolean | undefined;
   isMyTurn: boolean | undefined;
-  handleSubmitClick: () => void;
   userHasCharacter: boolean;
   selectedPosition: Position | undefined;
   isPlayerPositioned: boolean | undefined;
@@ -21,7 +20,6 @@ export const MainButton: React.FC<mainButtonProps> = ({
   handleEndTurnClick,
   isPlayerReady,
   isMyTurn,
-  handleSubmitClick,
   handleFightClick,
   userHasCharacter,
   selectedPosition,
@@ -50,13 +48,11 @@ export const MainButton: React.FC<mainButtonProps> = ({
       )}
 
       {gameStatus === "creating_player" && !userHasCharacter && (
-        <button
-          className="w-full bg-blue-500 text-white rounded disabled:bg-gray-300 hover:bg-blue-600 text-sm"
-          disabled={!connected || isPlayerReady}
-          onClick={handleSubmitClick}
-        >
-          Create Character
-        </button>
+        // The character is created automatically on entering a room, so there
+        // is nothing for the player to click here.
+        <p className="text-center text-xs text-gray-500 py-1">
+          {connected ? "Joining the game…" : "Reconnecting…"}
+        </p>
       )}
 
       {gameStatus === "position_characters" && (
