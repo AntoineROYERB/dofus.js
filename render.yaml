@@ -1,0 +1,55 @@
+# Render blueprint: the client and the server are two separate free services.
+#
+# Free web services sleep after 15 minutes and take ~1 minute to wake. Serving
+# the frontend from the Go binary would mean a visitor stares at a blank tab
+# for that minute, so the frontend is a static site — always instant — and only
+# the WebSocket waits for the server to come back. The client already shows
+# "Reconnecting…" and backs off exponentially while that happens.
+#
+# The two services wire themselves to each other: no hostnames to paste in.
+
+services:
+  # ---------------------------------------------------------------------------
+  # Game server
+  # ---------------------------------------------------------------------------
+  - name: dofusjs-api
+    type: web
+    runtime: docker
+    plan: free
+    region: frankfurt
+    dockerfilePath: ./Dockerfile.backend
+    dockerContext: .
+    healthCheckPath: /healthz
+    envVars:
+      - key: PORT
+        value: "8080"
+      - key: TURN_SECONDS
+        value: "45"
+      # Locked to the static site, so no other origin can open a socket here.
+      - key: ALLOWED_ORIGINS
+        fromService:
+          name: dofusjs
+          type: web
+          property: host
+
+  # ---------------------------------------------------------------------------
+  # Client
+  # ---------------------------------------------------------------------------
+  - name: dofusjs
+    type: web
+    runtime: static
+    plan: free
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: ./dist
+    envVars:
+      - key: VITE_WS_URL
+        fromService:
+          name: dofusjs-api
+          type: web
+          property: host
+    routes:
+      # Client-side routes (/lobby, /game) must survive a direct visit.
+      - type: rewrite
+        source: /*
+        destination: /index.html

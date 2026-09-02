@@ -93,8 +93,33 @@ Copy `.env.example` to `.env`. Everything has a working default.
 | `ALLOWED_ORIGINS` | `*` | Origins allowed to open a WebSocket. **Pin this for a public deployment.** |
 | `TURN_SECONDS` | `45` | How long a player gets before their turn passes on |
 | `STATIC_DIR` | unset | When set, the Go binary also serves the built frontend |
+| `VITE_WS_URL` | unset | Build-time, client side: where the game server lives when it is not the host serving the page |
 
 ## Deploying
+
+### Render (free)
+
+`render.yaml` describes two free services that wire themselves together — push
+the repo, point Render at the blueprint, and there is nothing to paste in.
+
+1. New → **Blueprint**, pick this repository.
+2. Apply. Render builds `dofusjs-api` from `Dockerfile.backend` and `dofusjs`
+   as a static site from `frontend/`.
+
+The client is a static site and the Go server is a web service, deliberately.
+A free web service sleeps after 15 minutes and takes about a minute to wake:
+serving the frontend from the Go binary would mean a visitor stares at a blank
+tab for that minute. Split, the page is instant and only the WebSocket waits —
+and the UI already says "Reconnecting…" and backs off while it does.
+
+The blueprint locks `ALLOWED_ORIGINS` to the static site's hostname, so no
+other origin can open a socket against the server.
+
+Because the server keeps every game in memory, a sleep wipes the lobby. That is
+the design, not a regression: rooms are transient, and a returning player just
+starts a new one.
+
+### Anywhere else
 
 The root `Dockerfile` builds a single ~25 MB image where the Go binary serves
 both the API and the built frontend, so any container host will do.
@@ -104,7 +129,8 @@ docker build -t dofusjs .
 docker run -p 8080:8080 -e ALLOWED_ORIGINS=https://your.domain dofusjs
 ```
 
-`fly.toml` is ready for [fly.io](https://fly.io):
+`fly.toml` is ready for [fly.io](https://fly.io), which suspends rather than
+stops and so wakes faster:
 
 ```bash
 fly launch --no-deploy   # once, to claim the app name

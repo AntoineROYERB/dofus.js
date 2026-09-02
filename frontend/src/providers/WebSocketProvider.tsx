@@ -12,13 +12,38 @@ const RECONNECT_BASE_MS = 500;
 const RECONNECT_MAX_MS = 15000;
 
 /**
- * The server sits behind the same origin as the page, so the scheme has to
- * follow it. Hardcoding ws:// meant the browser blocked the connection as soon
- * as the page was served over HTTPS.
+ * Where the game server lives, when it is not the host serving this page.
+ *
+ * Set VITE_WS_URL at build time to deploy the client and the server
+ * separately — a static site plus a web service, which is how the free tiers
+ * of most hosts avoid making a visitor stare at a blank page while a sleeping
+ * container wakes up.
+ *
+ * Accepts whatever form the host hands you: a bare hostname, an https:// URL
+ * or a wss:// one, with or without the /ws path.
+ */
+const configuredServer = (): string | null => {
+  const raw = import.meta.env.VITE_WS_URL?.trim();
+  if (!raw) return null;
+
+  let url = raw.replace(/^http:\/\//, "ws://").replace(/^https:\/\//, "wss://");
+  if (!/^wss?:\/\//.test(url)) url = `wss://${url}`;
+  url = url.replace(/\/+$/, "");
+  if (!url.endsWith("/ws")) url += "/ws";
+  return url;
+};
+
+/**
+ * Otherwise the server sits behind the same origin as the page, so the scheme
+ * has to follow it. Hardcoding ws:// meant the browser blocked the connection
+ * as soon as the page was served over HTTPS.
  */
 const socketUrl = (): string => {
   const token = localStorage.getItem(TOKEN_KEY) ?? "";
   const query = token ? `?token=${encodeURIComponent(token)}` : "";
+
+  const configured = configuredServer();
+  if (configured) return `${configured}${query}`;
 
   if (import.meta.env.DEV) {
     return `ws://localhost:8080/ws${query}`;

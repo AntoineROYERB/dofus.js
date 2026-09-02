@@ -52,16 +52,39 @@ func (c Config) AllowsAnyOrigin() bool {
 
 // OriginAllowed matches an Origin header against the allow list. A request
 // without an Origin is not a browser request and is let through.
+//
+// Entries may be full origins ("https://example.com") or bare hostnames
+// ("example.com"): hosting platforms hand out one or the other depending on
+// how the value is wired up, and rejecting the wrong shape would only produce
+// a WebSocket that refuses to connect for no visible reason.
 func (c Config) OriginAllowed(origin string) bool {
 	if origin == "" || c.AllowsAnyOrigin() {
 		return true
 	}
+
+	host := originHost(origin)
 	for _, allowed := range c.AllowedOrigins {
 		if strings.EqualFold(allowed, origin) {
 			return true
 		}
+		if host != "" && strings.EqualFold(originHost(allowed), host) {
+			return true
+		}
 	}
 	return false
+}
+
+// originHost reduces an origin or a bare hostname to its host, dropping any
+// scheme and path.
+func originHost(value string) string {
+	host := value
+	if i := strings.Index(host, "://"); i >= 0 {
+		host = host[i+3:]
+	}
+	if i := strings.IndexAny(host, "/?#"); i >= 0 {
+		host = host[:i]
+	}
+	return strings.TrimSpace(host)
 }
 
 func splitOrigins(raw string) []string {
