@@ -118,7 +118,7 @@ const SpellBar: React.FC<SpellBarProps> = ({
   };
 
   return (
-    <div className="bg-gray-800/80 backdrop-blur-sm rounded-lg p-2">
+    <div className="pointer-events-auto bg-gray-800/80 backdrop-blur-sm rounded-lg p-2">
       <div className="flex w-full h-full">
         <div className="bg-white rounded-md shadow-md border border-gray-300 flex w-full">
           <div className="flex-none flex flex-col items-center justify-center p-2 w-1/6">

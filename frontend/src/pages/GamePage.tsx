@@ -184,7 +184,13 @@ function GamePage() {
         userId={userId}
       />
 
-      <div className="absolute bottom-0 left-0 right-0 z-10 p-2 md:p-4">
+      {/*
+        This bar spans the full width and is as tall as the chat, so it covers
+        the bottom half of the board. Left solid, it swallowed every click in
+        that half — even in the empty gaps between the panels, where nothing is
+        drawn. It stays transparent to the pointer; each panel opts back in.
+      */}
+      <div className="pointer-events-none absolute bottom-0 left-0 right-0 z-10 p-2 md:p-4">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-4 items-end">
           <Chat />
           <SpellBar
@@ -194,7 +200,7 @@ function GamePage() {
             spells={gameState?.spells ?? null}
           />
 
-          <div className="bg-stone-50/80 backdrop-blur-sm rounded-lg flex flex-col overflow-y-auto p-2 border border-stone-300/50 shadow-lg">
+          <div className="pointer-events-auto bg-stone-50/80 backdrop-blur-sm rounded-lg flex flex-col overflow-y-auto p-2 border border-stone-300/50 shadow-lg">
             <div
               className={`flex-grow ${currentPlayer ? "overflow-y-auto" : ""}`}
             >
