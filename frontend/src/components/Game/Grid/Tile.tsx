@@ -29,6 +29,12 @@ interface TileProps {
   hoveredPosition: Position | null;
   /** Cover: nobody stands here and nothing is seen through it. */
   isObstacle: boolean;
+  /**
+   * For a cell inside the area you may act in: which of its four edges face
+   * out of that area, up-left, up-right, down-right, down-left. Undefined for
+   * a cell outside it.
+   */
+  zoneEdges?: boolean[];
 }
 
 /**
@@ -55,6 +61,7 @@ export const Tile: React.FC<TileProps> = ({
   isPathCell,
   hoveredPosition,
   isObstacle,
+  zoneEdges,
 }) => {
   const { width: w, height: h } = tileSize;
   const points = `${w / 2},0 ${w},${h / 2} ${w / 2},${h} 0,${h / 2}`;
@@ -74,18 +81,19 @@ export const Tile: React.FC<TileProps> = ({
       fill: BOARD.wash,
       opacity,
       stroke: BOARD.stroke,
-      strokeWidth: 1,
+      strokeWidth: BOARD.strokes.tile,
     });
-    const marked: Wash = {
+    // Vermilion means one thing only: this is what the click is about to do.
+    const marked = (opacity: number): Wash => ({
       fill: BOARD.accent,
-      opacity: 0.22,
+      opacity,
       stroke: BOARD.accent,
-      strokeWidth: 1.5,
-    };
+      strokeWidth: BOARD.strokes.marked,
+    });
 
     if (isPositioningPhase && initialPositionOwner) {
       if (initialPositionOwner.isCurrentPlayer) {
-        return { ...marked, opacity: isHovered ? 0.34 : 0.16 };
+        return marked(isHovered ? 0.42 : 0.18);
       }
       // An opponent's starting cells keep their own colour, but only as a
       // tint: on this board the one thing allowed to be saturated is the mark
@@ -94,19 +102,21 @@ export const Tile: React.FC<TileProps> = ({
         fill: initialPositionOwner.color,
         opacity: 0.14,
         stroke: BOARD.stroke,
-        strokeWidth: 1,
+        strokeWidth: BOARD.strokes.tile,
       };
     }
 
     if (isCharacterTurn && selectedSpellId) {
-      if (isImpactedCell && hoveredPosition && isInSpellRange) return marked;
-      if (isInSpellRange) return graphite(0.1);
+      if (isImpactedCell && hoveredPosition && isInSpellRange) return marked(0.3);
+      if (isInSpellRange) return graphite(0.14);
     }
 
     if (!selectedSpellId && isCharacterTurn && isInRange) {
-      if (isHovered) return marked;
-      if (isPathCell) return graphite(0.18);
-      return graphite(0.1);
+      // The walk itself is a consequence of the click, so it is vermilion —
+      // grey on grey made the path indistinguishable from the range around it.
+      if (isHovered) return marked(0.44);
+      if (isPathCell) return marked(0.26);
+      return graphite(0.14);
     }
 
     return null;
@@ -193,8 +203,20 @@ export const Tile: React.FC<TileProps> = ({
               points={points}
               fill="none"
               stroke={overlay ? overlay.stroke : BOARD.stroke}
-              strokeWidth={overlay ? overlay.strokeWidth : 1}
+              strokeWidth={overlay ? overlay.strokeWidth : BOARD.strokes.tile}
             />
+            {zoneEdges && (
+              <g
+                stroke={BOARD.zoneEdge}
+                strokeWidth={BOARD.strokes.zone}
+                strokeLinecap="square"
+              >
+                {zoneEdges[0] && <line x1={0} y1={h / 2} x2={w / 2} y2={0} />}
+                {zoneEdges[1] && <line x1={w / 2} y1={0} x2={w} y2={h / 2} />}
+                {zoneEdges[2] && <line x1={w} y1={h / 2} x2={w / 2} y2={h} />}
+                {zoneEdges[3] && <line x1={w / 2} y1={h} x2={0} y2={h / 2} />}
+              </g>
+            )}
           </>
         )}
       </svg>

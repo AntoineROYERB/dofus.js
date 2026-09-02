@@ -28,6 +28,18 @@ export const BOARD = {
   /** Anything reachable or targetable, as a graphite wash. */
   wash: "#17181a",
   accent: "#d1462f",
+  /** The drawn boundary of the area you may act in this turn. */
+  zoneEdge: "#3d3f3d",
+  /*
+   * Cells are clipped to their diamond, so a stroke laid on the edge only
+   * shows its inner half. Widths here are doubled on purpose: what you read
+   * on screen is half of what is written.
+   */
+  strokes: {
+    tile: 1.6,
+    marked: 3,
+    zone: 3.5,
+  },
   block: {
     top: "#e4e5e2",
     left: "#cdcecb",

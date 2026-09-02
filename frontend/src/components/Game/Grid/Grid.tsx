@@ -194,6 +194,48 @@ export const Grid: React.FC<GridProps> = ({
     generateIsometricCoordinates(gridSize)
   );
 
+  // Cells the selected spell can actually reach: in range, and seen from where
+  // the caster stands. A cell it cannot reach must not look targetable.
+  const castable = React.useMemo(() => {
+    const cells = new Set<string>();
+    if (!characterPosition || !selectedSpell) return cells;
+    sortedCoordinates.forEach(({ x, y }) => {
+      if (!isInSpellRange({ x, y }, characterPosition, selectedSpell)) return;
+      if (
+        selectedSpell.needsLineOfSight &&
+        !hasLineOfSight(characterPosition, { x, y }, blocked)
+      ) {
+        return;
+      }
+      cells.add(`${x},${y}`);
+    });
+    return cells;
+    // sortedCoordinates is derived from gridSize alone and is stable enough.
+  }, [characterPosition, selectedSpell, blocked, gridSize]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /*
+   * The area you may act in this turn — where you can walk, or where the
+   * selected spell can land. A wash alone was not enough to see it: grey on
+   * grey at ten percent disappears against the board's own checker. It now
+   * carries a drawn border, which is what makes a region read as a region.
+   */
+  const zone = currentPlayer?.isCurrentTurn
+    ? selectedSpell
+      ? castable
+      : new Set(walkable.keys())
+    : new Set<string>();
+
+  /** Which of a cell's four edges face out of the zone. */
+  const zoneEdges = (x: number, y: number): boolean[] | undefined => {
+    if (!zone.has(`${x},${y}`)) return undefined;
+    return [
+      !zone.has(`${x - 1},${y}`), // up-left
+      !zone.has(`${x},${y - 1}`), // up-right
+      !zone.has(`${x + 1},${y}`), // down-right
+      !zone.has(`${x},${y + 1}`), // down-left
+    ];
+  };
+
   return (
     <div ref={containerRef} className="w-full h-full relative overflow-hidden">
       {sortedCoordinates.map(({ x, y }) => {
@@ -204,14 +246,7 @@ export const Grid: React.FC<GridProps> = ({
         const isObstacle = obstacleSet.has(`${x},${y}`);
         const isInRange = walkable.has(`${x},${y}`);
 
-        // A cell the spell cannot actually reach must not look targetable.
-        const isInCastRange = !!(
-          characterPosition &&
-          selectedSpell &&
-          isInSpellRange({ x, y }, characterPosition, selectedSpell) &&
-          (!selectedSpell.needsLineOfSight ||
-            hasLineOfSight(characterPosition, { x, y }, blocked))
-        );
+        const isInCastRange = castable.has(`${x},${y}`);
 
         const isImpactedCell = impactedCells.some(
           (pos) => pos.x === x && pos.y === y
@@ -246,6 +281,7 @@ export const Grid: React.FC<GridProps> = ({
             isInRange={isInRange}
             isPathCell={isPathCell}
             hoveredPosition={hoveredPosition}
+            zoneEdges={zoneEdges(x, y)}
             onClick={() => onCellClick({ x, y })}
           />
         );
