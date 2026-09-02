@@ -38,7 +38,8 @@ services:
   - name: dofusjs
     type: web
     runtime: static
-    plan: free
+    # No `plan` here: a static site has no compute plan at all, so Render
+    # rejects the field outright ("no such plan free for service type web").
     rootDir: frontend
     buildCommand: npm ci && npm run build
     staticPublishPath: ./dist
