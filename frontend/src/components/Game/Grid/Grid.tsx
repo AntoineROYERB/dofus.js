@@ -113,7 +113,8 @@ export const Grid: React.FC<GridProps> = ({
     containerRef
   );
 
-  const { hoveredPosition, pathCells, impactedCells } = useGridInteraction({
+  const { hoveredPosition, pathCells, impactedCells, confirmsTap } =
+    useGridInteraction({
     containerRef,
     gridSize,
     tileSize,
@@ -282,7 +283,8 @@ export const Grid: React.FC<GridProps> = ({
             isPathCell={isPathCell}
             hoveredPosition={hoveredPosition}
             zoneEdges={zoneEdges(x, y)}
-            onClick={() => onCellClick({ x, y })}
+            // On a touch screen the first tap only previews the cell.
+            onClick={() => confirmsTap({ x, y }) && onCellClick({ x, y })}
           />
         );
       })}

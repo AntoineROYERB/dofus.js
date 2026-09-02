@@ -2,7 +2,13 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- viewport-fit=cover: the board runs under the notch in landscape, and
+         the layout pads itself back with the safe-area insets. -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#f2f2f0" />
     <title>Dofus.js</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -16,8 +22,8 @@
       href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..125,400..800&family=Azeret+Mono:wght@400..600&family=Public+Sans:wght@200..800&display=swap"
     />
   </head>
-  <body class="font-sans antialiased bg-paper text-ink overflow-hidden">
-    <div id="root" class="h-screen overflow-hidden"></div>
+  <body class="bg-paper font-sans text-ink antialiased">
+    <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

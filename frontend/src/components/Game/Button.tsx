@@ -16,7 +16,7 @@ interface mainButtonProps {
 // The one filled colour on the screen, so the only thing it can mean is
 // "this is the action".
 const style =
-  "w-full bg-vermilion px-2 py-3.5 font-display text-[16px] font-bold text-white transition-colors hover:bg-[#b93a25] disabled:cursor-not-allowed disabled:bg-hairline disabled:text-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
+  "w-full bg-vermilion px-2 py-3 font-display text-[13px] font-bold text-white sm:py-3.5 sm:text-[15px] lg:text-[16px] short:py-2.5 transition-colors hover:bg-[#b93a25] disabled:cursor-not-allowed disabled:bg-hairline disabled:text-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
 
 export const MainButton: React.FC<mainButtonProps> = ({
   gameStatus,

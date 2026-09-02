@@ -7,6 +7,8 @@ import { TurnClock } from "./TurnClock";
 interface TurnTimelineProps {
   latestGameState: GameState | null;
   userId: string;
+  /** Opens the log sheet, on the screens too narrow to keep the rail. */
+  onOpenRail?: () => void;
 }
 
 /**
@@ -18,6 +20,7 @@ interface TurnTimelineProps {
 export const TurnTimeline: React.FC<TurnTimelineProps> = ({
   latestGameState,
   userId,
+  onOpenRail,
 }) => {
   const players = latestGameState?.players ?? {};
   const order = latestGameState?.turnOrder ?? [];
@@ -36,12 +39,26 @@ export const TurnTimeline: React.FC<TurnTimelineProps> = ({
         <span className="font-mono text-[9.5px] uppercase tracking-label text-muted">
           Turn order
         </span>
-        <span className="font-mono text-[10px] uppercase tracking-label text-muted">
-          Turn <b className="font-medium text-ink">{latestGameState?.turnNumber ?? 0}</b>
+        <span className="flex flex-none items-baseline gap-4">
+          <span className="font-mono text-[10px] uppercase tracking-label text-muted">
+            Turn{" "}
+            <b className="font-medium text-ink">
+              {latestGameState?.turnNumber ?? 0}
+            </b>
+          </span>
+          {onOpenRail && (
+            <button
+              type="button"
+              onClick={onOpenRail}
+              className="font-mono text-[10px] uppercase tracking-label text-ink underline decoration-rule underline-offset-4 lg:hidden"
+            >
+              Log
+            </button>
+          )}
         </span>
       </div>
 
-      <div className="flex flex-wrap items-baseline gap-x-8 gap-y-1 pt-2">
+      <div className="flex flex-wrap items-baseline gap-x-5 gap-y-1 pt-2 sm:gap-x-8">
         {stops.map((player) => {
           const isYou = player.userId === userId;
           const isPlaying = player.isCurrentTurn;
@@ -67,7 +84,7 @@ export const TurnTimeline: React.FC<TurnTimelineProps> = ({
               >
                 {player.character.name}
               </b>
-              <span className="font-mono text-[9.5px] text-muted">
+              <span className="hidden font-mono text-[9.5px] text-muted sm:inline">
                 {isYou ? "you" : `${player.character.health} HP`}
                 {player.isBot && !isYou ? " · cpu" : ""}
                 {!player.isBot && !player.connected ? " · away" : ""}
@@ -79,7 +96,9 @@ export const TurnTimeline: React.FC<TurnTimelineProps> = ({
                   isMyTurn={isYou}
                 />
               )}
-              <EffectBadges effects={player.character.effects} />
+              <span className="hidden sm:inline">
+                <EffectBadges effects={player.character.effects} />
+              </span>
             </div>
           );
         })}
