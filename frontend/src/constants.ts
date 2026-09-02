@@ -15,4 +15,25 @@ export const PLAYER_COLORS = [
   "#ff00ff", // magenta
   "#00ff00", // lime
 ];
-export const TILE_COLOR = "#f0f0f0";
+
+/**
+ * The board palette. It is deliberately almost colourless: the only saturated
+ * colour on the board is the vermilion that marks what a spell would hit, so
+ * that mark can never be confused with decoration.
+ */
+export const BOARD = {
+  tile: "#ffffff",
+  tileAlt: "#f4f4f2",
+  stroke: "#cfd0cd",
+  /** Anything reachable or targetable, as a graphite wash. */
+  wash: "#17181a",
+  accent: "#d1462f",
+  block: {
+    top: "#e4e5e2",
+    left: "#cdcecb",
+    right: "#bebfbb",
+    stroke: "#a9aaa6",
+    /** Share of a tile's height the cover stands above the ground. */
+    rise: 0.38,
+  },
+} as const;

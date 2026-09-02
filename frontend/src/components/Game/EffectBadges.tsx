@@ -5,12 +5,12 @@ interface EffectBadgesProps {
   effects: Effect[] | null | undefined;
 }
 
-const look: Record<EffectKind, { icon: string; label: string; tone: string }> = {
-  poison: { icon: "☠", label: "poison", tone: "text-green-700 bg-green-100" },
-  regen: { icon: "✚", label: "regen", tone: "text-emerald-700 bg-emerald-100" },
-  shield: { icon: "◈", label: "shield", tone: "text-sky-700 bg-sky-100" },
-  ap: { icon: "★", label: "AP", tone: "text-blue-700 bg-blue-100" },
-  mp: { icon: "◆", label: "MP", tone: "text-amber-700 bg-amber-100" },
+const look: Record<EffectKind, { icon: string; label: string }> = {
+  poison: { icon: "☠", label: "poison" },
+  regen: { icon: "✚", label: "regen" },
+  shield: { icon: "◈", label: "shield" },
+  ap: { icon: "★", label: "AP" },
+  mp: { icon: "◆", label: "MP" },
 };
 
 const describe = (effect: Effect): string => {
@@ -31,27 +31,27 @@ const describe = (effect: Effect): string => {
 
 /**
  * Status effects have to be visible: losing health at the start of your turn
- * with nothing on screen to explain it reads as a bug, not as poison.
+ * with nothing on screen to explain it reads as a bug, not as poison. They are
+ * set in the label face, in graphite, because they are a state and not an
+ * alarm — the one colour on this screen is spent elsewhere.
  */
 export const EffectBadges: React.FC<EffectBadgesProps> = ({ effects }) => {
   if (!effects || effects.length === 0) return null;
 
   return (
-    <span className="inline-flex items-center gap-1 flex-wrap">
+    <span className="inline-flex flex-wrap items-center gap-1">
       {effects.map((effect, i) => (
         <span
           key={`${effect.kind}-${effect.source}-${i}`}
           title={describe(effect)}
-          className={`inline-flex items-center gap-0.5 px-1 rounded text-[10px] leading-4 ${
-            look[effect.kind]?.tone ?? "text-stone-700 bg-stone-100"
-          }`}
+          className="inline-flex items-center gap-1 border border-hairline px-1.5 font-mono text-[9.5px] leading-4 text-graphite"
         >
           <span aria-hidden>{look[effect.kind]?.icon ?? "•"}</span>
           <span className="tabular-nums">
             {effect.value > 0 && effect.kind !== "poison" ? "+" : ""}
             {effect.value}
           </span>
-          <span className="opacity-60 tabular-nums">·{effect.turnsLeft}</span>
+          <span className="tabular-nums text-muted">·{effect.turnsLeft}</span>
         </span>
       ))}
     </span>

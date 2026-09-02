@@ -13,6 +13,11 @@ interface mainButtonProps {
   isPlayerPositioned: boolean | undefined;
 }
 
+// The one filled colour on the screen, so the only thing it can mean is
+// "this is the action".
+const style =
+  "w-full bg-vermilion px-2 py-3.5 font-display text-[16px] font-bold text-white transition-colors hover:bg-[#b93a25] disabled:cursor-not-allowed disabled:bg-hairline disabled:text-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
+
 export const MainButton: React.FC<mainButtonProps> = ({
   gameStatus,
   connected,
@@ -25,45 +30,47 @@ export const MainButton: React.FC<mainButtonProps> = ({
   selectedPosition,
   isPlayerPositioned,
 }) => {
+  if (gameStatus === "creating_player" && userHasCharacter) {
+    return (
+      <button
+        className={style}
+        disabled={!connected || isPlayerReady}
+        onClick={handleReadyClick}
+      >
+        {isPlayerReady ? "Waiting for others…" : "Ready"}
+      </button>
+    );
+  }
+
+  if (gameStatus === "position_characters") {
+    return (
+      <button
+        className={style}
+        disabled={!selectedPosition || isPlayerPositioned}
+        onClick={handleFightClick}
+      >
+        {isPlayerPositioned ? "Waiting for others…" : "Fight"}
+      </button>
+    );
+  }
+
+  if (gameStatus === "playing") {
+    return (
+      <button className={style} disabled={!isMyTurn} onClick={handleEndTurnClick}>
+        End turn
+      </button>
+    );
+  }
+
+  // The winner's modal owns the screen once the fight is over; a button
+  // underneath it would only be something to click by mistake.
+  if (gameStatus === "game_over") return null;
+
+  // The character is created automatically on entering a room, so there is
+  // nothing for the player to click here.
   return (
-    <div className="px-2">
-      {gameStatus === "creating_player" && userHasCharacter && (
-        <button
-          className="w-full py-1 bg-blue-500 text-white rounded disabled:bg-gray-300 hover:bg-blue-600 text-sm"
-          disabled={!connected || isPlayerReady}
-          onClick={handleReadyClick}
-        >
-          {isPlayerReady ? "Waiting for others..." : "Ready ?"}
-        </button>
-      )}
-
-      {gameStatus === "playing" && (
-        <button
-          className="w-full py-1 bg-blue-500 text-white rounded disabled:bg-gray-300 hover:bg-blue-600 text-sm"
-          disabled={!isMyTurn}
-          onClick={handleEndTurnClick}
-        >
-          End Turn
-        </button>
-      )}
-
-      {gameStatus === "creating_player" && !userHasCharacter && (
-        // The character is created automatically on entering a room, so there
-        // is nothing for the player to click here.
-        <p className="text-center text-xs text-gray-500 py-1">
-          {connected ? "Joining the game…" : "Reconnecting…"}
-        </p>
-      )}
-
-      {gameStatus === "position_characters" && (
-        <button
-          className="w-full py-1 bg-blue-500 text-white rounded disabled:bg-gray-300 hover:bg-blue-600 text-sm"
-          disabled={!selectedPosition || isPlayerPositioned}
-          onClick={handleFightClick}
-        >
-          {isPlayerPositioned ? "Waiting for others..." : "Fight"}
-        </button>
-      )}
-    </div>
+    <p className="py-3 text-center text-xs text-muted">
+      {connected ? "Joining the game…" : "Reconnecting…"}
+    </p>
   );
 };

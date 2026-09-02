@@ -127,6 +127,48 @@ export const Grid: React.FC<GridProps> = ({
     initialPositions,
   });
 
+  const centerX = containerRef.current
+    ? containerRef.current.clientWidth / 2
+    : 0;
+  const centerY = containerRef.current
+    ? containerRef.current.clientHeight / 2
+    : 0;
+
+  // Only worth showing where the spell can actually land: out of range, or
+  // behind cover, the estimate would be a lie.
+  const damagePreview = React.useMemo(() => {
+    if (!selectedSpell || !characterPosition || !hoveredPosition) return null;
+    if (!currentPlayer?.isCurrentTurn || selectedSpell.damage <= 0) return null;
+    if (!isInSpellRange(hoveredPosition, characterPosition, selectedSpell)) {
+      return null;
+    }
+    if (
+      selectedSpell.needsLineOfSight &&
+      !hasLineOfSight(characterPosition, hoveredPosition, blocked)
+    ) {
+      return null;
+    }
+    return {
+      damage: selectedSpell.damage,
+      screen: isoToScreen(
+        hoveredPosition.x,
+        hoveredPosition.y,
+        tileSize,
+        centerX,
+        centerY
+      ),
+    };
+  }, [
+    selectedSpell,
+    characterPosition,
+    hoveredPosition,
+    currentPlayer,
+    blocked,
+    tileSize,
+    centerX,
+    centerY,
+  ]);
+
   const findPlayerOnCell = (x: number, y: number) => {
     return (
       players &&
@@ -151,13 +193,6 @@ export const Grid: React.FC<GridProps> = ({
   const sortedCoordinates = sortCoordinates(
     generateIsometricCoordinates(gridSize)
   );
-
-  const centerX = containerRef.current
-    ? containerRef.current.clientWidth / 2
-    : 0;
-  const centerY = containerRef.current
-    ? containerRef.current.clientHeight / 2
-    : 0;
 
   return (
     <div ref={containerRef} className="w-full h-full relative overflow-hidden">
@@ -227,6 +262,27 @@ export const Grid: React.FC<GridProps> = ({
           />
         );
       })}
+      {/*
+        What the spell would take off, before the click. The number is the
+        catalogue's base damage: a critical or a shield will move it, which is
+        why it is shown as an estimate and not as a result.
+      */}
+      {damagePreview && (
+        <div
+          className="absolute pointer-events-none font-display font-bold tabular-nums text-vermilion"
+          style={{
+            left: `${damagePreview.screen.x}px`,
+            top: `${damagePreview.screen.y - tileSize.height * 1.7}px`,
+            transform: "translate(-50%, -50%)",
+            fontSize: `${Math.max(14, tileSize.width * 0.22)}px`,
+            textShadow:
+              "0 1px 0 #fff, 0 -1px 0 #fff, 1px 0 0 #fff, -1px 0 0 #fff",
+          }}
+        >
+          &minus;{damagePreview.damage}
+        </div>
+      )}
+
       {isPositioningPhase && selectedPosition && (
         <Character
           key={`${userId}-preview`}
