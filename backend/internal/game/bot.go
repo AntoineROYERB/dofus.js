@@ -40,19 +40,40 @@ func DecideBotAction(state types.GameState, botID string) BotAction {
 		return BotAction{Kind: BotEnd}
 	}
 
-	// Best affordable spell that reaches the target, strongest first.
+	// Occupancy for the line-of-sight check, taken from the snapshot.
+	blocked := func(pos types.Position) bool {
+		for _, p := range state.Players {
+			if p.Character.IsAlive && p.Character.Position != nil && *p.Character.Position == pos {
+				return true
+			}
+		}
+		return false
+	}
+
+	// Best spell the bot can actually cast right now, strongest first. It has
+	// to respect cooldowns, per-turn limits and line of sight like anyone else,
+	// or it would spend its turn on casts the server refuses.
 	best := types.Spell{}
 	bestID := 0
-	for id, spell := range state.Spells {
+	for key, spell := range state.Spells {
 		if spell.APCost > me.Character.ActionPoints {
 			continue
 		}
 		if Distance(from, target) > spell.Range {
 			continue
 		}
+		st := me.Spells[key]
+		if st.CooldownLeft > 0 {
+			continue
+		}
+		if spell.MaxCastsPerTurn > 0 && st.CastsThisTurn >= spell.MaxCastsPerTurn {
+			continue
+		}
+		if spell.NeedsLineOfSight && !HasLineOfSight(from, target, blocked) {
+			continue
+		}
 		if bestID == 0 || spell.Damage > best.Damage {
 			best, bestID = spell, spell.ID
-			_ = id
 		}
 	}
 	if bestID != 0 {
@@ -153,6 +174,7 @@ func (g *Game) AddBot() (string, error) {
 		Connected: true,
 		IsReady:   true,
 		IsBot:     true,
+		Spells:    g.freshSpellStateLocked(),
 		Character: types.Character{
 			Name:           "Cpu",
 			Color:          "#7c3aed",

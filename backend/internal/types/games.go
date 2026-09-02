@@ -44,6 +44,17 @@ type Player struct {
 	// IsBot marks an opponent the server plays itself, so a lone visitor can
 	// still play a whole match.
 	IsBot bool `json:"isBot"`
+	// Spells tracks per-spell usage, keyed the same way as the catalogue, so
+	// the client can grey out what cannot be cast right now.
+	Spells map[string]SpellState `json:"spells"`
+}
+
+// SpellState is one spell's availability for one player.
+type SpellState struct {
+	// CastsThisTurn counts against the spell's MaxCastsPerTurn.
+	CastsThisTurn int `json:"castsThisTurn"`
+	// CooldownLeft is the number of that player's turns still to wait.
+	CooldownLeft int `json:"cooldownLeft"`
 }
 
 // GameState is the snapshot broadcast to every client after each accepted
@@ -58,7 +69,29 @@ type GameState struct {
 	// TurnEndsAt is a Unix time in milliseconds, or 0 outside a running turn.
 	// A turn that never expires meant a player who walked away froze the game.
 	TurnEndsAt int64 `json:"turnEndsAt"`
+	// Log is the recent combat history, oldest first and bounded.
+	Log []LogEntry `json:"log"`
 }
+
+// LogEntry is one line of the combat log. The client renders these; without
+// them a spell that missed because of line of sight, or one that landed as a
+// critical, looked exactly like a spell that did nothing.
+type LogEntry struct {
+	Turn   int    `json:"turn"`
+	Actor  string `json:"actor"`
+	Kind   string `json:"kind"`
+	Text   string `json:"text"`
+	Damage int    `json:"damage,omitempty"`
+	Crit   bool   `json:"crit,omitempty"`
+}
+
+// Log entry kinds.
+const (
+	LogCast  = "cast"
+	LogDeath = "death"
+	LogTurn  = "turn"
+	LogEnd   = "end"
+)
 
 // Spell is the single source of truth for the spell catalogue: the client no
 // longer ships its own copy. Color is a hex value rather than a CSS class so
@@ -77,6 +110,9 @@ type Spell struct {
 	NeedsLineOfSight bool   `json:"needsLineOfSight"`
 	MaxCastsPerTurn  int    `json:"maxCastsPerTurn"`
 	Cooldown         int    `json:"cooldown"`
+	// CriticalChance is a percentage; CriticalDamage replaces Damage on a hit.
+	CriticalChance int `json:"criticalChance"`
+	CriticalDamage int `json:"criticalDamage"`
 }
 
 // RoomSummary is one line in the lobby list.

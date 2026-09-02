@@ -26,6 +26,8 @@ func Catalogue() map[string]types.Spell {
 			NeedsLineOfSight: true,
 			MaxCastsPerTurn:  2,
 			Cooldown:         1,
+			CriticalChance:   15,
+			CriticalDamage:   45,
 		},
 		"2": {
 			ID:               2,
@@ -41,6 +43,8 @@ func Catalogue() map[string]types.Spell {
 			NeedsLineOfSight: true,
 			MaxCastsPerTurn:  3,
 			Cooldown:         0,
+			CriticalChance:   10,
+			CriticalDamage:   30,
 		},
 		"3": {
 			ID:               3,
@@ -56,6 +60,8 @@ func Catalogue() map[string]types.Spell {
 			NeedsLineOfSight: true,
 			MaxCastsPerTurn:  4,
 			Cooldown:         0,
+			CriticalChance:   20,
+			CriticalDamage:   15,
 		},
 		"4": {
 			ID:               4,
@@ -71,6 +77,8 @@ func Catalogue() map[string]types.Spell {
 			NeedsLineOfSight: false,
 			MaxCastsPerTurn:  1,
 			Cooldown:         2,
+			CriticalChance:   15,
+			CriticalDamage:   40,
 		},
 	}
 }

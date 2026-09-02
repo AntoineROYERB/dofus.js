@@ -109,6 +109,52 @@ func AffectedPositions(spell types.Spell, target, caster types.Position) []types
 	return affected
 }
 
+// HasLineOfSight reports whether a straight line from one cell to another is
+// clear. A cell counts as blocking when `blocked` says so; the two endpoints
+// are never blocking, so a caster is not stopped by their own square and a
+// target does not shield itself.
+//
+// `needsLineOfSight` sat in the spell catalogue since the beginning and was
+// never enforced, which meant every spell shot straight through everybody.
+func HasLineOfSight(from, to types.Position, blocked func(types.Position) bool) bool {
+	if from == to {
+		return true
+	}
+
+	// Sample the segment finely enough that no cell on the way is skipped,
+	// then test each distinct cell strictly between the endpoints.
+	dx, dy := to.X-from.X, to.Y-from.Y
+	steps := abs(dx)
+	if abs(dy) > steps {
+		steps = abs(dy)
+	}
+	steps *= 2 // half-cell resolution: never jumps a corner
+
+	seen := make(map[types.Position]bool, steps)
+	for i := 1; i < steps; i++ {
+		t := float64(i) / float64(steps)
+		cell := types.Position{
+			X: from.X + int(roundHalf(float64(dx)*t)),
+			Y: from.Y + int(roundHalf(float64(dy)*t)),
+		}
+		if cell == from || cell == to || seen[cell] {
+			continue
+		}
+		seen[cell] = true
+		if blocked(cell) {
+			return false
+		}
+	}
+	return true
+}
+
+func roundHalf(v float64) float64 {
+	if v < 0 {
+		return -float64(int(-v + 0.5))
+	}
+	return float64(int(v + 0.5))
+}
+
 // DealInitialPositions hands each player its own set of starting cells, with
 // no overlap between players. Positions off the axes are preferred so the two
 // sides do not start facing each other down a straight line.

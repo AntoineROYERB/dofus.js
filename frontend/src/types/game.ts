@@ -1,3 +1,5 @@
+import { SpellState } from "./message";
+
 export type Position = {
   x: number;
   y: number;
@@ -28,6 +30,8 @@ export interface Player {
   connected: boolean;
   /** An opponent the server plays itself. */
   isBot: boolean;
+  /** Per-spell availability, keyed like the catalogue. */
+  spells: { [spellId: string]: SpellState } | null;
 }
 
 /**

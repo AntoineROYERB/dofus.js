@@ -1,7 +1,7 @@
 import React from "react";
 import { Heart, Star, Diamond, LucideIcon } from "lucide-react";
 import { Player } from "../../types/game";
-import { Spell, SpellBook } from "../../types/message";
+import { Spell, SpellBook, SpellState } from "../../types/message";
 
 interface SpellBarProps {
   handleSpellClick: (spellId: number) => void;
@@ -45,17 +45,44 @@ const StatIcon: React.FC<{
   </div>
 );
 
+/** Why a spell cannot be cast right now, or null when it can. */
+const unavailableReason = (
+  spell: Spell,
+  state: SpellState | undefined,
+  actionPoints: number
+): string | null => {
+  if (state && state.cooldownLeft > 0) {
+    return `recharging — ${state.cooldownLeft} turn${
+      state.cooldownLeft > 1 ? "s" : ""
+    } left`;
+  }
+  if (
+    spell.maxCastsPerTurn > 0 &&
+    state &&
+    state.castsThisTurn >= spell.maxCastsPerTurn
+  ) {
+    return "no casts left this turn";
+  }
+  if (actionPoints < spell.APCost) return "not enough action points";
+  return null;
+};
+
 const SpellSlot: React.FC<{
   spell: Spell | null;
+  shortcut: number | null;
+  state: SpellState | undefined;
+  actionPoints: number;
   isSelected: boolean;
-  isAffordable: boolean;
   onSelect: (spellId: number) => void;
-}> = ({ spell, isSelected, isAffordable, onSelect }) => {
+}> = ({ spell, shortcut, state, actionPoints, isSelected, onSelect }) => {
   if (!spell) {
     return (
       <div className="aspect-square border-2 rounded-md bg-gray-100 border-gray-300" />
     );
   }
+
+  const blocked = unavailableReason(spell, state, actionPoints);
+  const cooldown = state?.cooldownLeft ?? 0;
 
   return (
     <div className="relative group">
@@ -64,19 +91,38 @@ const SpellSlot: React.FC<{
         // Colours come from the server as hex values and are applied inline.
         // Tailwind class names sent at runtime would be stripped by its build.
         style={{ backgroundColor: `${spell.color}22`, borderColor: spell.color }}
-        className={`w-full aspect-square border-2 rounded-md flex items-center justify-center transition ${
-          isSelected ? "brightness-125 shadow-md ring-2 ring-offset-1" : "hover:brightness-110"
-        } ${isAffordable ? "" : "opacity-40 grayscale"}`}
-        title={`${spell.name} — ${spell.APCost} AP`}
+        className={`relative w-full aspect-square border-2 rounded-md flex items-center justify-center transition ${
+          isSelected
+            ? "brightness-125 shadow-md ring-2 ring-offset-1"
+            : "hover:brightness-110"
+        } ${blocked ? "opacity-40 grayscale" : ""}`}
+        title={`${spell.name} — ${spell.APCost} AP${
+          shortcut ? ` — press ${shortcut}` : ""
+        }${blocked ? ` (${blocked})` : ""}`}
         aria-pressed={isSelected}
+        aria-disabled={!!blocked}
         onClick={() => onSelect(spell.id)}
       >
         <span className="text-xs sm:text-sm md:text-base lg:text-lg">
           {spell.icon}
         </span>
+        {shortcut && (
+          <span className="absolute top-0 left-0.5 text-[9px] leading-none text-gray-500 tabular-nums">
+            {shortcut}
+          </span>
+        )}
+        {cooldown > 0 && (
+          <span className="absolute inset-0 flex items-center justify-center rounded-md bg-black/45 text-white text-sm font-bold tabular-nums">
+            {cooldown}
+          </span>
+        )}
       </button>
       <div className="hidden group-hover:block">
-        <Tooltip text={`${spell.name}\n${spell.description}`} />
+        <Tooltip
+          text={`${spell.name}\n${spell.description}${
+            blocked ? `\n\n${blocked}` : ""
+          }`}
+        />
       </div>
     </div>
   );
@@ -108,8 +154,11 @@ const SpellBar: React.FC<SpellBarProps> = ({
           <SpellSlot
             key={spell ? spell.id : `empty-${start + index}`}
             spell={spell}
+            // The number key that selects this slot, in catalogue order.
+            shortcut={spell && start + index < 9 ? start + index + 1 : null}
+            state={spell ? currentPlayer?.spells?.[String(spell.id)] : undefined}
+            actionPoints={actionPoints}
             isSelected={!!spell && selectedSpellId === spell.id}
-            isAffordable={!spell || actionPoints >= spell.APCost}
             onSelect={handleSpellClick}
           />
         ))}
