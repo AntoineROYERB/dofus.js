@@ -24,6 +24,13 @@ instantly either way.
 </tr>
 </table>
 
+<img src="docs/assets/05-phone.png" alt="The same fight on a phone held sideways" width="100%">
+
+On a phone, hold it sideways: the board is twice as wide as it is tall, and the
+bar folds down to the figures, the spells and the button. There is no hovering
+on a touch screen, so a tap previews a cell — its walk, its area of effect, the
+damage it would do — and a second tap on the same cell commits it.
+
 ## Run it yourself
 
 ```bash
@@ -34,7 +41,8 @@ Then open <http://localhost>. Pick a name and a colour, and either **play
 against the computer** or open a game and wait for someone to join. Two
 browser tabs are enough for a real 1v1.
 
-Number keys `1`–`8` pick a spell, `Escape` drops the selection. Cover blocks
+Number keys `1`–`8` pick a spell, `Escape` drops the selection, and on a touch
+screen a first tap previews a cell while a second one acts on it. Cover blocks
 both movement and line of sight; `Gwendo na Gwendo` is the one spell that
 reaches through it.
 
@@ -81,6 +89,12 @@ tick, so its moves are watchable rather than instant.
 **Rendering is hand-written.** No game engine: the isometric projection, the
 back-to-front draw order, the screen-to-grid hit test and the sprite-sheet
 animation loop are all in the client, and the geometry is unit-tested.
+
+**One layout, three shapes.** The board keeps the screen and is never covered:
+the log sits beside it on a wide screen, behind a button on a narrow one, and
+the bar folds from three roomy zones to three tight ones. A phone held sideways
+is the shape the board actually wants, so the HUD has a compact form for short
+viewports rather than a separate mobile design.
 
 **The screen has one rule.** Paper, ink, graphite and a single vermilion: three
 weights of rule and the size of the figures do the separating, and the only
@@ -198,8 +212,6 @@ with areas of effect and line of sight, cooldowns, critical hits, status
 effects (poison, shield, regeneration, action and movement points), a combat
 log, a computer opponent, rematches and reconnection. What is not there yet:
 
-- **Touch support.** The board is driven by pointer hover; phones get an
-  honest notice instead of a broken board.
 - **More than one arena.** Cover is generated per match, but the board is
   always the same 15 × 15 diamond.
 - **Anything that outlives a match.** No accounts, no ranking, no history: the
