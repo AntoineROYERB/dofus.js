@@ -37,7 +37,7 @@ const RoomRow: React.FC<{
         type="button"
         disabled={closed}
         onClick={() => onJoin(room.id)}
-        className="border border-ink px-4 py-1.5 font-mono text-[10px] uppercase tracking-label text-ink transition-colors hover:bg-ink hover:text-paper disabled:cursor-not-allowed disabled:border-hairline disabled:text-muted disabled:hover:bg-transparent disabled:hover:text-muted"
+        className="border border-ink px-4 py-2.5 font-mono text-[10px] uppercase tracking-label text-ink sm:py-1.5 transition-colors hover:bg-ink hover:text-paper disabled:cursor-not-allowed disabled:border-hairline disabled:text-muted disabled:hover:bg-transparent disabled:hover:text-muted"
       >
         {full ? "Full" : started ? "Started" : "Join"}
       </button>
@@ -99,9 +99,9 @@ const LobbyPage: React.FC = () => {
   };
 
   return (
-    <div className="flex h-screen max-h-screen flex-col overflow-hidden bg-paper text-ink">
-      <div className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col px-6 pt-5">
-        <div className="flex items-baseline justify-between gap-4 border-b-2 border-ink pb-1.5">
+    <div className="flex min-h-[100dvh] flex-col bg-paper text-ink">
+      <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col px-4 pb-[env(safe-area-inset-bottom)] pt-4 sm:px-6 sm:pt-5">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b-2 border-ink pb-1.5">
           <span className="font-mono text-[9.5px] uppercase tracking-label text-muted">
             Dofus.js · lobby
           </span>
@@ -118,7 +118,7 @@ const LobbyPage: React.FC = () => {
           </span>
         </div>
 
-        <h1 className="mt-7 font-display text-[42px] font-bold leading-none tracking-tight">
+        <h1 className="mt-6 font-display text-[clamp(2rem,9vw,2.6rem)] font-bold leading-none tracking-tight sm:mt-7">
           Find a game
         </h1>
 
@@ -135,7 +135,7 @@ const LobbyPage: React.FC = () => {
           type="button"
           onClick={playSolo}
           disabled={!connected}
-          className="mt-6 w-full bg-vermilion px-4 py-3.5 font-display text-[16px] font-bold text-white transition-colors hover:bg-[#b93a25] disabled:cursor-not-allowed disabled:bg-hairline disabled:text-muted"
+          className="mt-5 w-full bg-vermilion px-4 py-4 font-display text-[16px] font-bold text-white sm:mt-6 sm:py-3.5 transition-colors hover:bg-[#b93a25] disabled:cursor-not-allowed disabled:bg-hairline disabled:text-muted"
         >
           Play against the computer
         </button>
@@ -146,19 +146,19 @@ const LobbyPage: React.FC = () => {
           <span className="h-px flex-1 bg-rule" />
         </div>
 
-        <form onSubmit={createRoom} className="mt-6 flex gap-2">
+        <form onSubmit={createRoom} className="mt-6 flex flex-col gap-2 sm:flex-row">
           <input
             value={newRoomName}
             onChange={(e) => setNewRoomName(e.target.value)}
             placeholder="Name your game"
             aria-label="Name your game"
             maxLength={24}
-            className="h-11 min-w-0 flex-1 border border-rule bg-board px-3 text-[14px] text-ink placeholder:text-muted focus:border-ink focus:outline-none"
+            className="h-12 min-w-0 flex-1 border border-rule bg-board px-3 text-[15px] text-ink placeholder:text-muted focus:border-ink focus:outline-none sm:h-11 sm:text-[14px]"
           />
           <button
             type="submit"
             disabled={!connected || newRoomName.trim().length < 3}
-            className="h-11 flex-none border border-ink bg-ink px-5 font-mono text-[10px] uppercase tracking-label text-paper transition-colors disabled:cursor-not-allowed disabled:border-hairline disabled:bg-transparent disabled:text-muted"
+            className="h-12 flex-none border border-ink bg-ink px-5 font-mono text-[10px] uppercase tracking-label text-paper transition-colors disabled:cursor-not-allowed disabled:border-hairline disabled:bg-transparent disabled:text-muted sm:h-11"
           >
             Create
           </button>
@@ -167,7 +167,7 @@ const LobbyPage: React.FC = () => {
         <div className="mb-1.5 mt-8 font-mono text-[9.5px] uppercase tracking-label text-muted">
           Open games
         </div>
-        <section className="min-h-0 flex-1 overflow-y-auto border-t border-ink">
+        <section className="flex-1 border-t border-ink">
           {rooms.length === 0 ? (
             <p className="py-8 text-center text-[13px] text-muted">
               No games open yet. Create one and wait for an opponent.

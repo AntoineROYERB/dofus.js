@@ -2,9 +2,47 @@
 @tailwind components;
 @tailwind utilities;
 
-html,
+/*
+ * The page used to be locked at exactly the viewport height with overflow
+ * hidden, which is fine for a board that never scrolls and wrong for every
+ * other screen on a phone. Height is a floor now, not a ceiling; the combat
+ * screen still pins itself with h-screen.
+ */
+html {
+  height: 100%;
+  -webkit-text-size-adjust: 100%;
+}
+
 body,
 #root {
-  height: 100%;
-  overflow: hidden;
+  min-height: 100%;
+}
+
+body {
+  /* No rubber-banding past the board while dragging across it. */
+  overscroll-behavior: none;
+}
+
+/* One focus ring for the whole app, in ink rather than the browser's blue. */
+:focus-visible {
+  outline: 2px solid #17181a;
+  outline-offset: 2px;
+}
+
+/* No 300ms wait, and no zoom on a double tap meant as two taps on a cell. */
+button,
+a,
+input,
+[role="button"] {
+  touch-action: manipulation;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
 }

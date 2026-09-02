@@ -9,6 +9,14 @@ export default {
   content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
   theme: {
     extend: {
+      screens: {
+        /*
+         * A phone held sideways is the shape this board wants — wide and
+         * shallow — but it leaves barely 300px of height once the browser's
+         * own chrome is out. Everything in the HUD has a compact form here.
+         */
+        short: { raw: "(max-height: 560px)" },
+      },
       colors: {
         paper: "#f2f2f0",
         panel: "#fbfbfa",
