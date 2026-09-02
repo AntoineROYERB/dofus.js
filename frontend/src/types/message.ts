@@ -67,6 +67,24 @@ export type Spell = {
   needsLineOfSight: boolean;
   maxCastsPerTurn: number;
   cooldown: number;
+  criticalChance: number;
+  criticalDamage: number;
+};
+
+/** One spell's availability for one player, as the server tracks it. */
+export type SpellState = {
+  castsThisTurn: number;
+  cooldownLeft: number;
+};
+
+/** One line of the combat log. */
+export type LogEntry = {
+  turn: number;
+  actor: string;
+  kind: "cast" | "death" | "turn" | "end";
+  text: string;
+  damage?: number;
+  crit?: boolean;
 };
 
 export type SpellBook = { [spellId: string]: Spell };
@@ -80,6 +98,8 @@ export interface GameState {
   turnOrder: string[];
   /** Unix time in ms when the current turn is passed on; 0 outside play. */
   turnEndsAt: number;
+  /** Recent combat history, oldest first. */
+  log: LogEntry[] | null;
 }
 
 export interface GameStateMessage {

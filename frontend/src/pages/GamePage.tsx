@@ -12,6 +12,7 @@ import { useWebSocket } from "../context/WebSocketContext";
 import { readCharacter } from "../utils/characterStorage";
 import { isWithinRange } from "../utils/pathUtils";
 import DesktopOnlyNotice from "../components/DesktopOnlyNotice";
+import { CombatLog } from "../components/Game/CombatLog";
 
 function GamePage() {
   const {
@@ -84,6 +85,42 @@ function GamePage() {
 
   const handleSpellClick = (spellId: number) =>
     setSelectedSpellId((prev) => (prev === spellId ? null : spellId));
+
+  // Number keys pick a spell and Escape drops the selection, the way the game
+  // this is modelled on does it. Keystrokes aimed at the chat are left alone.
+  useEffect(() => {
+    const catalogue = Object.values(gameState?.spells ?? {}).sort(
+      (a, b) => a.id - b.id
+    );
+    if (catalogue.length === 0) return;
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+      const target = event.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.isContentEditable)
+      ) {
+        return;
+      }
+
+      if (event.key === "Escape") {
+        setSelectedSpellId(null);
+        return;
+      }
+      const slot = Number(event.key);
+      if (!Number.isInteger(slot) || slot < 1 || slot > catalogue.length) return;
+
+      event.preventDefault();
+      const spell = catalogue[slot - 1];
+      setSelectedSpellId((prev) => (prev === spell.id ? null : spell.id));
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [gameState?.spells]);
 
   const handleReadyClick = () => {
     const { messageId, timestamp } = generateMessageId();
@@ -234,6 +271,11 @@ function GamePage() {
                 />
               )}
             </div>
+            {gameState?.log && gameState.log.length > 0 && (
+              <div className="mt-2 pt-2 border-t border-stone-300/60">
+                <CombatLog entries={gameState.log} />
+              </div>
+            )}
           </div>
         </div>
       </div>

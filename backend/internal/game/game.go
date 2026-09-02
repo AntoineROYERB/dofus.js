@@ -32,7 +32,13 @@ var (
 	ErrNotAStartingCell    = errors.New("that is not one of your starting cells")
 	ErrStartingCellTaken   = errors.New("another player already took that starting cell")
 	ErrAlreadyPositioned   = errors.New("you have already chosen a starting cell")
+	ErrNoLineOfSight       = errors.New("something is in the way")
+	ErrSpellOnCooldown     = errors.New("that spell is still recharging")
+	ErrTooManyCasts        = errors.New("that spell cannot be cast again this turn")
 )
+
+// MaxLogEntries bounds the combat log carried in every snapshot.
+const MaxLogEntries = 40
 
 var namePattern = regexp.MustCompile(`^[a-zA-Z0-9 ]{3,20}$`)
 
@@ -49,6 +55,7 @@ type Game struct {
 	turnOrder  []string // initiative, fixed for the whole game
 	turnIdx    int      // index into turnOrder of the player currently acting
 	spells     map[string]types.Spell
+	log        []types.LogEntry
 	winner     string
 	rng        *rand.Rand
 
@@ -121,6 +128,9 @@ func (g *Game) snapshotLocked() types.GameState {
 		turnEndsAt = g.turnEndsAt.UnixMilli()
 	}
 
+	log := make([]types.LogEntry, len(g.log))
+	copy(log, g.log)
+
 	return types.GameState{
 		MessageType: "game_state",
 		Players:     players,
@@ -129,6 +139,7 @@ func (g *Game) snapshotLocked() types.GameState {
 		Spells:      spells,
 		TurnOrder:   turnOrder,
 		TurnEndsAt:  turnEndsAt,
+		Log:         log,
 	}
 }
 
@@ -174,6 +185,7 @@ func (g *Game) AddPlayer(userID, userName string, look types.CharacterAppearance
 		UserID:    userID,
 		UserName:  userName,
 		Connected: true,
+		Spells:    g.freshSpellStateLocked(),
 		Character: types.Character{
 			Name:           look.Name,
 			Color:          look.Color,
@@ -274,12 +286,58 @@ func (g *Game) returnToLobbyLocked() {
 		p.Character.InitialPositions = nil
 		g.players[id] = p
 	}
+	for id, p := range g.players {
+		p.Spells = g.freshSpellStateLocked()
+		g.players[id] = p
+	}
 	g.status = types.StatusCreatingPlayer
 	g.turnNumber = 0
 	g.turnIdx = 0
 	g.turnOrder = nil
 	g.winner = ""
 	g.turnEndsAt = time.Time{}
+	g.log = nil
+}
+
+// freshSpellStateLocked gives a player a clean slate for every spell.
+func (g *Game) freshSpellStateLocked() map[string]types.SpellState {
+	state := make(map[string]types.SpellState, len(g.spells))
+	for id := range g.spells {
+		state[id] = types.SpellState{}
+	}
+	return state
+}
+
+// appendLogLocked records one line of combat history, keeping the tail.
+func (g *Game) appendLogLocked(entry types.LogEntry) {
+	entry.Turn = g.turnNumber
+	g.log = append(g.log, entry)
+	if len(g.log) > MaxLogEntries {
+		g.log = g.log[len(g.log)-MaxLogEntries:]
+	}
+}
+
+// startTurnForLocked refreshes what a new turn restores: points, the per-turn
+// cast counters, and one tick off every cooldown.
+func (g *Game) startTurnForLocked(userID string) {
+	p, ok := g.players[userID]
+	if !ok {
+		return
+	}
+	p.Character.ActionPoints = StartingActionPoints
+	p.Character.MovementPoints = StartingMovementPoints
+
+	spells := make(map[string]types.SpellState, len(g.spells))
+	for id := range g.spells {
+		st := p.Spells[id]
+		st.CastsThisTurn = 0
+		if st.CooldownLeft > 0 {
+			st.CooldownLeft--
+		}
+		spells[id] = st
+	}
+	p.Spells = spells
+	g.players[userID] = p
 }
 
 // PlayerCount reports how many characters are in the game.
@@ -401,6 +459,13 @@ func (g *Game) beginPlayLocked() {
 	g.turnIdx = 0
 	g.applyTurnFlagsLocked()
 	g.turnEndsAt = time.Now().Add(g.turnDuration)
+	if len(g.turnOrder) > 0 {
+		g.startTurnForLocked(g.turnOrder[0])
+		g.appendLogLocked(types.LogEntry{
+			Actor: g.players[g.turnOrder[0]].Character.Name,
+			Kind:  types.LogTurn, Text: "starts their turn",
+		})
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -448,7 +513,8 @@ func (g *Game) CastSpell(userID string, spellID int, target types.Position) erro
 	if err != nil {
 		return err
 	}
-	spell, ok := g.spells[strconv.Itoa(spellID)]
+	key := strconv.Itoa(spellID)
+	spell, ok := g.spells[key]
 	if !ok {
 		return ErrUnknownSpell
 	}
@@ -463,9 +529,31 @@ func (g *Game) CastSpell(userID string, spellID int, target types.Position) erro
 		return ErrNotEnoughAP
 	}
 
+	state := caster.Spells[key]
+	if state.CooldownLeft > 0 {
+		return ErrSpellOnCooldown
+	}
+	if spell.MaxCastsPerTurn > 0 && state.CastsThisTurn >= spell.MaxCastsPerTurn {
+		return ErrTooManyCasts
+	}
+	if spell.NeedsLineOfSight && !HasLineOfSight(origin, target, g.blocksSightLocked) {
+		return ErrNoLineOfSight
+	}
+
+	// A critical replaces the damage outright rather than adding to it, which
+	// is how the numbers in the catalogue were always written.
+	damage, crit := spell.Damage, false
+	if spell.CriticalChance > 0 && g.rng.Intn(100) < spell.CriticalChance {
+		damage, crit = spell.CriticalDamage, true
+	}
+
 	caster.Character.ActionPoints -= spell.APCost
+	state.CastsThisTurn++
+	state.CooldownLeft = spell.Cooldown
+	caster.Spells[key] = state
 	g.players[userID] = caster
 
+	hits, killed := 0, []string{}
 	for _, cell := range AffectedPositions(spell, target, origin) {
 		id, ok := g.playerAtLocked(cell)
 		if !ok {
@@ -475,12 +563,25 @@ func (g *Game) CastSpell(userID string, spellID int, target types.Position) erro
 		if !hit.Character.IsAlive {
 			continue
 		}
-		hit.Character.Health -= spell.Damage
+		hit.Character.Health -= damage
+		hits++
 		if hit.Character.Health <= 0 {
 			hit.Character.Health = 0
 			hit.Character.IsAlive = false
+			killed = append(killed, hit.Character.Name)
 		}
 		g.players[id] = hit
+	}
+
+	g.appendLogLocked(types.LogEntry{
+		Actor:  caster.Character.Name,
+		Kind:   types.LogCast,
+		Text:   castSummary(spell.Name, hits, crit),
+		Damage: damage * hits,
+		Crit:   crit,
+	})
+	for _, name := range killed {
+		g.appendLogLocked(types.LogEntry{Actor: name, Kind: types.LogDeath, Text: "is out of the fight"})
 	}
 
 	if g.checkGameOverLocked() {
@@ -492,6 +593,23 @@ func (g *Game) CastSpell(userID string, spellID int, target types.Position) erro
 		g.advanceTurnLocked()
 	}
 	return nil
+}
+
+// blocksSightLocked reports whether a living character stands on a cell.
+func (g *Game) blocksSightLocked(pos types.Position) bool {
+	id, ok := g.playerAtLocked(pos)
+	return ok && g.players[id].Character.IsAlive
+}
+
+func castSummary(spell string, hits int, crit bool) string {
+	switch {
+	case hits == 0:
+		return "cast " + spell + ", hitting nothing"
+	case crit:
+		return "cast " + spell + " — critical!"
+	default:
+		return "cast " + spell
+	}
 }
 
 // EndTurn hands play to the next living character in initiative order.
@@ -524,11 +642,12 @@ func (g *Game) advanceTurnLocked() {
 			continue
 		}
 		g.turnIdx = idx
-		p.Character.ActionPoints = StartingActionPoints
-		p.Character.MovementPoints = StartingMovementPoints
-		g.players[g.turnOrder[idx]] = p
+		g.startTurnForLocked(g.turnOrder[idx])
 		g.applyTurnFlagsLocked()
 		g.turnEndsAt = time.Now().Add(g.turnDuration)
+		g.appendLogLocked(types.LogEntry{
+			Actor: p.Character.Name, Kind: types.LogTurn, Text: "starts their turn",
+		})
 		return
 	}
 	g.checkGameOverLocked()
@@ -568,6 +687,9 @@ func (g *Game) checkGameOverLocked() bool {
 	g.status = types.StatusGameOver
 	if len(alive) == 1 {
 		g.winner = g.players[alive[0]].UserName
+		g.appendLogLocked(types.LogEntry{
+			Actor: g.players[alive[0]].Character.Name, Kind: types.LogEnd, Text: "wins the fight",
+		})
 	}
 	for id, p := range g.players {
 		p.IsCurrentTurn = false

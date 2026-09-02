@@ -30,6 +30,8 @@ Then open <http://localhost>. Pick a name and a colour, and either **play
 against the computer** or open a game and wait for someone to join. Two
 browser tabs are enough for a real 1v1.
 
+Number keys `1`–`4` pick a spell, `Escape` drops the selection.
+
 <details>
 <summary>Without Docker</summary>
 
@@ -173,17 +175,16 @@ CI runs all of it on every push, plus `gofmt`, `go vet` and a full
 
 ## Status
 
-Playable end to end: lobby, placement, movement, spells with areas of effect,
-a computer opponent, rematches and reconnection. What is not there yet:
+Playable end to end: lobby, placement, movement, spells with areas of effect
+and line of sight, cooldowns, critical hits, a combat log, a computer opponent,
+rematches and reconnection. What is not there yet:
 
-- **Line of sight.** `needsLineOfSight` is carried in the spell catalogue and
-  nothing enforces it.
-- **Cooldowns and casts per turn.** Same: declared, not applied.
-- **Status effects and critical hits.** The data model has room for them.
-- **Touch support.** The board is driven by pointer hover; phones get an
-  honest notice instead of a broken board.
+- **Status effects.** No buffs, debuffs or damage over time; the turn cycle has
+  the hook for them but nothing uses it.
 - **Obstacles.** The map is open ground, and pathing is a two-segment L rather
   than A*.
+- **Touch support.** The board is driven by pointer hover; phones get an
+  honest notice instead of a broken board.
 
 ## Licence
 
