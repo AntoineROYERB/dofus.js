@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Position, Player } from "../types/game";
 import { Spell } from "../types/message";
 import { screenToIso, generateIsometricCoordinates } from "../utils/isoUtils";
-import { calculatePath, isWithinRange } from "../utils/pathUtils";
+import { findPath } from "../utils/board";
 import { calculateImpactedCells } from "../utils/spellUtils";
 
 interface UseGridInteractionProps {
@@ -14,6 +14,8 @@ interface UseGridInteractionProps {
   movementPoints: number | undefined;
   isCurrentTurn: boolean;
   selectedSpell: Spell | undefined;
+  /** What the board refuses, cover and characters alike. */
+  blocked: (p: Position) => boolean;
   players: { [id: string]: Player } | undefined;
   initialPositions: Position[];
 }
@@ -27,6 +29,7 @@ export const useGridInteraction = ({
   movementPoints,
   isCurrentTurn,
   selectedSpell,
+  blocked,
   players,
   initialPositions,
 }: UseGridInteractionProps) => {
@@ -43,19 +46,16 @@ export const useGridInteraction = ({
       isCurrentTurn &&
       !isPositioningPhase
     ) {
-      if (
-        movementPoints !== undefined &&
-        isWithinRange(characterPosition, hoveredPosition, movementPoints)
-      ) {
-        const path = calculatePath(characterPosition, hoveredPosition);
-        const filteredPath = path.slice(
-          1,
-          movementPoints !== undefined ? movementPoints + 1 : undefined,
-        );
-        setPathCells(filteredPath);
-      } else {
-        setPathCells([]);
-      }
+      // The walk the server would actually charge for, not a straight L.
+      const path =
+        movementPoints === undefined
+          ? null
+          : findPath(characterPosition, hoveredPosition, blocked);
+      setPathCells(
+        path && movementPoints !== undefined && path.length <= movementPoints
+          ? path
+          : [],
+      );
 
       if (selectedSpell) {
         setImpactedCells(
@@ -72,6 +72,7 @@ export const useGridInteraction = ({
     isCurrentTurn,
     selectedSpell,
     isPositioningPhase,
+    blocked,
   ]);
 
   // Mouse and click handlers

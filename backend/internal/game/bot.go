@@ -40,8 +40,15 @@ func DecideBotAction(state types.GameState, botID string) BotAction {
 		return BotAction{Kind: BotEnd}
 	}
 
-	// Occupancy for the line-of-sight check, taken from the snapshot.
+	// What the board refuses, taken from the snapshot: cover and characters.
+	obstacles := make(map[types.Position]bool, len(state.Obstacles))
+	for _, o := range state.Obstacles {
+		obstacles[o] = true
+	}
 	blocked := func(pos types.Position) bool {
+		if obstacles[pos] {
+			return true
+		}
 		for _, p := range state.Players {
 			if p.Character.IsAlive && p.Character.Position != nil && *p.Character.Position == pos {
 				return true
@@ -81,7 +88,7 @@ func DecideBotAction(state types.GameState, botID string) BotAction {
 	}
 
 	if me.Character.MovementPoints > 0 {
-		if dest, ok := stepToward(state, from, target, me.Character.MovementPoints); ok {
+		if dest, ok := stepToward(from, target, me.Character.MovementPoints, blocked); ok {
 			return BotAction{Kind: BotMove, Target: dest}
 		}
 	}
@@ -103,52 +110,20 @@ func nearestEnemy(state types.GameState, botID string, from types.Position) (typ
 	return best, bestDist >= 0
 }
 
-// stepToward walks as far toward the target as the movement points allow,
-// stopping on the closest free cell it can actually reach.
-func stepToward(state types.GameState, from, target types.Position, mp int) (types.Position, bool) {
-	occupied := map[types.Position]bool{}
-	for _, p := range state.Players {
-		if p.Character.Position != nil {
-			occupied[*p.Character.Position] = true
-		}
-	}
-
+// stepToward picks the reachable cell that gets closest to the target. It uses
+// the same walk the server charges for, so the bot never asks for a move that
+// will be refused — before this it stepped in a straight line and simply
+// bounced off cover.
+func stepToward(from, target types.Position, mp int, blocked func(types.Position) bool) (types.Position, bool) {
 	best := from
 	bestDist := Distance(from, target)
-	cur := from
 
-	for step := 0; step < mp; step++ {
-		next := cur
-		switch {
-		case next.X != target.X:
-			next.X += sign(target.X - next.X)
-		case next.Y != target.Y:
-			next.Y += sign(target.Y - next.Y)
-		default:
-			return best, best != from
-		}
-		if !InGrid(next) {
-			break
-		}
-		cur = next
-		if occupied[cur] {
-			continue // walk through, but do not stop here
-		}
-		if d := Distance(cur, target); d < bestDist {
-			best, bestDist = cur, d
+	for cell := range Reachable(from, mp, blocked) {
+		if d := Distance(cell, target); d < bestDist {
+			best, bestDist = cell, d
 		}
 	}
 	return best, best != from
-}
-
-func sign(n int) int {
-	if n < 0 {
-		return -1
-	}
-	if n > 0 {
-		return 1
-	}
-	return 0
 }
 
 // ---------------------------------------------------------------------------

@@ -5,7 +5,7 @@ import {
   generateIsometricCoordinates,
   sortCoordinates,
 } from "../../../utils/isoUtils";
-import { isWithinRange } from "../../../utils/pathUtils";
+import { blockedBy, hasLineOfSight, reachable } from "../../../utils/board";
 import { Tile } from "./Tile";
 import { isInSpellRange } from "../../../utils/spellUtils";
 import { Character } from "./Character";
@@ -34,6 +34,11 @@ export const Grid: React.FC<GridProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
 
   const players = latestGameState?.players;
+  // Memoised: a fresh `?? []` on every render would defeat the memos below.
+  const obstacles = React.useMemo(
+    () => latestGameState?.obstacles ?? [],
+    [latestGameState?.obstacles]
+  );
   // The spell catalogue is broadcast with the game state; the client keeps no copy.
   const selectedSpell =
     selectedSpellId === null
@@ -77,6 +82,29 @@ export const Grid: React.FC<GridProps> = ({
     return positionsWithOwners;
   }, [players, userId, isPositioningPhase]);
 
+  // What the board refuses: cover, and everyone standing on it. The server
+  // charges for the walk around all of it, so the preview has to agree.
+  const blocked = React.useMemo(() => {
+    const occupied = Object.values(players ?? {})
+      .map((p) => p.character.position)
+      .filter((p): p is Position => !!p);
+    return blockedBy(obstacles, occupied);
+  }, [players, obstacles]);
+
+  const obstacleSet = React.useMemo(
+    () => new Set(obstacles.map((o) => `${o.x},${o.y}`)),
+    [obstacles]
+  );
+
+  // Reachability, not a Manhattan radius: cover makes some near cells
+  // unreachable and some far ones cost more than they look.
+  const walkable = React.useMemo(() => {
+    if (!characterPosition || movementPoints === undefined) return new Map();
+    return reachable(characterPosition, movementPoints, (p) =>
+      blocked(p) && !(p.x === characterPosition.x && p.y === characterPosition.y)
+    );
+  }, [characterPosition, movementPoints, blocked]);
+
   const tileSize = useTileSize(containerRef, gridSize);
 
   const characterRenderState = useCharacterAnimations(
@@ -94,6 +122,7 @@ export const Grid: React.FC<GridProps> = ({
     movementPoints,
     isCurrentTurn: currentPlayer?.isCurrentTurn || false,
     selectedSpell,
+    blocked,
     players,
     initialPositions,
   });
@@ -137,16 +166,16 @@ export const Grid: React.FC<GridProps> = ({
         const isValidInitial = isPositioningPhase && isInitialPosition(x, y);
 
         const isPathCell = isInPathCells(x, y);
-        const isInRange = !!(
-          characterPosition &&
-          movementPoints !== undefined &&
-          isWithinRange(characterPosition, { x, y }, movementPoints)
-        );
+        const isObstacle = obstacleSet.has(`${x},${y}`);
+        const isInRange = walkable.has(`${x},${y}`);
 
+        // A cell the spell cannot actually reach must not look targetable.
         const isInCastRange = !!(
           characterPosition &&
           selectedSpell &&
-          isInSpellRange({ x, y }, characterPosition, selectedSpell)
+          isInSpellRange({ x, y }, characterPosition, selectedSpell) &&
+          (!selectedSpell.needsLineOfSight ||
+            hasLineOfSight(characterPosition, { x, y }, blocked))
         );
 
         const isImpactedCell = impactedCells.some(
@@ -158,18 +187,8 @@ export const Grid: React.FC<GridProps> = ({
         // Determine if this tile is a valid movement target
         const isValidTarget = isPositioningPhase
           ? !!isValidInitial
-          : !!(
-              characterPosition &&
-              currentPlayer?.isCurrentTurn &&
-              movementPoints !== undefined &&
-              isWithinRange(characterPosition, { x, y }, movementPoints) &&
-              !findPlayerOnCell(x, y)
-            ) ||
-            !!(
-              selectedSpell &&
-              characterPosition &&
-              isInSpellRange({ x, y }, characterPosition, selectedSpell)
-            );
+          : !!(currentPlayer?.isCurrentTurn && isInRange && !findPlayerOnCell(x, y)) ||
+            isInCastRange;
 
         const screenPosition = isoToScreen(x, y, tileSize, centerX, centerY);
 
@@ -188,6 +207,7 @@ export const Grid: React.FC<GridProps> = ({
             selectedSpellId={selectedSpellId}
             isImpactedCell={isImpactedCell}
             isInSpellRange={isInCastRange}
+            isObstacle={isObstacle}
             isInRange={isInRange}
             isPathCell={isPathCell}
             hoveredPosition={hoveredPosition}

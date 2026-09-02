@@ -10,7 +10,7 @@ import { GameInfoPanel } from "../components/Game/GameInfoPanel";
 import { GameOverModal } from "../components/Game/GameOverModal";
 import { useWebSocket } from "../context/WebSocketContext";
 import { readCharacter } from "../utils/characterStorage";
-import { isWithinRange } from "../utils/pathUtils";
+import { blockedBy, findPath } from "../utils/board";
 import DesktopOnlyNotice from "../components/DesktopOnlyNotice";
 import { CombatLog } from "../components/Game/CombatLog";
 
@@ -179,7 +179,17 @@ function GamePage() {
 
     const from = currentCharacter?.position;
     if (!from || !currentCharacter) return;
-    if (isWithinRange(from, position, currentCharacter.movementPoints)) {
+
+    // Same walk the server will charge for, cover and characters included.
+    const occupied = Object.values(gameState?.players ?? {})
+      .map((p) => p.character.position)
+      .filter((p): p is Position => !!p && p !== from);
+    const path = findPath(
+      from,
+      position,
+      blockedBy(gameState?.obstacles, occupied)
+    );
+    if (path && path.length > 0 && path.length <= currentCharacter.movementPoints) {
       const { messageId, timestamp } = generateMessageId();
       act({ type: "move", messageId, timestamp, position });
     }

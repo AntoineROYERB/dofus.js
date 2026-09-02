@@ -1,4 +1,4 @@
-import { Player } from "./game";
+import { Player, Position } from "./game";
 
 export type UserInfo = {
   id: string;
@@ -69,6 +69,26 @@ export type Spell = {
   cooldown: number;
   criticalChance: number;
   criticalDamage: number;
+  /** Status effect left behind on top of the damage, when the spell has one. */
+  effect: SpellEffect | null;
+};
+
+export type SpellEffect = {
+  kind: EffectKind;
+  value: number;
+  duration: number;
+  /** Applies to the caster instead of what it hit. */
+  onSelf: boolean;
+};
+
+export type EffectKind = "poison" | "regen" | "ap" | "mp" | "shield";
+
+/** A status effect riding on a character. */
+export type Effect = {
+  kind: EffectKind;
+  value: number;
+  turnsLeft: number;
+  source: string;
 };
 
 /** One spell's availability for one player, as the server tracks it. */
@@ -81,7 +101,7 @@ export type SpellState = {
 export type LogEntry = {
   turn: number;
   actor: string;
-  kind: "cast" | "death" | "turn" | "end";
+  kind: "cast" | "death" | "turn" | "end" | "effect";
   text: string;
   damage?: number;
   crit?: boolean;
@@ -100,6 +120,8 @@ export interface GameState {
   turnEndsAt: number;
   /** Recent combat history, oldest first. */
   log: LogEntry[] | null;
+  /** Cells nobody can stand on and nothing can be seen through. */
+  obstacles: Position[] | null;
 }
 
 export interface GameStateMessage {

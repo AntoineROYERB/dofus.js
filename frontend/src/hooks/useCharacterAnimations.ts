@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { GameState } from "../types/message";
 import { Position } from "../types/game";
-import { calculatePath, getDirection } from "../utils/pathUtils";
+import { getDirection } from "../utils/pathUtils";
+import { blockedBy, findPath } from "../utils/board";
 import { isoToScreen } from "../utils/isoUtils";
 
 // Only tracks active animations
@@ -61,10 +62,18 @@ export const useCharacterAnimations = (
           (oldPlayer.character.position.x !== newPlayer.character.position.x ||
             oldPlayer.character.position.y !== newPlayer.character.position.y)
         ) {
-          const path = calculatePath(
+          // Walk the route the server actually took, so a character no longer
+          // slides through cover on its way.
+          const others = Object.entries(latestGameState.players)
+            .filter(([id]) => id !== playerId)
+            .map(([, p]) => p.character.position)
+            .filter((p): p is Position => !!p);
+          const steps = findPath(
             oldPlayer.character.position,
-            newPlayer.character.position
+            newPlayer.character.position,
+            blockedBy(latestGameState.obstacles, others)
           );
+          const path = [oldPlayer.character.position, ...(steps ?? [])];
           if (path.length > 1) {
             newAnimations[playerId] = {
               type: "move",

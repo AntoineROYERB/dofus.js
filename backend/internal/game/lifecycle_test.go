@@ -16,7 +16,8 @@ func TestRestartSetsUpARematchWithTheSameCharacters(t *testing.T) {
 
 	g.mu.Lock()
 	p := g.players["b"]
-	p.Character.Health = 10
+	// Below Ember's damage, so one cast finishes it whatever the critical roll.
+	p.Character.Health = 5
 	g.players["b"] = p
 	g.mu.Unlock()
 
@@ -74,7 +75,8 @@ func TestRematchCanBePlayedThrough(t *testing.T) {
 
 	g.mu.Lock()
 	p := g.players["b"]
-	p.Character.Health = 10
+	// Below Ember's damage, so one cast finishes it whatever the critical roll.
+	p.Character.Health = 5
 	g.players["b"] = p
 	g.mu.Unlock()
 
