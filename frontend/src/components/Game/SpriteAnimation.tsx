@@ -22,10 +22,11 @@ const SpriteAnimation: React.FC<SpriteAnimationProps> = ({
   scale = 1,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  // Kept across runs so a resize or a change of direction does not restart the
+  // walk cycle from its first frame.
   const animationState = useRef({
     frameX: 0,
     gameFrame: 0,
-    animationFrameId: 0,
     lastSpriteSheet: spriteSheet,
   });
 
@@ -36,8 +37,8 @@ const SpriteAnimation: React.FC<SpriteAnimationProps> = ({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const CANVAS_WIDTH = (canvas.width = frameWidth * scale);
-    const CANVAS_HEIGHT = (canvas.height = frameHeight * scale);
+    const CANVAS_WIDTH = (canvas.width = Math.round(frameWidth * scale));
+    const CANVAS_HEIGHT = (canvas.height = Math.round(frameHeight * scale));
 
     const directionRow = directionMap[direction] ?? 0;
 
@@ -50,8 +51,17 @@ const SpriteAnimation: React.FC<SpriteAnimationProps> = ({
 
     const staggerFrames = 5; // plus grand = plus lent
 
+    /*
+     * Both of these are per-run, not shared through the ref. They used to live
+     * on the ref, so a second run — a resize, a change of pose — could cancel
+     * its own frame instead of the previous run's, and the old loop carried on
+     * drawing at the old size into the corner of the resized canvas.
+     */
+    let cancelled = false;
+    let rafId = 0;
+
     const animate = () => {
-      if (!ctx) return;
+      if (cancelled) return;
       ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
       ctx.drawImage(
@@ -72,11 +82,11 @@ const SpriteAnimation: React.FC<SpriteAnimationProps> = ({
       }
 
       animationState.current.gameFrame++;
-      animationState.current.animationFrameId = requestAnimationFrame(animate);
+      rafId = requestAnimationFrame(animate);
     };
 
-    playerImage.onload = () => {
-      cancelAnimationFrame(animationState.current.animationFrameId);
+    const start = () => {
+      if (cancelled) return;
 
       if (animationState.current.lastSpriteSheet !== spriteSheet) {
         animationState.current.frameX = 0;
@@ -87,8 +97,16 @@ const SpriteAnimation: React.FC<SpriteAnimationProps> = ({
       animate();
     };
 
+    // A cached sheet is complete before onload could ever fire.
+    if (playerImage.complete && playerImage.naturalWidth > 0) {
+      start();
+    } else {
+      playerImage.onload = start;
+    }
+
     return () => {
-      cancelAnimationFrame(animationState.current.animationFrameId);
+      cancelled = true;
+      cancelAnimationFrame(rafId);
     };
   }, [
     spriteSheet,

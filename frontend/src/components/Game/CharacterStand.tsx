@@ -6,6 +6,23 @@ const W = 96;
 const H = 48;
 const RISE = 10;
 
+/**
+ * The stand's own geometry, exported so whatever stands on it can be placed
+ * with the board's arithmetic rather than by nudging a CSS offset until it
+ * looks right. The origin is the centre of the middle tile.
+ */
+export const STAND = {
+  tileWidth: W,
+  viewBox: { x: -170, y: -100, width: 340, height: 190 },
+  /** Where the middle tile's centre falls, as a share of the drawn box. */
+  origin: { x: 170 / 340, y: 100 / 190 },
+  /**
+   * A sprite is drawn with its feet 70% of the way down its frame, the same
+   * convention the board uses in Character.tsx.
+   */
+  feet: 0.7,
+} as const;
+
 const cells = (() => {
   const out: { x: number; y: number }[] = [];
   for (let x = -RADIUS; x <= RADIUS; x++) {
@@ -28,7 +45,7 @@ export const CharacterStand: React.FC<{ className?: string }> = ({
   className,
 }) => (
   <svg
-    viewBox="-170 -100 340 190"
+    viewBox={`${STAND.viewBox.x} ${STAND.viewBox.y} ${STAND.viewBox.width} ${STAND.viewBox.height}`}
     className={className}
     aria-hidden
     preserveAspectRatio="xMidYMid meet"
@@ -42,11 +59,16 @@ export const CharacterStand: React.FC<{ className?: string }> = ({
         />
       ))}
     </g>
+    {/*
+      One surface, not the board's checker: the alternate tile is a shade off
+      the page's own paper, which on a plinth this small read as holes with a
+      character floating between them.
+    */}
     {cells.map(({ x, y }) => (
       <polygon
         key={`${x}-${y}`}
         points={diamond(((x - y) * W) / 2, ((x + y) * H) / 2)}
-        fill={(Math.abs(x) + Math.abs(y)) % 2 === 0 ? BOARD.tile : BOARD.tileAlt}
+        fill={BOARD.tile}
         stroke={BOARD.stroke}
         strokeWidth={1}
       />

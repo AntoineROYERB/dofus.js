@@ -2,7 +2,7 @@ import React, { useState, useRef, useLayoutEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import SpriteAnimation, { Direction } from "../components/Game/SpriteAnimation";
 import { CharacterCreationForm } from "../components/Game/CharacterCreationForm";
-import { CharacterStand } from "../components/Game/CharacterStand";
+import { CharacterStand, STAND } from "../components/Game/CharacterStand";
 import { saveCharacter } from "../utils/characterStorage";
 
 const animationConfig = {
@@ -68,19 +68,29 @@ const LandingPage: React.FC = () => {
   const animation = animationConfig[pose];
 
   const stageRef = useRef<HTMLDivElement>(null);
-  const [scale, setScale] = useState(1);
+  const [scale, setScale] = useState(0.5);
 
+  /*
+   * A one-shot measurement on mount read the stage before it had settled, and
+   * the sprite kept the placeholder scale — which is how the character ended
+   * up floating beside the middle tile instead of standing on it. An observer
+   * follows the real box, fonts and window included.
+   */
   useLayoutEffect(() => {
+    const stage = stageRef.current;
+    if (!stage) return;
+
     const update = () => {
-      if (!stageRef.current) return;
-      // The stand is drawn 340 units wide; the sprite is sized against it so
-      // the character keeps its feet on the tiles at any window size.
-      const width = Math.min(stageRef.current.offsetWidth, 460);
-      setScale((width / 340) * 0.62);
+      // One tile of the stand, in CSS pixels. The board sizes a sprite frame
+      // to a tile; here it is a little larger, because this one is the hero.
+      const tile = (STAND.tileWidth * stage.offsetWidth) / STAND.viewBox.width;
+      if (tile > 0) setScale((tile / 256) * 1.7);
     };
+
     update();
-    window.addEventListener("resize", update);
-    return () => window.removeEventListener("resize", update);
+    const observer = new ResizeObserver(update);
+    observer.observe(stage);
+    return () => observer.disconnect();
   }, []);
 
   return (
@@ -130,30 +140,31 @@ const LandingPage: React.FC = () => {
               </dl>
             </div>
 
-            <div
-              ref={stageRef}
-              className="relative flex min-h-0 flex-1 items-center justify-center pb-8"
-            >
-              <CharacterStand className="max-h-full w-full max-w-[460px]" />
-              <div
-                className="pointer-events-none absolute"
-                style={{
-                  // Sitting the sprite on the middle tile rather than in the
-                  // middle of the box, which is a good deal lower.
-                  transform: `translateY(${-animation.frameHeight * scale * 0.18}px)`,
-                }}
-              >
-                <SpriteAnimation
-                  spriteSheet={animation.spriteSheet}
-                  framesPerDirection={animation.framesPerDirection}
-                  frameWidth={animation.frameWidth}
-                  frameHeight={animation.frameHeight}
-                  direction={direction}
-                  directionMap={animation.directionMap}
-                  scale={scale}
-                />
+            <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3">
+              <div ref={stageRef} className="relative w-full max-w-[420px]">
+                <CharacterStand className="block w-full" />
+                <div
+                  className="pointer-events-none absolute"
+                  style={{
+                    // Feet on the middle tile, by the same arithmetic the board
+                    // uses to stand a character on a cell.
+                    left: `${STAND.origin.x * 100}%`,
+                    top: `${STAND.origin.y * 100}%`,
+                    transform: `translate(-50%, -${STAND.feet * 100}%)`,
+                  }}
+                >
+                  <SpriteAnimation
+                    spriteSheet={animation.spriteSheet}
+                    framesPerDirection={animation.framesPerDirection}
+                    frameWidth={animation.frameWidth}
+                    frameHeight={animation.frameHeight}
+                    direction={direction}
+                    directionMap={animation.directionMap}
+                    scale={scale}
+                  />
+                </div>
               </div>
-              <p className="absolute bottom-0 font-display text-[15px] font-bold">
+              <p className="font-display text-[15px] font-bold">
                 {characterName || (
                   <span className="font-sans text-[12.5px] font-normal text-muted">
                     Name your fighter below
