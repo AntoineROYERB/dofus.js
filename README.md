@@ -4,6 +4,13 @@ A turn-based tactical combat game in the browser, built as a study of the
 combat system from Dofus. A Go server owns the rules; a React client draws an
 isometric board on top of them.
 
+### ▶ [Play it here](https://dofusjs.onrender.com)
+
+No account, no install. Pick a name, hit **Play against the computer**, and you
+have a whole match to yourself. The server sleeps after 15 minutes on the free
+tier, so the first connection can take a minute to come back — the board loads
+instantly either way.
+
 ![Dofus.js in play](docs/assets/demo.gif)
 
 <table>
@@ -13,7 +20,7 @@ isometric board on top of them.
 </tr>
 </table>
 
-## Play it
+## Run it yourself
 
 ```bash
 docker compose up --build
@@ -111,6 +118,8 @@ Copy `.env.example` to `.env`. Everything has a working default.
    |---|---|---|
    | `dofusjs` | `VITE_WS_URL` | `wss://dofusjs-api.onrender.com/ws` |
    | `dofusjs-api` | `ALLOWED_ORIGINS` | `https://dofusjs.onrender.com` |
+
+   This is exactly how <https://dofusjs.onrender.com> is deployed.
 
    Substitute your own service names if you renamed them. `VITE_WS_URL` is
    baked into the bundle at build time, so changing it later means a rebuild,
