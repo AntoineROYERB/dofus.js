@@ -99,12 +99,22 @@ Copy `.env.example` to `.env`. Everything has a working default.
 
 ### Render (free)
 
-`render.yaml` describes two free services that wire themselves together — push
-the repo, point Render at the blueprint, and there is nothing to paste in.
+`render.yaml` describes two free services: `dofusjs-api` from
+`Dockerfile.backend`, and `dofusjs` as a static site from `frontend/`.
 
 1. New → **Blueprint**, pick this repository.
-2. Apply. Render builds `dofusjs-api` from `Dockerfile.backend` and `dofusjs`
-   as a static site from `frontend/`.
+2. Render asks for two values. They point the services at each other, and they
+   have to be filled in by hand — a blueprint's `fromService` only exposes a
+   service's *private network* hostname, which a browser cannot resolve.
+
+   | Service | Variable | Value |
+   |---|---|---|
+   | `dofusjs` | `VITE_WS_URL` | `wss://dofusjs-api.onrender.com/ws` |
+   | `dofusjs-api` | `ALLOWED_ORIGINS` | `https://dofusjs.onrender.com` |
+
+   Substitute your own service names if you renamed them. `VITE_WS_URL` is
+   baked into the bundle at build time, so changing it later means a rebuild,
+   not just a restart.
 
 The client is a static site and the Go server is a web service, deliberately.
 A free web service sleeps after 15 minutes and takes about a minute to wake:

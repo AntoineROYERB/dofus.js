@@ -6,7 +6,9 @@
 # the WebSocket waits for the server to come back. The client already shows
 # "Reconnecting…" and backs off exponentially while that happens.
 #
-# The two services wire themselves to each other: no hostnames to paste in.
+# Render prompts for two values when you apply this blueprint. They cannot be
+# wired automatically: `fromService` only exposes a service's *private network*
+# hostname, which a browser cannot resolve.
 
 services:
   # ---------------------------------------------------------------------------
@@ -25,12 +27,10 @@ services:
         value: "8080"
       - key: TURN_SECONDS
         value: "45"
-      # Locked to the static site, so no other origin can open a socket here.
+      # The static site's public origin, e.g. https://dofusjs.onrender.com
+      # Locked down so no other origin can open a socket here.
       - key: ALLOWED_ORIGINS
-        fromService:
-          name: dofusjs
-          type: web
-          property: host
+        sync: false
 
   # ---------------------------------------------------------------------------
   # Client
@@ -44,11 +44,10 @@ services:
     buildCommand: npm ci && npm run build
     staticPublishPath: ./dist
     envVars:
+      # The API's public address, e.g. wss://dofusjs-api.onrender.com/ws
+      # Baked into the bundle at build time, so changing it needs a rebuild.
       - key: VITE_WS_URL
-        fromService:
-          name: dofusjs-api
-          type: web
-          property: host
+        sync: false
     routes:
       # Client-side routes (/lobby, /game) must survive a direct visit.
       - type: rewrite
