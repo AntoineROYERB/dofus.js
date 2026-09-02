@@ -127,6 +127,48 @@ export const Grid: React.FC<GridProps> = ({
     initialPositions,
   });
 
+  const centerX = containerRef.current
+    ? containerRef.current.clientWidth / 2
+    : 0;
+  const centerY = containerRef.current
+    ? containerRef.current.clientHeight / 2
+    : 0;
+
+  // Only worth showing where the spell can actually land: out of range, or
+  // behind cover, the estimate would be a lie.
+  const damagePreview = React.useMemo(() => {
+    if (!selectedSpell || !characterPosition || !hoveredPosition) return null;
+    if (!currentPlayer?.isCurrentTurn || selectedSpell.damage <= 0) return null;
+    if (!isInSpellRange(hoveredPosition, characterPosition, selectedSpell)) {
+      return null;
+    }
+    if (
+      selectedSpell.needsLineOfSight &&
+      !hasLineOfSight(characterPosition, hoveredPosition, blocked)
+    ) {
+      return null;
+    }
+    return {
+      damage: selectedSpell.damage,
+      screen: isoToScreen(
+        hoveredPosition.x,
+        hoveredPosition.y,
+        tileSize,
+        centerX,
+        centerY
+      ),
+    };
+  }, [
+    selectedSpell,
+    characterPosition,
+    hoveredPosition,
+    currentPlayer,
+    blocked,
+    tileSize,
+    centerX,
+    centerY,
+  ]);
+
   const findPlayerOnCell = (x: number, y: number) => {
     return (
       players &&
@@ -152,12 +194,47 @@ export const Grid: React.FC<GridProps> = ({
     generateIsometricCoordinates(gridSize)
   );
 
-  const centerX = containerRef.current
-    ? containerRef.current.clientWidth / 2
-    : 0;
-  const centerY = containerRef.current
-    ? containerRef.current.clientHeight / 2
-    : 0;
+  // Cells the selected spell can actually reach: in range, and seen from where
+  // the caster stands. A cell it cannot reach must not look targetable.
+  const castable = React.useMemo(() => {
+    const cells = new Set<string>();
+    if (!characterPosition || !selectedSpell) return cells;
+    sortedCoordinates.forEach(({ x, y }) => {
+      if (!isInSpellRange({ x, y }, characterPosition, selectedSpell)) return;
+      if (
+        selectedSpell.needsLineOfSight &&
+        !hasLineOfSight(characterPosition, { x, y }, blocked)
+      ) {
+        return;
+      }
+      cells.add(`${x},${y}`);
+    });
+    return cells;
+    // sortedCoordinates is derived from gridSize alone and is stable enough.
+  }, [characterPosition, selectedSpell, blocked, gridSize]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /*
+   * The area you may act in this turn — where you can walk, or where the
+   * selected spell can land. A wash alone was not enough to see it: grey on
+   * grey at ten percent disappears against the board's own checker. It now
+   * carries a drawn border, which is what makes a region read as a region.
+   */
+  const zone = currentPlayer?.isCurrentTurn
+    ? selectedSpell
+      ? castable
+      : new Set(walkable.keys())
+    : new Set<string>();
+
+  /** Which of a cell's four edges face out of the zone. */
+  const zoneEdges = (x: number, y: number): boolean[] | undefined => {
+    if (!zone.has(`${x},${y}`)) return undefined;
+    return [
+      !zone.has(`${x - 1},${y}`), // up-left
+      !zone.has(`${x},${y - 1}`), // up-right
+      !zone.has(`${x + 1},${y}`), // down-right
+      !zone.has(`${x},${y + 1}`), // down-left
+    ];
+  };
 
   return (
     <div ref={containerRef} className="w-full h-full relative overflow-hidden">
@@ -169,14 +246,7 @@ export const Grid: React.FC<GridProps> = ({
         const isObstacle = obstacleSet.has(`${x},${y}`);
         const isInRange = walkable.has(`${x},${y}`);
 
-        // A cell the spell cannot actually reach must not look targetable.
-        const isInCastRange = !!(
-          characterPosition &&
-          selectedSpell &&
-          isInSpellRange({ x, y }, characterPosition, selectedSpell) &&
-          (!selectedSpell.needsLineOfSight ||
-            hasLineOfSight(characterPosition, { x, y }, blocked))
-        );
+        const isInCastRange = castable.has(`${x},${y}`);
 
         const isImpactedCell = impactedCells.some(
           (pos) => pos.x === x && pos.y === y
@@ -211,6 +281,7 @@ export const Grid: React.FC<GridProps> = ({
             isInRange={isInRange}
             isPathCell={isPathCell}
             hoveredPosition={hoveredPosition}
+            zoneEdges={zoneEdges(x, y)}
             onClick={() => onCellClick({ x, y })}
           />
         );
@@ -227,6 +298,27 @@ export const Grid: React.FC<GridProps> = ({
           />
         );
       })}
+      {/*
+        What the spell would take off, before the click. The number is the
+        catalogue's base damage: a critical or a shield will move it, which is
+        why it is shown as an estimate and not as a result.
+      */}
+      {damagePreview && (
+        <div
+          className="absolute pointer-events-none font-display font-bold tabular-nums text-vermilion"
+          style={{
+            left: `${damagePreview.screen.x}px`,
+            top: `${damagePreview.screen.y - tileSize.height * 1.7}px`,
+            transform: "translate(-50%, -50%)",
+            fontSize: `${Math.max(14, tileSize.width * 0.22)}px`,
+            textShadow:
+              "0 1px 0 #fff, 0 -1px 0 #fff, 1px 0 0 #fff, -1px 0 0 #fff",
+          }}
+        >
+          &minus;{damagePreview.damage}
+        </div>
+      )}
+
       {isPositioningPhase && selectedPosition && (
         <Character
           key={`${userId}-preview`}

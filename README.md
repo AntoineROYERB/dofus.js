@@ -11,12 +11,16 @@ have a whole match to yourself. The server sleeps after 15 minutes on the free
 tier, so the first connection can take a minute to come back — the board loads
 instantly either way.
 
-![Dofus.js in play](docs/assets/demo.gif)
+![A turn of Dofus.js: the reachable area, the walk to a cell, and a fireball landing](docs/assets/demo.gif)
 
 <table>
 <tr>
+<td width="50%"><img src="docs/assets/01-landing.png" alt="Naming a fighter, who stands on a few cells of the board"></td>
 <td width="50%"><img src="docs/assets/02-lobby.png" alt="Lobby: open games and a solo match against the computer"></td>
-<td width="50%"><img src="docs/assets/03-placement.png" alt="Placement phase: each player picks one of three starting cells"></td>
+</tr>
+<tr>
+<td width="50%"><img src="docs/assets/03-placement.png" alt="Placement: each player picks one of three starting cells"></td>
+<td width="50%"><img src="docs/assets/04-combat.png" alt="Combat: cast range outlined, area of effect marked, estimated damage above the target"></td>
 </tr>
 </table>
 
@@ -78,6 +82,15 @@ tick, so its moves are watchable rather than instant.
 back-to-front draw order, the screen-to-grid hit test and the sprite-sheet
 animation loop are all in the client, and the geometry is unit-tested.
 
+**The screen has one rule.** Paper, ink, graphite and a single vermilion: three
+weights of rule and the size of the figures do the separating, and the only
+saturated colour marks *what the click is about to do* — the walk to the cell
+under the cursor, or the cells a spell would hit. Where you may act is a
+graphite wash with a drawn boundary, and that boundary is the information: it
+bends around cover, so its shape is the line of sight. Every colour comes from
+`frontend/tailwind.config.js` and `frontend/src/constants.ts`; changing the
+look is a change to those two files.
+
 ### Layout
 
 ```
@@ -89,9 +102,12 @@ backend/
   internal/types/      wire format shared by every layer
 frontend/src/
   pages/               landing, lobby, board
-  components/Game/     board, tiles, characters, spell bar
+  components/Game/     board, tiles, characters, spell bar, turn order, log
+  components/Chat/     the rail's chat section
   hooks/               animation loop, grid interaction, tile sizing
   utils/               isometric maths, pathing, spell areas
+  constants.ts         board palette and stroke widths
+  tailwind.config.js   the screen's colours and three typefaces
 ```
 
 ## Configuration
@@ -177,16 +193,17 @@ CI runs all of it on every push, plus `gofmt`, `go vet` and a full
 
 ## Status
 
-Playable end to end: lobby, placement, movement, spells with areas of effect
-and line of sight, cooldowns, critical hits, a combat log, a computer opponent,
-rematches and reconnection. What is not there yet:
+Playable end to end: lobby, placement, movement around cover with A*, spells
+with areas of effect and line of sight, cooldowns, critical hits, status
+effects (poison, shield, regeneration, action and movement points), a combat
+log, a computer opponent, rematches and reconnection. What is not there yet:
 
-- **Status effects.** No buffs, debuffs or damage over time; the turn cycle has
-  the hook for them but nothing uses it.
-- **Obstacles.** The map is open ground, and pathing is a two-segment L rather
-  than A*.
 - **Touch support.** The board is driven by pointer hover; phones get an
   honest notice instead of a broken board.
+- **More than one arena.** Cover is generated per match, but the board is
+  always the same 15 × 15 diamond.
+- **Anything that outlives a match.** No accounts, no ranking, no history: the
+  server keeps rooms in memory and forgets them.
 
 ## Licence
 

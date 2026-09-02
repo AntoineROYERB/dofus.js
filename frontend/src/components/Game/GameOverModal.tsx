@@ -12,26 +12,26 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
   onExit,
 }) => {
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
-      <div className="bg-white p-8 rounded-lg shadow-xl text-center">
-        <h2 className="text-2xl font-bold mb-4 text-gray-800">
-          Game Over!
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/70 px-6">
+      <div className="w-full max-w-sm border-2 border-ink bg-panel p-8">
+        <div className="font-mono text-[9.5px] uppercase tracking-label text-muted">
+          Game over
+        </div>
+        <h2 className="mt-2 font-display text-[29px] font-bold leading-none tracking-tight">
+          {winner} wins
         </h2>
-        <p className="text-lg text-gray-700 mb-6">
-          <span className="font-semibold">{winner}</span> wins the game!
-        </p>
-        <div className="flex justify-center space-x-4">
+        <div className="mt-7 flex gap-3">
           <button
             onClick={onPlayAgain}
-            className="px-6 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+            className="flex-1 bg-vermilion px-3 py-3 font-display text-[15px] font-bold text-white transition-colors hover:bg-[#b93a25]"
           >
-            Play Again
+            Play again
           </button>
           <button
             onClick={onExit}
-            className="px-6 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+            className="flex-1 border border-ink px-3 py-3 font-display text-[15px] font-bold text-ink transition-colors hover:bg-hairline"
           >
-            Exit
+            Leave
           </button>
         </div>
       </div>

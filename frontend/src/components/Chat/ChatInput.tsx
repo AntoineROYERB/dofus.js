@@ -25,24 +25,22 @@ export const ChatInput: React.FC = () => {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="">
-      <div className="flex gap-2">
-        <input
-          type="text"
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          disabled={!connected}
-          placeholder={connected ? "Type a message..." : "Connecting..."}
-          className="flex-1 p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
-        />
-        <button
-          type="submit"
-          disabled={!connected || !message.trim()}
-          className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
-        >
-          Send
-        </button>
-      </div>
+    <form onSubmit={handleSubmit} className="mt-2 flex gap-2">
+      <input
+        type="text"
+        value={message}
+        onChange={(e) => setMessage(e.target.value)}
+        disabled={!connected}
+        placeholder={connected ? "Type a message…" : "Connecting…"}
+        className="min-w-0 flex-1 border border-rule bg-board px-2 py-1.5 text-[12.5px] text-ink placeholder:text-muted focus:outline-none focus:ring-1 focus:ring-ink"
+      />
+      <button
+        type="submit"
+        disabled={!connected || !message.trim()}
+        className="flex-none border border-ink bg-ink px-3 py-1.5 font-mono text-[10px] uppercase tracking-label text-paper transition-colors disabled:border-hairline disabled:bg-transparent disabled:text-muted"
+      >
+        Send
+      </button>
     </form>
   );
 };

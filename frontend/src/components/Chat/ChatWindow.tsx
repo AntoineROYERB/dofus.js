@@ -3,47 +3,40 @@ import { useWebSocket } from "../../context/WebSocketContext";
 
 export const ChatWindow: React.FC = () => {
   const { chatMessages, userId } = useWebSocket();
-  const { height, messagesEndRef, chatWindowRef, startResizing } =
-    useChatWindow(chatMessages);
+  const { messagesEndRef } = useChatWindow(chatMessages);
 
   let lastMessageId: string | null = null;
 
   return (
-    <div
-      ref={chatWindowRef}
-      style={{ height: `${height}px` }}
-      className="relative w-full border rounded-lg bg-white shadow-sm overflow-hidden"
-    >
-      <div
-        onMouseDown={startResizing}
-        className="absolute top-0 right-0 w-4 h-4 cursor-ns-resize bg-gray-400 hover:bg-gray-500 transition-colors"
-        title="Resize"
-      />
-      <div className="h-full overflow-y-auto p-4">
-        {chatMessages.length === 0 ? (
-          <div className="text-gray-500 text-center">No messages yet</div>
-        ) : (
-          chatMessages.map((msg, index) => {
-            if (msg.messageId === lastMessageId) return null;
-            lastMessageId = msg.messageId;
+    <div className="h-full overflow-y-auto pr-1">
+      {chatMessages.length === 0 ? (
+        <p className="py-2 text-[12.5px] text-muted">No messages yet.</p>
+      ) : (
+        chatMessages.map((msg, index) => {
+          if (msg.messageId === lastMessageId) return null;
+          lastMessageId = msg.messageId;
+          if (msg.type !== "chat") return null;
 
-            return msg.type === "chat" ? (
-              <div
-                key={index}
-                className={`mb-2 p-3 rounded-lg ${
-                  msg.userId === userId
-                    ? "bg-blue-100 ml-auto w-fit max-w-[80%]"
-                    : "bg-gray-100 w-fit max-w-[80%]"
+          const mine = msg.userId === userId;
+
+          return (
+            <div
+              key={index}
+              className="border-t border-hairline py-[7px] text-[12.5px] leading-snug"
+            >
+              <span
+                className={`mr-2 font-mono text-[9.5px] ${
+                  mine ? "text-vermilion" : "text-muted"
                 }`}
               >
-                <div className="text-xs text-gray-800 mb-1">{msg.userName}</div>
-                <div className="break-words text-black">{msg.content}</div>
-              </div>
-            ) : null;
-          })
-        )}
-        <div ref={messagesEndRef} />
-      </div>
+                {mine ? "you" : msg.userName}
+              </span>
+              <span className="break-words text-graphite">{msg.content}</span>
+            </div>
+          );
+        })
+      )}
+      <div ref={messagesEndRef} />
     </div>
   );
 };

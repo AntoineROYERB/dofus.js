@@ -5,14 +5,30 @@ import { Chat } from "../components/Chat/Chat";
 import { GameBoard } from "../components/Game/GameBoard";
 import SpellBar from "../components/Game/Spellbar";
 import { GameAction, Position, GameStatus, GAME_STATUS } from "../types/game";
-import { PlayerActions } from "../components/Game/PlayerActions";
-import { GameInfoPanel } from "../components/Game/GameInfoPanel";
+import { FighterPanel } from "../components/Game/FighterPanel";
+import { TurnTimeline } from "../components/Game/TurnTimeline";
+import { TurnClock } from "../components/Game/TurnClock";
+import { MainButton } from "../components/Game/Button";
 import { GameOverModal } from "../components/Game/GameOverModal";
 import { useWebSocket } from "../context/WebSocketContext";
 import { readCharacter } from "../utils/characterStorage";
 import { blockedBy, findPath } from "../utils/board";
 import DesktopOnlyNotice from "../components/DesktopOnlyNotice";
 import { CombatLog } from "../components/Game/CombatLog";
+
+/** What the turn zone says above the countdown. */
+const phaseLabel = (status: GameStatus, isMyTurn: boolean | undefined) => {
+  switch (status) {
+    case GAME_STATUS.CREATING_PLAYER:
+      return "Getting ready";
+    case GAME_STATUS.POSITION_CHARACTERS:
+      return "Placement";
+    case GAME_STATUS.PLAYING:
+      return isMyTurn ? "Your turn" : "Opponent's turn";
+    default:
+      return "Over";
+  }
+};
 
 function GamePage() {
   const {
@@ -196,96 +212,107 @@ function GamePage() {
   };
 
   return (
-    <div className="relative h-screen max-h-screen bg-stone-200 text-stone-800">
+    <div className="relative flex h-screen max-h-screen flex-col overflow-hidden bg-paper text-ink">
       <DesktopOnlyNotice />
 
       {visibleRejection && (
         <div
           role="status"
-          className="absolute top-4 left-1/2 -translate-x-1/2 z-30 px-4 py-2 rounded-md bg-red-600 text-white text-sm shadow-lg"
+          className="absolute left-1/2 top-4 z-30 -translate-x-1/2 border border-vermilion bg-vermilion px-4 py-2 text-sm text-white"
         >
           {visibleRejection}
         </div>
       )}
 
-      <div className="absolute top-3 left-3 z-20 flex items-center gap-3">
-        <span className="px-3 py-1 rounded-md bg-stone-800/80 text-stone-100 text-xs">
-          {roomName}
-        </span>
-        <button
-          type="button"
-          onClick={handleLeave}
-          className="px-3 py-1 rounded-md bg-stone-800/80 text-stone-100 text-xs hover:bg-stone-700"
-        >
-          Leave game
-        </button>
+      {/*
+        The board keeps the whole left side to itself. Nothing is ever laid on
+        top of it: the rail is beside it and the bar is under it, which is the
+        point of the whole layout.
+      */}
+      <div className="flex min-h-0 flex-1">
+        <div className="flex min-h-0 flex-1 flex-col px-6 pt-5">
+          <TurnTimeline latestGameState={gameState} userId={userId} />
+          <div className="relative min-h-0 flex-1">
+            <GameBoard
+              gridSize={15}
+              handleSelectedPosition={handleSelectedPosition}
+              selectedPosition={selectedPosition}
+              selectedSpellId={selectedSpellId}
+              handleCellClick={handleCellClick}
+              latestGameState={gameState}
+              userId={userId}
+            />
+          </div>
+        </div>
+
+        <aside className="flex w-[300px] flex-none flex-col px-5 pt-5">
+          <div className="flex items-baseline justify-between gap-3 border-b-2 border-ink pb-1.5">
+            <span className="truncate font-display text-[15px] font-bold">
+              {roomName}
+            </span>
+            <button
+              type="button"
+              onClick={handleLeave}
+              className="flex-none font-mono text-[9.5px] uppercase tracking-label text-muted transition-colors hover:text-vermilion"
+            >
+              Leave
+            </button>
+          </div>
+
+          <div className="mb-1.5 mt-4 font-mono text-[9.5px] uppercase tracking-label text-muted">
+            Log
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <CombatLog entries={gameState?.log ?? []} />
+          </div>
+
+          <Chat />
+        </aside>
       </div>
 
-      <GameBoard
-        gridSize={15}
-        handleSelectedPosition={handleSelectedPosition}
-        selectedPosition={selectedPosition}
-        selectedSpellId={selectedSpellId}
-        handleCellClick={handleCellClick}
-        latestGameState={gameState}
-        userId={userId}
-      />
+      <div className="flex h-[168px] flex-none overflow-hidden border-t-2 border-ink bg-panel">
+        <div className="w-[336px] flex-none px-5 py-3">
+          <FighterPanel currentPlayer={currentPlayer} connected={connected} />
+        </div>
 
-      {/*
-        This bar spans the full width and is as tall as the chat, so it covers
-        the bottom half of the board. Left solid, it swallowed every click in
-        that half — even in the empty gaps between the panels, where nothing is
-        drawn. It stays transparent to the pointer; each panel opts back in.
-      */}
-      <div className="pointer-events-none absolute bottom-0 left-0 right-0 z-10 p-2 md:p-4">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-4 items-end">
-          <Chat />
+        <div className="min-w-0 flex-1 border-l border-ink px-5 py-3">
           <SpellBar
             handleSpellClick={handleSpellClick}
             selectedSpellId={selectedSpellId}
             currentPlayer={currentPlayer}
             spells={gameState?.spells ?? null}
           />
+        </div>
 
-          <div className="pointer-events-auto bg-stone-50/80 backdrop-blur-sm rounded-lg flex flex-col overflow-y-auto p-2 border border-stone-300/50 shadow-lg">
-            <div
-              className={`flex-grow ${currentPlayer ? "overflow-y-auto" : ""}`}
-            >
-              {currentPlayer ? (
-                <GameInfoPanel
-                  currentPlayer={currentPlayer}
-                  connected={connected}
-                  latestGameState={gameState}
-                  gameStatus={gameStatus}
-                  handleReadyClick={handleReadyClick}
-                  handleEndTurnClick={handleEndTurnClick}
-                  isPlayerReady={isPlayerReady}
-                  isMyTurn={isMyTurn}
-                  userHasCharacter={userHasCharacter}
-                  handleFightClick={handleFightClick}
-                  selectedPosition={selectedPosition ?? undefined}
-                  isPlayerPositioned={isPlayerPositioned}
-                />
-              ) : (
-                <PlayerActions
-                  gameStatus={gameStatus}
-                  connected={connected}
-                  handleReadyClick={handleReadyClick}
-                  handleEndTurnClick={handleEndTurnClick}
-                  isPlayerReady={isPlayerReady}
-                  isMyTurn={isMyTurn}
-                  userHasCharacter={userHasCharacter}
-                  handleFightClick={handleFightClick}
-                  selectedPosition={selectedPosition ?? undefined}
-                  isPlayerPositioned={isPlayerPositioned}
-                />
-              )}
-            </div>
-            {gameState?.log && gameState.log.length > 0 && (
-              <div className="mt-2 pt-2 border-t border-stone-300/60">
-                <CombatLog entries={gameState.log} />
-              </div>
-            )}
+        <div className="flex w-[248px] flex-none flex-col border-l border-ink px-5 py-3">
+          <div className="flex items-baseline justify-between gap-2">
+            <span className="font-mono text-[9.5px] uppercase tracking-label text-muted">
+              Turn
+            </span>
+            <span className="truncate font-mono text-[9.5px] uppercase tracking-label text-ink">
+              {phaseLabel(gameStatus, isMyTurn)}
+            </span>
+          </div>
+          <div className="mt-2.5">
+            <TurnClock
+              turnEndsAt={gameState?.turnEndsAt ?? 0}
+              isMyTurn={!!isMyTurn}
+              variant="display"
+            />
+          </div>
+          <div className="mt-auto">
+            <MainButton
+              gameStatus={gameStatus}
+              connected={connected}
+              handleReadyClick={handleReadyClick}
+              handleEndTurnClick={handleEndTurnClick}
+              isPlayerReady={isPlayerReady}
+              isMyTurn={isMyTurn}
+              userHasCharacter={userHasCharacter}
+              handleFightClick={handleFightClick}
+              selectedPosition={selectedPosition ?? undefined}
+              isPlayerPositioned={isPlayerPositioned}
+            />
           </div>
         </div>
       </div>

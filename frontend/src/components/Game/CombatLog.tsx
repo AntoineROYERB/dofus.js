@@ -6,11 +6,11 @@ interface CombatLogProps {
 }
 
 const tone: Record<LogEntry["kind"], string> = {
-  cast: "text-stone-700",
-  death: "text-red-700 font-medium",
-  turn: "text-stone-400",
-  end: "text-emerald-700 font-medium",
-  effect: "text-violet-700",
+  cast: "text-graphite",
+  death: "text-ink font-medium",
+  turn: "text-muted",
+  end: "text-ink font-medium",
+  effect: "text-graphite",
 };
 
 /**
@@ -24,19 +24,40 @@ export const CombatLog: React.FC<CombatLogProps> = ({ entries }) => {
     endRef.current?.scrollIntoView({ block: "nearest" });
   }, [entries.length]);
 
-  if (entries.length === 0) return null;
+  if (entries.length === 0) {
+    return (
+      <p className="border-t border-hairline py-2 text-[12.5px] text-muted">
+        Nothing has happened yet.
+      </p>
+    );
+  }
 
   return (
-    <ul className="text-[11px] leading-snug flex flex-col gap-0.5 max-h-24 overflow-y-auto pr-1">
+    <ul>
       {entries.map((entry, i) => (
-        <li key={`${entry.turn}-${i}`} className={tone[entry.kind]}>
-          <span className="text-stone-400 tabular-nums">T{entry.turn}</span>{" "}
-          <span className="font-medium">{entry.actor}</span> {entry.text}
+        <li
+          key={`${entry.turn}-${i}`}
+          className="flex items-baseline gap-2.5 border-t border-hairline py-[7px] text-[12.5px] leading-snug"
+        >
+          <span className="w-4 flex-none font-mono text-[9.5px] tabular-nums text-rule">
+            T{entry.turn}
+          </span>
+          <p className={`flex-1 ${tone[entry.kind]}`}>
+            {entry.kind === "cast" || entry.kind === "death" ? (
+              <b className="font-semibold text-ink">{entry.actor}</b>
+            ) : (
+              entry.actor
+            )}{" "}
+            {entry.text}
+          </p>
           {entry.damage ? (
-            <span className={entry.crit ? "text-red-600 font-bold" : ""}>
-              {" "}
+            <i
+              className={`flex-none font-mono text-[11.5px] font-semibold not-italic text-vermilion ${
+                entry.crit ? "underline" : ""
+              }`}
+            >
               &minus;{entry.damage}
-            </span>
+            </i>
           ) : null}
         </li>
       ))}
