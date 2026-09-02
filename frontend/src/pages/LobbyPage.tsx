@@ -2,7 +2,6 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useWebSocket } from "../context/WebSocketContext";
 import { generateMessageId } from "../utils/messageUtils";
-import StarryBackground from "../components/StarryBackground";
 import { RoomSummary } from "../types/message";
 import { readCharacter } from "../utils/characterStorage";
 
@@ -22,21 +21,23 @@ const RoomRow: React.FC<{
   const closed = full || started;
 
   return (
-    <li className="flex items-center gap-4 py-3 border-b border-white/10 last:border-b-0">
-      <div className="flex-1 min-w-0">
-        <p className="text-white font-medium truncate">{room.name}</p>
-        <p className="text-xs text-gray-400">
+    <li className="flex items-center gap-4 border-b border-hairline py-3 last:border-b-0">
+      <div className="min-w-0 flex-1">
+        <p className="truncate font-display text-[17px] font-bold">
+          {room.name}
+        </p>
+        <p className="font-mono text-[9.5px] uppercase tracking-label text-muted">
           {statusLabel[room.status] ?? room.status}
         </p>
       </div>
-      <span className="text-sm text-gray-300 tabular-nums">
+      <span className="font-mono text-[12px] tabular-nums text-graphite">
         {room.players}/{room.maxPlayers}
       </span>
       <button
         type="button"
         disabled={closed}
         onClick={() => onJoin(room.id)}
-        className="px-4 py-1.5 rounded-md bg-emerald-600 text-white text-sm font-medium transition hover:bg-emerald-500 disabled:bg-gray-700 disabled:text-gray-500 disabled:cursor-not-allowed"
+        className="border border-ink px-4 py-1.5 font-mono text-[10px] uppercase tracking-label text-ink transition-colors hover:bg-ink hover:text-paper disabled:cursor-not-allowed disabled:border-hairline disabled:text-muted disabled:hover:bg-transparent disabled:hover:text-muted"
       >
         {full ? "Full" : started ? "Started" : "Join"}
       </button>
@@ -98,79 +99,77 @@ const LobbyPage: React.FC = () => {
   };
 
   return (
-    <div className="relative min-h-screen overflow-y-auto bg-[#05060a] text-white">
-      <StarryBackground />
-
-      <div className="relative z-10 mx-auto w-full max-w-2xl px-6 py-14 flex flex-col gap-8">
-        <header className="flex items-baseline justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Games</h1>
-            <p className="text-sm text-gray-400">
-              Playing as{" "}
-              <span style={{ color: character?.color }}>{character?.name}</span>
-            </p>
-          </div>
-          <span
-            className={`inline-flex items-center gap-2 text-xs px-3 py-1 rounded-full ${
-              connected
-                ? "bg-emerald-500/15 text-emerald-300"
-                : "bg-red-500/15 text-red-300"
-            }`}
-          >
-            <span
-              className={`w-1.5 h-1.5 rounded-full ${
-                connected ? "bg-emerald-400" : "bg-red-400"
-              }`}
-            />
-            {connected ? "Connected" : "Reconnecting…"}
+    <div className="flex h-screen max-h-screen flex-col overflow-hidden bg-paper text-ink">
+      <div className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col px-6 pt-5">
+        <div className="flex items-baseline justify-between gap-4 border-b-2 border-ink pb-1.5">
+          <span className="font-mono text-[9.5px] uppercase tracking-label text-muted">
+            Dofus.js · lobby
           </span>
-        </header>
+          <span className="flex items-baseline gap-2 font-mono text-[9.5px] uppercase tracking-label text-muted">
+            <span
+              aria-hidden
+              className="h-[9px] w-[9px] flex-none translate-y-px"
+              style={{ backgroundColor: character?.color }}
+            />
+            <b className="font-medium text-ink">{character?.name}</b>
+            <span className={connected ? "" : "text-vermilion"}>
+              {connected ? "connected" : "reconnecting…"}
+            </span>
+          </span>
+        </div>
+
+        <h1 className="mt-7 font-display text-[42px] font-bold leading-none tracking-tight">
+          Find a game
+        </h1>
 
         {notice && (
-          <div
+          <p
             role="status"
-            className="rounded-md bg-red-600/90 px-4 py-2 text-sm"
+            className="mt-4 border-l-2 border-vermilion bg-panel py-2 pl-3 text-[13px] text-vermilion"
           >
             {notice}
-          </div>
+          </p>
         )}
 
         <button
           type="button"
           onClick={playSolo}
           disabled={!connected}
-          className="w-full rounded-lg bg-violet-600 px-5 py-3 font-medium transition hover:bg-violet-500 disabled:bg-gray-700 disabled:text-gray-500 disabled:cursor-not-allowed"
+          className="mt-6 w-full bg-vermilion px-4 py-3.5 font-display text-[16px] font-bold text-white transition-colors hover:bg-[#b93a25] disabled:cursor-not-allowed disabled:bg-hairline disabled:text-muted"
         >
           Play against the computer
         </button>
 
-        <div className="flex items-center gap-3 text-xs uppercase tracking-widest text-gray-500">
-          <span className="h-px flex-1 bg-white/10" />
+        <div className="mt-7 flex items-center gap-3 font-mono text-[9.5px] uppercase tracking-label text-muted">
+          <span className="h-px flex-1 bg-rule" />
           or wait for someone
-          <span className="h-px flex-1 bg-white/10" />
+          <span className="h-px flex-1 bg-rule" />
         </div>
 
-        <form onSubmit={createRoom} className="flex gap-2">
+        <form onSubmit={createRoom} className="mt-6 flex gap-2">
           <input
             value={newRoomName}
             onChange={(e) => setNewRoomName(e.target.value)}
             placeholder="Name your game"
             aria-label="Name your game"
             maxLength={24}
-            className="flex-1 h-11 px-4 rounded-md bg-white/5 border border-white/15 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            className="h-11 min-w-0 flex-1 border border-rule bg-board px-3 text-[14px] text-ink placeholder:text-muted focus:border-ink focus:outline-none"
           />
           <button
             type="submit"
             disabled={!connected || newRoomName.trim().length < 3}
-            className="px-5 h-11 rounded-md bg-emerald-600 font-medium transition hover:bg-emerald-500 disabled:bg-gray-700 disabled:text-gray-500 disabled:cursor-not-allowed"
+            className="h-11 flex-none border border-ink bg-ink px-5 font-mono text-[10px] uppercase tracking-label text-paper transition-colors disabled:cursor-not-allowed disabled:border-hairline disabled:bg-transparent disabled:text-muted"
           >
             Create
           </button>
         </form>
 
-        <section className="rounded-lg border border-white/10 bg-white/[0.03] px-5 py-2">
+        <div className="mb-1.5 mt-8 font-mono text-[9.5px] uppercase tracking-label text-muted">
+          Open games
+        </div>
+        <section className="min-h-0 flex-1 overflow-y-auto border-t border-ink">
           {rooms.length === 0 ? (
-            <p className="py-8 text-center text-sm text-gray-400">
+            <p className="py-8 text-center text-[13px] text-muted">
               No games open yet. Create one and wait for an opponent.
             </p>
           ) : (
@@ -185,7 +184,7 @@ const LobbyPage: React.FC = () => {
         <button
           type="button"
           onClick={() => navigate("/")}
-          className="self-start text-sm text-gray-400 underline underline-offset-4 hover:text-gray-200"
+          className="my-4 self-start font-mono text-[9.5px] uppercase tracking-label text-muted transition-colors hover:text-vermilion"
         >
           Change character
         </button>
