@@ -72,5 +72,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build de la stack
+      - name: Build de la stack (nginx + backend)
         run: docker compose build
+
+      - name: Build de l'image unique de déploiement
+        run: docker build -t dofusjs .

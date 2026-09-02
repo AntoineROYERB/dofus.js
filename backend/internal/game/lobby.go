@@ -4,9 +4,11 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
+	mathrand "math/rand"
 	"regexp"
 	"sort"
 	"sync"
+	"time"
 
 	"game-server/internal/types"
 )
@@ -37,12 +39,13 @@ type Room struct {
 // hub used to own, which meant two visitors arriving separately landed in the
 // same match and no one could start a second one.
 type Lobby struct {
-	mu    sync.RWMutex
-	rooms map[string]*Room
+	mu           sync.RWMutex
+	rooms        map[string]*Room
+	turnDuration time.Duration
 }
 
-func NewLobby() *Lobby {
-	return &Lobby{rooms: make(map[string]*Room)}
+func NewLobby(turnDuration time.Duration) *Lobby {
+	return &Lobby{rooms: make(map[string]*Room), turnDuration: turnDuration}
 }
 
 // Create opens a new room and returns it.
@@ -56,7 +59,11 @@ func (l *Lobby) Create(name string) (*Room, error) {
 		return nil, err
 	}
 
-	room := &Room{ID: id, Name: name, Game: New()}
+	room := &Room{
+		ID:   id,
+		Name: name,
+		Game: NewWithOptions(mathrand.New(mathrand.NewSource(time.Now().UnixNano())), l.turnDuration),
+	}
 
 	l.mu.Lock()
 	defer l.mu.Unlock()

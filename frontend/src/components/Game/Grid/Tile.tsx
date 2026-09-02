@@ -100,19 +100,37 @@ export const Tile: React.FC<TileProps> = ({
 
   const tileColor = getTileFillColor();
 
+  // Playable cells are reachable with the keyboard: they take focus and answer
+  // Enter and Space. The board was mouse-only, which left it unusable without
+  // a pointing device.
+  const interactive = !!isValidTarget;
+
   return (
     <div
-      className="absolute"
+      className="absolute focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-600"
+      role={interactive ? "button" : undefined}
+      tabIndex={interactive ? 0 : undefined}
+      aria-label={interactive ? `Cell ${x}, ${y}` : undefined}
       style={{
         left: `${screenPosition.x - tileSize.width / 2}px`,
         top: `${screenPosition.y - tileSize.height / 2}px`,
         width: `${tileSize.width}px`,
         height: `${tileSize.height}px`,
-        pointerEvents: isValidTarget ? "auto" : "none", // Enable pointer events only on valid tiles
-        cursor: isValidTarget ? "pointer" : "default",
+        pointerEvents: interactive ? "auto" : "none",
+        cursor: interactive ? "pointer" : "default",
         clipPath: "polygon(50% 0, 100% 50%, 50% 100%, 0 50%)",
       }}
-      onClick={isValidTarget ? onClick : undefined}
+      onClick={interactive ? onClick : undefined}
+      onKeyDown={
+        interactive
+          ? (event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                onClick?.();
+              }
+            }
+          : undefined
+      }
     >
       <svg
         width={tileSize.width}

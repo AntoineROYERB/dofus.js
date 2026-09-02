@@ -24,6 +24,10 @@ export interface Player {
   isCurrentTurn: boolean;
   isReady: boolean;
   hasPositioned: boolean;
+  /** False while a player is away; their character stays on the board. */
+  connected: boolean;
+  /** An opponent the server plays itself. */
+  isBot: boolean;
 }
 
 /**
@@ -77,6 +81,8 @@ export interface CharacterPositionedAction extends ActionEnvelope {
 export interface CreateRoomAction extends ActionEnvelope {
   type: "create_room";
   name: string;
+  /** Open the room with a server-played opponent already in it. */
+  withBot?: boolean;
 }
 
 export interface JoinRoomAction extends ActionEnvelope {

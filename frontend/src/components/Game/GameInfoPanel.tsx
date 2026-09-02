@@ -1,6 +1,7 @@
 import React from "react";
 import { GameState } from "../../types/message";
 import { MainButton } from "./Button";
+import { TurnClock } from "./TurnClock";
 import { GameStatus, Player, Position } from "../../types/game";
 
 interface GameInfoPanelProps {
@@ -42,7 +43,11 @@ export const GameInfoPanel: React.FC<GameInfoPanelProps> = ({
     : [];
 
   const readyPlayersCount = readyPlayers.length;
-  const readyPlayersNames = readyPlayers.map((player) => player.userName);
+  const opponents = latestGameState?.players
+    ? Object.values(latestGameState.players).filter(
+        (player) => player.userId !== currentPlayer?.userId
+      )
+    : [];
 
   return (
     <div className="p-2 text-sm h-full">
@@ -64,12 +69,14 @@ export const GameInfoPanel: React.FC<GameInfoPanelProps> = ({
               />
             </div>
             {latestGameState && (
-              <span className="text-xs">
-                Turn: {latestGameState?.turnNumber || 0}
+              <span className="text-xs flex items-center gap-2">
+                <span>Turn: {latestGameState?.turnNumber || 0}</span>
+                <TurnClock
+                  turnEndsAt={latestGameState?.turnEndsAt ?? 0}
+                  isMyTurn={!!isMyTurn}
+                />
                 {isMyTurn && (
-                  <span className="ml-1 text-green-500 font-bold">
-                    Your Turn!
-                  </span>
+                  <span className="text-green-600 font-bold">Your turn</span>
                 )}
               </span>
             )}
@@ -82,17 +89,45 @@ export const GameInfoPanel: React.FC<GameInfoPanelProps> = ({
             </div>
           </div>
 
-          {/* Player Status Display */}
-          <div className="text-xs text-gray-600">
-            <div>Connected Players: {totalPlayers}</div>
-            <div className="truncate">
-              Ready: {readyPlayersCount}/{totalPlayers}
-              {readyPlayersCount > 0 && (
-                <div className="italic text-xs truncate">
-                  Ready: {readyPlayersNames.join(", ")}
-                </div>
-              )}
+          <div className="text-xs text-gray-600 flex flex-col gap-1">
+            <div>
+              Players: {totalPlayers} &middot; ready {readyPlayersCount}/
+              {totalPlayers}
             </div>
+            <ul className="flex flex-col gap-0.5">
+              {opponents.map((player) => (
+                <li
+                  key={player.userId}
+                  className="flex items-center gap-2 truncate"
+                >
+                  <span
+                    className="w-2 h-2 rounded-full flex-none"
+                    style={{ backgroundColor: player.character.color }}
+                  />
+                  <span className="truncate">{player.character.name}</span>
+                  {player.isBot && (
+                    <span className="text-[10px] uppercase tracking-wide text-violet-600">
+                      cpu
+                    </span>
+                  )}
+                  {!player.isBot && !player.connected && (
+                    // The character stays on the board during the grace period,
+                    // so say why nothing is happening on their turn.
+                    <span className="text-[10px] uppercase tracking-wide text-amber-600">
+                      away
+                    </span>
+                  )}
+                  {!player.character.isAlive && (
+                    <span className="text-[10px] uppercase tracking-wide text-red-600">
+                      out
+                    </span>
+                  )}
+                  <span className="ml-auto tabular-nums">
+                    {player.character.health}
+                  </span>
+                </li>
+              ))}
+            </ul>
           </div>
         </>
       )}

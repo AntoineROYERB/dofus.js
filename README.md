@@ -1,107 +1,145 @@
-# Dofus.js: A Turn-Based Tactical battle Game
+# Dofus.js
 
-Dofus.js is a web-based, turn-based tactical  game inspired by the classic game Dofus. Built with a modern tech stack, it features a real-time combat system, character animations, and a scalable architecture.
+A turn-based tactical combat game in the browser, built as a study of the
+combat system from Dofus. A Go server owns the rules; a React client draws an
+isometric board on top of them.
 
-![Landing Page](src/LandingPage-24-09-25.png)
-![Game Page](src/characterAnimation-21-09-25.png)
+![Dofus.js in play](docs/assets/demo.gif)
 
-<p float="left">
-  <img src="frontend/public/animation/Idle.gif" width="100" />
-  <img src="frontend/public/animation/Walk.gif" width="100" />
-  <img src="frontend/public/animation/Attack.gif" width="100" />
-</p>
+<table>
+<tr>
+<td width="50%"><img src="docs/assets/02-lobby.png" alt="Lobby: open games and a solo match against the computer"></td>
+<td width="50%"><img src="docs/assets/03-placement.png" alt="Placement phase: each player picks one of three starting cells"></td>
+</tr>
+</table>
 
-## ✨ Key Features
+## Play it
 
--   **Tactical Turn-Based Combat:** Engage in strategic battles on an isometric grid.
--   **Real-Time Multiplayer:** Interact with other players in real-time, thanks to a WebSocket-based architecture.
--   **Dynamic Animations:** Characters come to life with animations for idling, walking, and attacking.
--   **In-Game Chat:** Communicate with other players in the game.
+```bash
+docker compose up --build
+```
 
-## 🚀 Getting Started
+Then open <http://localhost>. Pick a name and a colour, and either **play
+against the computer** or open a game and wait for someone to join. Two
+browser tabs are enough for a real 1v1.
 
-### Prerequisites
+<details>
+<summary>Without Docker</summary>
 
--   Go 1.21+
--   Node.js 18+
--   npm 9+
--   Docker (for containerized setup)
+```bash
+cd backend && go run ./cmd/server
+```
 
-### Running with Docker (Recommended)
+```bash
+cd frontend && npm install && npm run dev
+```
 
-The easiest way to get the game running is with Docker.
+The dev server proxies nothing: the client connects straight to
+`ws://localhost:8080/ws`.
+</details>
 
-1.  **Build and start the containers:**
-    ```bash
-    docker-compose up --build
-    ```
-2.  **Access the game:**
-    Open your browser and navigate to `http://localhost`.
+## How it works
 
-### Manual Setup
+The server is the referee. Every rule — whose turn it is, whether a cell is in
+range, whether a spell is affordable — is decided in Go and broadcast as a
+single authoritative snapshot. The client draws that snapshot and asks for
+things; it is never trusted to decide anything.
 
-If you prefer to run the frontend and backend services manually:
+```
+browser ──── WebSocket ────► hub ──► room ──► game
+   ▲                                            │
+   └───────── game_state snapshot ──────────────┘
+```
 
-1.  **Backend Setup:**
-    ```bash
-    cd backend
-    go mod tidy
-    go run cmd/server/main.go
-    ```
-2.  **Frontend Setup:**
-    ```bash
-    cd frontend
-    npm install
-    npm run dev
-    ```
+**Identity comes from the connection.** Inbound messages carry no user id at
+all, so a client cannot act as another player. A resume token lets a reload or
+a dropped connection come back as the same character; a player who goes away
+keeps their place on the board for 45 seconds before forfeiting.
 
-## 🛠️ Architecture & Tech Stack
+**One room, one game.** `map[roomID]*Room`, each with its own state and its own
+lock. Broadcasts are scoped to a room, so two matches never see each other.
 
-Dofus.js is built with a decoupled frontend and backend architecture, communicating via WebSockets.
+**Turns are bounded.** Each turn has a deadline; nobody can freeze a match by
+walking away. The computer opponent runs on the same clock, one action per
+tick, so its moves are watchable rather than instant.
 
--   **Backend:** Written in **Go**, using the **Gorilla WebSocket** library for real-time communication. The backend manages the game state, processes player actions, and broadcasts updates to all clients.
--   **Frontend:** A **React** application built with **Vite** and written in **TypeScript**. It uses **Tailwind CSS** for styling and renders the game on an HTML5 Canvas.
--   **Containerization:** The entire application is containerized using **Docker** and orchestrated with **Docker Compose**. **Nginx** serves the frontend and acts as a reverse proxy for the WebSocket connection.
+**Rendering is hand-written.** No game engine: the isometric projection, the
+back-to-front draw order, the screen-to-grid hit test and the sprite-sheet
+animation loop are all in the client, and the geometry is unit-tested.
 
-### Real-Time Communication
+### Layout
 
-The game relies on a WebSocket-based messaging system for real-time updates.
+```
+backend/
+  cmd/server/          entry point: config, HTTP, graceful shutdown
+  internal/config/     environment-driven settings
+  internal/game/       rules, lobby, spell catalogue, computer opponent
+  internal/websocket/  hub, sessions, per-connection pumps, handlers
+  internal/types/      wire format shared by every layer
+frontend/src/
+  pages/               landing, lobby, board
+  components/Game/     board, tiles, characters, spell bar
+  hooks/               animation loop, grid interaction, tile sizing
+  utils/               isometric maths, pathing, spell areas
+```
 
--   **Centralized State:** The Go backend is the single source of truth for the game state.
--   **Event-Driven:** The frontend sends player actions (e.g., `move`, `cast_spell`) as JSON messages to the backend.
--   **State Broadcast:** The backend processes actions, updates the game state, and broadcasts the new state to all connected clients, ensuring a consistent experience for everyone.
+## Configuration
 
-## 🎨 Character Animations
+Copy `.env.example` to `.env`. Everything has a working default.
 
-Character animations are handled on the frontend using sprite sheets and a custom React hook (`useCharacterAnimations`). The hook listens for changes in the game state (like movement or spell casting) and renders the appropriate animation (`Idle`, `Walk`, or `Attack`) to a `<canvas>` element.
+| Variable | Default | What it does |
+|---|---|---|
+| `HTTP_PORT` | `80` | Port the site is served on |
+| `ALLOWED_ORIGINS` | `*` | Origins allowed to open a WebSocket. **Pin this for a public deployment.** |
+| `TURN_SECONDS` | `45` | How long a player gets before their turn passes on |
+| `STATIC_DIR` | unset | When set, the Go binary also serves the built frontend |
 
-## 🗺️ Development Roadmap
+## Deploying
 
-### Phase 1: Communication Infrastructure ✅
+The root `Dockerfile` builds a single ~25 MB image where the Go binary serves
+both the API and the built frontend, so any container host will do.
 
--   [x] WebSocket implementation
--   [x] Real-time chat system
--   [x] Client connection management
+```bash
+docker build -t dofusjs .
+docker run -p 8080:8080 -e ALLOWED_ORIGINS=https://your.domain dofusjs
+```
 
-### Phase 2: Game Engine ✅
+`fly.toml` is ready for [fly.io](https://fly.io):
 
--   [x] Isometric Grid rendering
--   [x] Game state management
--   [x] Battle initialization
--   [x] Turn system implementation
--   [x] Character movement
--   [x] Initial character positioning
--   [x] Spell casting with Area of Effect (AoE)
--   [x] Game Over condition detection
+```bash
+fly launch --no-deploy   # once, to claim the app name
+fly deploy
+fly secrets set ALLOWED_ORIGINS=https://your-app.fly.dev
+```
 
-### Phase 3: Combat System (Current)
+`docker-compose.yml` keeps the nginx + backend split instead, which is closer
+to a classic production layout and is what local development uses.
 
--   [x] Character animations
--   [ ] Advanced combat actions (buffs, debuffs)
--   [ ] More spell effects
--   [ ] Status effects
+## Tests
 
-### Phase 4: User Interface (Planned)
+```bash
+cd backend && go test -race ./...     # rules, lobby, turn cycle, bot
+cd frontend && npm test               # isometric geometry
+cd frontend && npm run lint && npm run build
+```
 
--   [ ] Combat UI enhancements
--   [ ] Improved spell/ability interface
+CI runs all of it on every push, plus `gofmt`, `go vet` and a full
+`docker compose build`.
+
+## Status
+
+Playable end to end: lobby, placement, movement, spells with areas of effect,
+a computer opponent, rematches and reconnection. What is not there yet:
+
+- **Line of sight.** `needsLineOfSight` is carried in the spell catalogue and
+  nothing enforces it.
+- **Cooldowns and casts per turn.** Same: declared, not applied.
+- **Status effects and critical hits.** The data model has room for them.
+- **Touch support.** The board is driven by pointer hover; phones get an
+  honest notice instead of a broken board.
+- **Obstacles.** The map is open ground, and pathing is a two-segment L rather
+  than A*.
+
+## Licence
+
+MIT — see [LICENSE](LICENSE).

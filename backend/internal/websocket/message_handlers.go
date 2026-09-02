@@ -66,6 +66,14 @@ func handleCreateRoom(h *Hub, c *Client, data []byte) {
 		return
 	}
 
+	if in.WithBot {
+		if botID, err := room.Game.AddBot(); err != nil {
+			log.Printf("[Warning] Could not add a bot to room %s: %v", room.ID, err)
+		} else {
+			log.Printf("[Room] %s: bot %s added", room.ID, botID)
+		}
+	}
+
 	log.Printf("[Room] %s (%s) created by %s", room.ID, room.Name, c.ID)
 	h.setRoom(c, room.ID)
 	h.sendRoomJoined(c, room.ID, room.Name)

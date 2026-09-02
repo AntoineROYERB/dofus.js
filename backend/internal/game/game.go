@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strconv"
 	"sync"
+	"time"
 
 	"game-server/internal/types"
 )
@@ -50,20 +51,35 @@ type Game struct {
 	spells     map[string]types.Spell
 	winner     string
 	rng        *rand.Rand
+
+	turnDuration time.Duration
+	turnEndsAt   time.Time
 }
 
+// DefaultTurnDuration bounds a turn so an idle or disconnected player cannot
+// stall the match indefinitely.
+const DefaultTurnDuration = 45 * time.Second
+
 func New() *Game {
-	return NewWithRand(rand.New(rand.NewSource(rand.Int63())))
+	return NewWithOptions(rand.New(rand.NewSource(rand.Int63())), DefaultTurnDuration)
 }
 
 // NewWithRand builds a game with a caller-supplied source of randomness, so
 // tests can pin initiative and starting cells.
 func NewWithRand(rng *rand.Rand) *Game {
+	return NewWithOptions(rng, DefaultTurnDuration)
+}
+
+func NewWithOptions(rng *rand.Rand, turnDuration time.Duration) *Game {
+	if turnDuration <= 0 {
+		turnDuration = DefaultTurnDuration
+	}
 	return &Game{
-		status:  types.StatusCreatingPlayer,
-		players: make(map[string]types.Player),
-		spells:  Catalogue(),
-		rng:     rng,
+		status:       types.StatusCreatingPlayer,
+		players:      make(map[string]types.Player),
+		spells:       Catalogue(),
+		rng:          rng,
+		turnDuration: turnDuration,
 	}
 }
 
@@ -100,6 +116,11 @@ func (g *Game) snapshotLocked() types.GameState {
 	turnOrder := make([]string, len(g.turnOrder))
 	copy(turnOrder, g.turnOrder)
 
+	turnEndsAt := int64(0)
+	if g.status == types.StatusPlaying && !g.turnEndsAt.IsZero() {
+		turnEndsAt = g.turnEndsAt.UnixMilli()
+	}
+
 	return types.GameState{
 		MessageType: "game_state",
 		Players:     players,
@@ -107,6 +128,7 @@ func (g *Game) snapshotLocked() types.GameState {
 		GameStatus:  g.status,
 		Spells:      spells,
 		TurnOrder:   turnOrder,
+		TurnEndsAt:  turnEndsAt,
 	}
 }
 
@@ -257,6 +279,7 @@ func (g *Game) returnToLobbyLocked() {
 	g.turnIdx = 0
 	g.turnOrder = nil
 	g.winner = ""
+	g.turnEndsAt = time.Time{}
 }
 
 // PlayerCount reports how many characters are in the game.
@@ -264,6 +287,21 @@ func (g *Game) PlayerCount() int {
 	g.mu.RLock()
 	defer g.mu.RUnlock()
 	return len(g.players)
+}
+
+// HumanCount reports how many of the players are real connections. A room
+// whose only remaining player is a bot has nobody left in it.
+func (g *Game) HumanCount() int {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+
+	n := 0
+	for _, p := range g.players {
+		if !p.IsBot {
+			n++
+		}
+	}
+	return n
 }
 
 // HasPlayer reports whether a connection owns a character here.
@@ -316,6 +354,8 @@ func (g *Game) beginPlacementLocked() {
 		g.players[id] = p
 	}
 
+	// Bots take their starting cell immediately; a human never waits on them.
+	g.placeBotsLocked()
 	g.status = types.StatusPositionCharacters
 }
 
@@ -360,6 +400,7 @@ func (g *Game) beginPlayLocked() {
 	g.turnNumber = 1
 	g.turnIdx = 0
 	g.applyTurnFlagsLocked()
+	g.turnEndsAt = time.Now().Add(g.turnDuration)
 }
 
 // ---------------------------------------------------------------------------
@@ -487,6 +528,7 @@ func (g *Game) advanceTurnLocked() {
 		p.Character.MovementPoints = StartingMovementPoints
 		g.players[g.turnOrder[idx]] = p
 		g.applyTurnFlagsLocked()
+		g.turnEndsAt = time.Now().Add(g.turnDuration)
 		return
 	}
 	g.checkGameOverLocked()
