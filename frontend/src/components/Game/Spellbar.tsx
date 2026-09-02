@@ -72,7 +72,7 @@ const SpellSlot: React.FC<{
   return (
     <button
       type="button"
-      className={`relative h-16 w-16 flex-none bg-board text-ink transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-vermilion ${
+      className={`relative h-12 w-12 flex-none bg-board text-ink transition-colors sm:h-14 sm:w-14 lg:h-16 lg:w-16 short:h-12 short:w-12 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-vermilion ${
         isSelected
           ? "border-2 border-ink"
           : "border border-rule hover:border-graphite"
@@ -94,7 +94,11 @@ const SpellSlot: React.FC<{
         style={{ backgroundColor: spell.color }}
       />
       <span className="flex h-full items-center justify-center">
-        <SpellGlyph spellId={spell.id} fallback={spell.icon} />
+        <SpellGlyph
+          spellId={spell.id}
+          fallback={spell.icon}
+          className="h-6 w-6 sm:h-7 sm:w-7"
+        />
       </span>
       <span className="absolute bottom-0.5 right-1.5 font-mono text-[10px] tabular-nums text-muted">
         {spell.APCost}
@@ -129,29 +133,32 @@ const SpellBar: React.FC<SpellBarProps> = ({
 
   return (
     <div className="flex h-full flex-col">
-      <div className="font-mono text-[9.5px] uppercase tracking-label text-muted">
+      <div className="font-mono text-[9.5px] uppercase tracking-label text-muted short:hidden">
         Spells{" "}
         <span className="text-rule">
           1 – {Math.min(catalogue.length, 9)}
         </span>
       </div>
 
-      <div className="mb-2.5 mt-1.5 truncate font-display text-[21px] font-bold leading-none">
+      <div className="mb-1.5 mt-1 truncate font-display text-[16px] font-bold leading-none sm:mb-2.5 sm:mt-1.5 sm:text-[21px] short:mb-1.5 short:mt-0 short:text-[15px]">
         {selected ? (
           <>
             {selected.name}
-            <span className="ml-2.5 font-sans text-xs font-normal text-muted">
+            <span className="ml-2.5 hidden font-sans text-xs font-normal text-muted sm:inline">
               {spec(selected)}
             </span>
           </>
         ) : (
-          <span className="font-sans text-xs font-normal text-muted">
-            Pick a spell with a number key, or click a cell to walk there.
+          <span className="font-sans text-[11.5px] font-normal text-muted sm:text-xs">
+            <span className="sm:hidden">Tap a cell to preview, again to go.</span>
+            <span className="hidden sm:inline">
+              Pick a spell with a number key, or click a cell to walk there.
+            </span>
           </span>
         )}
       </div>
 
-      <div className="mt-auto flex gap-[7px] overflow-x-auto">
+      <div className="-mx-1 mt-auto flex gap-[6px] overflow-x-auto px-1 pb-0.5 sm:gap-[7px]">
         {catalogue.map((spell, index) => (
           <SpellSlot
             key={spell.id}

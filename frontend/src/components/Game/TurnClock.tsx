@@ -64,12 +64,12 @@ export const TurnClock: React.FC<TurnClockProps> = ({
   return (
     <div aria-label={label}>
       <div
-        className={`font-display text-[42px] font-bold leading-none tabular-nums ${
+        className={`font-display text-[26px] font-bold leading-none tabular-nums sm:text-[32px] lg:text-[42px] ${
           urgent ? "text-vermilion" : "text-ink"
         }`}
       >
         {remaining}
-        <span className="ml-1 text-[17px] text-muted">s</span>
+        <span className="ml-1 text-[13px] text-muted sm:text-[17px]">s</span>
       </div>
       <div className="mt-2 h-1 bg-hairline">
         <div
