@@ -262,11 +262,18 @@ func TestMoveIsRejectedWhenItBreaksTheRules(t *testing.T) {
 func TestFireballDamagesTheTargetedCharacter(t *testing.T) {
 	g := twoPlayerGame(t)
 
-	if err := g.CastSpell("a", 1, types.Position{X: 0, Y: 3}); err != nil {
+	// Criticals off, so the assertion is about the blast rather than a roll.
+	g.mu.Lock()
+	spell := g.spells["2"]
+	spell.CriticalChance = 0
+	g.spells["2"] = spell
+	g.mu.Unlock()
+
+	if err := g.CastSpell("a", 2, types.Position{X: 0, Y: 3}); err != nil {
 		t.Fatalf("CastSpell: %v", err)
 	}
-	if hp := health(t, g, "b"); hp != StartingHealth-30 {
-		t.Errorf("target health = %d, want %d", hp, StartingHealth-30)
+	if hp := health(t, g, "b"); hp != StartingHealth-18 {
+		t.Errorf("target health = %d, want %d", hp, StartingHealth-18)
 	}
 	if ap := g.Snapshot().Players["a"].Character.ActionPoints; ap != StartingActionPoints-4 {
 		t.Errorf("caster AP = %d, want %d", ap, StartingActionPoints-4)
@@ -281,7 +288,7 @@ func TestCastIsRejectedWhenItBreaksTheRules(t *testing.T) {
 		want    error
 	}{
 		{"unknown spell", 99, types.Position{X: 0, Y: 1}, ErrUnknownSpell},
-		{"beyond range", 4, types.Position{X: 0, Y: 6}, ErrOutOfRange}, // range 3
+		{"beyond range", 8, types.Position{X: 0, Y: 6}, ErrOutOfRange}, // range 3
 		{"off the board", 1, types.Position{X: 40, Y: 0}, ErrOffGrid},
 	}
 	for _, tc := range cases {
@@ -303,17 +310,24 @@ func TestCastIsRejectedWhenItBreaksTheRules(t *testing.T) {
 func TestCastIsRejectedWithoutEnoughActionPoints(t *testing.T) {
 	g := twoPlayerGame(t)
 
-	// Poison Dart costs 2 AP; three casts leave no room for a fourth.
+	// Ember costs 2 AP; three casts spend all six and leave no room for a
+	// fourth. Criticals off so the damage assertion is exact.
+	g.mu.Lock()
+	spell := g.spells["1"]
+	spell.CriticalChance = 0
+	g.spells["1"] = spell
+	g.mu.Unlock()
+
 	for i := 0; i < 3; i++ {
-		if err := g.CastSpell("a", 3, types.Position{X: 0, Y: 3}); err != nil {
+		if err := g.CastSpell("a", 1, types.Position{X: 0, Y: 3}); err != nil {
 			t.Fatalf("cast %d: %v", i, err)
 		}
 	}
-	if err := g.CastSpell("a", 3, types.Position{X: 0, Y: 3}); !errors.Is(err, ErrNotEnoughAP) {
+	if err := g.CastSpell("a", 1, types.Position{X: 0, Y: 3}); !errors.Is(err, ErrNotEnoughAP) {
 		t.Errorf("fourth cast = %v, want ErrNotEnoughAP", err)
 	}
-	if hp := health(t, g, "b"); hp != StartingHealth-30 {
-		t.Errorf("target health = %d, want %d after exactly three darts", hp, StartingHealth-30)
+	if hp := health(t, g, "b"); hp != StartingHealth-21 {
+		t.Errorf("target health = %d, want %d after exactly three embers", hp, StartingHealth-21)
 	}
 }
 
@@ -326,7 +340,8 @@ func TestGameEndsWhenOneCharacterRemains(t *testing.T) {
 
 	g.mu.Lock()
 	p := g.players["b"]
-	p.Character.Health = 10
+	// Below Ember's damage, so one cast finishes it whatever the critical roll.
+	p.Character.Health = 5
 	g.players["b"] = p
 	g.mu.Unlock()
 

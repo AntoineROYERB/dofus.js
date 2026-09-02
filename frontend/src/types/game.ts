@@ -1,4 +1,4 @@
-import { SpellState } from "./message";
+import { Effect, SpellState } from "./message";
 
 export type Position = {
   x: number;
@@ -17,6 +17,8 @@ export type Character = {
   health: number;
   maxHealth: number;
   isAlive: boolean;
+  /** Status effects currently riding on this character. */
+  effects: Effect[] | null;
 };
 
 export interface Player {

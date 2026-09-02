@@ -17,8 +17,8 @@ func TestBotCastsTheStrongestSpellItCanAfford(t *testing.T) {
 	if action.Kind != BotCast {
 		t.Fatalf("action = %+v, want a cast", action)
 	}
-	if action.SpellID != 1 {
-		t.Errorf("spell = %d, want 1 (Fireball, the most damaging affordable one)", action.SpellID)
+	if action.SpellID != 2 {
+		t.Errorf("spell = %d, want 2 (Fireball, the most damaging affordable one)", action.SpellID)
 	}
 	if action.Target != (types.Position{X: 0, Y: 3}) {
 		t.Errorf("target = %+v, want the enemy's cell", action.Target)
@@ -162,7 +162,7 @@ func TestAHumanCanPlayAWholeMatchAgainstTheBot(t *testing.T) {
 	}
 
 	// Drive both sides: the bot plays itself, the human always attacks or closes in.
-	for step := 0; step < 400 && g.Status() == types.StatusPlaying; step++ {
+	for step := 0; step < 1200 && g.Status() == types.StatusPlaying; step++ {
 		if id, isBot := g.CurrentBot(); isBot && id == botID {
 			g.PlayBotStep()
 			continue
@@ -183,7 +183,7 @@ func TestAHumanCanPlayAWholeMatchAgainstTheBot(t *testing.T) {
 	}
 
 	if g.Status() != types.StatusGameOver {
-		t.Fatalf("status = %q after 400 steps, want a finished match", g.Status())
+		t.Fatalf("status = %q after 1200 steps, want a finished match", g.Status())
 	}
 	if _, over := g.Winner(); !over {
 		t.Error("the match ended without a winner")

@@ -29,7 +29,28 @@ type Character struct {
 	Health           int        `json:"health"`
 	MaxHealth        int        `json:"maxHealth"`
 	IsAlive          bool       `json:"isAlive"`
+	// Effects currently riding on this character, ticked at the start of its
+	// own turn.
+	Effects []Effect `json:"effects"`
 }
+
+// Effect is one status effect on a character: poison ticking away at it, a
+// shield soaking damage, points added or taken for a few turns.
+type Effect struct {
+	Kind      string `json:"kind"`
+	Value     int    `json:"value"`
+	TurnsLeft int    `json:"turnsLeft"`
+	Source    string `json:"source"`
+}
+
+// Effect kinds.
+const (
+	EffectPoison = "poison" // damage at the start of the victim's turn
+	EffectRegen  = "regen"  // healing at the start of its turn
+	EffectAP     = "ap"     // action points added (or removed, when negative)
+	EffectMP     = "mp"     // movement points added or removed
+	EffectShield = "shield" // flat damage soaked from each hit
+)
 
 type Player struct {
 	UserID        string    `json:"userId"`
@@ -71,6 +92,8 @@ type GameState struct {
 	TurnEndsAt int64 `json:"turnEndsAt"`
 	// Log is the recent combat history, oldest first and bounded.
 	Log []LogEntry `json:"log"`
+	// Obstacles are cells nobody can stand on and nothing can be seen through.
+	Obstacles []Position `json:"obstacles"`
 }
 
 // LogEntry is one line of the combat log. The client renders these; without
@@ -87,10 +110,11 @@ type LogEntry struct {
 
 // Log entry kinds.
 const (
-	LogCast  = "cast"
-	LogDeath = "death"
-	LogTurn  = "turn"
-	LogEnd   = "end"
+	LogCast   = "cast"
+	LogDeath  = "death"
+	LogTurn   = "turn"
+	LogEnd    = "end"
+	LogEffect = "effect"
 )
 
 // Spell is the single source of truth for the spell catalogue: the client no
@@ -113,6 +137,19 @@ type Spell struct {
 	// CriticalChance is a percentage; CriticalDamage replaces Damage on a hit.
 	CriticalChance int `json:"criticalChance"`
 	CriticalDamage int `json:"criticalDamage"`
+	// Effect, when set, is applied on top of the damage. Always serialised, so
+	// the client sees an explicit null rather than a missing field.
+	Effect *SpellEffect `json:"effect"`
+}
+
+// SpellEffect describes the status effect a spell leaves behind.
+type SpellEffect struct {
+	Kind     string `json:"kind"`
+	Value    int    `json:"value"`
+	Duration int    `json:"duration"`
+	// OnSelf applies the effect to the caster instead of to what it hit, which
+	// is how a spell buffs or shields its own caster.
+	OnSelf bool `json:"onSelf"`
 }
 
 // RoomSummary is one line in the lobby list.

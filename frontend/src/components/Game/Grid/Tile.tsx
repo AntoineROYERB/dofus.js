@@ -28,6 +28,8 @@ interface TileProps {
   isInRange: boolean;
   isPathCell: boolean;
   hoveredPosition: Position | null;
+  /** Cover: nobody stands here and nothing is seen through it. */
+  isObstacle: boolean;
 }
 
 export const Tile: React.FC<TileProps> = ({
@@ -47,6 +49,7 @@ export const Tile: React.FC<TileProps> = ({
   isInRange,
   isPathCell,
   hoveredPosition,
+  isObstacle,
 }) => {
   // Generate points for diamond
   const points = `${tileSize.width / 2},0 ${tileSize.width},${
@@ -70,6 +73,7 @@ export const Tile: React.FC<TileProps> = ({
       : undefined;
 
   const getTileFillColor = (): string => {
+    if (isObstacle) return "#57534e";
     if (isPositioningPhase && initialPositionOwner) {
       const isCurrentPlayerInitial = initialPositionOwner.isCurrentPlayer;
 

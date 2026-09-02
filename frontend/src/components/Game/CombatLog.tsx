@@ -10,6 +10,7 @@ const tone: Record<LogEntry["kind"], string> = {
   death: "text-red-700 font-medium",
   turn: "text-stone-400",
   end: "text-emerald-700 font-medium",
+  effect: "text-violet-700",
 };
 
 /**

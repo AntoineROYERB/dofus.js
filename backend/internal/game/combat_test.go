@@ -84,8 +84,8 @@ func TestSpellWithoutLineOfSightRequirementIgnoresScreens(t *testing.T) {
 		"c": {X: 0, Y: 2},
 	}, "a", "b", "c")
 
-	// Gwendo na Gwendo (id 4) has needsLineOfSight false.
-	if err := g.CastSpell("a", 4, types.Position{X: 0, Y: 2}); err != nil {
+	// Gwendo na Gwendo (id 8) has needsLineOfSight false.
+	if err := g.CastSpell("a", 8, types.Position{X: 0, Y: 2}); err != nil {
 		t.Fatalf("CastSpell that ignores sight: %v", err)
 	}
 }
@@ -94,9 +94,9 @@ func TestSpellRespectsItsCastsPerTurn(t *testing.T) {
 	g := twoPlayerGame(t)
 	target := types.Position{X: 0, Y: 3}
 
-	// Ice Spike: three casts a turn and no cooldown, so the per-turn limit is
-	// the only thing that can stop it. Action points are lifted out of the way
-	// so the limit is what is actually under test.
+	// Ember: three casts a turn and no cooldown, so the per-turn limit is the
+	// only thing that can stop it. Action points are lifted out of the way so
+	// the limit is what is actually under test.
 	g.mu.Lock()
 	p := g.players["a"]
 	p.Character.ActionPoints = 99
@@ -104,35 +104,12 @@ func TestSpellRespectsItsCastsPerTurn(t *testing.T) {
 	g.mu.Unlock()
 
 	for i := 1; i <= 3; i++ {
-		if err := g.CastSpell("a", 2, target); err != nil {
+		if err := g.CastSpell("a", 1, target); err != nil {
 			t.Fatalf("cast %d: %v", i, err)
 		}
 	}
-	if err := g.CastSpell("a", 2, target); !errors.Is(err, ErrTooManyCasts) {
+	if err := g.CastSpell("a", 1, target); !errors.Is(err, ErrTooManyCasts) {
 		t.Errorf("fourth cast = %v, want ErrTooManyCasts", err)
-	}
-}
-
-// Fireball carries MaxCastsPerTurn 2 alongside a one-turn cooldown, and costs
-// 4 of a player's 6 action points. Both of those already make a second cast
-// impossible, so the limit is unreachable — inherited from data that nothing
-// used to enforce. Recorded here rather than silently "fixed": the numbers are
-// a design call.
-func TestFireballsPerTurnLimitIsUnreachable(t *testing.T) {
-	g := twoPlayerGame(t)
-	target := types.Position{X: 0, Y: 3}
-
-	g.mu.Lock()
-	p := g.players["a"]
-	p.Character.ActionPoints = 99 // remove the AP constraint
-	g.players["a"] = p
-	g.mu.Unlock()
-
-	if err := g.CastSpell("a", 1, target); err != nil {
-		t.Fatalf("first cast: %v", err)
-	}
-	if err := g.CastSpell("a", 1, target); !errors.Is(err, ErrSpellOnCooldown) {
-		t.Errorf("second cast = %v, want the cooldown to stop it first", err)
 	}
 }
 
@@ -140,21 +117,21 @@ func TestCooldownBlocksTheNextTurnAndThenClears(t *testing.T) {
 	g := twoPlayerGame(t)
 	target := types.Position{X: 0, Y: 3}
 
-	// Fireball has a one-turn cooldown.
-	if err := g.CastSpell("a", 1, target); err != nil {
+	// Frost Nova has a one-turn cooldown.
+	if err := g.CastSpell("a", 5, target); err != nil {
 		t.Fatalf("first cast: %v", err)
 	}
-	if got := g.Snapshot().Players["a"].Spells["1"].CooldownLeft; got != 1 {
+	if got := g.Snapshot().Players["a"].Spells["5"].CooldownLeft; got != 1 {
 		t.Fatalf("cooldown after casting = %d, want 1", got)
 	}
 
 	mustEndTurn(t, g) // a -> b
 	mustEndTurn(t, g) // b -> a, one tick off the cooldown
 
-	if got := g.Snapshot().Players["a"].Spells["1"].CooldownLeft; got != 0 {
+	if got := g.Snapshot().Players["a"].Spells["5"].CooldownLeft; got != 0 {
 		t.Fatalf("cooldown after a full round = %d, want 0", got)
 	}
-	if err := g.CastSpell("a", 1, target); err != nil {
+	if err := g.CastSpell("a", 5, target); err != nil {
 		t.Errorf("cast once the cooldown expired: %v", err)
 	}
 }
@@ -163,20 +140,20 @@ func TestCastsPerTurnResetAtTheStartOfATurn(t *testing.T) {
 	g := twoPlayerGame(t)
 	target := types.Position{X: 0, Y: 3}
 
-	// Poison Dart: 2 AP, four casts a turn, no cooldown.
+	// Ember: 2 AP, three casts a turn, no cooldown.
 	for i := 0; i < 3; i++ {
-		if err := g.CastSpell("a", 3, target); err != nil {
+		if err := g.CastSpell("a", 1, target); err != nil {
 			t.Fatalf("cast %d: %v", i, err)
 		}
 	}
-	if got := g.Snapshot().Players["a"].Spells["3"].CastsThisTurn; got != 3 {
+	if got := g.Snapshot().Players["a"].Spells["1"].CastsThisTurn; got != 3 {
 		t.Fatalf("casts this turn = %d, want 3", got)
 	}
 
 	mustEndTurn(t, g)
 	mustEndTurn(t, g)
 
-	if got := g.Snapshot().Players["a"].Spells["3"].CastsThisTurn; got != 0 {
+	if got := g.Snapshot().Players["a"].Spells["1"].CastsThisTurn; got != 0 {
 		t.Errorf("casts this turn = %d after the turn came round, want 0", got)
 	}
 }
@@ -186,8 +163,8 @@ func TestCastsPerTurnResetAtTheStartOfATurn(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestCriticalHitsReplaceTheDamage(t *testing.T) {
-	// Poison Dart: 10 damage, 15 on a critical, 20% chance. Over many casts
-	// both outcomes have to show up, and only those two.
+	// Ember: 7 damage, 11 on a critical, 20% chance. Over many casts both
+	// outcomes have to show up, and only those two.
 	seen := map[int]int{}
 	for seed := 0; seed < 60; seed++ {
 		g := playingGame(t, map[string]types.Position{
@@ -198,18 +175,18 @@ func TestCriticalHitsReplaceTheDamage(t *testing.T) {
 		g.rng = rand.New(rand.NewSource(int64(seed)))
 		g.mu.Unlock()
 
-		if err := g.CastSpell("a", 3, types.Position{X: 0, Y: 3}); err != nil {
+		if err := g.CastSpell("a", 1, types.Position{X: 0, Y: 3}); err != nil {
 			t.Fatalf("CastSpell: %v", err)
 		}
 		seen[StartingHealth-g.Snapshot().Players["b"].Character.Health]++
 	}
 
 	for dmg := range seen {
-		if dmg != 10 && dmg != 15 {
-			t.Errorf("saw %d damage, want only 10 (normal) or 15 (critical)", dmg)
+		if dmg != 7 && dmg != 11 {
+			t.Errorf("saw %d damage, want only 7 (normal) or 11 (critical)", dmg)
 		}
 	}
-	if seen[10] == 0 || seen[15] == 0 {
+	if seen[7] == 0 || seen[11] == 0 {
 		t.Errorf("over 60 casts the outcomes were %v, want both a normal and a critical", seen)
 	}
 }
@@ -222,12 +199,12 @@ func TestCriticalIsRecordedInTheLog(t *testing.T) {
 
 	// A spell that always crits, so the assertion does not depend on a roll.
 	g.mu.Lock()
-	spell := g.spells["3"]
+	spell := g.spells["1"]
 	spell.CriticalChance = 100
-	g.spells["3"] = spell
+	g.spells["1"] = spell
 	g.mu.Unlock()
 
-	if err := g.CastSpell("a", 3, types.Position{X: 0, Y: 3}); err != nil {
+	if err := g.CastSpell("a", 1, types.Position{X: 0, Y: 3}); err != nil {
 		t.Fatalf("CastSpell: %v", err)
 	}
 
@@ -236,8 +213,8 @@ func TestCriticalIsRecordedInTheLog(t *testing.T) {
 	if last.Kind != types.LogCast || !last.Crit {
 		t.Fatalf("last log entry = %+v, want a critical cast", last)
 	}
-	if last.Damage != 15 {
-		t.Errorf("logged damage = %d, want 15", last.Damage)
+	if last.Damage != 11 {
+		t.Errorf("logged damage = %d, want 11", last.Damage)
 	}
 }
 
@@ -254,7 +231,7 @@ func TestLogRecordsTurnsCastsAndDeaths(t *testing.T) {
 	g.players["b"] = p
 	g.mu.Unlock()
 
-	if err := g.CastSpell("a", 3, types.Position{X: 0, Y: 3}); err != nil {
+	if err := g.CastSpell("a", 1, types.Position{X: 0, Y: 3}); err != nil {
 		t.Fatalf("CastSpell: %v", err)
 	}
 
@@ -348,7 +325,7 @@ func TestBotStillFinishesAMatchUnderTheNewRules(t *testing.T) {
 		t.Fatalf("ChooseInitialPosition: %v", err)
 	}
 
-	for step := 0; step < 600 && g.Status() == types.StatusPlaying; step++ {
+	for step := 0; step < 1200 && g.Status() == types.StatusPlaying; step++ {
 		if _, isBot := g.CurrentBot(); isBot {
 			g.PlayBotStep()
 			continue
@@ -369,6 +346,6 @@ func TestBotStillFinishesAMatchUnderTheNewRules(t *testing.T) {
 	}
 
 	if g.Status() != types.StatusGameOver {
-		t.Fatalf("status = %q after 600 steps, want a finished match", g.Status())
+		t.Fatalf("status = %q after 1200 steps, want a finished match", g.Status())
 	}
 }

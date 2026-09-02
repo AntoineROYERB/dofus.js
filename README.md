@@ -30,7 +30,9 @@ Then open <http://localhost>. Pick a name and a colour, and either **play
 against the computer** or open a game and wait for someone to join. Two
 browser tabs are enough for a real 1v1.
 
-Number keys `1`–`4` pick a spell, `Escape` drops the selection.
+Number keys `1`–`8` pick a spell, `Escape` drops the selection. Cover blocks
+both movement and line of sight; `Gwendo na Gwendo` is the one spell that
+reaches through it.
 
 <details>
 <summary>Without Docker</summary>

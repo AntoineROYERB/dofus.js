@@ -2,6 +2,7 @@ import React from "react";
 import { GameState } from "../../types/message";
 import { MainButton } from "./Button";
 import { TurnClock } from "./TurnClock";
+import { EffectBadges } from "./EffectBadges";
 import { GameStatus, Player, Position } from "../../types/game";
 
 interface GameInfoPanelProps {
@@ -62,6 +63,7 @@ export const GameInfoPanel: React.FC<GameInfoPanelProps> = ({
               <span className="font-medium truncate">
                 {currentPlayer?.character?.name}
               </span>
+              <EffectBadges effects={currentPlayer?.character?.effects} />
               <span
                 className={`inline-block w-2 h-2 rounded-full ${
                   connected ? "bg-green-500" : "bg-red-500"
@@ -122,6 +124,7 @@ export const GameInfoPanel: React.FC<GameInfoPanelProps> = ({
                       out
                     </span>
                   )}
+                  <EffectBadges effects={player.character.effects} />
                   <span className="ml-auto tabular-nums">
                     {player.character.health}
                   </span>
