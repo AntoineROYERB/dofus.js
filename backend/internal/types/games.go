@@ -100,12 +100,23 @@ type GameState struct {
 // them a spell that missed because of line of sight, or one that landed as a
 // critical, looked exactly like a spell that did nothing.
 type LogEntry struct {
+	// Seq is a per-game counter that never repeats. The log is a bounded tail
+	// resent whole with every state, so without it a client cannot tell an
+	// entry it has already seen from one that just happened — which is what
+	// the spell effects key off to fire exactly once.
+	Seq    int64  `json:"seq"`
 	Turn   int    `json:"turn"`
 	Actor  string `json:"actor"`
 	Kind   string `json:"kind"`
 	Text   string `json:"text"`
 	Damage int    `json:"damage,omitempty"`
 	Crit   bool   `json:"crit,omitempty"`
+	// What a cast was, for the client to draw. The line alone said that a
+	// spell had been cast but not which one, nor from where to where, so every
+	// spell could only ever be drawn the same way.
+	SpellID int       `json:"spellId,omitempty"`
+	Origin  *Position `json:"origin,omitempty"`
+	Target  *Position `json:"target,omitempty"`
 }
 
 // Log entry kinds.
