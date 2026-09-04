@@ -9,8 +9,11 @@ import { blockedBy, hasLineOfSight, reachable } from "../../../utils/board";
 import { Tile } from "./Tile";
 import { isInSpellRange } from "../../../utils/spellUtils";
 import { Character } from "./Character";
+import { Socle } from "./Socle";
+import { HitFeedback } from "./HitFeedback";
 import { SpellFXLayer } from "./SpellFXLayer";
 import { useCharacterAnimations } from "../../../hooks/useCharacterAnimations";
+import { useHitFeedback } from "../../../hooks/useHitFeedback";
 import { useGridInteraction } from "../../../hooks/useGridInteraction";
 import { useTileSize } from "../../../hooks/useTileSize";
 import { GameState } from "../../../types/message";
@@ -121,6 +124,9 @@ export const Grid: React.FC<GridProps> = ({
     tileSize,
     containerRef
   );
+
+  // Who just lost health, and how much. Empty for most of a turn.
+  const hits = useHitFeedback(latestGameState ?? null);
 
   const { hoveredPosition, pathCells, impactedCells, confirmsTap } =
     useGridInteraction({
@@ -312,6 +318,27 @@ export const Grid: React.FC<GridProps> = ({
           boardRef={boardRef}
           containerRef={containerRef}
         />
+        {/*
+          Above the scars rather than under them: a scorch mark is scenery, and
+          the ring is the one thing on the board that says which fighter is
+          which. Not drawn while starting cells are being picked, where the
+          board is already carrying a green and a red of its own.
+        */}
+        {!isPositioningPhase &&
+          Object.entries(characterRenderState).map(([playerId, renderData]) => {
+            const player = players?.[playerId];
+            if (!renderData || !player) return null;
+            return (
+              <Socle
+                key={`socle-${playerId}`}
+                screenPosition={renderData.screenPosition}
+                tileSize={tileSize}
+                color={player.character.color}
+                isPlaying={player.isCurrentTurn}
+                isAlive={player.character.isAlive}
+              />
+            );
+          })}
         {Object.entries(characterRenderState).map(([playerId, renderData]) => {
           if (!renderData) return null;
           return (
@@ -321,6 +348,23 @@ export const Grid: React.FC<GridProps> = ({
               animation={renderData.animation}
               direction={renderData.direction}
               scale={tileSize.width / 256}
+              color={players?.[playerId]?.character.color}
+            />
+          );
+        })}
+        {/*
+          What the spell actually took off, over the fighter it took it off.
+          Nothing is drawn over a character nobody has touched.
+        */}
+        {Object.entries(hits).map(([playerId, hit]) => {
+          const renderData = characterRenderState[playerId];
+          if (!renderData) return null;
+          return (
+            <HitFeedback
+              key={`hit-${playerId}`}
+              screenPosition={renderData.screenPosition}
+              tileSize={tileSize}
+              hit={hit}
             />
           );
         })}
@@ -358,6 +402,7 @@ export const Grid: React.FC<GridProps> = ({
             animation="idle"
             direction="S"
             scale={tileSize.width / 256}
+            color={currentPlayer?.character.color}
           />
         )}
       </div>

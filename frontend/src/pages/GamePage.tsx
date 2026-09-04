@@ -14,6 +14,7 @@ import { readCharacter } from "../utils/characterStorage";
 import { blockedBy, findPath } from "../utils/board";
 import { RotateHint } from "../components/Game/RotateHint";
 import { SideRail } from "../components/Game/SideRail";
+import { useRejectionBanner } from "../hooks/useRejectionBanner";
 
 /** What the turn zone says above the countdown. */
 const phaseLabel = (status: GameStatus, isMyTurn: boolean | undefined) => {
@@ -46,7 +47,7 @@ function GamePage() {
   const [selectedPosition, setSelectedPosition] = useState<Position | null>(
     null
   );
-  const [visibleRejection, setVisibleRejection] = useState<string | null>(null);
+  const visibleRejection = useRejectionBanner(rejection);
   // Below lg the rail is a sheet: the board keeps the screen until asked.
   const [railOpen, setRailOpen] = useState(false);
 
@@ -86,13 +87,6 @@ function GamePage() {
       character,
     });
   }, [connected, roomId, character, userHasCharacter, sendGameAction]);
-
-  useEffect(() => {
-    if (!rejection) return;
-    setVisibleRejection(rejection.reason);
-    const timer = setTimeout(() => setVisibleRejection(null), 4000);
-    return () => clearTimeout(timer);
-  }, [rejection]);
 
   const act = (action: GameAction) => sendGameAction(action);
 

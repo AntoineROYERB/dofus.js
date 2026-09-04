@@ -4,6 +4,7 @@ import { useWebSocket } from "../context/WebSocketContext";
 import { generateMessageId } from "../utils/messageUtils";
 import { RoomSummary } from "../types/message";
 import { readCharacter } from "../utils/characterStorage";
+import { useRejectionBanner } from "../hooks/useRejectionBanner";
 
 const statusLabel: Record<string, string> = {
   creating_player: "Waiting for players",
@@ -50,8 +51,8 @@ const LobbyPage: React.FC = () => {
     useWebSocket();
   const navigate = useNavigate();
   const [newRoomName, setNewRoomName] = useState("");
-  const [notice, setNotice] = useState<string | null>(null);
   const [roomNameFocused, setRoomNameFocused] = useState(false);
+  const notice = useRejectionBanner(rejection);
 
   const character = readCharacter();
 
@@ -65,13 +66,6 @@ const LobbyPage: React.FC = () => {
   useEffect(() => {
     if (roomId) navigate("/game");
   }, [roomId, navigate]);
-
-  useEffect(() => {
-    if (!rejection) return;
-    setNotice(rejection.reason);
-    const timer = setTimeout(() => setNotice(null), 4000);
-    return () => clearTimeout(timer);
-  }, [rejection]);
 
   const createRoom = (event: React.FormEvent) => {
     event.preventDefault();
