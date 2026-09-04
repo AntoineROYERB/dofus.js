@@ -2,6 +2,7 @@ package game
 
 import (
 	"errors"
+	"math/rand"
 	"testing"
 
 	"game-server/internal/types"
@@ -104,6 +105,59 @@ func TestRematchCanBePlayedThrough(t *testing.T) {
 	}
 	if g.Status() != types.StatusPlaying {
 		t.Errorf("status = %q, want the rematch to be under way", g.Status())
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Placement visibility
+// ---------------------------------------------------------------------------
+
+// A player who places second would otherwise always know exactly where the
+// first is standing before a single spell has been cast.
+func TestAnOpponentsStartingCellIsHiddenUntilPlayBegins(t *testing.T) {
+	g := NewWithRand(rand.New(rand.NewSource(1)))
+	for _, id := range []string{"a", "b"} {
+		if err := g.AddPlayer(id, "User-"+id, look("Player"+id)); err != nil {
+			t.Fatalf("AddPlayer(%s): %v", id, err)
+		}
+		if err := g.SetReady(id); err != nil {
+			t.Fatalf("SetReady(%s): %v", id, err)
+		}
+	}
+	if g.Status() != types.StatusPositionCharacters {
+		t.Fatalf("status = %q, want %q", g.Status(), types.StatusPositionCharacters)
+	}
+
+	posA := g.Snapshot().Players["a"].Character.InitialPositions[0]
+	if err := g.ChooseInitialPosition("a", posA); err != nil {
+		t.Fatalf("ChooseInitialPosition(a): %v", err)
+	}
+
+	// "a" has placed, "b" has not: the fight has not started.
+	if g.Status() != types.StatusPositionCharacters {
+		t.Fatalf("status = %q, want the placement phase to still be open", g.Status())
+	}
+
+	if pos := g.SnapshotFor("b").Players["a"].Character.Position; pos != nil {
+		t.Errorf("b's view of a's position = %+v, want it withheld", *pos)
+	}
+	if pos := g.SnapshotFor("a").Players["a"].Character.Position; pos == nil {
+		t.Error("a's view of a's own position = nil, want it visible")
+	}
+	if pos := g.Snapshot().Players["a"].Character.Position; pos == nil {
+		t.Error("the unfiltered snapshot must still carry every position")
+	}
+
+	posB := g.Snapshot().Players["b"].Character.InitialPositions[0]
+	if err := g.ChooseInitialPosition("b", posB); err != nil {
+		t.Fatalf("ChooseInitialPosition(b): %v", err)
+	}
+	if g.Status() != types.StatusPlaying {
+		t.Fatalf("status = %q, want the fight under way", g.Status())
+	}
+
+	if pos := g.SnapshotFor("b").Players["a"].Character.Position; pos == nil {
+		t.Error("b's view of a's position once play begins = nil, want it visible")
 	}
 }
 

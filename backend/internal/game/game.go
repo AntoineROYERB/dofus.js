@@ -101,6 +101,27 @@ func (g *Game) Snapshot() types.GameState {
 	return g.snapshotLocked()
 }
 
+// SnapshotFor is a viewer-scoped snapshot. While players are still choosing
+// where to start, another character's chosen cell is withheld from everyone
+// but that character's own owner — otherwise the last player to place would
+// always know exactly where the other is standing before the fight even
+// starts. Once play begins every position is visible again.
+func (g *Game) SnapshotFor(viewerID string) types.GameState {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+	state := g.snapshotLocked()
+	if g.status == types.StatusPositionCharacters {
+		for id, p := range state.Players {
+			if id == viewerID {
+				continue
+			}
+			p.Character.Position = nil
+			state.Players[id] = p
+		}
+	}
+	return state
+}
+
 func (g *Game) snapshotLocked() types.GameState {
 	players := make(map[string]types.Player, len(g.players))
 	for id, p := range g.players {

@@ -90,10 +90,18 @@ export const Tile: React.FC<TileProps> = ({
       stroke: BOARD.accent,
       strokeWidth: BOARD.strokes.marked,
     });
+    // Green means you may start here — a different question from targeting,
+    // so it keeps a colour vermilion never wears during positioning.
+    const placeable = (opacity: number): Wash => ({
+      fill: BOARD.place,
+      opacity,
+      stroke: BOARD.place,
+      strokeWidth: BOARD.strokes.marked,
+    });
 
     if (isPositioningPhase && initialPositionOwner) {
       if (initialPositionOwner.isCurrentPlayer) {
-        return marked(isHovered ? 0.42 : 0.18);
+        return placeable(isHovered ? 0.42 : 0.18);
       }
       // An opponent's starting cells keep their own colour, but only as a
       // tint: on this board the one thing allowed to be saturated is the mark
