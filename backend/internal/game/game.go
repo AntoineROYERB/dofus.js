@@ -236,6 +236,7 @@ func (g *Game) AddPlayer(userID, userName string, look types.CharacterAppearance
 			IsAlive:        true,
 		},
 	}
+	g.startPlacementIfReadyLocked()
 	return nil
 }
 
@@ -313,7 +314,6 @@ func (g *Game) Restart() error {
 
 func (g *Game) returnToLobbyLocked() {
 	for id, p := range g.players {
-		p.IsReady = false
 		p.HasPositioned = false
 		p.IsCurrentTurn = false
 		p.Character.Health = StartingHealth
@@ -338,6 +338,11 @@ func (g *Game) returnToLobbyLocked() {
 	g.turnEndsAt = time.Time{}
 	g.log = nil
 	g.obstacles = nil
+
+	// A rematch between two players who are both still here goes straight back
+	// to choosing cells. Only a room that has dropped below a duel waits, and
+	// it waits for an opponent rather than for a button.
+	g.startPlacementIfReadyLocked()
 }
 
 // freshSpellStateLocked gives a player a clean slate for every spell.
@@ -437,32 +442,16 @@ func (g *Game) HasPlayer(userID string) bool {
 	return ok
 }
 
-// SetReady marks a player ready and starts the placement phase once everyone
-// is ready and there are enough players.
-func (g *Game) SetReady(userID string) error {
-	g.mu.Lock()
-	defer g.mu.Unlock()
-
-	if g.status != types.StatusCreatingPlayer {
-		return ErrWrongPhase
-	}
-	p, ok := g.players[userID]
-	if !ok {
-		return ErrNoCharacter
-	}
-	p.IsReady = true
-	g.players[userID] = p
-
-	if len(g.players) < MinPlayers {
-		return nil
-	}
-	for _, other := range g.players {
-		if !other.IsReady {
-			return nil
-		}
+// startPlacementIfReadyLocked opens the placement phase as soon as the room
+// holds a full duel. There is no separate "ready" step: a player who has
+// joined has said everything there is to say, and the only thing left to
+// decide is where to stand. The button that used to say Ready said nothing
+// the act of joining had not already said.
+func (g *Game) startPlacementIfReadyLocked() {
+	if g.status != types.StatusCreatingPlayer || len(g.players) < MinPlayers {
+		return
 	}
 	g.beginPlacementLocked()
-	return nil
 }
 
 func (g *Game) beginPlacementLocked() {

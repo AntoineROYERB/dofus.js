@@ -3,12 +3,9 @@ import { Position } from "../../types/game";
 interface mainButtonProps {
   gameStatus: string;
   connected: boolean;
-  handleReadyClick: () => void;
   handleEndTurnClick: () => void;
   handleFightClick: () => void;
-  isPlayerReady: boolean | undefined;
   isMyTurn: boolean | undefined;
-  userHasCharacter: boolean;
   selectedPosition: Position | undefined;
   isPlayerPositioned: boolean | undefined;
 }
@@ -21,35 +18,25 @@ const style =
 export const MainButton: React.FC<mainButtonProps> = ({
   gameStatus,
   connected,
-  handleReadyClick,
   handleEndTurnClick,
-  isPlayerReady,
   isMyTurn,
   handleFightClick,
-  userHasCharacter,
   selectedPosition,
   isPlayerPositioned,
 }) => {
-  if (gameStatus === "creating_player" && userHasCharacter) {
-    return (
-      <button
-        className={style}
-        disabled={!connected || isPlayerReady}
-        onClick={handleReadyClick}
-      >
-        {isPlayerReady ? "Waiting for others…" : "Ready"}
-      </button>
-    );
-  }
-
+  /*
+   * There is no "ready" step. Joining a room says everything a Ready button
+   * used to say, so the only thing left to decide is where to stand, and
+   * Fight is the one button that says it.
+   */
   if (gameStatus === "position_characters") {
     return (
       <button
         className={style}
-        disabled={!selectedPosition || isPlayerPositioned}
+        disabled={!connected || !selectedPosition || isPlayerPositioned}
         onClick={handleFightClick}
       >
-        {isPlayerPositioned ? "Waiting for others…" : "Fight"}
+        {isPlayerPositioned ? "Waiting for your opponent…" : "Fight"}
       </button>
     );
   }
@@ -66,11 +53,14 @@ export const MainButton: React.FC<mainButtonProps> = ({
   // underneath it would only be something to click by mistake.
   if (gameStatus === "game_over") return null;
 
-  // The character is created automatically on entering a room, so there is
-  // nothing for the player to click here.
+  /*
+   * Before a duel is complete there is nothing to click: the character is
+   * created on entering the room, and the fight opens by itself the moment an
+   * opponent arrives. All this state has to do is say what is being waited on.
+   */
   return (
     <p className="py-3 text-center text-xs text-muted">
-      {connected ? "Joining the game…" : "Reconnecting…"}
+      {!connected ? "Reconnecting…" : "Waiting for an opponent…"}
     </p>
   );
 };

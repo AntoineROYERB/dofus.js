@@ -19,28 +19,42 @@ func playingGame(t *testing.T, placement map[string]types.Position, order ...str
 	t.Helper()
 
 	g := NewWithRand(rand.New(rand.NewSource(1)))
-	for _, id := range order {
-		if err := g.AddPlayer(id, "User-"+id, look("Player"+id)); err != nil {
-			t.Fatalf("AddPlayer(%s): %v", id, err)
-		}
-	}
-	for _, id := range order {
-		if err := g.SetReady(id); err != nil {
-			t.Fatalf("SetReady(%s): %v", id, err)
-		}
-	}
-	if g.Status() != types.StatusPositionCharacters {
-		t.Fatalf("status = %q, want %q", g.Status(), types.StatusPositionCharacters)
-	}
 
-	// Replace the dealt cells with the ones the test asked for.
+	// Characters are seated directly rather than through AddPlayer. A room now
+	// holds a duel and opens placement the moment the second player arrives,
+	// which is the wrong ceremony for a test that wants a third character on
+	// the board to stand in a line of sight or take a turn.
 	g.mu.Lock()
+	for _, id := range order {
+		g.players[id] = types.Player{
+			UserID:    id,
+			UserName:  "User-" + id,
+			Connected: true,
+			Spells:    g.freshSpellStateLocked(),
+			Character: types.Character{
+				Name:           "Player" + id,
+				Color:          "#ff0000",
+				Symbol:         id[:1],
+				ActionPoints:   StartingActionPoints,
+				MovementPoints: StartingMovementPoints,
+				Health:         StartingHealth,
+				MaxHealth:      StartingHealth,
+				IsAlive:        true,
+			},
+		}
+	}
+	g.beginPlacementLocked()
+	// Replace the dealt cells with the ones the test asked for.
 	for id, pos := range placement {
 		p := g.players[id]
 		p.Character.InitialPositions = []types.Position{pos}
 		g.players[id] = p
 	}
 	g.mu.Unlock()
+
+	if g.Status() != types.StatusPositionCharacters {
+		t.Fatalf("status = %q, want %q", g.Status(), types.StatusPositionCharacters)
+	}
 
 	for _, id := range order {
 		if err := g.ChooseInitialPosition(id, placement[id]); err != nil {
@@ -243,6 +257,13 @@ func TestMoveIsRejectedWhenItBreaksTheRules(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			g := twoPlayerGame(t)
+			// These cases are about the movement rules, not about cover: a
+			// stone that happened to land on a target cell would have the
+			// board answering a different question than the one being asked.
+			g.mu.Lock()
+			g.obstacles = map[types.Position]bool{}
+			g.mu.Unlock()
+
 			if err := g.Move("a", tc.to); !errors.Is(err, tc.want) {
 				t.Errorf("Move to %+v = %v, want %v", tc.to, err, tc.want)
 			}
@@ -400,11 +421,8 @@ func TestNoActionsBeforeTheGameStarts(t *testing.T) {
 	if err := g.Move("a", types.Position{X: 1, Y: 0}); !errors.Is(err, ErrWrongPhase) {
 		t.Errorf("Move before start = %v, want ErrWrongPhase", err)
 	}
-	// A lone ready player must not start a game by themselves, and must not be
-	// declared the winner of one.
-	if err := g.SetReady("a"); err != nil {
-		t.Fatalf("SetReady: %v", err)
-	}
+	// Joining now starts the fight by itself, so the one thing standing
+	// between a lone player and a game they would win unopposed is the count.
 	if g.Status() != types.StatusCreatingPlayer {
 		t.Errorf("status with one player = %q, want %q", g.Status(), types.StatusCreatingPlayer)
 	}
@@ -422,11 +440,6 @@ func TestStartingCellMustBeOneThatWasOffered(t *testing.T) {
 	for _, id := range []string{"a", "b"} {
 		if err := g.AddPlayer(id, "User-"+id, look("Player"+id)); err != nil {
 			t.Fatalf("AddPlayer(%s): %v", id, err)
-		}
-	}
-	for _, id := range []string{"a", "b"} {
-		if err := g.SetReady(id); err != nil {
-			t.Fatalf("SetReady(%s): %v", id, err)
 		}
 	}
 

@@ -155,38 +155,77 @@ func roundHalf(v float64) float64 {
 	return float64(int(v + 0.5))
 }
 
-// DealInitialPositions hands each player its own set of starting cells, with
-// no overlap between players. Positions off the axes are preferred so the two
-// sides do not start facing each other down a straight line.
+// DealInitialPositions hands each player its own starting cells, with no
+// overlap between players.
+//
+// The cells used to be drawn at random from the whole board, which meant a
+// player's three choices could sit in three different corners with the
+// opponent's scattered between them. Nobody could see their starting area as
+// an area. Each side now gets one block of adjacent cells, and the blocks are
+// placed opposite each other so neither starts nearer the middle.
 func DealInitialPositions(playerIDs []string, rng *rand.Rand) map[string][]types.Position {
-	candidates := make([]types.Position, 0, 128)
-	for x := -GridRadius; x <= GridRadius; x++ {
-		for y := -GridRadius; y <= GridRadius; y++ {
-			if x == 0 || y == 0 {
-				continue
-			}
-			p := types.Position{X: x, Y: y}
-			if InGrid(p) {
-				candidates = append(candidates, p)
-			}
-		}
-	}
-
-	rng.Shuffle(len(candidates), func(i, j int) {
-		candidates[i], candidates[j] = candidates[j], candidates[i]
-	})
-
 	dealt := make(map[string][]types.Position, len(playerIDs))
-	next := 0
-	for _, id := range playerIDs {
-		positions := make([]types.Position, 0, InitialPositionChoices)
-		for len(positions) < InitialPositionChoices && next < len(candidates) {
-			positions = append(positions, candidates[next])
-			next++
-		}
-		dealt[id] = positions
+	taken := make(map[types.Position]bool)
+
+	anchors := startingAnchors(len(playerIDs), rng)
+	for i, id := range playerIDs {
+		dealt[id] = growCluster(anchors[i], InitialPositionChoices, taken)
 	}
 	return dealt
+}
+
+// startingAnchors picks where each player's block grows from. Every anchor is
+// the same distance from the centre, mirrored into a different quadrant, so a
+// duel cannot hand one side a shorter walk to the middle than the other.
+func startingAnchors(n int, rng *rand.Rand) []types.Position {
+	// Clear of both axes, so the block that grows around the anchor stays off
+	// them too and the two sides do not face each other down a straight line.
+	base := make([]types.Position, 0, 16)
+	for x := 2; x <= GridRadius-2; x++ {
+		for y := 2; y <= GridRadius-2; y++ {
+			if p := (types.Position{X: x, Y: y}); InGrid(p) {
+				base = append(base, p)
+			}
+		}
+	}
+	seed := base[rng.Intn(len(base))]
+
+	// Opposite quadrants first: with two players those are the only ones used.
+	signs := [4][2]int{{1, 1}, {-1, -1}, {1, -1}, {-1, 1}}
+	anchors := make([]types.Position, 0, n)
+	for i := 0; i < n; i++ {
+		s := signs[i%len(signs)]
+		anchors = append(anchors, types.Position{X: seed.X * s[0], Y: seed.Y * s[1]})
+	}
+	return anchors
+}
+
+// growCluster collects a block of adjacent cells around an anchor. It searches
+// outwards rather than insisting on the anchor itself, so a cluster is still
+// dealt when the anchor is on an axis or already spoken for.
+func growCluster(anchor types.Position, n int, taken map[types.Position]bool) []types.Position {
+	cluster := make([]types.Position, 0, n)
+	seen := map[types.Position]bool{anchor: true}
+	queue := []types.Position{anchor}
+
+	for len(queue) > 0 && len(cluster) < n {
+		cell := queue[0]
+		queue = queue[1:]
+
+		// Axis cells are skipped but still walked through, so the search can
+		// cross one instead of stopping at it.
+		if cell.X != 0 && cell.Y != 0 && !taken[cell] {
+			cluster = append(cluster, cell)
+			taken[cell] = true
+		}
+		for _, next := range Neighbours(cell) {
+			if !seen[next] {
+				seen[next] = true
+				queue = append(queue, next)
+			}
+		}
+	}
+	return cluster
 }
 
 func abs(n int) int {

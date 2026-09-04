@@ -147,7 +147,6 @@ func (g *Game) AddBot() (string, error) {
 		UserID:    id,
 		UserName:  "Cpu",
 		Connected: true,
-		IsReady:   true,
 		IsBot:     true,
 		Spells:    g.freshSpellStateLocked(),
 		Character: types.Character{
@@ -161,6 +160,7 @@ func (g *Game) AddBot() (string, error) {
 			IsAlive:        true,
 		},
 	}
+	g.startPlacementIfReadyLocked()
 	return id, nil
 }
 

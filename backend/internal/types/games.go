@@ -57,7 +57,6 @@ type Player struct {
 	UserName      string    `json:"userName"`
 	Character     Character `json:"character"`
 	IsCurrentTurn bool      `json:"isCurrentTurn"`
-	IsReady       bool      `json:"isReady"`
 	HasPositioned bool      `json:"hasPositioned"`
 	// Connected goes false while a player is away; their character stays on
 	// the board so a refresh or a network blip can resume it.

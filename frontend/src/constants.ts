@@ -33,6 +33,11 @@ export const BOARD = {
   accent: "#d1462f",
   /** Where you are allowed to start, during positioning only. */
   place: "#1a7f37",
+  /**
+   * Where the opponent may start. Deliberately not the vermilion accent: this
+   * marks a cell you must keep off, never one your click is about to act on.
+   */
+  foe: "#a3231b",
   /** The drawn boundary of the area you may act in this turn. */
   zoneEdge: "#3d3f3d",
   /*

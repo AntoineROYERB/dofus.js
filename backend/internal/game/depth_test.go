@@ -407,11 +407,6 @@ func TestObstaclesTravelWithTheState(t *testing.T) {
 			t.Fatalf("AddPlayer(%s): %v", id, err)
 		}
 	}
-	for _, id := range []string{"a", "b"} {
-		if err := g.SetReady(id); err != nil {
-			t.Fatalf("SetReady(%s): %v", id, err)
-		}
-	}
 
 	snap := g.Snapshot()
 	if len(snap.Obstacles) == 0 {

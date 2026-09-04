@@ -101,15 +101,14 @@ export const Tile: React.FC<TileProps> = ({
 
     if (isPositioningPhase && initialPositionOwner) {
       if (initialPositionOwner.isCurrentPlayer) {
-        return placeable(isHovered ? 0.42 : 0.18);
+        return placeable(isHovered ? 0.5 : 0.26);
       }
-      // An opponent's starting cells keep their own colour, but only as a
-      // tint: on this board the one thing allowed to be saturated is the mark
-      // on what you are about to do.
+      // The opponent's block, in red and crossed out below: not a cell you are
+      // choosing between, a cell you cannot have.
       return {
-        fill: initialPositionOwner.color,
-        opacity: 0.14,
-        stroke: BOARD.stroke,
+        fill: BOARD.foe,
+        opacity: 0.12,
+        stroke: BOARD.foe,
         strokeWidth: BOARD.strokes.tile,
       };
     }
@@ -131,6 +130,11 @@ export const Tile: React.FC<TileProps> = ({
   };
 
   const overlay = wash();
+
+  // A colour alone would not say which side a cell belongs to for anyone who
+  // reads red and green the same way, so the opponent's block is crossed out.
+  const crossedOut =
+    isPositioningPhase && !!initialPositionOwner && !initialPositionOwner.isCurrentPlayer;
 
   // Playable cells are reachable with the keyboard: they take focus and answer
   // Enter and Space. The board was mouse-only, which left it unusable without
@@ -213,6 +217,27 @@ export const Tile: React.FC<TileProps> = ({
               stroke={overlay ? overlay.stroke : BOARD.stroke}
               strokeWidth={overlay ? overlay.strokeWidth : BOARD.strokes.tile}
             />
+            {crossedOut && (
+              <g
+                stroke={BOARD.foe}
+                strokeWidth={BOARD.strokes.marked}
+                strokeLinecap="round"
+                opacity={0.75}
+              >
+                <line
+                  x1={w / 2 - w * 0.16}
+                  y1={h / 2 - h * 0.16}
+                  x2={w / 2 + w * 0.16}
+                  y2={h / 2 + h * 0.16}
+                />
+                <line
+                  x1={w / 2 + w * 0.16}
+                  y1={h / 2 - h * 0.16}
+                  x2={w / 2 - w * 0.16}
+                  y2={h / 2 + h * 0.16}
+                />
+              </g>
+            )}
             {zoneEdges && (
               <g
                 stroke={BOARD.zoneEdge}

@@ -98,8 +98,8 @@ func TestAddBotJoinsReadyAndFlagged(t *testing.T) {
 	}
 
 	p := g.Snapshot().Players[id]
-	if !p.IsBot || !p.IsReady || !p.Connected {
-		t.Errorf("bot player = %+v, want it flagged, ready and connected", p)
+	if !p.IsBot || !p.Connected {
+		t.Errorf("bot player = %+v, want it flagged and connected", p)
 	}
 	if p.Character.Health != StartingHealth {
 		t.Errorf("bot health = %d, want %d", p.Character.Health, StartingHealth)
@@ -121,9 +121,6 @@ func TestBotTakesItsStartingCellWithoutBeingAsked(t *testing.T) {
 	}
 	if err := g.AddPlayer("human", "User-human", look("Alice")); err != nil {
 		t.Fatalf("AddPlayer: %v", err)
-	}
-	if err := g.SetReady("human"); err != nil {
-		t.Fatalf("SetReady: %v", err)
 	}
 
 	snap := g.Snapshot()
@@ -149,9 +146,6 @@ func TestAHumanCanPlayAWholeMatchAgainstTheBot(t *testing.T) {
 	}
 	if err := g.AddPlayer("human", "User-human", look("Alice")); err != nil {
 		t.Fatalf("AddPlayer: %v", err)
-	}
-	if err := g.SetReady("human"); err != nil {
-		t.Fatalf("SetReady: %v", err)
 	}
 	pos := g.Snapshot().Players["human"].Character.InitialPositions[0]
 	if err := g.ChooseInitialPosition("human", pos); err != nil {

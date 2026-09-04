@@ -33,12 +33,14 @@ func TestRestartSetsUpARematchWithTheSameCharacters(t *testing.T) {
 		t.Fatalf("Restart: %v", err)
 	}
 
+	// Both players are still in the room, so the rematch goes straight back to
+	// choosing cells rather than parking everyone on a button.
 	snap := g.Snapshot()
-	if snap.GameStatus != types.StatusCreatingPlayer {
-		t.Errorf("status = %q, want %q", snap.GameStatus, types.StatusCreatingPlayer)
+	if snap.GameStatus != types.StatusPositionCharacters {
+		t.Errorf("status = %q, want %q", snap.GameStatus, types.StatusPositionCharacters)
 	}
-	if snap.TurnNumber != 0 || len(snap.TurnOrder) != 0 {
-		t.Errorf("turn state = %d / %v, want a clean slate", snap.TurnNumber, snap.TurnOrder)
+	if snap.TurnNumber != 0 {
+		t.Errorf("turn number = %d, want a clean slate", snap.TurnNumber)
 	}
 	if winner, over := g.Winner(); over || winner != "" {
 		t.Errorf("winner = %q (over=%v), want it cleared", winner, over)
@@ -55,10 +57,14 @@ func TestRestartSetsUpARematchWithTheSameCharacters(t *testing.T) {
 			c.ActionPoints != StartingActionPoints || c.MovementPoints != StartingMovementPoints {
 			t.Errorf("player %s not restored: %+v", id, c)
 		}
-		if c.Position != nil || len(c.InitialPositions) != 0 {
-			t.Errorf("player %s kept board placement: %+v", id, c)
+		// Fresh cells to pick from, and nobody standing on one yet.
+		if c.Position != nil {
+			t.Errorf("player %s kept its place on the board: %+v", id, c)
 		}
-		if p.IsReady || p.HasPositioned || p.IsCurrentTurn || c.IsCurrentTurn {
+		if len(c.InitialPositions) == 0 {
+			t.Errorf("player %s was offered nowhere to start: %+v", id, c)
+		}
+		if p.HasPositioned || p.IsCurrentTurn || c.IsCurrentTurn {
 			t.Errorf("player %s kept stale flags: %+v", id, p)
 		}
 	}
@@ -88,12 +94,7 @@ func TestRematchCanBePlayedThrough(t *testing.T) {
 		t.Fatalf("Restart: %v", err)
 	}
 
-	// The whole lobby flow has to work a second time.
-	for _, id := range []string{"a", "b"} {
-		if err := g.SetReady(id); err != nil {
-			t.Fatalf("SetReady(%s) after restart: %v", id, err)
-		}
-	}
+	// The whole flow has to work a second time.
 	if g.Status() != types.StatusPositionCharacters {
 		t.Fatalf("status = %q, want the placement phase", g.Status())
 	}
@@ -119,9 +120,6 @@ func TestAnOpponentsStartingCellIsHiddenUntilPlayBegins(t *testing.T) {
 	for _, id := range []string{"a", "b"} {
 		if err := g.AddPlayer(id, "User-"+id, look("Player"+id)); err != nil {
 			t.Fatalf("AddPlayer(%s): %v", id, err)
-		}
-		if err := g.SetReady(id); err != nil {
-			t.Fatalf("SetReady(%s): %v", id, err)
 		}
 	}
 	if g.Status() != types.StatusPositionCharacters {
@@ -212,7 +210,7 @@ func TestLeavingDuringPlacementReturnsEveryoneToTheLobby(t *testing.T) {
 	if g.Status() != types.StatusCreatingPlayer {
 		t.Errorf("status = %q, want a drop below two players to reopen the lobby", g.Status())
 	}
-	if p := g.Snapshot().Players["a"]; p.IsReady || len(p.Character.InitialPositions) != 0 {
+	if p := g.Snapshot().Players["a"]; len(p.Character.InitialPositions) != 0 {
 		t.Errorf("the remaining player kept stale placement state: %+v", p)
 	}
 }
@@ -296,11 +294,6 @@ func NewLobbyReadyGame(t *testing.T) *Game {
 	for _, id := range []string{"a", "b"} {
 		if err := g.AddPlayer(id, "User-"+id, look("Player"+id)); err != nil {
 			t.Fatalf("AddPlayer(%s): %v", id, err)
-		}
-	}
-	for _, id := range []string{"a", "b"} {
-		if err := g.SetReady(id); err != nil {
-			t.Fatalf("SetReady(%s): %v", id, err)
 		}
 	}
 	return g
