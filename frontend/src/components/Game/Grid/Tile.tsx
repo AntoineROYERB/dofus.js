@@ -14,6 +14,12 @@ interface TileProps {
   isValidTarget?: boolean;
   onClick?: () => void;
   isPositioningPhase: boolean;
+  /**
+   * True while the player still owes the game a starting cell. The cells they
+   * may pick breathe until then, and stop the moment the choice is made:
+   * movement that outlives the question it was asking is just noise.
+   */
+  awaitingPlacement: boolean;
   allPlayersInitialPositions: Array<{
     position: Position;
     playerId: string;
@@ -52,6 +58,7 @@ export const Tile: React.FC<TileProps> = ({
   isValidTarget,
   onClick,
   isPositioningPhase,
+  awaitingPlacement,
   allPlayersInitialPositions,
   isCharacterTurn,
   selectedSpellId,
@@ -90,18 +97,25 @@ export const Tile: React.FC<TileProps> = ({
       stroke: BOARD.accent,
       strokeWidth: BOARD.strokes.marked,
     });
+    // Green means you may start here — a different question from targeting,
+    // so it keeps a colour vermilion never wears during positioning.
+    const placeable = (opacity: number): Wash => ({
+      fill: BOARD.place,
+      opacity,
+      stroke: BOARD.place,
+      strokeWidth: BOARD.strokes.marked,
+    });
 
     if (isPositioningPhase && initialPositionOwner) {
       if (initialPositionOwner.isCurrentPlayer) {
-        return marked(isHovered ? 0.42 : 0.18);
+        return placeable(isHovered ? 0.5 : 0.26);
       }
-      // An opponent's starting cells keep their own colour, but only as a
-      // tint: on this board the one thing allowed to be saturated is the mark
-      // on what you are about to do.
+      // The opponent's block, in red and crossed out below: not a cell you are
+      // choosing between, a cell you cannot have.
       return {
-        fill: initialPositionOwner.color,
-        opacity: 0.14,
-        stroke: BOARD.stroke,
+        fill: BOARD.foe,
+        opacity: 0.12,
+        stroke: BOARD.foe,
         strokeWidth: BOARD.strokes.tile,
       };
     }
@@ -123,6 +137,21 @@ export const Tile: React.FC<TileProps> = ({
   };
 
   const overlay = wash();
+
+  // A colour alone would not say which side a cell belongs to for anyone who
+  // reads red and green the same way, so the opponent's block is crossed out.
+  const crossedOut =
+    isPositioningPhase && !!initialPositionOwner && !initialPositionOwner.isCurrentPlayer;
+
+  /*
+   * Hovering already answers "this one", and answering it twice — a cell that
+   * both brightens and keeps breathing — reads as a glitch. The cell under the
+   * cursor holds still.
+   */
+  const breathes =
+    awaitingPlacement &&
+    !!initialPositionOwner?.isCurrentPlayer &&
+    !isHovered;
 
   // Playable cells are reachable with the keyboard: they take focus and answer
   // Enter and Space. The board was mouse-only, which left it unusable without
@@ -192,6 +221,7 @@ export const Tile: React.FC<TileProps> = ({
             <polygon points={points} fill={base} stroke="none" />
             {overlay && (
               <polygon
+                className={breathes ? "animate-placeable" : undefined}
                 points={points}
                 fill={overlay.fill}
                 fillOpacity={overlay.opacity}
@@ -205,6 +235,27 @@ export const Tile: React.FC<TileProps> = ({
               stroke={overlay ? overlay.stroke : BOARD.stroke}
               strokeWidth={overlay ? overlay.strokeWidth : BOARD.strokes.tile}
             />
+            {crossedOut && (
+              <g
+                stroke={BOARD.foe}
+                strokeWidth={BOARD.strokes.marked}
+                strokeLinecap="round"
+                opacity={0.75}
+              >
+                <line
+                  x1={w / 2 - w * 0.16}
+                  y1={h / 2 - h * 0.16}
+                  x2={w / 2 + w * 0.16}
+                  y2={h / 2 + h * 0.16}
+                />
+                <line
+                  x1={w / 2 + w * 0.16}
+                  y1={h / 2 - h * 0.16}
+                  x2={w / 2 - w * 0.16}
+                  y2={h / 2 + h * 0.16}
+                />
+              </g>
+            )}
             {zoneEdges && (
               <g
                 stroke={BOARD.zoneEdge}

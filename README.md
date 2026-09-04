@@ -11,7 +11,7 @@ have a whole match to yourself. The server sleeps after 15 minutes on the free
 tier, so the first connection can take a minute to come back — the board loads
 instantly either way.
 
-![A turn of Dofus.js: the reachable area, the walk to a cell, and a fireball landing](docs/assets/demo.gif)
+![Naming a fighter, picking a starting cell in the green block while the opponent's is marked off in red, and a Fireball landing for 18](docs/assets/demo.gif)
 
 <table>
 <tr>
@@ -19,7 +19,7 @@ instantly either way.
 <td width="50%"><img src="docs/assets/02-lobby.png" alt="Lobby: open games and a solo match against the computer"></td>
 </tr>
 <tr>
-<td width="50%"><img src="docs/assets/03-placement.png" alt="Placement: each player picks one of three starting cells"></td>
+<td width="50%"><img src="docs/assets/03-placement.png" alt="Placement: three adjacent cells to start on, in green; the opponent's block is marked off in red"></td>
 <td width="50%"><img src="docs/assets/04-combat.png" alt="Combat: cast range outlined, area of effect marked, estimated damage above the target"></td>
 </tr>
 </table>

@@ -26,7 +26,6 @@ export interface Player {
   userName: string;
   character: Character;
   isCurrentTurn: boolean;
-  isReady: boolean;
   hasPositioned: boolean;
   /** False while a player is away; their character stays on the board. */
   connected: boolean;
@@ -75,10 +74,6 @@ export interface MoveAction extends ActionEnvelope {
   position: Position;
 }
 
-export interface ReadyToStartAction extends ActionEnvelope {
-  type: "ready_to_start";
-}
-
 export interface CharacterPositionedAction extends ActionEnvelope {
   type: "character_positioned";
   position: Position;
@@ -113,7 +108,6 @@ export type GameAction =
   | CreateCharacterAction
   | EndTurnAction
   | MoveAction
-  | ReadyToStartAction
   | CharacterPositionedAction;
 
 export const GAME_STATUS = {

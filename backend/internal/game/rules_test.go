@@ -110,6 +110,56 @@ func TestDealInitialPositionsGivesEveryoneDistinctCells(t *testing.T) {
 	}
 }
 
+// Three cells in three different corners could not be read as a starting area,
+// which is the whole point of offering a choice of them.
+func TestDealInitialPositionsGivesEachSideOneBlock(t *testing.T) {
+	for seed := int64(0); seed < 30; seed++ {
+		dealt := DealInitialPositions([]string{"a", "b"}, rand.New(rand.NewSource(seed)))
+		for id, positions := range dealt {
+			if !isContiguous(positions) {
+				t.Errorf("seed %d: %s got a scattered block %+v", seed, id, positions)
+			}
+		}
+
+		// Neither side may start nearer the middle than the other.
+		distA := Distance(types.Position{}, dealt["a"][0])
+		distB := Distance(types.Position{}, dealt["b"][0])
+		if distA != distB {
+			t.Errorf("seed %d: anchors sit %d and %d from the centre, want them level",
+				seed, distA, distB)
+		}
+		if between := Distance(dealt["a"][0], dealt["b"][0]); between < GridRadius {
+			t.Errorf("seed %d: the two sides start %d apart, want them facing across the board",
+				seed, between)
+		}
+	}
+}
+
+// isContiguous reports whether every cell can be reached from the first by
+// stepping between cells of the set.
+func isContiguous(cells []types.Position) bool {
+	if len(cells) == 0 {
+		return false
+	}
+	set := make(map[types.Position]bool, len(cells))
+	for _, c := range cells {
+		set[c] = true
+	}
+	reached := map[types.Position]bool{cells[0]: true}
+	queue := []types.Position{cells[0]}
+	for len(queue) > 0 {
+		cell := queue[0]
+		queue = queue[1:]
+		for _, next := range Neighbours(cell) {
+			if set[next] && !reached[next] {
+				reached[next] = true
+				queue = append(queue, next)
+			}
+		}
+	}
+	return len(reached) == len(cells)
+}
+
 func assertSameCells(t *testing.T, got, want []types.Position) {
 	t.Helper()
 	if len(got) != len(want) {

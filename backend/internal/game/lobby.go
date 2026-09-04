@@ -23,8 +23,10 @@ var (
 )
 
 // MaxPlayersPerRoom keeps a room to a size the board and the turn order can
-// actually accommodate.
-const MaxPlayersPerRoom = 4
+// actually accommodate. A room holds exactly a duel: with no "ready" step
+// left, the fight has to start the moment the room is full, and that is only
+// unambiguous when full and playable mean the same number.
+const MaxPlayersPerRoom = MinPlayers
 
 var roomNamePattern = regexp.MustCompile(`^[a-zA-Z0-9 ]{3,24}$`)
 

@@ -5,6 +5,7 @@ import { CharacterCreationForm } from "../components/Game/CharacterCreationForm"
 import { CharacterStand, STAND } from "../components/Game/CharacterStand";
 import { AboutDialog } from "../components/AboutDialog";
 import { saveCharacter } from "../utils/characterStorage";
+import { PLAYER_COLORS } from "../constants";
 
 const idle = {
   spriteSheet: "/animation/Idle.png",
@@ -21,7 +22,7 @@ const idle = {
  * this?", because none of it is needed to start playing.
  */
 const LandingPage: React.FC = () => {
-  const [selectedColor, setSelectedColor] = useState("#a52a2a");
+  const [selectedColor, setSelectedColor] = useState(PLAYER_COLORS[0]);
   const [characterName, setCharacterName] = useState("");
   const [isNameValid, setIsNameValid] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
@@ -92,7 +93,12 @@ const LandingPage: React.FC = () => {
                 transform: `translate(-50%, -${STAND.feet * 100}%)`,
               }}
             >
-              <SpriteAnimation {...idle} direction="S" scale={scale} />
+              <SpriteAnimation
+                {...idle}
+                direction="S"
+                scale={scale}
+                color={selectedColor}
+              />
             </div>
           </div>
         </div>

@@ -1,4 +1,5 @@
 import React, { useRef, useEffect } from "react";
+import { targetHueFor, recoloredSheet } from "../../utils/spriteRecolor";
 
 export type Direction = "N" | "NE" | "E" | "SE" | "S" | "SW" | "W" | "NW";
 
@@ -10,6 +11,8 @@ interface SpriteAnimationProps {
   direction: Direction;
   directionMap: Partial<Record<Direction, number>>;
   scale?: number;
+  /** The fighter's chosen colour. Drawn in the sheet's own stock colour if omitted. */
+  color?: string;
 }
 
 const SpriteAnimation: React.FC<SpriteAnimationProps> = ({
@@ -20,6 +23,7 @@ const SpriteAnimation: React.FC<SpriteAnimationProps> = ({
   direction,
   directionMap,
   scale = 1,
+  color,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   // Kept across runs so a resize or a change of direction does not restart the
@@ -59,13 +63,16 @@ const SpriteAnimation: React.FC<SpriteAnimationProps> = ({
      */
     let cancelled = false;
     let rafId = 0;
+    // Filled in once the sheet has loaded and, if this fighter has a colour,
+    // been dyed. Drawing from the plain image until then avoids a blank frame.
+    let source: CanvasImageSource = playerImage;
 
     const animate = () => {
       if (cancelled) return;
       ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
       ctx.drawImage(
-        playerImage,
+        source,
         animationState.current.frameX * frameWidth, // X source
         directionRow * frameHeight, // Y source (ligne pour la direction)
         frameWidth,
@@ -94,6 +101,10 @@ const SpriteAnimation: React.FC<SpriteAnimationProps> = ({
         animationState.current.lastSpriteSheet = spriteSheet;
       }
 
+      source = color
+        ? recoloredSheet(playerImage, spriteSheet, targetHueFor(color))
+        : playerImage;
+
       animate();
     };
 
@@ -116,6 +127,7 @@ const SpriteAnimation: React.FC<SpriteAnimationProps> = ({
     direction,
     directionMap,
     scale,
+    color,
   ]);
 
   return (

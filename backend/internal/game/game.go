@@ -59,8 +59,12 @@ type Game struct {
 	spells     map[string]types.Spell
 	obstacles  map[types.Position]bool
 	log        []types.LogEntry
-	winner     string
-	rng        *rand.Rand
+	// logSeq numbers log entries so a client can recognise the ones it has
+	// already played. It is never reset while the game object lives, so a
+	// rematch cannot hand out a sequence number twice.
+	logSeq int64
+	winner string
+	rng    *rand.Rand
 
 	turnDuration time.Duration
 	turnEndsAt   time.Time
@@ -99,6 +103,27 @@ func (g *Game) Snapshot() types.GameState {
 	g.mu.RLock()
 	defer g.mu.RUnlock()
 	return g.snapshotLocked()
+}
+
+// SnapshotFor is a viewer-scoped snapshot. While players are still choosing
+// where to start, another character's chosen cell is withheld from everyone
+// but that character's own owner — otherwise the last player to place would
+// always know exactly where the other is standing before the fight even
+// starts. Once play begins every position is visible again.
+func (g *Game) SnapshotFor(viewerID string) types.GameState {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+	state := g.snapshotLocked()
+	if g.status == types.StatusPositionCharacters {
+		for id, p := range state.Players {
+			if id == viewerID {
+				continue
+			}
+			p.Character.Position = nil
+			state.Players[id] = p
+		}
+	}
+	return state
 }
 
 func (g *Game) snapshotLocked() types.GameState {
@@ -215,6 +240,7 @@ func (g *Game) AddPlayer(userID, userName string, look types.CharacterAppearance
 			IsAlive:        true,
 		},
 	}
+	g.startPlacementIfReadyLocked()
 	return nil
 }
 
@@ -292,7 +318,6 @@ func (g *Game) Restart() error {
 
 func (g *Game) returnToLobbyLocked() {
 	for id, p := range g.players {
-		p.IsReady = false
 		p.HasPositioned = false
 		p.IsCurrentTurn = false
 		p.Character.Health = StartingHealth
@@ -317,6 +342,11 @@ func (g *Game) returnToLobbyLocked() {
 	g.turnEndsAt = time.Time{}
 	g.log = nil
 	g.obstacles = nil
+
+	// A rematch between two players who are both still here goes straight back
+	// to choosing cells. Only a room that has dropped below a duel waits, and
+	// it waits for an opponent rather than for a button.
+	g.startPlacementIfReadyLocked()
 }
 
 // freshSpellStateLocked gives a player a clean slate for every spell.
@@ -331,6 +361,8 @@ func (g *Game) freshSpellStateLocked() map[string]types.SpellState {
 // appendLogLocked records one line of combat history, keeping the tail.
 func (g *Game) appendLogLocked(entry types.LogEntry) {
 	entry.Turn = g.turnNumber
+	g.logSeq++
+	entry.Seq = g.logSeq
 	g.log = append(g.log, entry)
 	if len(g.log) > MaxLogEntries {
 		g.log = g.log[len(g.log)-MaxLogEntries:]
@@ -416,32 +448,16 @@ func (g *Game) HasPlayer(userID string) bool {
 	return ok
 }
 
-// SetReady marks a player ready and starts the placement phase once everyone
-// is ready and there are enough players.
-func (g *Game) SetReady(userID string) error {
-	g.mu.Lock()
-	defer g.mu.Unlock()
-
-	if g.status != types.StatusCreatingPlayer {
-		return ErrWrongPhase
-	}
-	p, ok := g.players[userID]
-	if !ok {
-		return ErrNoCharacter
-	}
-	p.IsReady = true
-	g.players[userID] = p
-
-	if len(g.players) < MinPlayers {
-		return nil
-	}
-	for _, other := range g.players {
-		if !other.IsReady {
-			return nil
-		}
+// startPlacementIfReadyLocked opens the placement phase as soon as the room
+// holds a full duel. There is no separate "ready" step: a player who has
+// joined has said everything there is to say, and the only thing left to
+// decide is where to stand. The button that used to say Ready said nothing
+// the act of joining had not already said.
+func (g *Game) startPlacementIfReadyLocked() {
+	if g.status != types.StatusCreatingPlayer || len(g.players) < MinPlayers {
+		return
 	}
 	g.beginPlacementLocked()
-	return nil
 }
 
 func (g *Game) beginPlacementLocked() {
@@ -662,12 +678,16 @@ func (g *Game) CastSpell(userID string, spellID int, target types.Position) erro
 		g.players[userID] = self
 	}
 
+	castOrigin, castTarget := origin, target
 	g.appendLogLocked(types.LogEntry{
-		Actor:  caster.Character.Name,
-		Kind:   types.LogCast,
-		Text:   castSummary(spell.Name, hits, crit),
-		Damage: dealt,
-		Crit:   crit,
+		Actor:   caster.Character.Name,
+		Kind:    types.LogCast,
+		Text:    castSummary(spell.Name, hits, crit),
+		Damage:  dealt,
+		Crit:    crit,
+		SpellID: spell.ID,
+		Origin:  &castOrigin,
+		Target:  &castTarget,
 	})
 	for _, name := range killed {
 		g.appendLogLocked(types.LogEntry{Actor: name, Kind: types.LogDeath, Text: "is out of the fight"})

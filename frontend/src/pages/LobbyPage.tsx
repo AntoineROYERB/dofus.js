@@ -4,6 +4,7 @@ import { useWebSocket } from "../context/WebSocketContext";
 import { generateMessageId } from "../utils/messageUtils";
 import { RoomSummary } from "../types/message";
 import { readCharacter } from "../utils/characterStorage";
+import { useRejectionBanner } from "../hooks/useRejectionBanner";
 
 const statusLabel: Record<string, string> = {
   creating_player: "Waiting for players",
@@ -50,7 +51,8 @@ const LobbyPage: React.FC = () => {
     useWebSocket();
   const navigate = useNavigate();
   const [newRoomName, setNewRoomName] = useState("");
-  const [notice, setNotice] = useState<string | null>(null);
+  const [roomNameFocused, setRoomNameFocused] = useState(false);
+  const notice = useRejectionBanner(rejection);
 
   const character = readCharacter();
 
@@ -64,13 +66,6 @@ const LobbyPage: React.FC = () => {
   useEffect(() => {
     if (roomId) navigate("/game");
   }, [roomId, navigate]);
-
-  useEffect(() => {
-    if (!rejection) return;
-    setNotice(rejection.reason);
-    const timer = setTimeout(() => setNotice(null), 4000);
-    return () => clearTimeout(timer);
-  }, [rejection]);
 
   const createRoom = (event: React.FormEvent) => {
     event.preventDefault();
@@ -131,11 +126,19 @@ const LobbyPage: React.FC = () => {
           </p>
         )}
 
+        {/*
+          Two ways in, and nothing on the page says which to take. Each
+          pulses its own way of asking — a ring around the one-click path, a
+          border around the one that wants typing — so the choice is felt
+          rather than read.
+        */}
         <button
           type="button"
           onClick={playSolo}
           disabled={!connected}
-          className="mt-5 w-full bg-vermilion px-4 py-4 font-display text-[16px] font-bold text-white sm:mt-6 sm:py-3.5 transition-colors hover:bg-[#b93a25] disabled:cursor-not-allowed disabled:bg-hairline disabled:text-muted"
+          className={`mt-5 w-full bg-vermilion px-4 py-4 font-display text-[16px] font-bold text-white sm:mt-6 sm:py-3.5 transition-colors hover:bg-[#b93a25] disabled:cursor-not-allowed disabled:bg-hairline disabled:text-muted ${
+            connected ? "animate-beckon" : ""
+          }`}
         >
           Play against the computer
         </button>
@@ -150,10 +153,16 @@ const LobbyPage: React.FC = () => {
           <input
             value={newRoomName}
             onChange={(e) => setNewRoomName(e.target.value)}
+            onFocus={() => setRoomNameFocused(true)}
+            onBlur={() => setRoomNameFocused(false)}
             placeholder="Name your game"
             aria-label="Name your game"
             maxLength={24}
-            className="h-12 min-w-0 flex-1 border border-rule bg-board px-3 text-[15px] text-ink placeholder:text-muted focus:border-ink focus:outline-none sm:h-11 sm:text-[14px]"
+            className={`h-12 min-w-0 flex-1 border bg-board px-3 text-[15px] text-ink placeholder:text-muted focus:border-ink focus:outline-none sm:h-11 sm:text-[14px] ${
+              newRoomName.length === 0 && !roomNameFocused
+                ? "animate-hint"
+                : "border-rule"
+            }`}
           />
           <button
             type="submit"

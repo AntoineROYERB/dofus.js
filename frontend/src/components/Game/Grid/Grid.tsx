@@ -9,7 +9,11 @@ import { blockedBy, hasLineOfSight, reachable } from "../../../utils/board";
 import { Tile } from "./Tile";
 import { isInSpellRange } from "../../../utils/spellUtils";
 import { Character } from "./Character";
+import { Socle } from "./Socle";
+import { HitFeedback } from "./HitFeedback";
+import { SpellFXLayer } from "./SpellFXLayer";
 import { useCharacterAnimations } from "../../../hooks/useCharacterAnimations";
+import { useHitFeedback } from "../../../hooks/useHitFeedback";
 import { useGridInteraction } from "../../../hooks/useGridInteraction";
 import { useTileSize } from "../../../hooks/useTileSize";
 import { GameState } from "../../../types/message";
@@ -32,6 +36,12 @@ export const Grid: React.FC<GridProps> = ({
   selectedSpellId,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  /*
+   * The board itself, separate from the container that measures it. Impacts
+   * shake this one; the container keeps still, so pointer maths — which reads
+   * the container's own box — is never thrown off by a spell going off.
+   */
+  const boardRef = useRef<HTMLDivElement>(null);
 
   const players = latestGameState?.players;
   // Memoised: a fresh `?? []` on every render would defeat the memos below.
@@ -53,6 +63,8 @@ export const Grid: React.FC<GridProps> = ({
 
   // Check if we're in the positioning phase
   const isPositioningPhase = latestGameState?.status === "position_characters";
+  // Whether the board is still waiting on this player for a starting cell.
+  const awaitingPlacement = isPositioningPhase && !currentPlayer?.hasPositioned;
 
   // Collect all players' initial positions for rendering
   const allPlayersInitialPositions = React.useMemo(() => {
@@ -112,6 +124,9 @@ export const Grid: React.FC<GridProps> = ({
     tileSize,
     containerRef
   );
+
+  // Who just lost health, and how much. Empty for most of a turn.
+  const hits = useHitFeedback(latestGameState ?? null);
 
   const { hoveredPosition, pathCells, impactedCells, confirmsTap } =
     useGridInteraction({
@@ -239,103 +254,158 @@ export const Grid: React.FC<GridProps> = ({
 
   return (
     <div ref={containerRef} className="w-full h-full relative overflow-hidden">
-      {sortedCoordinates.map(({ x, y }) => {
-        const isHovered = hoveredPosition?.x === x && hoveredPosition?.y === y;
-        const isValidInitial = isPositioningPhase && isInitialPosition(x, y);
+      <div ref={boardRef} className="absolute inset-0">
+        {sortedCoordinates.map(({ x, y }) => {
+          const isHovered = hoveredPosition?.x === x && hoveredPosition?.y === y;
+          const isValidInitial = isPositioningPhase && isInitialPosition(x, y);
 
-        const isPathCell = isInPathCells(x, y);
-        const isObstacle = obstacleSet.has(`${x},${y}`);
-        const isInRange = walkable.has(`${x},${y}`);
+          const isPathCell = isInPathCells(x, y);
+          const isObstacle = obstacleSet.has(`${x},${y}`);
+          const isInRange = walkable.has(`${x},${y}`);
 
-        const isInCastRange = castable.has(`${x},${y}`);
+          const isInCastRange = castable.has(`${x},${y}`);
 
-        const isImpactedCell = impactedCells.some(
-          (pos) => pos.x === x && pos.y === y
-        );
+          const isImpactedCell = impactedCells.some(
+            (pos) => pos.x === x && pos.y === y
+          );
 
-        const isCharacterTurn = currentPlayer?.isCurrentTurn || false;
+          const isCharacterTurn = currentPlayer?.isCurrentTurn || false;
 
-        // Determine if this tile is a valid movement target
-        const isValidTarget = isPositioningPhase
-          ? !!isValidInitial
-          : !!(currentPlayer?.isCurrentTurn && isInRange && !findPlayerOnCell(x, y)) ||
-            isInCastRange;
+          // Determine if this tile is a valid movement target
+          const isValidTarget = isPositioningPhase
+            ? !!isValidInitial
+            : !!(currentPlayer?.isCurrentTurn && isInRange && !findPlayerOnCell(x, y)) ||
+              isInCastRange;
 
-        const screenPosition = isoToScreen(x, y, tileSize, centerX, centerY);
+          const screenPosition = isoToScreen(x, y, tileSize, centerX, centerY);
 
-        return (
-          <Tile
-            key={`${x}-${y}`}
-            x={x}
-            y={y}
-            tileSize={tileSize}
-            screenPosition={screenPosition}
-            isHovered={isHovered}
-            isValidTarget={isValidTarget}
-            isPositioningPhase={isPositioningPhase}
-            allPlayersInitialPositions={allPlayersInitialPositions}
-            isCharacterTurn={isCharacterTurn}
-            selectedSpellId={selectedSpellId}
-            isImpactedCell={isImpactedCell}
-            isInSpellRange={isInCastRange}
-            isObstacle={isObstacle}
-            isInRange={isInRange}
-            isPathCell={isPathCell}
-            hoveredPosition={hoveredPosition}
-            zoneEdges={zoneEdges(x, y)}
-            // On a touch screen the first tap only previews the cell.
-            onClick={() => confirmsTap({ x, y }) && onCellClick({ x, y })}
-          />
-        );
-      })}
-      {Object.entries(characterRenderState).map(([playerId, renderData]) => {
-        if (!renderData) return null;
-        return (
-          <Character
-            key={playerId}
-            screenPosition={renderData.screenPosition}
-            animation={renderData.animation}
-            direction={renderData.direction}
-            scale={tileSize.width / 256}
-          />
-        );
-      })}
-      {/*
-        What the spell would take off, before the click. The number is the
-        catalogue's base damage: a critical or a shield will move it, which is
-        why it is shown as an estimate and not as a result.
-      */}
-      {damagePreview && (
-        <div
-          className="absolute pointer-events-none font-display font-bold tabular-nums text-vermilion"
-          style={{
-            left: `${damagePreview.screen.x}px`,
-            top: `${damagePreview.screen.y - tileSize.height * 1.7}px`,
-            transform: "translate(-50%, -50%)",
-            fontSize: `${Math.max(14, tileSize.width * 0.22)}px`,
-            textShadow:
-              "0 1px 0 #fff, 0 -1px 0 #fff, 1px 0 0 #fff, -1px 0 0 #fff",
-          }}
-        >
-          &minus;{damagePreview.damage}
-        </div>
-      )}
-
-      {isPositioningPhase && selectedPosition && (
-        <Character
-          key={`${userId}-preview`}
-          screenPosition={isoToScreen(
-            selectedPosition.x,
-            selectedPosition.y,
-            tileSize,
-            centerX,
-            centerY
-          )}
-          animation="idle"
-          direction="S"
-          scale={tileSize.width / 256}
+          return (
+            <Tile
+              key={`${x}-${y}`}
+              x={x}
+              y={y}
+              tileSize={tileSize}
+              screenPosition={screenPosition}
+              isHovered={isHovered}
+              isValidTarget={isValidTarget}
+              isPositioningPhase={isPositioningPhase}
+              awaitingPlacement={awaitingPlacement}
+              allPlayersInitialPositions={allPlayersInitialPositions}
+              isCharacterTurn={isCharacterTurn}
+              selectedSpellId={selectedSpellId}
+              isImpactedCell={isImpactedCell}
+              isInSpellRange={isInCastRange}
+              isObstacle={isObstacle}
+              isInRange={isInRange}
+              isPathCell={isPathCell}
+              hoveredPosition={hoveredPosition}
+              zoneEdges={zoneEdges(x, y)}
+              // On a touch screen the first tap only previews the cell.
+              onClick={() => confirmsTap({ x, y }) && onCellClick({ x, y })}
+            />
+          );
+        })}
+        {/*
+          Sits between the floor and the characters: its ground layer puts scars
+          under whoever is standing on them, and its upper layer throws debris in
+          front of them.
+        */}
+        <SpellFXLayer
+          latestGameState={latestGameState}
+          tileSize={tileSize}
+          centerX={centerX}
+          centerY={centerY}
+          boardRef={boardRef}
+          containerRef={containerRef}
         />
-      )}
+        {/*
+          Above the scars rather than under them: a scorch mark is scenery, and
+          the ring is the one thing on the board that says which fighter is
+          which. Not drawn while starting cells are being picked, where the
+          board is already carrying a green and a red of its own.
+        */}
+        {!isPositioningPhase &&
+          Object.entries(characterRenderState).map(([playerId, renderData]) => {
+            const player = players?.[playerId];
+            if (!renderData || !player) return null;
+            return (
+              <Socle
+                key={`socle-${playerId}`}
+                screenPosition={renderData.screenPosition}
+                tileSize={tileSize}
+                color={player.character.color}
+                isPlaying={player.isCurrentTurn}
+                isAlive={player.character.isAlive}
+              />
+            );
+          })}
+        {Object.entries(characterRenderState).map(([playerId, renderData]) => {
+          if (!renderData) return null;
+          return (
+            <Character
+              key={playerId}
+              screenPosition={renderData.screenPosition}
+              animation={renderData.animation}
+              direction={renderData.direction}
+              scale={tileSize.width / 256}
+              color={players?.[playerId]?.character.color}
+            />
+          );
+        })}
+        {/*
+          What the spell actually took off, over the fighter it took it off.
+          Nothing is drawn over a character nobody has touched.
+        */}
+        {Object.entries(hits).map(([playerId, hit]) => {
+          const renderData = characterRenderState[playerId];
+          if (!renderData) return null;
+          return (
+            <HitFeedback
+              key={`hit-${playerId}`}
+              screenPosition={renderData.screenPosition}
+              tileSize={tileSize}
+              hit={hit}
+            />
+          );
+        })}
+        {/*
+          What the spell would take off, before the click. The number is the
+          catalogue's base damage: a critical or a shield will move it, which is
+          why it is shown as an estimate and not as a result.
+        */}
+        {damagePreview && (
+          <div
+            className="absolute pointer-events-none font-display font-bold tabular-nums text-vermilion"
+            style={{
+              left: `${damagePreview.screen.x}px`,
+              top: `${damagePreview.screen.y - tileSize.height * 1.7}px`,
+              transform: "translate(-50%, -50%)",
+              fontSize: `${Math.max(14, tileSize.width * 0.22)}px`,
+              textShadow:
+                "0 1px 0 #fff, 0 -1px 0 #fff, 1px 0 0 #fff, -1px 0 0 #fff",
+            }}
+          >
+            &minus;{damagePreview.damage}
+          </div>
+        )}
+
+        {isPositioningPhase && selectedPosition && (
+          <Character
+            key={`${userId}-preview`}
+            screenPosition={isoToScreen(
+              selectedPosition.x,
+              selectedPosition.y,
+              tileSize,
+              centerX,
+              centerY
+            )}
+            animation="idle"
+            direction="S"
+            scale={tileSize.width / 256}
+            color={currentPlayer?.character.color}
+          />
+        )}
+      </div>
     </div>
   );
 };

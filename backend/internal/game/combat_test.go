@@ -317,9 +317,6 @@ func TestBotStillFinishesAMatchUnderTheNewRules(t *testing.T) {
 	if err := g.AddPlayer("human", "User-human", look("Alice")); err != nil {
 		t.Fatalf("AddPlayer: %v", err)
 	}
-	if err := g.SetReady("human"); err != nil {
-		t.Fatalf("SetReady: %v", err)
-	}
 	pos := g.Snapshot().Players["human"].Character.InitialPositions[0]
 	if err := g.ChooseInitialPosition("human", pos); err != nil {
 		t.Fatalf("ChooseInitialPosition: %v", err)

@@ -14,6 +14,7 @@ import { readCharacter } from "../utils/characterStorage";
 import { blockedBy, findPath } from "../utils/board";
 import { RotateHint } from "../components/Game/RotateHint";
 import { SideRail } from "../components/Game/SideRail";
+import { useRejectionBanner } from "../hooks/useRejectionBanner";
 
 /** What the turn zone says above the countdown. */
 const phaseLabel = (status: GameStatus, isMyTurn: boolean | undefined) => {
@@ -46,7 +47,7 @@ function GamePage() {
   const [selectedPosition, setSelectedPosition] = useState<Position | null>(
     null
   );
-  const [visibleRejection, setVisibleRejection] = useState<string | null>(null);
+  const visibleRejection = useRejectionBanner(rejection);
   // Below lg the rail is a sheet: the board keeps the screen until asked.
   const [railOpen, setRailOpen] = useState(false);
 
@@ -58,7 +59,6 @@ function GamePage() {
 
   const currentPlayer = gameState?.players[userId];
   const isMyTurn = currentPlayer?.isCurrentTurn;
-  const isPlayerReady = currentPlayer?.isReady;
   const isPlayerPositioned = currentPlayer?.hasPositioned;
   const currentCharacter = currentPlayer?.character;
   const gameStatus: GameStatus =
@@ -87,13 +87,6 @@ function GamePage() {
       character,
     });
   }, [connected, roomId, character, userHasCharacter, sendGameAction]);
-
-  useEffect(() => {
-    if (!rejection) return;
-    setVisibleRejection(rejection.reason);
-    const timer = setTimeout(() => setVisibleRejection(null), 4000);
-    return () => clearTimeout(timer);
-  }, [rejection]);
 
   const act = (action: GameAction) => sendGameAction(action);
 
@@ -138,11 +131,6 @@ function GamePage() {
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [gameState?.spells]);
-
-  const handleReadyClick = () => {
-    const { messageId, timestamp } = generateMessageId();
-    act({ type: "ready_to_start", messageId, timestamp });
-  };
 
   const handleFightClick = () => {
     if (!selectedPosition) return;
@@ -305,11 +293,8 @@ function GamePage() {
             <MainButton
               gameStatus={gameStatus}
               connected={connected}
-              handleReadyClick={handleReadyClick}
               handleEndTurnClick={handleEndTurnClick}
-              isPlayerReady={isPlayerReady}
               isMyTurn={isMyTurn}
-              userHasCharacter={userHasCharacter}
               handleFightClick={handleFightClick}
               selectedPosition={selectedPosition ?? undefined}
               isPlayerPositioned={isPlayerPositioned}

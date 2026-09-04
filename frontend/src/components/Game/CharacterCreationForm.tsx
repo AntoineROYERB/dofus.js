@@ -24,6 +24,10 @@ export const CharacterCreationForm: React.FC<CharacterCreationFormProps> = ({
   onSubmit,
 }) => {
   const showError = characterName.length > 0 && !isNameValid;
+  const [isFocused, setIsFocused] = React.useState(false);
+  // Nothing on the page says "start here" in words; the field says it by
+  // pulsing until either a name is typed or the player has found it themselves.
+  const hints = characterName.length === 0 && !isFocused;
 
   return (
     <div>
@@ -47,10 +51,16 @@ export const CharacterCreationForm: React.FC<CharacterCreationFormProps> = ({
         onKeyDown={(event) => {
           if (event.key === "Enter") onSubmit();
         }}
+        onFocus={() => setIsFocused(true)}
+        onBlur={() => setIsFocused(false)}
         placeholder="Your name"
         aria-invalid={showError}
         className={`mt-1 w-full border-b bg-transparent pb-1.5 font-display text-[29px] font-bold tracking-tight text-ink placeholder:font-sans placeholder:text-[18px] placeholder:font-normal placeholder:tracking-normal placeholder:text-muted focus:outline-none ${
-          showError ? "border-vermilion" : "border-rule focus:border-ink"
+          showError
+            ? "border-vermilion"
+            : hints
+              ? "animate-hint"
+              : "border-rule focus:border-ink"
         }`}
       />
 
