@@ -814,7 +814,7 @@ func (g *Game) checkGameOverLocked() bool {
 
 	g.status = types.StatusGameOver
 	if len(alive) == 1 {
-		g.winner = g.players[alive[0]].UserName
+		g.winner = g.players[alive[0]].Character.Name
 		g.appendLogLocked(types.LogEntry{
 			Actor: g.players[alive[0]].Character.Name, Kind: types.LogEnd, Text: "wins the fight",
 		})

@@ -172,8 +172,8 @@ func TestLeavingMidGameHandsTheWinToTheSurvivor(t *testing.T) {
 		t.Fatalf("status = %q, want the game to end on a forfeit", g.Status())
 	}
 	winner, over := g.Winner()
-	if !over || winner != "User-a" {
-		t.Errorf("winner = %q (over=%v), want \"User-a\"", winner, over)
+	if !over || winner != "Playera" {
+		t.Errorf("winner = %q (over=%v), want \"Playera\"", winner, over)
 	}
 }
 

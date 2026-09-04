@@ -251,8 +251,8 @@ func TestPoisonCanFinishACharacterAndEndTheGame(t *testing.T) {
 	if g.Status() != types.StatusGameOver {
 		t.Fatalf("status = %q, want the game over", g.Status())
 	}
-	if winner, over := g.Winner(); !over || winner != "User-a" {
-		t.Errorf("winner = %q (over=%v), want \"User-a\"", winner, over)
+	if winner, over := g.Winner(); !over || winner != "Playera" {
+		t.Errorf("winner = %q (over=%v), want \"Playera\"", winner, over)
 	}
 }
 
