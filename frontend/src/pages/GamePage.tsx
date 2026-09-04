@@ -102,9 +102,34 @@ function GamePage() {
     setSelectedSpellId(null);
   };
 
-  // Number keys pick a spell, Escape drops the selection and Tab ends the
-  // turn, the way the game this is modelled on does it. Keystrokes aimed at
-  // the chat are left alone.
+  const handleFightClick = () => {
+    if (!selectedPosition) return;
+    const { messageId, timestamp } = generateMessageId();
+    act({
+      type: "character_positioned",
+      messageId,
+      timestamp,
+      position: selectedPosition,
+    });
+  };
+
+  // P does whatever the main button underneath the board currently does:
+  // confirm a placement while positioning, end the turn once play starts.
+  const handleMainButtonKey = () => {
+    if (gameStatus === GAME_STATUS.POSITION_CHARACTERS) {
+      if (connected && selectedPosition && !isPlayerPositioned) {
+        handleFightClick();
+      }
+      return;
+    }
+    if (gameStatus === GAME_STATUS.PLAYING && isMyTurn) {
+      handleEndTurnClick();
+    }
+  };
+
+  // Number keys pick a spell, Escape drops the selection, Tab and P end the
+  // turn (P also confirms a placement), the way the game this is modelled on
+  // does it. Keystrokes aimed at the chat are left alone.
   useEffect(() => {
     const catalogue = Object.values(gameState?.spells ?? {}).sort(
       (a, b) => a.id - b.id
@@ -132,6 +157,11 @@ function GamePage() {
         if (isMyTurn) handleEndTurnClick();
         return;
       }
+      if (event.key === "p" || event.key === "P") {
+        event.preventDefault();
+        handleMainButtonKey();
+        return;
+      }
       const slot = Number(event.key);
       if (!Number.isInteger(slot) || slot < 1 || slot > catalogue.length) return;
 
@@ -142,18 +172,7 @@ function GamePage() {
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [gameState?.spells, isMyTurn, handleEndTurnClick]);
-
-  const handleFightClick = () => {
-    if (!selectedPosition) return;
-    const { messageId, timestamp } = generateMessageId();
-    act({
-      type: "character_positioned",
-      messageId,
-      timestamp,
-      position: selectedPosition,
-    });
-  };
+  }, [gameState?.spells, isMyTurn, handleEndTurnClick, handleMainButtonKey]);
 
   const handlePlayAgain = () => {
     const { messageId, timestamp } = generateMessageId();
