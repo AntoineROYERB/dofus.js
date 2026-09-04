@@ -30,9 +30,15 @@ export const MainButton: React.FC<mainButtonProps> = ({
    * Fight is the one button that says it.
    */
   if (gameStatus === "position_characters") {
+    /*
+     * A cell is picked but nothing has happened yet, which is the one moment
+     * a new player can be left wondering what the game wants. The board has
+     * stopped asking — it is this button's turn to.
+     */
+    const beckons = !!connected && !!selectedPosition && !isPlayerPositioned;
     return (
       <button
-        className={style}
+        className={beckons ? `${style} animate-beckon` : style}
         disabled={!connected || !selectedPosition || isPlayerPositioned}
         onClick={handleFightClick}
       >

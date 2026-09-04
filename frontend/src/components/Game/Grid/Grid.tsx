@@ -53,6 +53,8 @@ export const Grid: React.FC<GridProps> = ({
 
   // Check if we're in the positioning phase
   const isPositioningPhase = latestGameState?.status === "position_characters";
+  // Whether the board is still waiting on this player for a starting cell.
+  const awaitingPlacement = isPositioningPhase && !currentPlayer?.hasPositioned;
 
   // Collect all players' initial positions for rendering
   const allPlayersInitialPositions = React.useMemo(() => {
@@ -273,6 +275,7 @@ export const Grid: React.FC<GridProps> = ({
             isHovered={isHovered}
             isValidTarget={isValidTarget}
             isPositioningPhase={isPositioningPhase}
+            awaitingPlacement={awaitingPlacement}
             allPlayersInitialPositions={allPlayersInitialPositions}
             isCharacterTurn={isCharacterTurn}
             selectedSpellId={selectedSpellId}

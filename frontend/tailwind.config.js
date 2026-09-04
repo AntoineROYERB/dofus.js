@@ -37,6 +37,28 @@ export default {
       letterSpacing: {
         label: "0.18em",
       },
+      /*
+       * The two moments the game has to ask something of a player who has
+       * only just arrived: choose a cell, then commit it. Both are a slow
+       * breath rather than a blink — the board is quiet everywhere else, so
+       * very little movement is needed to be the thing that draws the eye.
+       * The reduced-motion guard in index.css switches both off.
+       */
+      keyframes: {
+        placeable: {
+          "0%, 100%": { fillOpacity: "0.18" },
+          "50%": { fillOpacity: "0.44" },
+        },
+        beckon: {
+          "0%": { boxShadow: "0 0 0 0 rgba(209, 70, 47, 0.5)" },
+          "70%": { boxShadow: "0 0 0 10px rgba(209, 70, 47, 0)" },
+          "100%": { boxShadow: "0 0 0 0 rgba(209, 70, 47, 0)" },
+        },
+      },
+      animation: {
+        placeable: "placeable 1.9s ease-in-out infinite",
+        beckon: "beckon 1.6s ease-out infinite",
+      },
     },
   },
   plugins: [],

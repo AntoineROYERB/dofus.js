@@ -14,6 +14,12 @@ interface TileProps {
   isValidTarget?: boolean;
   onClick?: () => void;
   isPositioningPhase: boolean;
+  /**
+   * True while the player still owes the game a starting cell. The cells they
+   * may pick breathe until then, and stop the moment the choice is made:
+   * movement that outlives the question it was asking is just noise.
+   */
+  awaitingPlacement: boolean;
   allPlayersInitialPositions: Array<{
     position: Position;
     playerId: string;
@@ -52,6 +58,7 @@ export const Tile: React.FC<TileProps> = ({
   isValidTarget,
   onClick,
   isPositioningPhase,
+  awaitingPlacement,
   allPlayersInitialPositions,
   isCharacterTurn,
   selectedSpellId,
@@ -136,6 +143,16 @@ export const Tile: React.FC<TileProps> = ({
   const crossedOut =
     isPositioningPhase && !!initialPositionOwner && !initialPositionOwner.isCurrentPlayer;
 
+  /*
+   * Hovering already answers "this one", and answering it twice — a cell that
+   * both brightens and keeps breathing — reads as a glitch. The cell under the
+   * cursor holds still.
+   */
+  const breathes =
+    awaitingPlacement &&
+    !!initialPositionOwner?.isCurrentPlayer &&
+    !isHovered;
+
   // Playable cells are reachable with the keyboard: they take focus and answer
   // Enter and Space. The board was mouse-only, which left it unusable without
   // a pointing device.
@@ -204,6 +221,7 @@ export const Tile: React.FC<TileProps> = ({
             <polygon points={points} fill={base} stroke="none" />
             {overlay && (
               <polygon
+                className={breathes ? "animate-placeable" : undefined}
                 points={points}
                 fill={overlay.fill}
                 fillOpacity={overlay.opacity}
