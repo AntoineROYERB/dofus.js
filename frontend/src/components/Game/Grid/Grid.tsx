@@ -211,23 +211,34 @@ export const Grid: React.FC<GridProps> = ({
   );
 
   // Cells the selected spell can actually reach: in range, and seen from where
-  // the caster stands. A cell it cannot reach must not look targetable.
-  const castable = React.useMemo(() => {
-    const cells = new Set<string>();
-    if (!characterPosition || !selectedSpell) return cells;
+  // the caster stands. A cell it cannot reach must not look targetable. A cell
+  // in range but hidden behind cover is kept separately — it is not nothing,
+  // it is a reason.
+  const { castable, losBlocked } = React.useMemo(() => {
+    const inRange = new Set<string>();
+    const hidden = new Set<string>();
+    if (!characterPosition || !selectedSpell) {
+      return { castable: inRange, losBlocked: hidden };
+    }
     sortedCoordinates.forEach(({ x, y }) => {
       if (!isInSpellRange({ x, y }, characterPosition, selectedSpell)) return;
       if (
         selectedSpell.needsLineOfSight &&
         !hasLineOfSight(characterPosition, { x, y }, blocked)
       ) {
+        hidden.add(`${x},${y}`);
         return;
       }
-      cells.add(`${x},${y}`);
+      inRange.add(`${x},${y}`);
     });
-    return cells;
+    return { castable: inRange, losBlocked: hidden };
     // sortedCoordinates is derived from gridSize alone and is stable enough.
   }, [characterPosition, selectedSpell, blocked, gridSize]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // The walkable wash is only worth showing once the player has actually
+  // brought the mouse to the board — otherwise it is noise sitting on screen
+  // between turns and clicks, telling a story nobody asked for yet.
+  const showMovementWash = !!hoveredPosition;
 
   /*
    * The area you may act in this turn — where you can walk, or where the
@@ -238,7 +249,9 @@ export const Grid: React.FC<GridProps> = ({
   const zone = currentPlayer?.isCurrentTurn
     ? selectedSpell
       ? castable
-      : new Set(walkable.keys())
+      : showMovementWash
+        ? new Set(walkable.keys())
+        : new Set<string>()
     : new Set<string>();
 
   /** Which of a cell's four edges face out of the zone. */
@@ -295,8 +308,12 @@ export const Grid: React.FC<GridProps> = ({
               selectedSpellId={selectedSpellId}
               isImpactedCell={isImpactedCell}
               isInSpellRange={isInCastRange}
+              isLosBlocked={losBlocked.has(`${x},${y}`)}
               isObstacle={isObstacle}
               isInRange={isInRange}
+              showMovementWash={showMovementWash}
+              movementCost={walkable.get(`${x},${y}`)}
+              maxMovementCost={movementPoints ?? 0}
               isPathCell={isPathCell}
               hoveredPosition={hoveredPosition}
               zoneEdges={zoneEdges(x, y)}

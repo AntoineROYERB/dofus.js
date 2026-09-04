@@ -30,7 +30,15 @@ interface TileProps {
   selectedSpellId: number | null;
   isImpactedCell: boolean;
   isInSpellRange: boolean;
+  /** In range, but the caster can't actually see it — cover is in the way. */
+  isLosBlocked: boolean;
   isInRange: boolean;
+  /** The walkable wash only shows once the mouse has reached the board. */
+  showMovementWash: boolean;
+  /** Movement points this cell costs to reach, when it is reachable at all. */
+  movementCost?: number;
+  /** The character's movement points this turn — the gradient's far end. */
+  maxMovementCost: number;
   isPathCell: boolean;
   hoveredPosition: Position | null;
   /** Cover: nobody stands here and nothing is seen through it. */
@@ -47,7 +55,24 @@ interface TileProps {
  * What is laid over a cell's paper: a wash, never a solid colour, so the
  * board's own checker still shows through everything the game marks.
  */
-type Wash = { fill: string; opacity: number; stroke: string; strokeWidth: number };
+type Wash = {
+  fill: string;
+  opacity: number;
+  stroke: string;
+  strokeWidth: number;
+  /** A cell you can see but not act on wears a broken line, not a solid one. */
+  dashed?: boolean;
+};
+
+/**
+ * Near is barely tinted, far is unmistakable — a cell one point away should
+ * not read the same as one that spends every point the turn has left.
+ */
+const costOpacity = (cost: number | undefined, maxCost: number): number => {
+  if (!cost || maxCost <= 0) return 0.14;
+  const share = Math.min(cost / maxCost, 1);
+  return 0.08 + share * 0.22;
+};
 
 export const Tile: React.FC<TileProps> = ({
   x,
@@ -64,7 +89,11 @@ export const Tile: React.FC<TileProps> = ({
   selectedSpellId,
   isImpactedCell,
   isInSpellRange,
+  isLosBlocked,
   isInRange,
+  showMovementWash,
+  movementCost,
+  maxMovementCost,
   isPathCell,
   hoveredPosition,
   isObstacle,
@@ -105,6 +134,15 @@ export const Tile: React.FC<TileProps> = ({
       stroke: BOARD.place,
       strokeWidth: BOARD.strokes.marked,
     });
+    // Seen, not reachable: a heavier wash than the ordinary range, and a
+    // broken outline — the one border on the board that isn't a promise.
+    const hidden = (opacity: number): Wash => ({
+      fill: BOARD.wash,
+      opacity,
+      stroke: BOARD.zoneEdge,
+      strokeWidth: BOARD.strokes.tile,
+      dashed: true,
+    });
 
     if (isPositioningPhase && initialPositionOwner) {
       if (initialPositionOwner.isCurrentPlayer) {
@@ -122,15 +160,16 @@ export const Tile: React.FC<TileProps> = ({
 
     if (isCharacterTurn && selectedSpellId) {
       if (isImpactedCell && hoveredPosition && isInSpellRange) return marked(0.3);
+      if (isLosBlocked) return hidden(0.22);
       if (isInSpellRange) return graphite(0.14);
     }
 
-    if (!selectedSpellId && isCharacterTurn && isInRange) {
+    if (!selectedSpellId && isCharacterTurn && isInRange && showMovementWash) {
       // The walk itself is a consequence of the click, so it is vermilion —
       // grey on grey made the path indistinguishable from the range around it.
       if (isHovered) return marked(0.44);
       if (isPathCell) return marked(0.26);
-      return graphite(0.14);
+      return graphite(costOpacity(movementCost, maxMovementCost));
     }
 
     return null;
@@ -234,6 +273,7 @@ export const Tile: React.FC<TileProps> = ({
               fill="none"
               stroke={overlay ? overlay.stroke : BOARD.stroke}
               strokeWidth={overlay ? overlay.strokeWidth : BOARD.strokes.tile}
+              strokeDasharray={overlay?.dashed ? "4 3" : undefined}
             />
             {crossedOut && (
               <g
