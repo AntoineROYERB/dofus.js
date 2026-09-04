@@ -58,4 +58,34 @@ export const BOARD = {
     /** Share of a tile's height the cover stands above the ground. */
     rise: 0.38,
   },
+  /**
+   * The ring under a fighter's feet, which is the only place a player's own
+   * colour is allowed on the board. Whose turn it is is drawn in ink rather
+   * than in the accent: vermilion says "this is what your click would do", and
+   * a fighter standing there is not something you are about to click.
+   */
+  socle: {
+    /** Share of a tile the ring is pulled in by, so it reads inside the cell. */
+    inset: 0.16,
+    fill: 0.2,
+    fillPlaying: 0.28,
+    stroke: 1.8,
+    /** The ink ring the fighter whose turn it is wears, just outside its own. */
+    turn: "#17181a",
+    turnStroke: 2,
+    /** Knocked out: no colour left, and the ring is drawn as a broken line. */
+    out: "#8b8d8a",
+  },
+} as const;
+
+/**
+ * Where a sprite's ink actually sits inside its frame, measured off Idle.png:
+ * the feet land at 0.70 — the number Character.tsx has always drawn with — and
+ * the top of the helmet at 0.28. Anything hung above a fighter hangs off the
+ * second one, because the 28% above it is empty pixels and hanging off the
+ * frame would leave a health bar floating a third of a tile too high.
+ */
+export const SPRITE = {
+  feet: 0.7,
+  headTop: 0.281,
 } as const;

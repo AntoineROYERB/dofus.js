@@ -37,6 +37,32 @@ input,
   touch-action: manipulation;
 }
 
+/*
+ * What a spell took off, drawn over the fighter it took it off. Both live in
+ * plain CSS rather than in the Tailwind config because the components that use
+ * them set their own durations, from the constants the hook holds the timers
+ * to — there is only one place a hold or a fade is written down.
+ */
+@keyframes hit-figure {
+  from {
+    transform: translate(-50%, -100%);
+    opacity: 1;
+  }
+  to {
+    transform: translate(-50%, calc(-100% - 34px));
+    opacity: 0;
+  }
+}
+
+@keyframes hit-fade {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

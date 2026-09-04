@@ -1,6 +1,7 @@
 import React from "react";
 import SpriteAnimation, { Direction } from "../SpriteAnimation";
 import { Position } from "../../../types/game";
+import { SPRITE } from "../../../constants";
 
 interface CharacterProps {
   screenPosition: Position;
@@ -73,7 +74,10 @@ export const Character: React.FC<CharacterProps> = ({
       className="absolute"
       style={{
         left: `${screenPosition.x - config.frameWidth * scale * 0.5}px`,
-        top: `${screenPosition.y - config.frameHeight * scale * 0.7}px`, // Adjust to better center the character
+        // The feet, not the middle of the frame: SPRITE.feet is where a
+        // sprite's ink ends, and it is what everything hung on a fighter
+        // measures from.
+        top: `${screenPosition.y - config.frameHeight * scale * SPRITE.feet}px`,
         width: `${config.frameWidth * scale}px`,
         height: `${config.frameHeight * scale}px`,
         pointerEvents: "none",
