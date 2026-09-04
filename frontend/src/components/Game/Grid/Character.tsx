@@ -8,6 +8,8 @@ interface CharacterProps {
   animation: "idle" | "walk" | "attack";
   direction: Direction;
   scale: number;
+  /** The fighter's chosen colour. Drawn in the sheet's own stock colour if omitted. */
+  color?: string;
 }
 
 const animationConfig = {
@@ -66,6 +68,7 @@ export const Character: React.FC<CharacterProps> = ({
   animation,
   direction,
   scale,
+  color,
 }) => {
   const config = animationConfig[animation];
 
@@ -83,7 +86,7 @@ export const Character: React.FC<CharacterProps> = ({
         pointerEvents: "none",
       }}
     >
-      <SpriteAnimation {...config} direction={direction} scale={scale} />
+      <SpriteAnimation {...config} direction={direction} scale={scale} color={color} />
     </div>
   );
 };

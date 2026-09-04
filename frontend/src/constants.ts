@@ -1,19 +1,19 @@
-// Available colors for players
+/**
+ * The six skins a fighter can wear. Each one is a real dye, not a flat tint:
+ * SpriteAnimation rotates the whole sprite sheet's hue by the distance from
+ * this colour to the art's own — see spriteRecolor.ts — so the helmet, the
+ * tunic and its own shadow land in different shades of the new colour rather
+ * than collapsing into one. The six sit sixty degrees apart around the wheel,
+ * clear of vermilion's own hue: a player's colour must never sit close enough
+ * to be mistaken for what a spell is about to hit.
+ */
 export const PLAYER_COLORS = [
-  "#ff0000", // red
-  "#0000ff", // blue
-  "#008000", // green
-  "#800080", // purple
-  "#ffa500", // orange
-  "#ffc0cb", // pink
-  "#008080", // teal
-  "#4b0082", // indigo
-  "#a52a2a", // brown
-  "#808080", // gray
-  "#ffff00", // yellow
-  "#00ffff", // cyan
-  "#ff00ff", // magenta
-  "#00ff00", // lime
+  "#d8ae31", // amber
+  "#5bd831", // lime
+  "#31d8ae", // emerald
+  "#315bd8", // azure
+  "#ae31d8", // violet
+  "#d8315b", // rose
 ];
 
 /**

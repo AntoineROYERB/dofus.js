@@ -348,6 +348,7 @@ export const Grid: React.FC<GridProps> = ({
               animation={renderData.animation}
               direction={renderData.direction}
               scale={tileSize.width / 256}
+              color={players?.[playerId]?.character.color}
             />
           );
         })}
@@ -401,6 +402,7 @@ export const Grid: React.FC<GridProps> = ({
             animation="idle"
             direction="S"
             scale={tileSize.width / 256}
+            color={currentPlayer?.character.color}
           />
         )}
       </div>
