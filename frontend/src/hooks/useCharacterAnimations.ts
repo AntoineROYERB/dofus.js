@@ -5,21 +5,32 @@ import { getDirection } from "../utils/pathUtils";
 import { blockedBy, findPath } from "../utils/board";
 import { isoToScreen } from "../utils/isoUtils";
 
+type Direction = "N" | "NE" | "E" | "SE" | "S" | "SW" | "W" | "NW";
+
 // Only tracks active animations
 interface AnimationState {
   [playerId: string]: {
     type: "move" | "attack";
     path?: Position[];
     step?: number;
-    direction: "N" | "NE" | "E" | "SE" | "S" | "SW" | "W" | "NW";
+    direction: Direction;
     startTime: number;
+    /**
+     * An attack the server has already resolved, waiting for the walk still
+     * playing to reach its last cell before it takes over. The bot can move
+     * into range and cast in the same turn faster than the walk plays out;
+     * without this the cast bumped the still-moving character straight to
+     * "attack" wherever it happened to be, and it only reappeared at its real
+     * cell once that finished — a second, larger snap right after the first.
+     */
+    pendingAttack?: { direction: Direction };
   };
 }
 // What the UI actually renders
 type CharacterRenderState = {
   [playerId: string]: {
     screenPosition: Position;
-    direction: "N" | "NE" | "E" | "SE" | "S" | "SW" | "W" | "NW";
+    direction: Direction;
     animation: "idle" | "walk" | "attack";
   };
 };
@@ -37,6 +48,26 @@ export const useCharacterAnimations = (
     useState<CharacterRenderState>({});
   const prevGameState = useRef<GameState | undefined>();
   const players = latestGameState?.players;
+
+  /*
+   * Detecting a move and running the animation loop are two separate effects,
+   * and React can run both within the same commit before either one's state
+   * update has actually landed. When that happens, the loop still sees the
+   * OLD (empty) `animationState` from the render that scheduled it, treats
+   * the player as idle, and jumps their sprite straight to the server's true
+   * position — one frame before the walk it should have played takes over
+   * and pulls it back to the start of the path. That round trip is the snap.
+   * A ref sidesteps it: it is written synchronously in the same call that
+   * starts a new animation, so whichever effect reads it next always sees
+   * the truth, never a stale render's copy of it.
+   */
+  const animationStateRef = useRef<AnimationState>({});
+  const updateAnimationState = (
+    updater: (prev: AnimationState) => AnimationState
+  ) => {
+    animationStateRef.current = updater(animationStateRef.current);
+    setAnimationState(animationStateRef.current);
+  };
 
   const getCharacterScreenPos = (
     position: Position,
@@ -105,8 +136,7 @@ export const useCharacterAnimations = (
             }
           }
 
-          let direction: "N" | "NE" | "E" | "SE" | "S" | "SW" | "W" | "NW" =
-            "S";
+          let direction: Direction = "S";
           if (
             targetPlayer &&
             newPlayer.character.position &&
@@ -127,7 +157,63 @@ export const useCharacterAnimations = (
       }
 
       if (Object.keys(newAnimations).length > 0) {
-        setAnimationState((prev) => ({ ...prev, ...newAnimations }));
+        updateAnimationState((prev) => {
+          const next = { ...prev };
+          for (const playerId in newAnimations) {
+            const incoming = newAnimations[playerId];
+            const current = prev[playerId];
+
+            /*
+             * The bot can spend its whole turn's worth of movement points in
+             * one server move, and its next action can follow only 700ms
+             * later — faster than a multi-tile walk (300ms a tile) finishes.
+             * Without this, the second move's path started from scratch at
+             * the server's already-current position, and the sprite snapped
+             * there mid-stride before setting off again. Splicing the new
+             * legs onto whatever is left of the walk in progress, instead of
+             * replacing it, keeps the current leg's own timer and direction
+             * untouched — only the path grows.
+             */
+            if (
+              incoming.type === "move" &&
+              incoming.path &&
+              current?.type === "move" &&
+              current.path &&
+              current.step !== undefined
+            ) {
+              const soFar = current.path.slice(current.step);
+              const joint = soFar[soFar.length - 1];
+              if (joint.x === incoming.path[0].x && joint.y === incoming.path[0].y) {
+                next[playerId] = {
+                  ...current,
+                  path: [...soFar, ...incoming.path.slice(1)],
+                  step: 0,
+                };
+                continue;
+              }
+            }
+
+            /*
+             * The bot routinely walks into range and casts in the same turn,
+             * faster than the walk plays out. Cutting the walk short here and
+             * jumping straight to "attack" is what produced the second snap —
+             * the character reappeared at its true cell the moment the attack
+             * finished, because the walk had never actually finished playing.
+             * Queue the attack on the move already running instead, and let
+             * the walk itself hand off once it reaches its last cell.
+             */
+            if (incoming.type === "attack" && current?.type === "move") {
+              next[playerId] = {
+                ...current,
+                pendingAttack: { direction: incoming.direction },
+              };
+              continue;
+            }
+
+            next[playerId] = incoming;
+          }
+          return next;
+        });
       }
     }
 
@@ -148,10 +234,13 @@ export const useCharacterAnimations = (
       const now = Date.now();
       const newRenderState: CharacterRenderState = { ...characterRenderState };
       let hasActiveAnimations = false;
+      // Through the ref, not the `animationState` closure — see the note by
+      // animationStateRef above for why the closure can be a tick behind.
+      const currentAnimations = animationStateRef.current;
 
-      for (const playerId in animationState) {
+      for (const playerId in currentAnimations) {
         hasActiveAnimations = true;
-        const anim = animationState[playerId];
+        const anim = currentAnimations[playerId];
 
         if (anim.type === "attack") {
           const elapsed = now - anim.startTime;
@@ -161,7 +250,7 @@ export const useCharacterAnimations = (
               newRenderState[playerId].direction = anim.direction;
             }
           } else {
-            setAnimationState((prev) => {
+            updateAnimationState((prev) => {
               const newPrev = { ...prev };
               delete newPrev[playerId];
               return newPrev;
@@ -182,7 +271,7 @@ export const useCharacterAnimations = (
                 anim.path[anim.step + 1],
                 anim.path[anim.step + 2]
               );
-              setAnimationState((prev) => ({
+              updateAnimationState((prev) => ({
                 ...prev,
                 [playerId]: {
                   ...anim,
@@ -197,10 +286,22 @@ export const useCharacterAnimations = (
                 animation: "walk",
               };
             } else {
-              const lastDirection = anim.direction;
-              setAnimationState((prev) => {
+              // A cast queued while this leg was still walking takes over
+              // right where the walk lands, instead of the walk simply
+              // ending here and an "idle" snap standing in for it.
+              const attack = anim.pendingAttack;
+              const lastDirection = attack ? attack.direction : anim.direction;
+              updateAnimationState((prev) => {
                 const newPrev = { ...prev };
-                delete newPrev[playerId];
+                if (attack) {
+                  newPrev[playerId] = {
+                    type: "attack",
+                    startTime: now,
+                    direction: attack.direction,
+                  };
+                } else {
+                  delete newPrev[playerId];
+                }
                 return newPrev;
               });
               if (players && players[playerId]?.character?.position) {
@@ -211,7 +312,7 @@ export const useCharacterAnimations = (
                     centerY
                   ),
                   direction: lastDirection,
-                  animation: "idle",
+                  animation: attack ? "attack" : "idle",
                 };
               }
             }
@@ -245,7 +346,7 @@ export const useCharacterAnimations = (
       if (players) {
         for (const playerId in players) {
           if (
-            !animationState[playerId] &&
+            !currentAnimations[playerId] &&
             players[playerId].character?.position
           ) {
             newRenderState[playerId] = {
@@ -262,12 +363,18 @@ export const useCharacterAnimations = (
       }
 
       setCharacterRenderState(newRenderState);
-      if (hasActiveAnimations || Object.keys(animationState).length > 0) {
+      if (
+        hasActiveAnimations ||
+        Object.keys(animationStateRef.current).length > 0
+      ) {
         animationFrameId = requestAnimationFrame(animate);
       }
     };
 
-    if (Object.keys(animationState).length > 0 || !prevGameState.current) {
+    if (
+      Object.keys(animationStateRef.current).length > 0 ||
+      !prevGameState.current
+    ) {
       animationFrameId = requestAnimationFrame(animate);
     } else {
       animate(); // Run once to set initial idle positions
