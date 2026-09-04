@@ -99,12 +99,22 @@ export type SpellState = {
 
 /** One line of the combat log. */
 export type LogEntry = {
+  /**
+   * A per-game counter that never repeats. The log is a bounded tail resent
+   * whole with every state, so this is how the spell effects tell an entry
+   * they have already played from one that just happened.
+   */
+  seq: number;
   turn: number;
   actor: string;
   kind: "cast" | "death" | "turn" | "end" | "effect";
   text: string;
   damage?: number;
   crit?: boolean;
+  /** What a cast was, for drawing it. Absent on every other kind of entry. */
+  spellId?: number;
+  origin?: Position;
+  target?: Position;
 };
 
 export type SpellBook = { [spellId: string]: Spell };
