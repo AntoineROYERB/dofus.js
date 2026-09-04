@@ -89,7 +89,7 @@ func TestLobbyRemove(t *testing.T) {
 	}
 }
 
-func TestRoomRefusesLatecomersAndOverflow(t *testing.T) {
+func TestRoomRefusesLatecomers(t *testing.T) {
 	l := NewLobby(DefaultTurnDuration)
 	room, err := l.Create("Arena One")
 	if err != nil {
@@ -99,23 +99,19 @@ func TestRoomRefusesLatecomersAndOverflow(t *testing.T) {
 		t.Errorf("CanJoin on a fresh room = %v, want nil", err)
 	}
 
+	// A room holds exactly a duel, and filling it starts it — there is no
+	// "ready" step left in between. So a room that is full is always a room
+	// that is already under way, and that is the refusal a latecomer gets.
 	for i := 0; i < MaxPlayersPerRoom; i++ {
 		id := string(rune('a' + i))
 		if err := room.Game.AddPlayer(id, "User-"+id, look("Player"+id)); err != nil {
 			t.Fatalf("AddPlayer(%s): %v", id, err)
 		}
 	}
-	if err := room.CanJoin(); !errors.Is(err, ErrRoomFull) {
-		t.Errorf("CanJoin on a full room = %v, want ErrRoomFull", err)
+	if err := room.CanJoin(); !errors.Is(err, ErrRoomStarted) {
+		t.Errorf("CanJoin on a full room = %v, want ErrRoomStarted", err)
 	}
-
-	other := &Room{ID: "x", Name: "Started", Game: twoPlayerGameForRoom(t)}
-	if err := other.CanJoin(); !errors.Is(err, ErrRoomStarted) {
-		t.Errorf("CanJoin on a running game = %v, want ErrRoomStarted", err)
+	if err := room.Game.AddPlayer("z", "User-z", look("Zoe")); !errors.Is(err, ErrGameInProgress) {
+		t.Errorf("AddPlayer past the cap = %v, want ErrGameInProgress", err)
 	}
-}
-
-func twoPlayerGameForRoom(t *testing.T) *Game {
-	t.Helper()
-	return twoPlayerGame(t)
 }

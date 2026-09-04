@@ -81,17 +81,28 @@ func (h *Hub) broadcastToRoom(roomID string, message []byte) {
 	}
 }
 
-// broadcastGameState pushes a room's snapshot to its members.
+// broadcastGameState pushes a room's snapshot to its members. Each member
+// gets their own copy rather than one shared payload, because during
+// positioning what a player is allowed to see depends on who they are: an
+// opponent's chosen cell is withheld from everyone but that opponent until
+// the fight actually starts.
 func (h *Hub) broadcastGameState(room *game.Room) {
-	payload, err := json.Marshal(types.GameStateMessage{
-		Type:  "game_state",
-		State: room.Game.Snapshot(),
-	})
-	if err != nil {
-		log.Printf("[Error] Failed to marshal game state: %v", err)
-		return
+	h.mutex.Lock()
+	for client := range h.Clients {
+		if client.RoomID != room.ID {
+			continue
+		}
+		payload, err := json.Marshal(types.GameStateMessage{
+			Type:  "game_state",
+			State: room.Game.SnapshotFor(client.ID),
+		})
+		if err != nil {
+			log.Printf("[Error] Failed to marshal game state for %s: %v", client.ID, err)
+			continue
+		}
+		client.TrySend(payload)
 	}
-	h.broadcastToRoom(room.ID, payload)
+	h.mutex.Unlock()
 	h.scheduleRoom(room)
 
 	if winner, over := room.Game.Winner(); over {

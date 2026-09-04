@@ -58,7 +58,6 @@ function GamePage() {
 
   const currentPlayer = gameState?.players[userId];
   const isMyTurn = currentPlayer?.isCurrentTurn;
-  const isPlayerReady = currentPlayer?.isReady;
   const isPlayerPositioned = currentPlayer?.hasPositioned;
   const currentCharacter = currentPlayer?.character;
   const gameStatus: GameStatus =
@@ -138,11 +137,6 @@ function GamePage() {
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [gameState?.spells]);
-
-  const handleReadyClick = () => {
-    const { messageId, timestamp } = generateMessageId();
-    act({ type: "ready_to_start", messageId, timestamp });
-  };
 
   const handleFightClick = () => {
     if (!selectedPosition) return;
@@ -305,11 +299,8 @@ function GamePage() {
             <MainButton
               gameStatus={gameStatus}
               connected={connected}
-              handleReadyClick={handleReadyClick}
               handleEndTurnClick={handleEndTurnClick}
-              isPlayerReady={isPlayerReady}
               isMyTurn={isMyTurn}
-              userHasCharacter={userHasCharacter}
               handleFightClick={handleFightClick}
               selectedPosition={selectedPosition ?? undefined}
               isPlayerPositioned={isPlayerPositioned}

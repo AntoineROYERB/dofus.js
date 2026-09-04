@@ -19,7 +19,6 @@ var messageHandlers = map[string]MessageHandler{
 	"join_room":            handleJoinRoom,
 	"leave_room":           handleLeaveRoom,
 	"create_character":     handleCreateCharacter,
-	"ready_to_start":       handleReadyToStart,
 	"character_positioned": handleCharacterPositioned,
 	"move":                 handleMove,
 	"cast_spell":           handleCastSpell,
@@ -178,23 +177,6 @@ func handleCreateCharacter(h *Hub, c *Client, data []byte) {
 	}
 	if err := room.Game.AddPlayer(c.ID, c.Session.Name, in.Character); err != nil {
 		h.reject(c, "create_character", in.MessageID, err)
-		return
-	}
-	h.broadcastGameState(room)
-	h.broadcastLobby()
-}
-
-func handleReadyToStart(h *Hub, c *Client, data []byte) {
-	var in types.ReadyToStartIn
-	if !decode(c, "ready_to_start", data, &in) {
-		return
-	}
-	room, ok := h.inRoom(c, "ready_to_start", in.MessageID)
-	if !ok {
-		return
-	}
-	if err := room.Game.SetReady(c.ID); err != nil {
-		h.reject(c, "ready_to_start", in.MessageID, err)
 		return
 	}
 	h.broadcastGameState(room)

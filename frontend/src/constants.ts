@@ -18,8 +18,11 @@ export const PLAYER_COLORS = [
 
 /**
  * The board palette. It is deliberately almost colourless: the only saturated
- * colour on the board is the vermilion that marks what a spell would hit, so
- * that mark can never be confused with decoration.
+ * colour on the board during play is the vermilion that marks what a spell
+ * would hit, so that mark can never be confused with decoration. Choosing a
+ * starting cell is a different question from targeting one, and gets its own
+ * colour for the same reason paper maps use green for "go" and red for "no":
+ * a cell you may not start on should never share a colour with a cell you may.
  */
 export const BOARD = {
   tile: "#ffffff",
@@ -28,6 +31,13 @@ export const BOARD = {
   /** Anything reachable or targetable, as a graphite wash. */
   wash: "#17181a",
   accent: "#d1462f",
+  /** Where you are allowed to start, during positioning only. */
+  place: "#1a7f37",
+  /**
+   * Where the opponent may start. Deliberately not the vermilion accent: this
+   * marks a cell you must keep off, never one your click is about to act on.
+   */
+  foe: "#a3231b",
   /** The drawn boundary of the area you may act in this turn. */
   zoneEdge: "#3d3f3d",
   /*

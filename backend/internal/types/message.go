@@ -32,10 +32,6 @@ type CreateCharacterIn struct {
 	Character CharacterAppearance `json:"character"`
 }
 
-type ReadyToStartIn struct {
-	BaseMessage
-}
-
 type CharacterPositionedIn struct {
 	BaseMessage
 	Position Position `json:"position"`
