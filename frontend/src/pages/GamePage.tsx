@@ -96,8 +96,15 @@ function GamePage() {
   const handleSpellClick = (spellId: number) =>
     setSelectedSpellId((prev) => (prev === spellId ? null : spellId));
 
-  // Number keys pick a spell and Escape drops the selection, the way the game
-  // this is modelled on does it. Keystrokes aimed at the chat are left alone.
+  const handleEndTurnClick = () => {
+    const { messageId, timestamp } = generateMessageId();
+    act({ type: "end_turn", messageId, timestamp });
+    setSelectedSpellId(null);
+  };
+
+  // Number keys pick a spell, Escape drops the selection and Tab ends the
+  // turn, the way the game this is modelled on does it. Keystrokes aimed at
+  // the chat are left alone.
   useEffect(() => {
     const catalogue = Object.values(gameState?.spells ?? {}).sort(
       (a, b) => a.id - b.id
@@ -120,6 +127,11 @@ function GamePage() {
         setSelectedSpellId(null);
         return;
       }
+      if (event.key === "Tab") {
+        event.preventDefault();
+        if (isMyTurn) handleEndTurnClick();
+        return;
+      }
       const slot = Number(event.key);
       if (!Number.isInteger(slot) || slot < 1 || slot > catalogue.length) return;
 
@@ -130,7 +142,7 @@ function GamePage() {
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [gameState?.spells]);
+  }, [gameState?.spells, isMyTurn, handleEndTurnClick]);
 
   const handleFightClick = () => {
     if (!selectedPosition) return;
@@ -141,12 +153,6 @@ function GamePage() {
       timestamp,
       position: selectedPosition,
     });
-  };
-
-  const handleEndTurnClick = () => {
-    const { messageId, timestamp } = generateMessageId();
-    act({ type: "end_turn", messageId, timestamp });
-    setSelectedSpellId(null);
   };
 
   const handlePlayAgain = () => {
