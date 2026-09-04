@@ -9,6 +9,7 @@ import { blockedBy, hasLineOfSight, reachable } from "../../../utils/board";
 import { Tile } from "./Tile";
 import { isInSpellRange } from "../../../utils/spellUtils";
 import { Character } from "./Character";
+import { SpellFXLayer } from "./SpellFXLayer";
 import { useCharacterAnimations } from "../../../hooks/useCharacterAnimations";
 import { useGridInteraction } from "../../../hooks/useGridInteraction";
 import { useTileSize } from "../../../hooks/useTileSize";
@@ -32,6 +33,12 @@ export const Grid: React.FC<GridProps> = ({
   selectedSpellId,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  /*
+   * The board itself, separate from the container that measures it. Impacts
+   * shake this one; the container keeps still, so pointer maths — which reads
+   * the container's own box — is never thrown off by a spell going off.
+   */
+  const boardRef = useRef<HTMLDivElement>(null);
 
   const players = latestGameState?.players;
   // Memoised: a fresh `?? []` on every render would defeat the memos below.
@@ -241,104 +248,119 @@ export const Grid: React.FC<GridProps> = ({
 
   return (
     <div ref={containerRef} className="w-full h-full relative overflow-hidden">
-      {sortedCoordinates.map(({ x, y }) => {
-        const isHovered = hoveredPosition?.x === x && hoveredPosition?.y === y;
-        const isValidInitial = isPositioningPhase && isInitialPosition(x, y);
+      <div ref={boardRef} className="absolute inset-0">
+        {sortedCoordinates.map(({ x, y }) => {
+          const isHovered = hoveredPosition?.x === x && hoveredPosition?.y === y;
+          const isValidInitial = isPositioningPhase && isInitialPosition(x, y);
 
-        const isPathCell = isInPathCells(x, y);
-        const isObstacle = obstacleSet.has(`${x},${y}`);
-        const isInRange = walkable.has(`${x},${y}`);
+          const isPathCell = isInPathCells(x, y);
+          const isObstacle = obstacleSet.has(`${x},${y}`);
+          const isInRange = walkable.has(`${x},${y}`);
 
-        const isInCastRange = castable.has(`${x},${y}`);
+          const isInCastRange = castable.has(`${x},${y}`);
 
-        const isImpactedCell = impactedCells.some(
-          (pos) => pos.x === x && pos.y === y
-        );
+          const isImpactedCell = impactedCells.some(
+            (pos) => pos.x === x && pos.y === y
+          );
 
-        const isCharacterTurn = currentPlayer?.isCurrentTurn || false;
+          const isCharacterTurn = currentPlayer?.isCurrentTurn || false;
 
-        // Determine if this tile is a valid movement target
-        const isValidTarget = isPositioningPhase
-          ? !!isValidInitial
-          : !!(currentPlayer?.isCurrentTurn && isInRange && !findPlayerOnCell(x, y)) ||
-            isInCastRange;
+          // Determine if this tile is a valid movement target
+          const isValidTarget = isPositioningPhase
+            ? !!isValidInitial
+            : !!(currentPlayer?.isCurrentTurn && isInRange && !findPlayerOnCell(x, y)) ||
+              isInCastRange;
 
-        const screenPosition = isoToScreen(x, y, tileSize, centerX, centerY);
+          const screenPosition = isoToScreen(x, y, tileSize, centerX, centerY);
 
-        return (
-          <Tile
-            key={`${x}-${y}`}
-            x={x}
-            y={y}
-            tileSize={tileSize}
-            screenPosition={screenPosition}
-            isHovered={isHovered}
-            isValidTarget={isValidTarget}
-            isPositioningPhase={isPositioningPhase}
-            awaitingPlacement={awaitingPlacement}
-            allPlayersInitialPositions={allPlayersInitialPositions}
-            isCharacterTurn={isCharacterTurn}
-            selectedSpellId={selectedSpellId}
-            isImpactedCell={isImpactedCell}
-            isInSpellRange={isInCastRange}
-            isObstacle={isObstacle}
-            isInRange={isInRange}
-            isPathCell={isPathCell}
-            hoveredPosition={hoveredPosition}
-            zoneEdges={zoneEdges(x, y)}
-            // On a touch screen the first tap only previews the cell.
-            onClick={() => confirmsTap({ x, y }) && onCellClick({ x, y })}
-          />
-        );
-      })}
-      {Object.entries(characterRenderState).map(([playerId, renderData]) => {
-        if (!renderData) return null;
-        return (
+          return (
+            <Tile
+              key={`${x}-${y}`}
+              x={x}
+              y={y}
+              tileSize={tileSize}
+              screenPosition={screenPosition}
+              isHovered={isHovered}
+              isValidTarget={isValidTarget}
+              isPositioningPhase={isPositioningPhase}
+              awaitingPlacement={awaitingPlacement}
+              allPlayersInitialPositions={allPlayersInitialPositions}
+              isCharacterTurn={isCharacterTurn}
+              selectedSpellId={selectedSpellId}
+              isImpactedCell={isImpactedCell}
+              isInSpellRange={isInCastRange}
+              isObstacle={isObstacle}
+              isInRange={isInRange}
+              isPathCell={isPathCell}
+              hoveredPosition={hoveredPosition}
+              zoneEdges={zoneEdges(x, y)}
+              // On a touch screen the first tap only previews the cell.
+              onClick={() => confirmsTap({ x, y }) && onCellClick({ x, y })}
+            />
+          );
+        })}
+        {/*
+          Sits between the floor and the characters: its ground layer puts scars
+          under whoever is standing on them, and its upper layer throws debris in
+          front of them.
+        */}
+        <SpellFXLayer
+          latestGameState={latestGameState}
+          tileSize={tileSize}
+          centerX={centerX}
+          centerY={centerY}
+          boardRef={boardRef}
+          containerRef={containerRef}
+        />
+        {Object.entries(characterRenderState).map(([playerId, renderData]) => {
+          if (!renderData) return null;
+          return (
+            <Character
+              key={playerId}
+              screenPosition={renderData.screenPosition}
+              animation={renderData.animation}
+              direction={renderData.direction}
+              scale={tileSize.width / 256}
+            />
+          );
+        })}
+        {/*
+          What the spell would take off, before the click. The number is the
+          catalogue's base damage: a critical or a shield will move it, which is
+          why it is shown as an estimate and not as a result.
+        */}
+        {damagePreview && (
+          <div
+            className="absolute pointer-events-none font-display font-bold tabular-nums text-vermilion"
+            style={{
+              left: `${damagePreview.screen.x}px`,
+              top: `${damagePreview.screen.y - tileSize.height * 1.7}px`,
+              transform: "translate(-50%, -50%)",
+              fontSize: `${Math.max(14, tileSize.width * 0.22)}px`,
+              textShadow:
+                "0 1px 0 #fff, 0 -1px 0 #fff, 1px 0 0 #fff, -1px 0 0 #fff",
+            }}
+          >
+            &minus;{damagePreview.damage}
+          </div>
+        )}
+
+        {isPositioningPhase && selectedPosition && (
           <Character
-            key={playerId}
-            screenPosition={renderData.screenPosition}
-            animation={renderData.animation}
-            direction={renderData.direction}
+            key={`${userId}-preview`}
+            screenPosition={isoToScreen(
+              selectedPosition.x,
+              selectedPosition.y,
+              tileSize,
+              centerX,
+              centerY
+            )}
+            animation="idle"
+            direction="S"
             scale={tileSize.width / 256}
           />
-        );
-      })}
-      {/*
-        What the spell would take off, before the click. The number is the
-        catalogue's base damage: a critical or a shield will move it, which is
-        why it is shown as an estimate and not as a result.
-      */}
-      {damagePreview && (
-        <div
-          className="absolute pointer-events-none font-display font-bold tabular-nums text-vermilion"
-          style={{
-            left: `${damagePreview.screen.x}px`,
-            top: `${damagePreview.screen.y - tileSize.height * 1.7}px`,
-            transform: "translate(-50%, -50%)",
-            fontSize: `${Math.max(14, tileSize.width * 0.22)}px`,
-            textShadow:
-              "0 1px 0 #fff, 0 -1px 0 #fff, 1px 0 0 #fff, -1px 0 0 #fff",
-          }}
-        >
-          &minus;{damagePreview.damage}
-        </div>
-      )}
-
-      {isPositioningPhase && selectedPosition && (
-        <Character
-          key={`${userId}-preview`}
-          screenPosition={isoToScreen(
-            selectedPosition.x,
-            selectedPosition.y,
-            tileSize,
-            centerX,
-            centerY
-          )}
-          animation="idle"
-          direction="S"
-          scale={tileSize.width / 256}
-        />
-      )}
+        )}
+      </div>
     </div>
   );
 };

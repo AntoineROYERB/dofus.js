@@ -59,8 +59,12 @@ type Game struct {
 	spells     map[string]types.Spell
 	obstacles  map[types.Position]bool
 	log        []types.LogEntry
-	winner     string
-	rng        *rand.Rand
+	// logSeq numbers log entries so a client can recognise the ones it has
+	// already played. It is never reset while the game object lives, so a
+	// rematch cannot hand out a sequence number twice.
+	logSeq int64
+	winner string
+	rng    *rand.Rand
 
 	turnDuration time.Duration
 	turnEndsAt   time.Time
@@ -357,6 +361,8 @@ func (g *Game) freshSpellStateLocked() map[string]types.SpellState {
 // appendLogLocked records one line of combat history, keeping the tail.
 func (g *Game) appendLogLocked(entry types.LogEntry) {
 	entry.Turn = g.turnNumber
+	g.logSeq++
+	entry.Seq = g.logSeq
 	g.log = append(g.log, entry)
 	if len(g.log) > MaxLogEntries {
 		g.log = g.log[len(g.log)-MaxLogEntries:]
@@ -672,12 +678,16 @@ func (g *Game) CastSpell(userID string, spellID int, target types.Position) erro
 		g.players[userID] = self
 	}
 
+	castOrigin, castTarget := origin, target
 	g.appendLogLocked(types.LogEntry{
-		Actor:  caster.Character.Name,
-		Kind:   types.LogCast,
-		Text:   castSummary(spell.Name, hits, crit),
-		Damage: dealt,
-		Crit:   crit,
+		Actor:   caster.Character.Name,
+		Kind:    types.LogCast,
+		Text:    castSummary(spell.Name, hits, crit),
+		Damage:  dealt,
+		Crit:    crit,
+		SpellID: spell.ID,
+		Origin:  &castOrigin,
+		Target:  &castTarget,
 	})
 	for _, name := range killed {
 		g.appendLogLocked(types.LogEntry{Actor: name, Kind: types.LogDeath, Text: "is out of the fight"})
