@@ -211,29 +211,35 @@ export const Grid: React.FC<GridProps> = ({
   );
 
   // Cells the selected spell can actually reach: in range, and seen from where
-  // the caster stands. A cell it cannot reach must not look targetable. A cell
-  // in range but hidden behind cover is kept separately — it is not nothing,
-  // it is a reason.
-  const { castable, losBlocked } = React.useMemo(() => {
+  // the caster stands. A cell it cannot reach must not look targetable — cover
+  // in the way is not shown specially, it just isn't one of these.
+  const castable = React.useMemo(() => {
     const inRange = new Set<string>();
-    const hidden = new Set<string>();
-    if (!characterPosition || !selectedSpell) {
-      return { castable: inRange, losBlocked: hidden };
-    }
+    if (!characterPosition || !selectedSpell) return inRange;
     sortedCoordinates.forEach(({ x, y }) => {
       if (!isInSpellRange({ x, y }, characterPosition, selectedSpell)) return;
       if (
         selectedSpell.needsLineOfSight &&
         !hasLineOfSight(characterPosition, { x, y }, blocked)
       ) {
-        hidden.add(`${x},${y}`);
         return;
       }
       inRange.add(`${x},${y}`);
     });
-    return { castable: inRange, losBlocked: hidden };
+    return inRange;
     // sortedCoordinates is derived from gridSize alone and is stable enough.
   }, [characterPosition, selectedSpell, blocked, gridSize]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /*
+   * Only the centre a spell lands on needs a clear line to the caster — the
+   * server checks line of sight once, against the target, and then hits
+   * every cell the blast pattern covers regardless of what each of those
+   * cells can individually see. So a splash cell must not be judged on its
+   * own line of sight: it reads as hit whenever the cell under the cursor is
+   * itself a legal cast.
+   */
+  const hoveredCastable =
+    !!hoveredPosition && castable.has(`${hoveredPosition.x},${hoveredPosition.y}`);
 
   // The walkable wash is only worth showing once the player has actually
   // brought the mouse to the board — otherwise it is noise sitting on screen
@@ -308,14 +314,13 @@ export const Grid: React.FC<GridProps> = ({
               selectedSpellId={selectedSpellId}
               isImpactedCell={isImpactedCell}
               isInSpellRange={isInCastRange}
-              isLosBlocked={losBlocked.has(`${x},${y}`)}
+              canCastAtHovered={hoveredCastable}
               isObstacle={isObstacle}
               isInRange={isInRange}
               showMovementWash={showMovementWash}
               movementCost={walkable.get(`${x},${y}`)}
               maxMovementCost={movementPoints ?? 0}
               isPathCell={isPathCell}
-              hoveredPosition={hoveredPosition}
               zoneEdges={zoneEdges(x, y)}
               // On a touch screen the first tap only previews the cell.
               onClick={() => confirmsTap({ x, y }) && onCellClick({ x, y })}

@@ -30,8 +30,14 @@ interface TileProps {
   selectedSpellId: number | null;
   isImpactedCell: boolean;
   isInSpellRange: boolean;
-  /** In range, but the caster can't actually see it — cover is in the way. */
-  isLosBlocked: boolean;
+  /**
+   * Whether the cell under the cursor — the blast's centre, not necessarily
+   * this cell — is itself a legal cast. The server checks line of sight once,
+   * against that centre, then hits the whole blast pattern regardless of what
+   * each cell in it can individually see, so a splash cell is marked hit off
+   * of this rather than its own line of sight.
+   */
+  canCastAtHovered: boolean;
   isInRange: boolean;
   /** The walkable wash only shows once the mouse has reached the board. */
   showMovementWash: boolean;
@@ -40,7 +46,6 @@ interface TileProps {
   /** The character's movement points this turn — the gradient's far end. */
   maxMovementCost: number;
   isPathCell: boolean;
-  hoveredPosition: Position | null;
   /** Cover: nobody stands here and nothing is seen through it. */
   isObstacle: boolean;
   /**
@@ -60,8 +65,6 @@ type Wash = {
   opacity: number;
   stroke: string;
   strokeWidth: number;
-  /** A cell you can see but not act on wears a broken line, not a solid one. */
-  dashed?: boolean;
 };
 
 /**
@@ -89,13 +92,12 @@ export const Tile: React.FC<TileProps> = ({
   selectedSpellId,
   isImpactedCell,
   isInSpellRange,
-  isLosBlocked,
+  canCastAtHovered,
   isInRange,
   showMovementWash,
   movementCost,
   maxMovementCost,
   isPathCell,
-  hoveredPosition,
   isObstacle,
   zoneEdges,
 }) => {
@@ -134,15 +136,6 @@ export const Tile: React.FC<TileProps> = ({
       stroke: BOARD.place,
       strokeWidth: BOARD.strokes.marked,
     });
-    // Seen, not reachable: a heavier wash than the ordinary range, and a
-    // broken outline — the one border on the board that isn't a promise.
-    const hidden = (opacity: number): Wash => ({
-      fill: BOARD.wash,
-      opacity,
-      stroke: BOARD.zoneEdge,
-      strokeWidth: BOARD.strokes.tile,
-      dashed: true,
-    });
 
     if (isPositioningPhase && initialPositionOwner) {
       if (initialPositionOwner.isCurrentPlayer) {
@@ -159,8 +152,7 @@ export const Tile: React.FC<TileProps> = ({
     }
 
     if (isCharacterTurn && selectedSpellId) {
-      if (isImpactedCell && hoveredPosition && isInSpellRange) return marked(0.3);
-      if (isLosBlocked) return hidden(0.22);
+      if (isImpactedCell && canCastAtHovered) return marked(0.3);
       if (isInSpellRange) return graphite(0.14);
     }
 
@@ -273,7 +265,6 @@ export const Tile: React.FC<TileProps> = ({
               fill="none"
               stroke={overlay ? overlay.stroke : BOARD.stroke}
               strokeWidth={overlay ? overlay.strokeWidth : BOARD.strokes.tile}
-              strokeDasharray={overlay?.dashed ? "4 3" : undefined}
             />
             {crossedOut && (
               <g
