@@ -28,6 +28,12 @@ export default {
         rule: "#cfd0cd",
         hairline: "#e2e3e0",
         vermilion: "#d1462f",
+        // Same hex as BOARD.pa/BOARD.pm in constants.ts, so a stat reads the
+        // same colour in the combat log as it does in its floating number.
+        pa: "#2f6fd1",
+        pm: "#2f9e44",
+        amber: "#b5790a",
+        "amber-wash": "#f7ecd6",
       },
       fontFamily: {
         display: ["Archivo", "system-ui", "sans-serif"],
@@ -65,11 +71,18 @@ export default {
           "0%, 100%": { borderColor: "#cfd0cd" },
           "50%": { borderColor: "#d1462f" },
         },
+        // The combat log's newest line, so a player who glanced away for one
+        // exchange still finds where the log picked back up.
+        "log-settle": {
+          "0%": { backgroundColor: "rgba(209, 70, 47, 0.10)" },
+          "100%": { backgroundColor: "rgba(209, 70, 47, 0)" },
+        },
       },
       animation: {
         placeable: "placeable 1.9s ease-in-out infinite",
         beckon: "beckon 1.6s ease-out infinite",
         hint: "hint 1.8s ease-in-out infinite",
+        "log-settle": "log-settle 2.4s ease-out 1",
       },
     },
   },
