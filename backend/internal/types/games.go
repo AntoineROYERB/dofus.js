@@ -113,8 +113,9 @@ type LogEntry struct {
 	// APChange/MPChange are the point delta a cast's own effect leaves behind
 	// (positive on a self-buff, negative on an enemy debuff), so the client
 	// can colour it the same way it colours the AP/MP the effect changes.
-	APChange int `json:"apChange,omitempty"`
-	MPChange int `json:"mpChange,omitempty"`
+	APChange     int `json:"apChange,omitempty"`
+	MPChange     int `json:"mpChange,omitempty"`
+	ShieldChange int `json:"shieldChange,omitempty"`
 	// What a cast was, for the client to draw. The line alone said that a
 	// spell had been cast but not which one, nor from where to where, so every
 	// spell could only ever be drawn the same way.

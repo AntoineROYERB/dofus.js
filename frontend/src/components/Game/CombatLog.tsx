@@ -82,6 +82,12 @@ export const CombatLog: React.FC<CombatLogProps> = ({ entries, spellBook }) => {
                   {Math.abs(entry.mpChange)} PM
                 </i>
               ) : null}
+              {entry.shieldChange ? (
+                <i className="font-mono text-[11.5px] font-semibold not-italic text-graphite">
+                  {entry.shieldChange > 0 ? "+" : "−"}
+                  {Math.abs(entry.shieldChange)} shield
+                </i>
+              ) : null}
               {noTarget ? (
                 <span className="rounded-sm bg-hairline px-1.5 py-0.5 font-sans text-[10px] font-semibold text-muted">
                   no target
