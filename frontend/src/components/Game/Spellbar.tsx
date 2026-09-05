@@ -2,6 +2,7 @@ import React from "react";
 import { Player } from "../../types/game";
 import { Spell, SpellBook, SpellState } from "../../types/message";
 import { SpellGlyph } from "./SpellGlyph";
+import { SpellTooltip } from "./SpellTooltip";
 
 interface SpellBarProps {
   handleSpellClick: (spellId: number) => void;
@@ -68,21 +69,28 @@ const SpellSlot: React.FC<{
 }> = ({ spell, shortcut, state, actionPoints, isSelected, onSelect }) => {
   const blocked = unavailableReason(spell, state, actionPoints);
   const cooldown = state?.cooldownLeft ?? 0;
+  const buttonRef = React.useRef<HTMLButtonElement>(null);
+  const [showTooltip, setShowTooltip] = React.useState(false);
 
   return (
     <button
+      ref={buttonRef}
       type="button"
       className={`relative h-12 w-12 flex-none bg-board text-ink transition-colors sm:h-14 sm:w-14 lg:h-16 lg:w-16 short:h-12 short:w-12 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-vermilion ${
         isSelected
           ? "border-2 border-ink"
           : "border border-rule hover:border-graphite"
       } ${blocked ? "opacity-35" : ""}`}
-      title={`${spell.name} — ${spec(spell)} — press ${shortcut}${
+      aria-label={`${spell.name} — ${spec(spell)} — press ${shortcut}${
         blocked ? ` (${blocked})` : ""
       }`}
       aria-pressed={isSelected}
       aria-disabled={!!blocked}
       onClick={() => onSelect(spell.id)}
+      onMouseEnter={() => setShowTooltip(true)}
+      onMouseLeave={() => setShowTooltip(false)}
+      onFocus={() => setShowTooltip(true)}
+      onBlur={() => setShowTooltip(false)}
     >
       <span className="absolute left-1.5 top-0.5 font-mono text-[9px] text-muted">
         {shortcut}
@@ -107,6 +115,13 @@ const SpellSlot: React.FC<{
         <span className="absolute inset-0 grid place-items-center bg-paper/80 font-mono text-[18px] font-semibold tabular-nums">
           {cooldown}
         </span>
+      )}
+      {showTooltip && buttonRef.current && (
+        <SpellTooltip
+          spell={spell}
+          blocked={blocked}
+          anchorRect={buttonRef.current.getBoundingClientRect()}
+        />
       )}
     </button>
   );

@@ -28,7 +28,7 @@ const getDirection = (from: Position, to: Position): Direction | null => {
  * These patterns mirror AreaPattern in the Go server. They drive the hover
  * preview only: the server decides who actually takes damage.
  */
-const areaPattern = (
+export const areaPattern = (
   areaOfEffect: Spell["areaOfEffect"]
 ): { pattern: Position[]; rotates: boolean } => {
   switch (areaOfEffect) {
