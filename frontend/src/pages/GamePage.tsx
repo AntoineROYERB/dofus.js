@@ -15,6 +15,8 @@ import { blockedBy, findPath } from "../utils/board";
 import { RotateHint } from "../components/Game/RotateHint";
 import { SideRail } from "../components/Game/SideRail";
 import { useRejectionBanner } from "../hooks/useRejectionBanner";
+import { GameTutorial } from "../components/Game/GameTutorial";
+import { hasSeenTutorial, markTutorialSeen } from "../utils/tutorialStorage";
 
 /** What the turn zone says above the countdown. */
 const phaseLabel = (status: GameStatus, isMyTurn: boolean | undefined) => {
@@ -50,6 +52,17 @@ function GamePage() {
   const visibleRejection = useRejectionBanner(rejection);
   // Below lg the rail is a sheet: the board keeps the screen until asked.
   const [railOpen, setRailOpen] = useState(false);
+
+  // Runs once for a new player, and again any time "Replay tutorial" is
+  // pressed from the room panel.
+  const [tutorialActive, setTutorialActive] = useState(false);
+  useEffect(() => {
+    if (!hasSeenTutorial()) setTutorialActive(true);
+  }, []);
+  const finishTutorial = () => {
+    setTutorialActive(false);
+    markTutorialSeen();
+  };
 
   // The character request must go out exactly once, and only once the socket
   // is open: an early attempt used to be dropped with no retry, leaving the
@@ -252,7 +265,7 @@ function GamePage() {
             />
           </div>
           <RotateHint />
-          <div className="relative min-h-0 flex-1">
+          <div id="tutorial-board" className="relative min-h-0 flex-1">
             <GameBoard
               gridSize={15}
               handleSelectedPosition={handleSelectedPosition}
@@ -270,16 +283,23 @@ function GamePage() {
             roomName={roomName}
             latestGameState={gameState}
             onLeave={handleLeave}
+            onReplayTutorial={() => setTutorialActive(true)}
           />
         </aside>
       </div>
 
       <div className="flex h-[168px] flex-none overflow-hidden border-t-2 border-ink bg-panel pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] short:h-[118px]">
-        <div className="w-[142px] flex-none px-3 py-2 sm:w-[230px] sm:px-5 sm:py-3 lg:w-[336px]">
+        <div
+          id="tutorial-fighter-panel"
+          className="w-[142px] flex-none px-3 py-2 sm:w-[230px] sm:px-5 sm:py-3 lg:w-[336px]"
+        >
           <FighterPanel currentPlayer={currentPlayer} connected={connected} />
         </div>
 
-        <div className="min-w-0 flex-1 border-l border-ink px-3 py-2 sm:px-5 sm:py-3">
+        <div
+          id="tutorial-spellbar"
+          className="min-w-0 flex-1 border-l border-ink px-3 py-2 sm:px-5 sm:py-3"
+        >
           <SpellBar
             handleSpellClick={handleSpellClick}
             selectedSpellId={selectedSpellId}
@@ -288,7 +308,10 @@ function GamePage() {
           />
         </div>
 
-        <div className="flex w-[124px] flex-none flex-col border-l border-ink px-3 py-2 sm:w-[176px] sm:px-5 sm:py-3 lg:w-[248px]">
+        <div
+          id="tutorial-mainbutton"
+          className="flex w-[124px] flex-none flex-col border-l border-ink px-3 py-2 sm:w-[176px] sm:px-5 sm:py-3 lg:w-[248px]"
+        >
           <div className="flex items-baseline justify-between gap-2">
             <span className="font-mono text-[9.5px] uppercase tracking-label text-muted">
               Turn
@@ -341,6 +364,7 @@ function GamePage() {
               roomName={roomName}
               latestGameState={gameState}
               onLeave={handleLeave}
+              onReplayTutorial={() => setTutorialActive(true)}
               onClose={() => setRailOpen(false)}
             />
           </aside>
@@ -354,6 +378,8 @@ function GamePage() {
           onExit={handleLeave}
         />
       )}
+
+      <GameTutorial active={tutorialActive} onFinish={finishTutorial} />
     </div>
   );
 }
