@@ -30,9 +30,22 @@ interface TileProps {
   selectedSpellId: number | null;
   isImpactedCell: boolean;
   isInSpellRange: boolean;
+  /**
+   * Whether the cell under the cursor — the blast's centre, not necessarily
+   * this cell — is itself a legal cast. The server checks line of sight once,
+   * against that centre, then hits the whole blast pattern regardless of what
+   * each cell in it can individually see, so a splash cell is marked hit off
+   * of this rather than its own line of sight.
+   */
+  canCastAtHovered: boolean;
   isInRange: boolean;
+  /** The walkable wash only shows once the mouse has reached the board. */
+  showMovementWash: boolean;
+  /** Movement points this cell costs to reach, when it is reachable at all. */
+  movementCost?: number;
+  /** The character's movement points this turn — the gradient's far end. */
+  maxMovementCost: number;
   isPathCell: boolean;
-  hoveredPosition: Position | null;
   /** Cover: nobody stands here and nothing is seen through it. */
   isObstacle: boolean;
   /**
@@ -47,7 +60,22 @@ interface TileProps {
  * What is laid over a cell's paper: a wash, never a solid colour, so the
  * board's own checker still shows through everything the game marks.
  */
-type Wash = { fill: string; opacity: number; stroke: string; strokeWidth: number };
+type Wash = {
+  fill: string;
+  opacity: number;
+  stroke: string;
+  strokeWidth: number;
+};
+
+/**
+ * Near is barely tinted, far is unmistakable — a cell one point away should
+ * not read the same as one that spends every point the turn has left.
+ */
+const costOpacity = (cost: number | undefined, maxCost: number): number => {
+  if (!cost || maxCost <= 0) return 0.14;
+  const share = Math.min(cost / maxCost, 1);
+  return 0.08 + share * 0.22;
+};
 
 export const Tile: React.FC<TileProps> = ({
   x,
@@ -64,9 +92,12 @@ export const Tile: React.FC<TileProps> = ({
   selectedSpellId,
   isImpactedCell,
   isInSpellRange,
+  canCastAtHovered,
   isInRange,
+  showMovementWash,
+  movementCost,
+  maxMovementCost,
   isPathCell,
-  hoveredPosition,
   isObstacle,
   zoneEdges,
 }) => {
@@ -121,16 +152,16 @@ export const Tile: React.FC<TileProps> = ({
     }
 
     if (isCharacterTurn && selectedSpellId) {
-      if (isImpactedCell && hoveredPosition && isInSpellRange) return marked(0.3);
+      if (isImpactedCell && canCastAtHovered) return marked(0.3);
       if (isInSpellRange) return graphite(0.14);
     }
 
-    if (!selectedSpellId && isCharacterTurn && isInRange) {
+    if (!selectedSpellId && isCharacterTurn && isInRange && showMovementWash) {
       // The walk itself is a consequence of the click, so it is vermilion —
       // grey on grey made the path indistinguishable from the range around it.
       if (isHovered) return marked(0.44);
       if (isPathCell) return marked(0.26);
-      return graphite(0.14);
+      return graphite(costOpacity(movementCost, maxMovementCost));
     }
 
     return null;

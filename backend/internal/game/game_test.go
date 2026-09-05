@@ -374,8 +374,8 @@ func TestGameEndsWhenOneCharacterRemains(t *testing.T) {
 		t.Fatalf("status = %q, want %q", g.Status(), types.StatusGameOver)
 	}
 	winner, over := g.Winner()
-	if !over || winner != "User-a" {
-		t.Errorf("winner = %q (over=%v), want \"User-a\"", winner, over)
+	if !over || winner != "Playera" {
+		t.Errorf("winner = %q (over=%v), want \"Playera\"", winner, over)
 	}
 	if hp := health(t, g, "b"); hp != 0 {
 		t.Errorf("dead character health = %d, want 0 rather than a negative value", hp)

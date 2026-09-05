@@ -211,10 +211,11 @@ export const Grid: React.FC<GridProps> = ({
   );
 
   // Cells the selected spell can actually reach: in range, and seen from where
-  // the caster stands. A cell it cannot reach must not look targetable.
+  // the caster stands. A cell it cannot reach must not look targetable — cover
+  // in the way is not shown specially, it just isn't one of these.
   const castable = React.useMemo(() => {
-    const cells = new Set<string>();
-    if (!characterPosition || !selectedSpell) return cells;
+    const inRange = new Set<string>();
+    if (!characterPosition || !selectedSpell) return inRange;
     sortedCoordinates.forEach(({ x, y }) => {
       if (!isInSpellRange({ x, y }, characterPosition, selectedSpell)) return;
       if (
@@ -223,11 +224,27 @@ export const Grid: React.FC<GridProps> = ({
       ) {
         return;
       }
-      cells.add(`${x},${y}`);
+      inRange.add(`${x},${y}`);
     });
-    return cells;
+    return inRange;
     // sortedCoordinates is derived from gridSize alone and is stable enough.
   }, [characterPosition, selectedSpell, blocked, gridSize]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /*
+   * Only the centre a spell lands on needs a clear line to the caster — the
+   * server checks line of sight once, against the target, and then hits
+   * every cell the blast pattern covers regardless of what each of those
+   * cells can individually see. So a splash cell must not be judged on its
+   * own line of sight: it reads as hit whenever the cell under the cursor is
+   * itself a legal cast.
+   */
+  const hoveredCastable =
+    !!hoveredPosition && castable.has(`${hoveredPosition.x},${hoveredPosition.y}`);
+
+  // The walkable wash is only worth showing once the player has actually
+  // brought the mouse to the board — otherwise it is noise sitting on screen
+  // between turns and clicks, telling a story nobody asked for yet.
+  const showMovementWash = !!hoveredPosition;
 
   /*
    * The area you may act in this turn — where you can walk, or where the
@@ -238,7 +255,9 @@ export const Grid: React.FC<GridProps> = ({
   const zone = currentPlayer?.isCurrentTurn
     ? selectedSpell
       ? castable
-      : new Set(walkable.keys())
+      : showMovementWash
+        ? new Set(walkable.keys())
+        : new Set<string>()
     : new Set<string>();
 
   /** Which of a cell's four edges face out of the zone. */
@@ -295,10 +314,13 @@ export const Grid: React.FC<GridProps> = ({
               selectedSpellId={selectedSpellId}
               isImpactedCell={isImpactedCell}
               isInSpellRange={isInCastRange}
+              canCastAtHovered={hoveredCastable}
               isObstacle={isObstacle}
               isInRange={isInRange}
+              showMovementWash={showMovementWash}
+              movementCost={walkable.get(`${x},${y}`)}
+              maxMovementCost={movementPoints ?? 0}
               isPathCell={isPathCell}
-              hoveredPosition={hoveredPosition}
               zoneEdges={zoneEdges(x, y)}
               // On a touch screen the first tap only previews the cell.
               onClick={() => confirmsTap({ x, y }) && onCellClick({ x, y })}
