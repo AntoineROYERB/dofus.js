@@ -5,7 +5,7 @@ interface EffectBadgesProps {
   effects: Effect[] | null | undefined;
 }
 
-const look: Record<EffectKind, { icon: string; label: string }> = {
+export const effectLook: Record<EffectKind, { icon: string; label: string }> = {
   poison: { icon: "☠", label: "poison" },
   regen: { icon: "✚", label: "regen" },
   shield: { icon: "◈", label: "shield" },
@@ -24,7 +24,7 @@ const describe = (effect: Effect): string => {
       return `${effect.source}: soaks ${effect.value} per hit, ${turns} left`;
     default:
       return `${effect.source}: ${effect.value > 0 ? "+" : ""}${effect.value} ${
-        look[effect.kind].label
+        effectLook[effect.kind].label
       }, ${turns} left`;
   }
 };
@@ -46,7 +46,7 @@ export const EffectBadges: React.FC<EffectBadgesProps> = ({ effects }) => {
           title={describe(effect)}
           className="inline-flex items-center gap-1 border border-hairline px-1.5 font-mono text-[9.5px] leading-4 text-graphite"
         >
-          <span aria-hidden>{look[effect.kind]?.icon ?? "•"}</span>
+          <span aria-hidden>{effectLook[effect.kind]?.icon ?? "•"}</span>
           <span className="tabular-nums">
             {effect.value > 0 && effect.kind !== "poison" ? "+" : ""}
             {effect.value}
