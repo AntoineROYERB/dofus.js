@@ -114,6 +114,7 @@ export type LogEntry = {
   /** The AP/MP a cast's own effect left behind — negative on a debuff. */
   apChange?: number;
   mpChange?: number;
+  shieldChange?: number;
   /** What a cast was, for drawing it. Absent on every other kind of entry. */
   spellId?: number;
   origin?: Position;

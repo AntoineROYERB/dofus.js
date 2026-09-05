@@ -681,28 +681,31 @@ func (g *Game) CastSpell(userID string, spellID int, target types.Position) erro
 		effectApplied = true
 	}
 
-	var apChange, mpChange int
+	var apChange, mpChange, shieldChange int
 	if effectApplied {
 		switch spell.Effect.Kind {
 		case types.EffectAP:
 			apChange = spell.Effect.Value
 		case types.EffectMP:
 			mpChange = spell.Effect.Value
+		case types.EffectShield:
+			shieldChange = spell.Effect.Value
 		}
 	}
 
 	castOrigin, castTarget := origin, target
 	g.appendLogLocked(types.LogEntry{
-		Actor:    caster.Character.Name,
-		Kind:     types.LogCast,
-		Text:     castSummary(spell.Name, hits, crit),
-		Damage:   dealt,
-		Crit:     crit,
-		APChange: apChange,
-		MPChange: mpChange,
-		SpellID:  spell.ID,
-		Origin:   &castOrigin,
-		Target:   &castTarget,
+		Actor:        caster.Character.Name,
+		Kind:         types.LogCast,
+		Text:         castSummary(spell.Name, hits, crit),
+		Damage:       dealt,
+		Crit:         crit,
+		APChange:     apChange,
+		MPChange:     mpChange,
+		ShieldChange: shieldChange,
+		SpellID:      spell.ID,
+		Origin:       &castOrigin,
+		Target:       &castTarget,
 	})
 	for _, name := range killed {
 		g.appendLogLocked(types.LogEntry{Actor: name, Kind: types.LogDeath, Text: "is out of the fight"})
