@@ -10,6 +10,8 @@ interface SocleProps {
   color: string;
   isPlaying: boolean;
   isAlive: boolean;
+  /** Fades from 1 to 0 as the fighter standing on it dies or is reset. */
+  opacity?: number;
 }
 
 /**
@@ -31,6 +33,7 @@ export const Socle: React.FC<SocleProps> = ({
   color,
   isPlaying,
   isAlive,
+  opacity = 1,
 }) => {
   const w = tileSize.width * (1 - BOARD.socle.inset);
   const h = tileSize.height * (1 - BOARD.socle.inset);
@@ -51,6 +54,7 @@ export const Socle: React.FC<SocleProps> = ({
         width: `${boxW}px`,
         height: `${boxH}px`,
         pointerEvents: "none",
+        opacity,
       }}
     >
       <svg

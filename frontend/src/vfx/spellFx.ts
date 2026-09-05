@@ -431,6 +431,25 @@ export class SpellFx {
     );
   }
 
+  /**
+   * Wipes every scar a finished fight left behind. A rematch starts the
+   * server's log back at zero, but a canvas only ever gets drawn onto — left
+   * alone, the previous fight's scorch marks and craters would still be
+   * sitting on a board that is meant to be clean again.
+   */
+  reset() {
+    this.scars = [];
+    this.particles = [];
+    this.rings = [];
+    this.burns = [];
+    this.writings = [];
+    this.bolts = [];
+    this.timers = [];
+    this.flash = null;
+    this.renderScars();
+    this.blitScars();
+  }
+
   /** Replays a cast's permanent mark without any of its animation. */
   restore(event: CastEvent) {
     const plans = this.plan(event);

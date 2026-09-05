@@ -346,21 +346,25 @@ export const Grid: React.FC<GridProps> = ({
           which. Not drawn while starting cells are being picked, where the
           board is already carrying a green and a red of its own.
         */}
-        {!isPositioningPhase &&
-          Object.entries(characterRenderState).map(([playerId, renderData]) => {
-            const player = players?.[playerId];
-            if (!renderData || !player) return null;
-            return (
-              <Socle
-                key={`socle-${playerId}`}
-                screenPosition={renderData.screenPosition}
-                tileSize={tileSize}
-                color={player.character.color}
-                isPlaying={player.isCurrentTurn}
-                isAlive={player.character.isAlive}
-              />
-            );
-          })}
+        {Object.entries(characterRenderState).map(([playerId, renderData]) => {
+          const player = players?.[playerId];
+          // A dying fighter still gets its ring while it fades, even past
+          // the moment the next positioning phase has already started —
+          // otherwise the ring vanishes a beat before the sprite does.
+          if (!renderData || !player) return null;
+          if (isPositioningPhase && renderData.animation !== "die") return null;
+          return (
+            <Socle
+              key={`socle-${playerId}`}
+              screenPosition={renderData.screenPosition}
+              tileSize={tileSize}
+              color={player.character.color}
+              isPlaying={player.isCurrentTurn}
+              isAlive={player.character.isAlive}
+              opacity={renderData.opacity}
+            />
+          );
+        })}
         {Object.entries(characterRenderState).map(([playerId, renderData]) => {
           if (!renderData) return null;
           return (
@@ -371,6 +375,7 @@ export const Grid: React.FC<GridProps> = ({
               direction={renderData.direction}
               scale={tileSize.width / 256}
               color={players?.[playerId]?.character.color}
+              opacity={renderData.opacity}
             />
           );
         })}

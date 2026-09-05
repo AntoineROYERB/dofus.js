@@ -10,11 +10,13 @@ type Direction = "N" | "NE" | "E" | "SE" | "S" | "SW" | "W" | "NW";
 // Only tracks active animations
 interface AnimationState {
   [playerId: string]: {
-    type: "move" | "attack";
+    type: "move" | "attack" | "die";
     path?: Position[];
     step?: number;
     direction: Direction;
     startTime: number;
+    /** Where a dying (or vanishing) fighter was standing, frozen for the fade. */
+    position?: Position;
     /**
      * An attack the server has already resolved, waiting for the walk still
      * playing to reach its last cell before it takes over. The bot can move
@@ -31,12 +33,15 @@ type CharacterRenderState = {
   [playerId: string]: {
     screenPosition: Position;
     direction: Direction;
-    animation: "idle" | "walk" | "attack";
+    animation: "idle" | "walk" | "attack" | "die";
+    /** Fades out over the death animation; absent (1) the rest of the time. */
+    opacity?: number;
   };
 };
 
 const ANIMATION_DURATION = 300; // ms per tile
 const ATTACK_ANIMATION_DURATION = 500; // ms for attack animation
+const DEATH_ANIMATION_DURATION = 500; // ms for the death/vanish fade
 
 export const useCharacterAnimations = (
   latestGameState: GameState | null,
@@ -85,6 +90,29 @@ export const useCharacterAnimations = (
       for (const playerId in latestGameState.players) {
         const oldPlayer = prevGameState.current.players[playerId];
         const newPlayer = latestGameState.players[playerId];
+
+        /*
+         * Detect a fighter leaving the board: knocked out, or reset by a
+         * rematch (which clears every position back to null so the next
+         * placement phase can start clean). Either way the sprite was there
+         * a moment ago and now has nowhere valid to stand, so fade it out
+         * from its last known cell instead of leaving it frozen on screen or
+         * snapping it away instantly.
+         */
+        const justDied =
+          oldPlayer?.character?.isAlive === true &&
+          newPlayer?.character?.isAlive === false;
+        const justVanished =
+          !!oldPlayer?.character?.position && !newPlayer?.character?.position;
+        if (justDied || justVanished) {
+          newAnimations[playerId] = {
+            type: "die",
+            position: oldPlayer.character.position!,
+            direction: animationStateRef.current[playerId]?.direction ?? "S",
+            startTime: Date.now(),
+          };
+          continue;
+        }
 
         // Detect movement
         if (
@@ -256,6 +284,27 @@ export const useCharacterAnimations = (
               return newPrev;
             });
           }
+        } else if (anim.type === "die") {
+          const elapsed = now - anim.startTime;
+          if (elapsed >= DEATH_ANIMATION_DURATION) {
+            updateAnimationState((prev) => {
+              const newPrev = { ...prev };
+              delete newPrev[playerId];
+              return newPrev;
+            });
+            delete newRenderState[playerId];
+          } else if (anim.position) {
+            newRenderState[playerId] = {
+              screenPosition: getCharacterScreenPos(
+                anim.position,
+                centerX,
+                centerY
+              ),
+              direction: anim.direction,
+              animation: "die",
+              opacity: 1 - elapsed / DEATH_ANIMATION_DURATION,
+            };
+          }
         } else if (
           anim.type === "move" &&
           anim.path &&
@@ -345,10 +394,9 @@ export const useCharacterAnimations = (
 
       if (players) {
         for (const playerId in players) {
-          if (
-            !currentAnimations[playerId] &&
-            players[playerId].character?.position
-          ) {
+          if (currentAnimations[playerId]) continue;
+
+          if (players[playerId].character?.position) {
             newRenderState[playerId] = {
               screenPosition: getCharacterScreenPos(
                 players[playerId].character.position,
@@ -358,6 +406,11 @@ export const useCharacterAnimations = (
               direction: newRenderState[playerId]?.direction ?? "SE",
               animation: "idle",
             };
+          } else {
+            // No position and nothing animating it out (a rematch's fade
+            // already ran its course, say) — nothing should linger on the
+            // board where this fighter used to stand.
+            delete newRenderState[playerId];
           }
         }
       }
