@@ -11,7 +11,7 @@ interface HitFeedbackProps {
 }
 
 /** How long the figure takes to rise and go, well before the bar does. */
-const NUMBER_FLIGHT = 900;
+const NUMBER_FLIGHT = 1800;
 
 const prefersReducedMotion = () =>
   typeof window !== "undefined" &&

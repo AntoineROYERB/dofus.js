@@ -33,6 +33,10 @@ export const BOARD = {
   accent: "#d1462f",
   /** Where you are allowed to start, during positioning only. */
   place: "#1a7f37",
+  /** Action points, wherever a spell's cost or a debuff changes them. */
+  pa: "#2f6fd1",
+  /** Movement points, same occasions. */
+  pm: "#2f9e44",
   /**
    * Where the opponent may start. Deliberately not the vermilion accent: this
    * marks a cell you must keep off, never one your click is about to act on.
