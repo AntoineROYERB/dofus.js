@@ -11,7 +11,9 @@ import { isInSpellRange } from "../../../utils/spellUtils";
 import { Character } from "./Character";
 import { Socle } from "./Socle";
 import { HitFeedback } from "./HitFeedback";
+import { StatFeedback } from "./StatFeedback";
 import { SpellFXLayer } from "./SpellFXLayer";
+import { BOARD } from "../../../constants";
 import { useCharacterAnimations } from "../../../hooks/useCharacterAnimations";
 import { useHitFeedback } from "../../../hooks/useHitFeedback";
 import { useGridInteraction } from "../../../hooks/useGridInteraction";
@@ -125,8 +127,8 @@ export const Grid: React.FC<GridProps> = ({
     containerRef
   );
 
-  // Who just lost health, and how much. Empty for most of a turn.
-  const hits = useHitFeedback(latestGameState ?? null);
+  // Who just lost health, PA or PM, and how much. Empty for most of a turn.
+  const stats = useHitFeedback(latestGameState ?? null);
 
   const { hoveredPosition, pathCells, impactedCells, confirmsTap } =
     useGridInteraction({
@@ -383,7 +385,7 @@ export const Grid: React.FC<GridProps> = ({
           What the spell actually took off, over the fighter it took it off.
           Nothing is drawn over a character nobody has touched.
         */}
-        {Object.entries(hits).map(([playerId, hit]) => {
+        {Object.entries(stats.health).map(([playerId, hit]) => {
           const renderData = characterRenderState[playerId];
           if (!renderData) return null;
           return (
@@ -392,6 +394,39 @@ export const Grid: React.FC<GridProps> = ({
               screenPosition={renderData.screenPosition}
               tileSize={tileSize}
               hit={hit}
+            />
+          );
+        })}
+        {Object.entries(stats.pa).map(([playerId, hit]) => {
+          const renderData = characterRenderState[playerId];
+          if (!renderData) return null;
+          return (
+            <StatFeedback
+              key={`pa-${playerId}-${hit.hitId}`}
+              screenPosition={renderData.screenPosition}
+              tileSize={tileSize}
+              hit={hit}
+              color={BOARD.pa}
+              label="PA"
+              slot={playerId in stats.health ? 1 : 0}
+            />
+          );
+        })}
+        {Object.entries(stats.pm).map(([playerId, hit]) => {
+          const renderData = characterRenderState[playerId];
+          if (!renderData) return null;
+          return (
+            <StatFeedback
+              key={`pm-${playerId}-${hit.hitId}`}
+              screenPosition={renderData.screenPosition}
+              tileSize={tileSize}
+              hit={hit}
+              color={BOARD.pm}
+              label="PM"
+              slot={
+                (playerId in stats.health ? 1 : 0) +
+                (playerId in stats.pa ? 1 : 0)
+              }
             />
           );
         })}

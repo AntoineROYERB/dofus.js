@@ -5,6 +5,7 @@ import { generateMessageId } from "../utils/messageUtils";
 import { RoomSummary } from "../types/message";
 import { readCharacter } from "../utils/characterStorage";
 import { useRejectionBanner } from "../hooks/useRejectionBanner";
+import { HowToPlayDialog } from "../components/HowToPlayDialog";
 
 const statusLabel: Record<string, string> = {
   creating_player: "Waiting for players",
@@ -52,6 +53,7 @@ const LobbyPage: React.FC = () => {
   const navigate = useNavigate();
   const [newRoomName, setNewRoomName] = useState("");
   const [roomNameFocused, setRoomNameFocused] = useState(false);
+  const [howToPlayOpen, setHowToPlayOpen] = useState(false);
   const notice = useRejectionBanner(rejection);
 
   const character = readCharacter();
@@ -190,14 +192,28 @@ const LobbyPage: React.FC = () => {
           )}
         </section>
 
-        <button
-          type="button"
-          onClick={() => navigate("/")}
-          className="my-4 self-start font-mono text-[9.5px] uppercase tracking-label text-muted transition-colors hover:text-vermilion"
-        >
-          Change character
-        </button>
+        <div className="my-4 flex gap-5">
+          <button
+            type="button"
+            onClick={() => setHowToPlayOpen(true)}
+            className="self-start font-mono text-[9.5px] uppercase tracking-label text-muted transition-colors hover:text-vermilion"
+          >
+            How to play
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate("/")}
+            className="self-start font-mono text-[9.5px] uppercase tracking-label text-muted transition-colors hover:text-vermilion"
+          >
+            Change character
+          </button>
+        </div>
       </div>
+
+      <HowToPlayDialog
+        open={howToPlayOpen}
+        onClose={() => setHowToPlayOpen(false)}
+      />
     </div>
   );
 };

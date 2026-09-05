@@ -4,6 +4,7 @@ import SpriteAnimation from "../components/Game/SpriteAnimation";
 import { CharacterCreationForm } from "../components/Game/CharacterCreationForm";
 import { CharacterStand, STAND } from "../components/Game/CharacterStand";
 import { AboutDialog } from "../components/AboutDialog";
+import { HowToPlayDialog } from "../components/HowToPlayDialog";
 import { saveCharacter } from "../utils/characterStorage";
 import { PLAYER_COLORS } from "../constants";
 
@@ -26,6 +27,7 @@ const LandingPage: React.FC = () => {
   const [characterName, setCharacterName] = useState("");
   const [isNameValid, setIsNameValid] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
+  const [howToPlayOpen, setHowToPlayOpen] = useState(false);
   const navigate = useNavigate();
 
   const handleJoinMatch = () => {
@@ -59,13 +61,22 @@ const LandingPage: React.FC = () => {
         <span className="truncate font-mono text-[9.5px] uppercase tracking-label text-muted">
           Turn-based arena<span className="hidden sm:inline"> · in the browser</span>
         </span>
-        <button
-          type="button"
-          onClick={() => setAboutOpen(true)}
-          className="flex-none font-mono text-[9.5px] uppercase tracking-label text-ink underline decoration-rule underline-offset-4 transition-colors hover:text-vermilion"
-        >
-          What is this?
-        </button>
+        <div className="flex flex-none items-baseline gap-4">
+          <button
+            type="button"
+            onClick={() => setHowToPlayOpen(true)}
+            className="font-mono text-[9.5px] uppercase tracking-label text-ink underline decoration-rule underline-offset-4 transition-colors hover:text-vermilion"
+          >
+            How to play
+          </button>
+          <button
+            type="button"
+            onClick={() => setAboutOpen(true)}
+            className="font-mono text-[9.5px] uppercase tracking-label text-ink underline decoration-rule underline-offset-4 transition-colors hover:text-vermilion"
+          >
+            What is this?
+          </button>
+        </div>
       </header>
 
       {/*
@@ -125,6 +136,10 @@ const LandingPage: React.FC = () => {
       </main>
 
       <AboutDialog open={aboutOpen} onClose={() => setAboutOpen(false)} />
+      <HowToPlayDialog
+        open={howToPlayOpen}
+        onClose={() => setHowToPlayOpen(false)}
+      />
     </div>
   );
 };
