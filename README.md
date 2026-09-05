@@ -134,6 +134,7 @@ Copy `.env.example` to `.env`. Everything has a working default.
 | `ALLOWED_ORIGINS` | `*` | Origins allowed to open a WebSocket. **Pin this for a public deployment.** |
 | `TURN_SECONDS` | `45` | How long a player gets before their turn passes on |
 | `STATIC_DIR` | unset | When set, the Go binary also serves the built frontend |
+| `BALANCE_FILE` | `config/balance.json` | JSON file with gameplay constants (health, action points, movement points). Edit `backend/config/balance.json` to retune a fight without touching code. |
 | `VITE_WS_URL` | unset | Build-time, client side: where the game server lives when it is not the host serving the page |
 
 ## Deploying

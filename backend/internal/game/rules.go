@@ -1,6 +1,7 @@
 package game
 
 import (
+	"game-server/internal/config"
 	"game-server/internal/types"
 	"math/rand"
 )
@@ -11,13 +12,27 @@ import (
 const GridRadius = 7
 
 // Starting stats. The server assigns these; a client never sends them.
+// Health, ActionPoints and MovementPoints are tunable — see ApplyBalance —
+// so they are vars rather than consts, seeded with the game's defaults.
+var (
+	StartingHealth         = config.DefaultBalance.Health
+	StartingActionPoints   = config.DefaultBalance.ActionPoints
+	StartingMovementPoints = config.DefaultBalance.MovementPoints
+)
+
 const (
-	StartingHealth         = 100
-	StartingActionPoints   = 6
-	StartingMovementPoints = 4
 	InitialPositionChoices = 3
 	MinPlayers             = 2
 )
+
+// ApplyBalance overrides the starting stats from a loaded config.Balance.
+// Call it once at startup, before the first room is created — a game already
+// in progress keeps whatever stats it was dealt.
+func ApplyBalance(b config.Balance) {
+	StartingHealth = b.Health
+	StartingActionPoints = b.ActionPoints
+	StartingMovementPoints = b.MovementPoints
+}
 
 // InGrid reports whether a position lies on the board.
 func InGrid(p types.Position) bool {

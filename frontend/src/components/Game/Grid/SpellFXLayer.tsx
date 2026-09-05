@@ -128,6 +128,14 @@ export const SpellFXLayer: React.FC<SpellFXLayerProps> = ({
 
     const highest = log.reduce((max, entry) => Math.max(max, entry.seq), 0);
 
+    // A rematch resets the server's log to empty. The canvas only ever gets
+    // drawn onto, so without this the previous fight's scars would still be
+    // sitting on a board that is meant to come back clean.
+    if (seenSeq.current !== null && highest < seenSeq.current) {
+      fx.reset();
+      seenSeq.current = null;
+    }
+
     if (seenSeq.current === null) {
       /*
        * A fresh join, or a refresh mid-fight. The marks are permanent, so the

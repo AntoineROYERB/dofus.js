@@ -5,11 +5,13 @@ import { SPRITE } from "../../../constants";
 
 interface CharacterProps {
   screenPosition: Position;
-  animation: "idle" | "walk" | "attack";
+  animation: "idle" | "walk" | "attack" | "die";
   direction: Direction;
   scale: number;
   /** The fighter's chosen colour. Drawn in the sheet's own stock colour if omitted. */
   color?: string;
+  /** Fades from 1 to 0 over a death or a rematch's reset. Otherwise fully opaque. */
+  opacity?: number;
 }
 
 const animationConfig = {
@@ -69,8 +71,12 @@ export const Character: React.FC<CharacterProps> = ({
   direction,
   scale,
   color,
+  opacity = 1,
 }) => {
-  const config = animationConfig[animation];
+  // No dedicated death sheet — the idle pose sinking and fading away reads
+  // fine on its own, and it is what "die" borrows for its frames.
+  const config = animationConfig[animation === "die" ? "idle" : animation];
+  const isDying = animation === "die";
 
   return (
     <div
@@ -84,6 +90,13 @@ export const Character: React.FC<CharacterProps> = ({
         width: `${config.frameWidth * scale}px`,
         height: `${config.frameHeight * scale}px`,
         pointerEvents: "none",
+        opacity,
+        // Settling down and shrinking a touch as it fades, rather than a
+        // flat cross-dissolve, is what sells "falling" instead of "erased".
+        transform: isDying
+          ? `translateY(${(1 - opacity) * scale * 40}px) scale(${1 - (1 - opacity) * 0.25})`
+          : undefined,
+        transition: isDying ? "opacity 80ms linear, transform 80ms linear" : undefined,
       }}
     >
       <SpriteAnimation {...config} direction={direction} scale={scale} color={color} />
