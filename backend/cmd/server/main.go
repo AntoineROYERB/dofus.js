@@ -13,11 +13,13 @@ import (
 	"time"
 
 	"game-server/internal/config"
+	"game-server/internal/game"
 	"game-server/internal/websocket"
 )
 
 func main() {
 	cfg := config.Load()
+	game.ApplyBalance(cfg.Balance)
 
 	hub := websocket.NewHub(cfg)
 	go hub.Run()
