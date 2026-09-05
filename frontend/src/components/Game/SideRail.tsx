@@ -7,6 +7,7 @@ interface SideRailProps {
   roomName: string;
   latestGameState: GameState | null;
   onLeave: () => void;
+  onReplayTutorial: () => void;
   /** Only on the small-screen sheet, where the rail can be dismissed. */
   onClose?: () => void;
 }
@@ -20,6 +21,7 @@ export const SideRail: React.FC<SideRailProps> = ({
   roomName,
   latestGameState,
   onLeave,
+  onReplayTutorial,
   onClose,
 }) => (
   <>
@@ -28,6 +30,13 @@ export const SideRail: React.FC<SideRailProps> = ({
         {roomName}
       </span>
       <div className="flex flex-none items-baseline gap-4">
+        <button
+          type="button"
+          onClick={onReplayTutorial}
+          className="font-mono text-[9.5px] uppercase tracking-label text-muted transition-colors hover:text-vermilion"
+        >
+          Replay tutorial
+        </button>
         <button
           type="button"
           onClick={onLeave}
