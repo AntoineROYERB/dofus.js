@@ -52,6 +52,10 @@ const SOIL = "#8a6a3a";
 const SOIL_DARK = "rgba(60,42,22,.55)";
 const DUST = "#9c8769";
 const TEAR_EDGE = "rgba(23,24,26,.6)";
+const BOLT_WHITE = "#ffffff";
+const BOLT_BLUE = "#4fb8ff";
+const BOLT_YELLOW = "#ffe066";
+const BLAST_CHAR = "#141a2a";
 
 /** A blob outline, in grid space, that is clearly not a circle. */
 type Blob = { gx: number; gy: number; rTiles: number; verts: number[] };
@@ -61,8 +65,10 @@ type Poly = { pts: Position[]; width: number };
 type Scar =
   | ({ kind: "scorch" } & Blob)
   | ({ kind: "stain" } & Blob)
+  | ({ kind: "blast" } & Blob)
   | ({ kind: "tear" } & Poly)
-  | ({ kind: "fracture" } & Poly);
+  | ({ kind: "fracture" } & Poly)
+  | ({ kind: "arc" } & Poly);
 
 type Particle = {
   x: number;
@@ -117,6 +123,14 @@ type Writing = {
 };
 
 type Timer = { due: number; run: () => void };
+
+/** A lightning bolt, falling from off the top of the board. Never a scar — it's gone before it can mark anything. */
+type Bolt = {
+  pts: Position[];
+  forks: Position[][];
+  born: number;
+  dur: number;
+};
 
 const TAU = Math.PI * 2;
 const rand = (a: number, b: number) => a + Math.random() * (b - a);
@@ -189,6 +203,7 @@ export class SpellFx {
   private rings: Ring[] = [];
   private burns: Burn[] = [];
   private writings: Writing[] = [];
+  private bolts: Bolt[] = [];
   private timers: Timer[] = [];
 
   private shakeMag = 0;
@@ -283,11 +298,22 @@ export class SpellFx {
 
   private paintScar(d: CanvasRenderingContext2D, scar: Scar) {
     const tw = this.geometry.tileSize.width;
-    if (scar.kind === "scorch" || scar.kind === "stain") {
+    if (scar.kind === "scorch" || scar.kind === "stain" || scar.kind === "blast") {
       const c = this.screen({ x: scar.gx, y: scar.gy });
       const r = scar.rTiles * tw;
       d.save();
-      if (scar.kind === "scorch") {
+      if (scar.kind === "blast") {
+        // The crater a strike leaves: a jagged, star-shaped burn rather than
+        // fire's round one — this one was punched in, not spread from a point.
+        d.globalAlpha = 0.82;
+        blobPath(d, c.x, c.y, r, scar.verts, this.squash);
+        d.fillStyle = BLAST_CHAR;
+        d.fill();
+        d.globalAlpha = 0.55;
+        d.lineWidth = 2;
+        d.strokeStyle = "#080b14";
+        d.stroke();
+      } else if (scar.kind === "scorch") {
         d.globalAlpha = 0.82;
         blobPath(d, c.x, c.y, r, scar.verts, this.squash);
         d.fillStyle = CHAR;
@@ -330,6 +356,12 @@ export class SpellFx {
       this.strokeRun(d, pts, "rgba(255,255,255,.95)", scar.width);
       this.strokeRun(d, pts, TEAR_EDGE, 1.1, -scar.width * 0.9);
       this.strokeRun(d, pts, TEAR_EDGE, 1.1, scar.width * 0.9);
+    } else if (scar.kind === "arc") {
+      // A branch of the strike's scar: charred dark, with a thread of blue
+      // still visible down its centre — the one trace of colour any scar
+      // here permanently keeps.
+      this.strokeRun(d, pts, "rgba(16,22,36,.62)", scar.width);
+      this.strokeRun(d, pts, "rgba(130,190,255,.3)", Math.max(0.6, scar.width * 0.4));
     } else {
       this.strokeRun(d, pts, SOIL_DARK, scar.width);
     }
@@ -392,10 +424,30 @@ export class SpellFx {
       this.rings.length > 0 ||
       this.burns.length > 0 ||
       this.writings.length > 0 ||
+      this.bolts.length > 0 ||
       this.timers.length > 0 ||
       this.flash !== null ||
       performance.now() < this.shakeEnd
     );
+  }
+
+  /**
+   * Wipes every scar a finished fight left behind. A rematch starts the
+   * server's log back at zero, but a canvas only ever gets drawn onto — left
+   * alone, the previous fight's scorch marks and craters would still be
+   * sitting on a board that is meant to be clean again.
+   */
+  reset() {
+    this.scars = [];
+    this.particles = [];
+    this.rings = [];
+    this.burns = [];
+    this.writings = [];
+    this.bolts = [];
+    this.timers = [];
+    this.flash = null;
+    this.renderScars();
+    this.blitScars();
   }
 
   /** Replays a cast's permanent mark without any of its animation. */
@@ -454,12 +506,35 @@ export class SpellFx {
             },
           ],
         };
-      case "Air":
-        return {
-          scars: [
-            { kind: "tear", pts: jagged(origin, target, 16, crit ? 0.3 : 0.2), width: crit ? 3.4 : 2.4 },
-          ],
-        };
+      case "Air": {
+        // Where the bolt lands: a punched-in crater with branches racing
+        // outward, the way a real strike scars whatever it hits.
+        const scars: Scar[] = [
+          {
+            kind: "blast",
+            gx: target.x,
+            gy: target.y,
+            rTiles: crit ? 0.5 : 0.36,
+            verts: makeBlob(11, 0.85),
+          },
+        ];
+        const arms = crit ? 7 : 5;
+        for (let i = 0; i < arms; i++) {
+          const a = (i / arms) * TAU + rand(-0.3, 0.3);
+          const len = rand(0.4, 1) * (crit ? 1.4 : 1);
+          scars.push({
+            kind: "arc",
+            pts: jagged(
+              target,
+              { x: target.x + Math.cos(a) * len, y: target.y + Math.sin(a) * len },
+              5,
+              0.14
+            ),
+            width: rand(1, 2),
+          });
+        }
+        return { scars };
+      }
       case "Earth": {
         const scars: Scar[] = [
           { kind: "fracture", pts: jagged(origin, target, 14, crit ? 0.36 : 0.24), width: 2.2 },
@@ -670,60 +745,85 @@ export class SpellFx {
   private playAir(event: CastEvent, plans: { scars: Scar[] }) {
     const b = this.screen(event.target);
     const k = this.reduced ? 0.35 : event.crit ? 1.7 : 1;
-    const tear = plans.scars[0] as Scar & { kind: "tear" };
+    const tw = this.geometry.tileSize.width;
 
-    // The tear runs across the board a segment at a time, throwing off what it
-    // detaches as it goes.
-    this.writings.push({
-      scar: tear,
-      born: performance.now(),
-      perSegment: 17,
-      emitted: 0,
-      onSegment: (p) => {
-        const s = this.screen(p);
-        for (let q = 0; q < 2 * k; q++) {
-          this.spawn({
-            x: s.x,
-            y: s.y,
-            vx: rand(-70, 70),
-            vy: rand(-90, -20),
-            g: 210,
-            drag: 0.995,
-            life: rand(500, 950),
-            size: rand(2.5, 5),
-            rot: rand(0, TAU),
-            vrot: rand(-7, 7),
-            type: "chunk",
-            color: "#ffffff",
-          });
-        }
-      },
-    });
+    // The bolt drops straight out of the sky onto the target — it doesn't
+    // travel from the caster the way the other elements do.
+    const boltDur = this.reduced ? 70 : event.crit ? 200 : 150;
+    const topY = -Math.max(70, tw * 1.6);
+    const main = jagged(
+      { x: b.x, y: topY },
+      { x: b.x, y: b.y - 6 },
+      8,
+      tw * (event.crit ? 0.34 : 0.24)
+    );
+    const forks: Position[][] = [];
+    for (let i = 0; i < (event.crit ? 3 : 2); i++) {
+      const from = main[1 + Math.floor(Math.random() * (main.length - 3))];
+      const ang = Math.PI / 2 + rand(-1.1, 1.1);
+      const len = rand(tw * 0.25, tw * 0.55);
+      forks.push(
+        jagged(from, { x: from.x + Math.cos(ang) * len, y: from.y + Math.sin(ang) * len }, 3, tw * 0.1)
+      );
+    }
+    this.bolts.push({ pts: main, forks, born: performance.now(), dur: boltDur });
 
-    this.at(tear.pts.length * 17, () => {
-      const tw = this.geometry.tileSize.width;
-      this.shake(event.crit ? 9 : 5, 380);
+    this.at(Math.round(boltDur * 0.5), () => {
+      this.flash = {
+        color: BOLT_WHITE,
+        alpha: event.crit ? 0.5 : 0.3,
+        born: performance.now(),
+        dur: event.crit ? 220 : 160,
+      };
+      this.shake(event.crit ? 13 : 7, event.crit ? 420 : 260);
       this.ring(b.x, b.y, {
-        r0: 4,
-        rMax: tw * (event.crit ? 1.7 : 1.2),
-        dur: 520,
-        color: "#2f8f52",
-        width: 2.5,
+        r0: 3,
+        rMax: tw * (event.crit ? 1.9 : 1.3),
+        dur: 480,
+        color: BOLT_BLUE,
+        width: 3,
       });
-      for (let i = 0; i < 24 * k; i++) {
+      this.ring(b.x, b.y, {
+        r0: 2,
+        rMax: tw * (event.crit ? 1.2 : 0.85),
+        dur: 320,
+        color: BOLT_YELLOW,
+        width: 2,
+      });
+
+      for (const scar of plans.scars) this.commit(scar);
+
+      for (let i = 0; i < 34 * k; i++) {
         const ang = rand(0, TAU);
-        const dist = rand(0.2, 0.85) * tw;
+        const sp = rand(60, 220) * (event.crit ? 1.3 : 1);
+        const c = Math.random();
+        this.spawn({
+          x: b.x,
+          y: b.y - 4,
+          vx: Math.cos(ang) * sp,
+          vy: Math.sin(ang) * sp * this.squash - rand(20, 90),
+          g: 240,
+          drag: 0.985,
+          life: rand(260, 560),
+          size: rand(1, 2.4),
+          type: "spark",
+          color: c < 0.4 ? BOLT_WHITE : c < 0.75 ? BOLT_BLUE : BOLT_YELLOW,
+        });
+      }
+      for (let j = 0; j < 12 * k; j++) {
+        const ang = rand(0, TAU);
+        const dist = rand(0.15, 0.7) * tw;
         this.spawn({
           x: b.x + Math.cos(ang) * dist,
           y: b.y + Math.sin(ang) * dist * this.squash,
-          vx: Math.cos(ang + Math.PI / 2) * rand(50, 130),
-          vy: Math.sin(ang + Math.PI / 2) * rand(50, 130) * this.squash - rand(20, 70),
-          g: 150,
+          vx: Math.cos(ang) * rand(30, 90),
+          vy: Math.sin(ang) * rand(30, 90) * this.squash - rand(20, 60),
+          g: 160,
           drag: 0.99,
-          life: rand(700, 1300),
-          size: rand(2.5, 5.5),
+          life: rand(600, 1100),
+          size: rand(2.5, 5),
           rot: rand(0, TAU),
-          vrot: rand(-9, 9),
+          vrot: rand(-8, 8),
           type: "chunk",
           color: "#ffffff",
         });
@@ -847,6 +947,7 @@ export class SpellFx {
       ctx.restore();
     }
 
+    this.drawBolts(air, now);
     this.drawParticles(air, now);
 
     if (this.flash) {
@@ -879,6 +980,35 @@ export class SpellFx {
         const partial = { ...w.scar, pts: w.scar.pts.slice(0, w.emitted + 1) };
         this.paintScar(this.ctx, partial as Scar);
       }
+    }
+  }
+
+  private drawBolts(ctx: CanvasRenderingContext2D, now: number) {
+    for (let i = this.bolts.length - 1; i >= 0; i--) {
+      const bolt = this.bolts[i];
+      const age = now - bolt.born;
+      if (age > bolt.dur) {
+        this.bolts.splice(i, 1);
+        continue;
+      }
+      const p = age / bolt.dur;
+      // A real strike flickers rather than fading smoothly, and dies out fast
+      // at the end instead of lingering.
+      const flicker = 0.5 + 0.5 * Math.abs(Math.sin(age * 0.28 + i * 1.7));
+      const fade = 1 - Math.max(0, p - 0.7) / 0.3;
+      ctx.save();
+      ctx.lineCap = "round";
+      ctx.globalAlpha = flicker * fade;
+      ctx.shadowColor = BOLT_BLUE;
+      ctx.shadowBlur = 18;
+      this.strokeRun(ctx, bolt.pts, BOLT_BLUE, 6);
+      ctx.shadowBlur = 10;
+      this.strokeRun(ctx, bolt.pts, BOLT_WHITE, 2.2);
+      for (const fork of bolt.forks) {
+        ctx.shadowBlur = 8;
+        this.strokeRun(ctx, fork, BOLT_YELLOW, 1.6);
+      }
+      ctx.restore();
     }
   }
 

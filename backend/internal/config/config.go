@@ -24,6 +24,12 @@ type Config struct {
 	// StaticDir, when set, makes this binary serve the built frontend as well,
 	// so a deployment is one container instead of two.
 	StaticDir string
+	// BalanceFile points at the JSON file holding gameplay constants (health,
+	// action points, movement points). A missing file just means defaults.
+	BalanceFile string
+	// Balance is what BalanceFile resolved to — loaded once, here, rather
+	// than wherever a room happens to be created.
+	Balance Balance
 }
 
 func Load() Config {
@@ -32,7 +38,9 @@ func Load() Config {
 		AllowedOrigins: splitOrigins(envString("ALLOWED_ORIGINS", "*")),
 		TurnDuration:   time.Duration(envInt("TURN_SECONDS", 45)) * time.Second,
 		StaticDir:      envString("STATIC_DIR", ""),
+		BalanceFile:    envString("BALANCE_FILE", "config/balance.json"),
 	}
+	cfg.Balance = LoadBalance(cfg.BalanceFile)
 
 	if cfg.AllowsAnyOrigin() {
 		log.Printf("[Config] ALLOWED_ORIGINS is *, every origin may connect")
