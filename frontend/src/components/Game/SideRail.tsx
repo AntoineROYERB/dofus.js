@@ -60,7 +60,10 @@ export const SideRail: React.FC<SideRailProps> = ({
       Log
     </div>
     <div className="min-h-0 flex-1 overflow-y-auto">
-      <CombatLog entries={latestGameState?.log ?? []} />
+      <CombatLog
+        entries={latestGameState?.log ?? []}
+        spellBook={latestGameState?.spells}
+      />
     </div>
 
     <Chat />

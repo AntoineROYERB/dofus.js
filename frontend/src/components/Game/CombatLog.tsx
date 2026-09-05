@@ -1,8 +1,10 @@
 import React, { useEffect, useRef } from "react";
-import { LogEntry } from "../../types/message";
+import { GameState, LogEntry } from "../../types/message";
 
 interface CombatLogProps {
   entries: LogEntry[];
+  /** To tell a spell with no damage stat from one that got fully absorbed. */
+  spellBook?: GameState["spells"];
 }
 
 const tone: Record<LogEntry["kind"], string> = {
@@ -17,7 +19,7 @@ const tone: Record<LogEntry["kind"], string> = {
  * Without this, a spell that missed because of line of sight and a spell that
  * simply did nothing looked identical, and a critical was invisible.
  */
-export const CombatLog: React.FC<CombatLogProps> = ({ entries }) => {
+export const CombatLog: React.FC<CombatLogProps> = ({ entries, spellBook }) => {
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -34,33 +36,66 @@ export const CombatLog: React.FC<CombatLogProps> = ({ entries }) => {
 
   return (
     <ul>
-      {entries.map((entry, i) => (
-        <li
-          key={`${entry.turn}-${i}`}
-          className="flex items-baseline gap-2.5 border-t border-hairline py-[7px] text-[12.5px] leading-snug"
-        >
-          <span className="w-4 flex-none font-mono text-[9.5px] tabular-nums text-rule">
-            T{entry.turn}
-          </span>
-          <p className={`flex-1 ${tone[entry.kind]}`}>
-            {entry.kind === "cast" || entry.kind === "death" ? (
-              <b className="font-semibold text-ink">{entry.actor}</b>
-            ) : (
-              entry.actor
-            )}{" "}
-            {entry.text}
-          </p>
-          {entry.damage ? (
-            <i
-              className={`flex-none font-mono text-[11.5px] font-semibold not-italic text-vermilion ${
-                entry.crit ? "underline" : ""
-              }`}
-            >
-              &minus;{entry.damage}
-            </i>
-          ) : null}
-        </li>
-      ))}
+      {entries.map((entry, i) => {
+        const isLast = i === entries.length - 1;
+        const noTarget = entry.kind === "cast" && entry.text.endsWith("hitting nothing");
+        const dealsDamage = entry.spellId != null && (spellBook?.[entry.spellId]?.damage ?? 0) > 0;
+        const absorbed = entry.kind === "cast" && !noTarget && !entry.damage && dealsDamage;
+
+        return (
+          <li
+            key={`${entry.turn}-${i}`}
+            className={`flex items-baseline gap-2.5 border-t border-hairline py-[7px] text-[12.5px] leading-snug ${
+              isLast ? "animate-log-settle" : ""
+            }`}
+          >
+            <span className="w-4 flex-none font-mono text-[9.5px] tabular-nums text-rule">
+              T{entry.turn}
+            </span>
+            <p className={`flex-1 ${tone[entry.kind]}`}>
+              {entry.kind === "cast" || entry.kind === "death" ? (
+                <b className="font-semibold text-ink">{entry.actor}</b>
+              ) : (
+                entry.actor
+              )}{" "}
+              {entry.text}
+            </p>
+            <span className="flex flex-none items-baseline gap-1.5">
+              {entry.damage ? (
+                <i
+                  className={`font-mono text-[11.5px] font-semibold not-italic text-vermilion ${
+                    entry.crit ? "underline" : ""
+                  }`}
+                >
+                  &minus;{entry.damage}
+                </i>
+              ) : null}
+              {entry.apChange ? (
+                <i className="font-mono text-[11.5px] font-semibold not-italic text-pa">
+                  {entry.apChange > 0 ? "+" : "−"}
+                  {Math.abs(entry.apChange)} PA
+                </i>
+              ) : null}
+              {entry.mpChange ? (
+                <i className="font-mono text-[11.5px] font-semibold not-italic text-pm">
+                  {entry.mpChange > 0 ? "+" : "−"}
+                  {Math.abs(entry.mpChange)} PM
+                </i>
+              ) : null}
+              {noTarget ? (
+                <span className="rounded-sm bg-hairline px-1.5 py-0.5 font-sans text-[10px] font-semibold text-muted">
+                  no target
+                </span>
+              ) : null}
+              {absorbed ? (
+                <span className="rounded-sm bg-amber-wash px-1.5 py-0.5 font-sans text-[10px] font-semibold text-amber">
+                  absorbed
+                </span>
+              ) : null}
+            </span>
+          </li>
+        );
+      })}
       <div ref={endRef} />
     </ul>
   );
