@@ -18,17 +18,26 @@ type Position struct {
 // shared between two separate state maps, which is what let the old
 // PlayerManager and GameManager stay accidentally in sync.
 type Character struct {
-	Name             string     `json:"name"`
-	Color            string     `json:"color"`
-	Symbol           string     `json:"symbol"`
-	Position         *Position  `json:"position"`
-	ActionPoints     int        `json:"actionPoints"`
-	MovementPoints   int        `json:"movementPoints"`
-	IsCurrentTurn    bool       `json:"isCurrentTurn"`
-	InitialPositions []Position `json:"initialPositions"`
-	Health           int        `json:"health"`
-	MaxHealth        int        `json:"maxHealth"`
-	IsAlive          bool       `json:"isAlive"`
+	Name           string    `json:"name"`
+	Color          string    `json:"color"`
+	Symbol         string    `json:"symbol"`
+	Position       *Position `json:"position"`
+	ActionPoints   int       `json:"actionPoints"`
+	MovementPoints int       `json:"movementPoints"`
+	// What this character's action and movement points refill to at the
+	// start of its own next turn, once its active ap/mp effects have had
+	// their say. Meaningless mid-turn for whoever is currently playing —
+	// ActionPoints/MovementPoints already show their live, spendable count —
+	// but it's what a hovering opponent should be shown instead of the
+	// leftover 0 a fighter sits on between spending its last point and its
+	// next turn starting.
+	MaxActionPoints   int        `json:"maxActionPoints"`
+	MaxMovementPoints int        `json:"maxMovementPoints"`
+	IsCurrentTurn     bool       `json:"isCurrentTurn"`
+	InitialPositions  []Position `json:"initialPositions"`
+	Health            int        `json:"health"`
+	MaxHealth         int        `json:"maxHealth"`
+	IsAlive           bool       `json:"isAlive"`
 	// Effects currently riding on this character, ticked at the start of its
 	// own turn.
 	Effects []Effect `json:"effects"`

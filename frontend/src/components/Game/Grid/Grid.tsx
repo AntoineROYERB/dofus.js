@@ -10,6 +10,7 @@ import { Tile } from "./Tile";
 import { isInSpellRange } from "../../../utils/spellUtils";
 import { Character } from "./Character";
 import { Socle } from "./Socle";
+import { CharacterTooltip } from "./CharacterTooltip";
 import { HitFeedback } from "./HitFeedback";
 import { StatFeedback } from "./StatFeedback";
 import { SpellFXLayer } from "./SpellFXLayer";
@@ -195,6 +196,21 @@ export const Grid: React.FC<GridProps> = ({
     centerX,
     centerY,
   ]);
+
+  // Whoever the pointer is over, keyed the same way as characterRenderState
+  // — reusing hoveredPosition rather than a dedicated hitbox, so the card
+  // never fights the tile underneath for clicks.
+  const hoveredCharacterEntry = React.useMemo(() => {
+    if (!hoveredPosition || !players) return null;
+    return (
+      Object.entries(players).find(
+        ([, player]) =>
+          player.character.isAlive &&
+          player.character.position?.x === hoveredPosition.x &&
+          player.character.position?.y === hoveredPosition.y
+      ) ?? null
+    );
+  }, [hoveredPosition, players]);
 
   const findPlayerOnCell = (x: number, y: number) => {
     return (
@@ -402,6 +418,24 @@ export const Grid: React.FC<GridProps> = ({
             />
           );
         })}
+        {/*
+          The fighter under the pointer's stats — HP, AP, MP and buffs — the
+          same figures the bottom bar shows for the current player, but for
+          whoever the mouse is over. Driven by hoveredPosition rather than a
+          hitbox of its own, so it never steals a click meant for the tile.
+        */}
+        {!isPositioningPhase &&
+          hoveredCharacterEntry &&
+          characterRenderState[hoveredCharacterEntry[0]] && (
+            <CharacterTooltip
+              screenPosition={
+                characterRenderState[hoveredCharacterEntry[0]]!.screenPosition
+              }
+              tileSize={tileSize}
+              character={hoveredCharacterEntry[1].character}
+              clipRef={containerRef}
+            />
+          )}
         {/*
           What the spell actually took off, over the fighter it took it off.
           Nothing is drawn over a character nobody has touched.
