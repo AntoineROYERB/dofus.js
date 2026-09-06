@@ -18,6 +18,8 @@ interface UseGridInteractionProps {
   blocked: (p: Position) => boolean;
   players: { [id: string]: Player } | undefined;
   initialPositions: Position[];
+  /** The board's current pinch-zoom, so a tap under a scaled/panned finger still finds the right cell. */
+  zoom: { scale: number; pan: { x: number; y: number } };
 }
 
 export const useGridInteraction = ({
@@ -32,6 +34,7 @@ export const useGridInteraction = ({
   blocked,
   players,
   initialPositions,
+  zoom,
 }: UseGridInteractionProps) => {
   const [hoveredPosition, setHoveredPosition] = useState<Position | null>(null);
   const [pathCells, setPathCells] = useState<Position[]>([]);
@@ -48,6 +51,16 @@ export const useGridInteraction = ({
   const usingTouch = useRef(false);
   const previewed = useRef<Position | null>(null);
   const armed = useRef(false);
+
+  // Read inside listeners mounted once below, rather than a dependency that
+  // would re-mount them on every frame a pinch reports a new scale.
+  const zoomRef = useRef(zoom);
+  zoomRef.current = zoom;
+
+  // A second finger touching down mid-pinch must not land a move or a cast:
+  // once two are on the board, every pointerdown is ignored until all lift.
+  const activeTouchPointers = useRef(new Set<number>());
+  const suppressTap = useRef(false);
 
   // Update path and spell impact on hover
   useEffect(() => {
@@ -93,10 +106,13 @@ export const useGridInteraction = ({
 
     const findTileUnderMouse = (mouseX: number, mouseY: number) => {
       const rect = container.getBoundingClientRect();
-      const relativeX = mouseX - rect.left;
-      const relativeY = mouseY - rect.top;
       const centerX = rect.width / 2;
       const centerY = rect.height / 2;
+      const { scale, pan } = zoomRef.current;
+      // The board's own transform is scale-then-pan around its centre; undo
+      // that here so a finger over a tile keeps finding that tile zoomed in.
+      const relativeX = centerX + (mouseX - rect.left - pan.x - centerX) / scale;
+      const relativeY = centerY + (mouseY - rect.top - pan.y - centerY) / scale;
       const isoPos = screenToIso(
         relativeX,
         relativeY,
@@ -114,6 +130,19 @@ export const useGridInteraction = ({
 
     const handlePointerDown = (e: PointerEvent) => {
       if (e.pointerType !== "touch" && e.pointerType !== "pen") return;
+
+      if (e.pointerType === "touch") {
+        activeTouchPointers.current.add(e.pointerId);
+        if (activeTouchPointers.current.size > 1) {
+          suppressTap.current = true;
+          armed.current = false;
+          previewed.current = null;
+          setHoveredPosition(null);
+          return;
+        }
+      }
+      if (suppressTap.current) return;
+
       usingTouch.current = true;
       const tile = findTileUnderMouse(e.clientX, e.clientY);
       const before = previewed.current;
@@ -121,6 +150,12 @@ export const useGridInteraction = ({
         !!tile && !!before && before.x === tile.x && before.y === tile.y;
       previewed.current = tile;
       setHoveredPosition(tile);
+    };
+
+    const handlePointerUp = (e: PointerEvent) => {
+      if (e.pointerType !== "touch") return;
+      activeTouchPointers.current.delete(e.pointerId);
+      if (activeTouchPointers.current.size === 0) suppressTap.current = false;
     };
 
     const handleMouseMove = (e: MouseEvent) => {
@@ -147,12 +182,16 @@ export const useGridInteraction = ({
 
     document.addEventListener("mousemove", handleMouseMove);
     container.addEventListener("pointerdown", handlePointerDown);
+    container.addEventListener("pointerup", handlePointerUp);
+    container.addEventListener("pointercancel", handlePointerUp);
     container.addEventListener("mouseenter", handleMouseEnter);
     container.addEventListener("mouseleave", handleMouseLeave);
 
     return () => {
       document.removeEventListener("mousemove", handleMouseMove);
       container.removeEventListener("pointerdown", handlePointerDown);
+      container.removeEventListener("pointerup", handlePointerUp);
+      container.removeEventListener("pointercancel", handlePointerUp);
       container.removeEventListener("mouseenter", handleMouseEnter);
       container.removeEventListener("mouseleave", handleMouseLeave);
     };
