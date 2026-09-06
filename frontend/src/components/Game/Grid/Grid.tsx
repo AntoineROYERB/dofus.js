@@ -10,6 +10,7 @@ import { Tile } from "./Tile";
 import { isInSpellRange } from "../../../utils/spellUtils";
 import { Character } from "./Character";
 import { Socle } from "./Socle";
+import { CharacterTooltip } from "./CharacterTooltip";
 import { HitFeedback } from "./HitFeedback";
 import { StatFeedback } from "./StatFeedback";
 import { SpellFXLayer } from "./SpellFXLayer";
@@ -18,6 +19,7 @@ import { useCharacterAnimations } from "../../../hooks/useCharacterAnimations";
 import { useHitFeedback } from "../../../hooks/useHitFeedback";
 import { useGridInteraction } from "../../../hooks/useGridInteraction";
 import { useTileSize } from "../../../hooks/useTileSize";
+import { usePinchZoom } from "../../../hooks/usePinchZoom";
 import { GameState } from "../../../types/message";
 
 interface GridProps {
@@ -44,6 +46,12 @@ export const Grid: React.FC<GridProps> = ({
    * the container's own box — is never thrown off by a spell going off.
    */
   const boardRef = useRef<HTMLDivElement>(null);
+  /*
+   * Pinch-zoom's own layer, wrapping the board rather than being it: impact
+   * shake already writes its own transform straight onto boardRef, and the
+   * two would fight over the same style property if zoom lived there too.
+   */
+  const zoomLayerRef = useRef<HTMLDivElement>(null);
 
   const players = latestGameState?.players;
   // Memoised: a fresh `?? []` on every render would defeat the memos below.
@@ -120,6 +128,7 @@ export const Grid: React.FC<GridProps> = ({
   }, [characterPosition, movementPoints, blocked]);
 
   const tileSize = useTileSize(containerRef, gridSize);
+  const { scale, pan, isPinching, reset: resetZoom } = usePinchZoom(containerRef);
 
   const characterRenderState = useCharacterAnimations(
     latestGameState ?? null,
@@ -143,6 +152,7 @@ export const Grid: React.FC<GridProps> = ({
     blocked,
     players,
     initialPositions,
+    zoom: { scale, pan },
   });
 
   const centerX = containerRef.current
@@ -186,6 +196,21 @@ export const Grid: React.FC<GridProps> = ({
     centerX,
     centerY,
   ]);
+
+  // Whoever the pointer is over, keyed the same way as characterRenderState
+  // — reusing hoveredPosition rather than a dedicated hitbox, so the card
+  // never fights the tile underneath for clicks.
+  const hoveredCharacterEntry = React.useMemo(() => {
+    if (!hoveredPosition || !players) return null;
+    return (
+      Object.entries(players).find(
+        ([, player]) =>
+          player.character.isAlive &&
+          player.character.position?.x === hoveredPosition.x &&
+          player.character.position?.y === hoveredPosition.y
+      ) ?? null
+    );
+  }, [hoveredPosition, players]);
 
   const findPlayerOnCell = (x: number, y: number) => {
     return (
@@ -274,7 +299,19 @@ export const Grid: React.FC<GridProps> = ({
   };
 
   return (
-    <div ref={containerRef} className="w-full h-full relative overflow-hidden">
+    <div
+      ref={containerRef}
+      className="w-full h-full relative overflow-hidden touch-none"
+    >
+      <div
+        ref={zoomLayerRef}
+        className="absolute inset-0"
+        style={{
+          transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale})`,
+          transformOrigin: "center center",
+          transition: isPinching ? "none" : "transform 150ms ease-out",
+        }}
+      >
       <div ref={boardRef} className="absolute inset-0">
         {sortedCoordinates.map(({ x, y }) => {
           const isHovered = hoveredPosition?.x === x && hoveredPosition?.y === y;
@@ -382,6 +419,24 @@ export const Grid: React.FC<GridProps> = ({
           );
         })}
         {/*
+          The fighter under the pointer's stats — HP, AP, MP and buffs — the
+          same figures the bottom bar shows for the current player, but for
+          whoever the mouse is over. Driven by hoveredPosition rather than a
+          hitbox of its own, so it never steals a click meant for the tile.
+        */}
+        {!isPositioningPhase &&
+          hoveredCharacterEntry &&
+          characterRenderState[hoveredCharacterEntry[0]] && (
+            <CharacterTooltip
+              screenPosition={
+                characterRenderState[hoveredCharacterEntry[0]]!.screenPosition
+              }
+              tileSize={tileSize}
+              character={hoveredCharacterEntry[1].character}
+              clipRef={containerRef}
+            />
+          )}
+        {/*
           What the spell actually took off, over the fighter it took it off.
           Nothing is drawn over a character nobody has touched.
         */}
@@ -468,6 +523,16 @@ export const Grid: React.FC<GridProps> = ({
           />
         )}
       </div>
+      </div>
+      {scale > 1.02 && (
+        <button
+          type="button"
+          onClick={resetZoom}
+          className="absolute bottom-3 right-3 z-10 border border-ink bg-paper px-3 py-1.5 font-mono text-[11px] uppercase tracking-label text-ink shadow-sm"
+        >
+          Reset zoom
+        </button>
+      )}
     </div>
   );
 };

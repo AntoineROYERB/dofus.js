@@ -140,6 +140,7 @@ func (g *Game) snapshotLocked() types.GameState {
 		if c.Effects != nil {
 			c.Effects = append([]types.Effect(nil), c.Effects...)
 		}
+		c.MaxActionPoints, c.MaxMovementPoints = turnPoints(c)
 		p.Character = c
 		players[id] = p
 	}

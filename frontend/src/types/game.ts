@@ -12,6 +12,12 @@ export type Character = {
   position?: Position;
   actionPoints: number;
   movementPoints: number;
+  // What actionPoints/movementPoints refill to at the start of this
+  // character's own next turn, once its active ap/mp effects have had their
+  // say. What a hovering opponent should be shown instead of the leftover
+  // 0 a fighter sits on between spending its last point and its next turn.
+  maxActionPoints: number;
+  maxMovementPoints: number;
   isCurrentTurn: boolean;
   initialPositions?: Position[];
   health: number;
