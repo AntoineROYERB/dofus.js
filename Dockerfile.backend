@@ -1,6 +1,6 @@
 # Build stage: the toolchain never ships. The old image was golang:1.23.0 with
 # the source and the whole Go toolchain still inside it, around 1 GB.
-FROM golang:1.23-alpine AS build
+FROM golang:1.25-alpine AS build
 
 WORKDIR /src
 

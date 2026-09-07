@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"flag"
 	"log"
 	"net/http"
 	"os"
@@ -12,20 +13,39 @@ import (
 	"syscall"
 	"time"
 
+	"game-server/internal/api"
 	"game-server/internal/config"
 	"game-server/internal/game"
+	"game-server/internal/store"
+	"game-server/internal/store/memory"
+	"game-server/internal/store/postgres"
 	"game-server/internal/websocket"
 )
 
 func main() {
+	reproject := flag.Bool("reproject", false, "rebuild every match's projection from its command log, then exit")
+	flag.Parse()
+
 	cfg := config.Load()
 	game.ApplyBalance(cfg.Balance)
 
-	hub := websocket.NewHub(cfg)
+	matches, err := openStore(cfg.DatabaseURL)
+	if err != nil {
+		log.Fatalf("[Store] %v", err)
+	}
+	defer matches.Close()
+
+	if *reproject {
+		runReproject(matches)
+		return
+	}
+
+	hub := websocket.NewHub(cfg, store.NewAsync(matches, 32))
 	go hub.Run()
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/ws", hub.HandleWebSocket)
+	api.RegisterMatchRoutes(mux, matches)
 	if cfg.StaticDir != "" {
 		mux.Handle("/", spaHandler(cfg.StaticDir))
 		log.Printf("[Server] serving %s", cfg.StaticDir)
@@ -67,6 +87,55 @@ func main() {
 	if err := server.Shutdown(ctx); err != nil {
 		log.Printf("[Server] forced close: %v", err)
 	}
+}
+
+// openStore picks the match store to run with. Postgres switches on via
+// DATABASE_URL; an empty value keeps the server running as it always has,
+// with nothing to persist beyond process lifetime. This is a deliberate
+// constraint, not a fallback for a broken config: docker compose up
+// --build and go run ./cmd/server have to keep working with no database at
+// all.
+func openStore(databaseURL string) (store.MatchStore, error) {
+	if databaseURL == "" {
+		log.Printf("[Store] DATABASE_URL not set, matches are kept in memory only")
+		return memory.New(), nil
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	pg, err := postgres.Open(ctx, databaseURL)
+	if err != nil {
+		return nil, err
+	}
+	log.Printf("[Store] connected to postgres, migrations applied")
+	return pg, nil
+}
+
+// runReproject rebuilds every match's projection from its command log,
+// which is the whole point of keeping the log: match_results (in this
+// store, the projection columns on matches) can always be dropped and
+// recomputed.
+func runReproject(matches store.MatchStore) {
+	ctx := context.Background()
+	cursor := ""
+	total := 0
+	for {
+		page, err := matches.ListMatches(ctx, 100, cursor)
+		if err != nil {
+			log.Fatalf("[Reproject] list matches: %v", err)
+		}
+		for _, m := range page.Matches {
+			if err := matches.Reproject(ctx, m.ID); err != nil {
+				log.Printf("[Reproject] %s: %v", m.ID, err)
+				continue
+			}
+			total++
+		}
+		if page.NextCursor == "" {
+			break
+		}
+		cursor = page.NextCursor
+	}
+	log.Printf("[Reproject] rebuilt %d match(es)", total)
 }
 
 // spaHandler serves the built frontend, falling back to index.html so client

@@ -1,4 +1,24 @@
 services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: dofusjs-postgres
+    environment:
+      POSTGRES_USER: dofusjs
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-dofusjs}"
+      POSTGRES_DB: dofusjs
+    volumes:
+      - dofusjs-postgres-data:/var/lib/postgresql/data
+    # Published so a local client (DBeaver, psql) can connect straight to
+    # it — set POSTGRES_PORT if 5432 is already taken on your machine.
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dofusjs"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
   backend:
     build:
       context: .
@@ -9,6 +29,15 @@ services:
       PORT: "8080"
       ALLOWED_ORIGINS: "${ALLOWED_ORIGINS:-*}"
       TURN_SECONDS: "${TURN_SECONDS:-45}"
+      # Matches are kept only in memory with this unset. Self-hosting with
+      # compose gets the postgres service above for free; a deploy without
+      # compose (the free-tier single-container case) simply never sets
+      # this, and the server runs exactly as it did before persistence
+      # existed — that fallback is load-bearing, not a convenience.
+      DATABASE_URL: "postgres://dofusjs:${POSTGRES_PASSWORD:-dofusjs}@postgres:5432/dofusjs?sslmode=disable"
+    depends_on:
+      postgres:
+        condition: service_healthy
     # Reachable from nginx only: the browser talks to /ws through the proxy, so
     # there is no reason to publish this port on the host.
     expose:
@@ -26,3 +55,6 @@ services:
       backend:
         condition: service_healthy
     restart: unless-stopped
+
+volumes:
+  dofusjs-postgres-data:
