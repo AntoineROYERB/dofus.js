@@ -30,6 +30,11 @@ type Config struct {
 	// Balance is what BalanceFile resolved to — loaded once, here, rather
 	// than wherever a room happens to be created.
 	Balance Balance
+	// DatabaseURL, when set, switches match persistence from the in-memory
+	// store to Postgres. Empty means no database: the game must run
+	// without one, so this is a deliberate default, not a missing
+	// feature.
+	DatabaseURL string
 }
 
 func Load() Config {
@@ -39,6 +44,7 @@ func Load() Config {
 		TurnDuration:   time.Duration(envInt("TURN_SECONDS", 45)) * time.Second,
 		StaticDir:      envString("STATIC_DIR", ""),
 		BalanceFile:    envString("BALANCE_FILE", "config/balance.json"),
+		DatabaseURL:    envString("DATABASE_URL", ""),
 	}
 	cfg.Balance = LoadBalance(cfg.BalanceFile)
 

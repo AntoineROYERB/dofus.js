@@ -1,6 +1,7 @@
 package websocket
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -9,6 +10,7 @@ import (
 
 	"game-server/internal/config"
 	"game-server/internal/game"
+	"game-server/internal/store"
 	"game-server/internal/types"
 
 	"github.com/gorilla/websocket"
@@ -27,30 +29,40 @@ type Hub struct {
 	// that ran out of time.
 	Ticks chan string
 
-	cfg      config.Config
-	lobby    *game.Lobby
-	sessions *Sessions
-	upgrader websocket.Upgrader
+	cfg        config.Config
+	lobby      *game.Lobby
+	sessions   *Sessions
+	upgrader   websocket.Upgrader
+	matchStore store.MatchStore
 	// roomTimers is only ever touched on the Run goroutine.
 	roomTimers map[string]*time.Timer
+	// persistedRooms is only ever touched on the Run goroutine. It marks
+	// which rooms already had their current game-over match saved, so a
+	// game-over state that gets broadcast again (a reconnect, a player
+	// disconnecting right after the match ends) does not save it twice.
+	// Cleared when the room leaves game-over (a rematch), so the next
+	// finish is recognised as a new match.
+	persistedRooms map[string]bool
 
 	// Guards Clients. Every other mutation happens on the Run goroutine, and
 	// each game keeps its own lock.
 	mutex sync.Mutex
 }
 
-func NewHub(cfg config.Config) *Hub {
+func NewHub(cfg config.Config, matchStore store.MatchStore) *Hub {
 	return &Hub{
-		Inbound:    make(chan Inbound),
-		Register:   make(chan *Client),
-		Unregister: make(chan *Client),
-		Forfeits:   make(chan Forfeit, 16),
-		Ticks:      make(chan string, 64),
-		Clients:    make(map[*Client]bool),
-		cfg:        cfg,
-		lobby:      game.NewLobby(cfg.TurnDuration),
-		sessions:   NewSessions(),
-		roomTimers: make(map[string]*time.Timer),
+		Inbound:        make(chan Inbound),
+		Register:       make(chan *Client),
+		Unregister:     make(chan *Client),
+		Forfeits:       make(chan Forfeit, 16),
+		Ticks:          make(chan string, 64),
+		Clients:        make(map[*Client]bool),
+		cfg:            cfg,
+		lobby:          game.NewLobby(cfg.TurnDuration),
+		sessions:       NewSessions(),
+		matchStore:     matchStore,
+		roomTimers:     make(map[string]*time.Timer),
+		persistedRooms: make(map[string]bool),
 		upgrader: websocket.Upgrader{
 			ReadBufferSize:  1024,
 			WriteBufferSize: 1024,
@@ -110,6 +122,50 @@ func (h *Hub) broadcastGameState(room *game.Room) {
 			log.Printf("[Game Over] room %s, winner: %s", room.ID, winner)
 			h.broadcastToRoom(room.ID, payload)
 		}
+		h.persistMatch(room, winner)
+	} else {
+		// The room left game-over (a rematch via CmdRestart), so the next
+		// time it finishes is a new match, not a resend of this one.
+		delete(h.persistedRooms, room.ID)
+	}
+}
+
+// persistMatch saves a finished match once per game-over episode. It is
+// called every time a game-over state is broadcast, which happens more
+// than once per match: a reconnect resends the current state, and so does
+// a player disconnecting right after the match ends (that appends a
+// "connect" command to the log). Guarding on a flag rather than the
+// command count means neither retriggers a second save.
+func (h *Hub) persistMatch(room *game.Room, winner string) {
+	if h.persistedRooms[room.ID] {
+		return
+	}
+	h.persistedRooms[room.ID] = true
+
+	rec := room.Game.Recording()
+	turns, durationMS := store.TurnsAndDuration(rec)
+	startedAt := time.UnixMilli(rec.StartedAt)
+
+	snapshot := room.Game.Snapshot()
+	players := make([]store.Player, 0, len(snapshot.Players))
+	for _, p := range snapshot.Players {
+		players = append(players, store.Player{UserID: p.UserID, UserName: p.UserName, IsBot: p.IsBot})
+	}
+
+	match := store.Match{
+		ID:         store.NewMatchID(),
+		RoomID:     room.ID,
+		RoomName:   room.Name,
+		StartedAt:  startedAt,
+		EndedAt:    startedAt.Add(time.Duration(durationMS) * time.Millisecond),
+		Winner:     winner,
+		Turns:      turns,
+		DurationMS: durationMS,
+		Players:    players,
+		Recording:  rec,
+	}
+	if err := h.matchStore.SaveMatch(context.Background(), match); err != nil {
+		log.Printf("[store] failed to save match for room %s: %v", room.ID, err)
 	}
 }
 
@@ -178,6 +234,7 @@ func (h *Hub) closeRoomIfEmpty(room *game.Room) bool {
 		return false
 	}
 	h.lobby.Remove(room.ID)
+	delete(h.persistedRooms, room.ID)
 	log.Printf("[Room] %s closed (empty)", room.ID)
 	return true
 }
