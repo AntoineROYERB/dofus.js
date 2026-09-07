@@ -2,8 +2,10 @@
 package websocket
 
 import (
-	"log"
+	"log/slog"
 	"time"
+
+	"game-server/internal/metrics"
 
 	"github.com/gorilla/websocket"
 )
@@ -62,7 +64,7 @@ func (c *Client) ReadPump() {
 		_, message, err := c.Conn.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-				log.Printf("[Error] Reading from client %s: %v", c.ID, err)
+				slog.Error("read failed", "component", "client", "user_id", c.ID, "error", err)
 			}
 			break
 		}
@@ -76,7 +78,8 @@ func (c *Client) TrySend(message []byte) {
 	select {
 	case c.Send <- message:
 	default:
-		log.Printf("[Warning] Dropped message for client %s: send buffer full", c.ID)
+		metrics.ClientSendDropped.Inc()
+		slog.Warn("dropped message, send buffer full", "component", "client", "user_id", c.ID)
 	}
 }
 

@@ -2,7 +2,7 @@ package websocket
 
 import (
 	"encoding/json"
-	"log"
+	"log/slog"
 
 	"game-server/internal/game"
 	"game-server/internal/types"
@@ -28,7 +28,7 @@ var messageHandlers = map[string]MessageHandler{
 
 func decode[T any](c *Client, action string, data []byte, out *T) bool {
 	if err := json.Unmarshal(data, out); err != nil {
-		log.Printf("[Error] Invalid %s message from %s: %v", action, c.ID, err)
+		slog.Error("invalid message", "component", "handler", "msg_type", action, "user_id", c.ID, "error", err)
 		return false
 	}
 	return true
@@ -67,13 +67,13 @@ func handleCreateRoom(h *Hub, c *Client, data []byte) {
 
 	if in.WithBot {
 		if botID, err := room.Game.AddBot(); err != nil {
-			log.Printf("[Warning] Could not add a bot to room %s: %v", room.ID, err)
+			slog.Warn("could not add bot", "component", "handler", "match_id", room.ID, "error", err)
 		} else {
-			log.Printf("[Room] %s: bot %s added", room.ID, botID)
+			slog.Info("bot added", "component", "handler", "match_id", room.ID, "bot_id", botID)
 		}
 	}
 
-	log.Printf("[Room] %s (%s) created by %s", room.ID, room.Name, c.ID)
+	slog.Info("room created", "component", "handler", "match_id", room.ID, "room_name", room.Name, "user_id", c.ID)
 	h.setRoom(c, room.ID)
 	h.sendRoomJoined(c, room.ID, room.Name)
 	h.broadcastGameState(room)
@@ -151,7 +151,7 @@ func handleChat(h *Hub, c *Client, data []byte) {
 		Content:   in.Content,
 	})
 	if err != nil {
-		log.Printf("[Error] Failed to marshal chat message: %v", err)
+		slog.Error("failed to marshal chat message", "component", "handler", "user_id", c.ID, "error", err)
 		return
 	}
 	// Chat stays inside the room; clients in the lobby share the lobby channel.
@@ -262,7 +262,7 @@ func handlePlayAgain(h *Hub, c *Client, data []byte) {
 		h.reject(c, "play_again", in.MessageID, err)
 		return
 	}
-	log.Printf("[Room] %s restarted by %s", room.ID, c.ID)
+	slog.Info("room restarted", "component", "handler", "match_id", room.ID, "user_id", c.ID)
 	h.broadcastGameState(room)
 	h.broadcastLobby()
 }
