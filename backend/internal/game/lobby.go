@@ -4,7 +4,6 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
-	mathrand "math/rand"
 	"regexp"
 	"sort"
 	"sync"
@@ -61,10 +60,13 @@ func (l *Lobby) Create(name string) (*Room, error) {
 		return nil, err
 	}
 
+	// The seed is drawn and handed over explicitly. It used to be
+	// time.Now().UnixNano() read inside the constructor, which meant the one
+	// input the whole match hangs off was never written down anywhere.
 	room := &Room{
 		ID:   id,
 		Name: name,
-		Game: NewWithOptions(mathrand.New(mathrand.NewSource(time.Now().UnixNano())), l.turnDuration),
+		Game: NewWithOptions(Options{Seed: NewSeed(), TurnDuration: l.turnDuration}),
 	}
 
 	l.mu.Lock()

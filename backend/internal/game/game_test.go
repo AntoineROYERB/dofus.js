@@ -2,7 +2,6 @@ package game
 
 import (
 	"errors"
-	"math/rand"
 	"testing"
 
 	"game-server/internal/types"
@@ -18,7 +17,7 @@ func look(name string) types.CharacterAppearance {
 func playingGame(t *testing.T, placement map[string]types.Position, order ...string) *Game {
 	t.Helper()
 
-	g := NewWithRand(rand.New(rand.NewSource(1)))
+	g := NewWithSeed(1)
 
 	// Characters are seated directly rather than through AddPlayer. A room now
 	// holds a duel and opens placement the moment the second player arrives,
@@ -436,7 +435,7 @@ func TestLateJoinerIsTurnedAway(t *testing.T) {
 }
 
 func TestStartingCellMustBeOneThatWasOffered(t *testing.T) {
-	g := NewWithRand(rand.New(rand.NewSource(1)))
+	g := NewWithSeed(1)
 	for _, id := range []string{"a", "b"} {
 		if err := g.AddPlayer(id, "User-"+id, look("Player"+id)); err != nil {
 			t.Fatalf("AddPlayer(%s): %v", id, err)

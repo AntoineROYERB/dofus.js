@@ -258,7 +258,7 @@ func handlePlayAgain(h *Hub, c *Client, data []byte) {
 	if !ok {
 		return
 	}
-	if err := room.Game.Restart(); err != nil {
+	if err := room.Game.Restart(c.ID); err != nil {
 		h.reject(c, "play_again", in.MessageID, err)
 		return
 	}
