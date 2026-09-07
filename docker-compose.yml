@@ -8,10 +8,10 @@ services:
       POSTGRES_DB: dofusjs
     volumes:
       - dofusjs-postgres-data:/var/lib/postgresql/data
-    # Not published on the host: only the backend talks to it, the same way
-    # it only reaches the backend through nginx.
-    expose:
-      - "5432"
+    # Published so a local client (DBeaver, psql) can connect straight to
+    # it — set POSTGRES_PORT if 5432 is already taken on your machine.
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U dofusjs"]
       interval: 5s
