@@ -65,7 +65,10 @@ func (s *Store) ListMatches(_ context.Context, limit int, cursor string) (store.
 		end = len(ids)
 	}
 
-	page := store.Page{}
+	// A non-nil empty slice, not nil: this becomes JSON, and "matches": []
+	// is what a list response should say when there is nothing to list —
+	// "matches": null reads as an error to every client that isn't Go.
+	page := store.Page{Matches: []store.Summary{}}
 	for _, id := range ids[start:end] {
 		page.Matches = append(page.Matches, s.matches[id].Summary())
 	}

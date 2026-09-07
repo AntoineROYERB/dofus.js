@@ -63,7 +63,8 @@ const MatchHistoryPage: React.FC = () => {
     setError(null);
     try {
       const page = await fetchMatches(cursor);
-      setMatches((prev) => (cursor ? [...prev, ...page.matches] : page.matches));
+      const found = page.matches ?? [];
+      setMatches((prev) => (cursor ? [...prev, ...found] : found));
       setNextCursor(page.nextCursor);
     } catch {
       setError("Could not load match history.");

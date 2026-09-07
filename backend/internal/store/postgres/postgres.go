@@ -112,7 +112,8 @@ func (s *Store) ListMatches(ctx context.Context, limit int, cursor string) (stor
 	}
 	defer rows.Close()
 
-	var page store.Page
+	// Non-nil so an empty result serialises as "matches": [], not null.
+	page := store.Page{Matches: []store.Summary{}}
 	for rows.Next() {
 		summary, err := scanSummary(rows)
 		if err != nil {
