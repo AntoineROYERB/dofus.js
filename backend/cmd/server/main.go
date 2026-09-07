@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"flag"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -16,10 +16,13 @@ import (
 	"game-server/internal/api"
 	"game-server/internal/config"
 	"game-server/internal/game"
+	"game-server/internal/metrics"
 	"game-server/internal/store"
 	"game-server/internal/store/memory"
 	"game-server/internal/store/postgres"
 	"game-server/internal/websocket"
+
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 func main() {
@@ -27,11 +30,14 @@ func main() {
 	flag.Parse()
 
 	cfg := config.Load()
+	logger := cfg.NewLogger()
+	slog.SetDefault(logger)
 	game.ApplyBalance(cfg.Balance)
 
 	matches, err := openStore(cfg.DatabaseURL)
 	if err != nil {
-		log.Fatalf("[Store] %v", err)
+		slog.Error("failed to open store", "component", "store", "error", err)
+		os.Exit(1)
 	}
 	defer matches.Close()
 
@@ -48,7 +54,7 @@ func main() {
 	api.RegisterMatchRoutes(mux, matches)
 	if cfg.StaticDir != "" {
 		mux.Handle("/", spaHandler(cfg.StaticDir))
-		log.Printf("[Server] serving %s", cfg.StaticDir)
+		slog.Info("serving static frontend", "component", "server", "dir", cfg.StaticDir)
 	}
 	// Container orchestrators need something cheap to poll that does not open
 	// a WebSocket.
@@ -56,6 +62,8 @@ func main() {
 		w.Header().Set("Content-Type", "application/json")
 		w.Write([]byte(`{"status":"ok"}`))
 	})
+
+	metricsServer := startMetricsServer(cfg.MetricsAddr)
 
 	server := &http.Server{
 		Addr:    cfg.Addr,
@@ -73,20 +81,49 @@ func main() {
 	signal.Notify(shutdown, os.Interrupt, syscall.SIGTERM)
 
 	go func() {
-		log.Printf("[Server] listening on %s (turn %s)", cfg.Addr, cfg.TurnDuration)
+		slog.Info("listening", "component", "server", "addr", cfg.Addr, "turn_duration", cfg.TurnDuration.String())
 		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			log.Fatalf("[Server] %v", err)
+			slog.Error("listen failed", "component", "server", "error", err)
+			os.Exit(1)
 		}
 	}()
 
 	<-shutdown
-	log.Printf("[Server] shutting down")
+	slog.Info("shutting down", "component", "server")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := server.Shutdown(ctx); err != nil {
-		log.Printf("[Server] forced close: %v", err)
+		slog.Error("forced close", "component", "server", "error", err)
 	}
+	if metricsServer != nil {
+		if err := metricsServer.Shutdown(ctx); err != nil {
+			slog.Error("forced close", "component", "metrics", "error", err)
+		}
+	}
+}
+
+// startMetricsServer serves /metrics on its own listener, separate from the
+// public one, so a deployment that forwards its whole public port (unlike the
+// docker-compose/nginx setup here, which never proxies /metrics at all) does
+// not expose it to the internet by accident. An empty addr disables it.
+func startMetricsServer(addr string) *http.Server {
+	if addr == "" {
+		slog.Warn("METRICS_ADDR is empty, /metrics is disabled", "component", "metrics")
+		return nil
+	}
+
+	mux := http.NewServeMux()
+	mux.Handle("/metrics", promhttp.HandlerFor(metrics.Registry, promhttp.HandlerOpts{}))
+	server := &http.Server{Addr: addr, Handler: mux, ReadHeaderTimeout: 10 * time.Second}
+
+	go func() {
+		slog.Info("listening", "component", "metrics", "addr", addr)
+		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			slog.Error("listen failed", "component", "metrics", "error", err)
+		}
+	}()
+	return server
 }
 
 // openStore picks the match store to run with. Postgres switches on via
@@ -97,7 +134,7 @@ func main() {
 // all.
 func openStore(databaseURL string) (store.MatchStore, error) {
 	if databaseURL == "" {
-		log.Printf("[Store] DATABASE_URL not set, matches are kept in memory only")
+		slog.Info("DATABASE_URL not set, matches are kept in memory only", "component", "store")
 		return memory.New(), nil
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -106,7 +143,7 @@ func openStore(databaseURL string) (store.MatchStore, error) {
 	if err != nil {
 		return nil, err
 	}
-	log.Printf("[Store] connected to postgres, migrations applied")
+	slog.Info("connected to postgres, migrations applied", "component", "store")
 	return pg, nil
 }
 
@@ -121,11 +158,12 @@ func runReproject(matches store.MatchStore) {
 	for {
 		page, err := matches.ListMatches(ctx, 100, cursor)
 		if err != nil {
-			log.Fatalf("[Reproject] list matches: %v", err)
+			slog.Error("list matches failed", "component", "reproject", "error", err)
+			os.Exit(1)
 		}
 		for _, m := range page.Matches {
 			if err := matches.Reproject(ctx, m.ID); err != nil {
-				log.Printf("[Reproject] %s: %v", m.ID, err)
+				slog.Error("reproject failed", "component", "reproject", "match_id", m.ID, "error", err)
 				continue
 			}
 			total++
@@ -135,7 +173,7 @@ func runReproject(matches store.MatchStore) {
 		}
 		cursor = page.NextCursor
 	}
-	log.Printf("[Reproject] rebuilt %d match(es)", total)
+	slog.Info("rebuilt matches", "component", "reproject", "count", total)
 }
 
 // spaHandler serves the built frontend, falling back to index.html so client

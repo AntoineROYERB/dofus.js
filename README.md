@@ -135,6 +135,9 @@ Copy `.env.example` to `.env`. Everything has a working default.
 | `TURN_SECONDS` | `45` | How long a player gets before their turn passes on |
 | `STATIC_DIR` | unset | When set, the Go binary also serves the built frontend |
 | `BALANCE_FILE` | `config/balance.json` | JSON file with gameplay constants (health, action points, movement points). Edit `backend/config/balance.json` to retune a fight without touching code. |
+| `LOG_FORMAT` | `json` | Server log format: `json` for an aggregator, `text` for a terminal |
+| `LOG_LEVEL` | `info` | Minimum log level: `debug`, `info`, `warn` or `error` |
+| `METRICS_ADDR` | `127.0.0.1:9090` | Listen address for `/metrics` (Prometheus), served on its own loopback-only listener — see [Performance](#performance). Empty disables it. |
 | `VITE_WS_URL` | unset | Build-time, client side: where the game server lives when it is not the host serving the page |
 
 ## Deploying
@@ -205,6 +208,49 @@ cd frontend && npm run lint && npm run build
 
 CI runs all of it on every push, plus `gofmt`, `go vet` and a full
 `docker compose build`.
+
+## Performance
+
+The server logs structured JSON (`LOG_FORMAT`/`LOG_LEVEL`, see
+[Configuration](#configuration)) — every line inside a match carries
+`match_id`, and every line inside a connection carries `user_id`, so one fight
+can be `grep`'d out of the stream. It also exposes Prometheus metrics
+(connections, rooms by status, command counts and latency, rejections, turn
+timeouts, bot decision time, broadcast fan-out time, dropped sends,
+reconnects — see `backend/internal/metrics/metrics.go`) at `/metrics`, on its
+**own listener bound to `127.0.0.1:9090` by default**, separate from the
+public port — set `METRICS_ADDR` to widen that deliberately (e.g. for a
+Prometheus scraper on the same host or network). A starter
+[Grafana dashboard](docs/grafana-dashboard.json) covers all of them.
+
+`backend/cmd/loadtest` opens real WebSocket clients, pairs them two per room,
+and plays each pair through a full match using the same decision logic as the
+server's own bot opponent — so it exercises real command handling, not just
+open sockets:
+
+```bash
+cd backend
+go run ./cmd/server                    # one terminal
+go run ./cmd/loadtest -clients=500     # another
+```
+
+Measured on 2026-09-07, on a laptop-class machine (Apple M5 Pro, 15 cores,
+24 GB RAM, macOS, Go 1.27.1, in-memory match store — not the production
+Render/Fly instance):
+
+| Clients | Concurrent matches | Result | Command latency (p50 / p95 / p99) |
+|---|---|---|---|
+| 500 | 250 | 250/250 finished, 127 matches/sec | 391µs / 1.18ms / 1.73ms |
+
+This is a local dev-machine number, not a production benchmark — reproduce it
+yourself with the command above and your own hardware. Pushing further, to
+2000 clients (1000 concurrent matches), surfaced a real bottleneck rather than
+a clean number: about 6% of room joins never completed and p99 latency rose to
+~50ms even with a fixed, realistic connection ramp rate (ruling out the load
+test itself as the cause). That is being tracked as a follow-up rather than
+papered over here — the `Hub` in `internal/websocket/hub.go` runs as a single
+goroutine, and its lobby broadcast rescans every connected client on every
+room event, which is a plausible culprit at that scale.
 
 ## Status
 

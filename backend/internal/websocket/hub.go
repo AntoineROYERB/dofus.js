@@ -3,13 +3,14 @@ package websocket
 import (
 	"context"
 	"encoding/json"
-	"log"
+	"log/slog"
 	"net/http"
 	"sync"
 	"time"
 
 	"game-server/internal/config"
 	"game-server/internal/game"
+	"game-server/internal/metrics"
 	"game-server/internal/store"
 	"game-server/internal/types"
 
@@ -99,6 +100,7 @@ func (h *Hub) broadcastToRoom(roomID string, message []byte) {
 // opponent's chosen cell is withheld from everyone but that opponent until
 // the fight actually starts.
 func (h *Hub) broadcastGameState(room *game.Room) {
+	start := time.Now()
 	h.mutex.Lock()
 	for client := range h.Clients {
 		if client.RoomID != room.ID {
@@ -109,17 +111,19 @@ func (h *Hub) broadcastGameState(room *game.Room) {
 			State: room.Game.SnapshotFor(client.ID),
 		})
 		if err != nil {
-			log.Printf("[Error] Failed to marshal game state for %s: %v", client.ID, err)
+			slog.Error("failed to marshal game state", "component", "hub", "match_id", room.ID, "user_id", client.ID, "error", err)
 			continue
 		}
 		client.TrySend(payload)
 	}
 	h.mutex.Unlock()
+	metrics.BroadcastDuration.Observe(time.Since(start).Seconds())
 	h.scheduleRoom(room)
+	h.refreshRoomMetrics()
 
 	if winner, over := room.Game.Winner(); over {
 		if payload, err := json.Marshal(types.GameOverMessage{Type: "game_over", Winner: winner}); err == nil {
-			log.Printf("[Game Over] room %s, winner: %s", room.ID, winner)
+			slog.Info("game over", "component", "hub", "match_id", room.ID, "winner", winner)
 			h.broadcastToRoom(room.ID, payload)
 		}
 		h.persistMatch(room, winner)
@@ -127,6 +131,25 @@ func (h *Hub) broadcastGameState(room *game.Room) {
 		// The room left game-over (a rematch via CmdRestart), so the next
 		// time it finishes is a new match, not a resend of this one.
 		delete(h.persistedRooms, room.ID)
+	}
+}
+
+// refreshRoomMetrics recomputes the dofusjs_rooms gauge from scratch. Rooms
+// are few enough per instance that a full recount on every state change is
+// simpler and less error-prone than incrementally tracking each room's
+// previous status.
+func (h *Hub) refreshRoomMetrics() {
+	counts := map[string]float64{
+		types.StatusCreatingPlayer:     0,
+		types.StatusPositionCharacters: 0,
+		types.StatusPlaying:            0,
+		types.StatusGameOver:           0,
+	}
+	for _, room := range h.lobby.List() {
+		counts[room.Status]++
+	}
+	for status, count := range counts {
+		metrics.Rooms.WithLabelValues(status).Set(count)
 	}
 }
 
@@ -168,7 +191,7 @@ func (h *Hub) persistMatch(room *game.Room, winner string) {
 		Recording:  rec,
 	}
 	if err := h.matchStore.SaveMatch(context.Background(), match); err != nil {
-		log.Printf("[store] failed to save match for room %s: %v", room.ID, err)
+		slog.Error("failed to save match", "component", "store", "match_id", room.ID, "error", err)
 	}
 }
 
@@ -176,7 +199,7 @@ func (h *Hub) persistMatch(room *game.Room, winner string) {
 func (h *Hub) broadcastLobby() {
 	payload, err := json.Marshal(types.LobbyState{Type: "lobby_state", Rooms: h.lobby.List()})
 	if err != nil {
-		log.Printf("[Error] Failed to marshal lobby state: %v", err)
+		slog.Error("failed to marshal lobby state", "component", "hub", "error", err)
 		return
 	}
 	h.broadcastToRoom("", payload)
@@ -199,7 +222,8 @@ func (h *Hub) sendRoomJoined(c *Client, roomID, roomName string) {
 // reject tells a single client why its action was refused, so a rejected
 // action does not vanish into the server log.
 func (h *Hub) reject(c *Client, action, messageID string, reason error) {
-	log.Printf("[Rejected] %s from %s: %v", action, c.ID, reason)
+	slog.Info("action rejected", "component", "hub", "msg_type", action, "user_id", c.ID, "match_id", c.RoomID, "reason", reason.Error())
+	metrics.ActionsRejected.WithLabelValues(reason.Error()).Inc()
 	if payload, err := json.Marshal(types.ActionRejected{
 		Type:      "action_rejected",
 		MessageID: messageID,
@@ -238,7 +262,8 @@ func (h *Hub) closeRoomIfEmpty(room *game.Room) bool {
 	}
 	h.lobby.Remove(room.ID)
 	delete(h.persistedRooms, room.ID)
-	log.Printf("[Room] %s closed (empty)", room.ID)
+	slog.Info("room closed (empty)", "component", "hub", "match_id", room.ID)
+	h.refreshRoomMetrics()
 	return true
 }
 
@@ -290,9 +315,12 @@ func (h *Hub) onTick(roomID string) {
 
 	var changed bool
 	if _, isBot := room.Game.CurrentBot(); isBot {
+		start := time.Now()
 		changed = room.Game.PlayBotStep()
+		metrics.BotDecisionDuration.Observe(time.Since(start).Seconds())
 	} else if room.Game.ExpireTurnIfDue() {
-		log.Printf("[Turn] room %s: turn expired", roomID)
+		slog.Info("turn expired", "component", "hub", "match_id", roomID)
+		metrics.TurnTimeouts.Inc()
 		changed = true
 	}
 
@@ -325,15 +353,18 @@ func (h *Hub) Run() {
 		case msg := <-h.Inbound:
 			var base types.BaseMessage
 			if err := json.Unmarshal(msg.Data, &base); err != nil {
-				log.Printf("[Error] Failed to parse message from %s: %v", msg.Client.ID, err)
+				slog.Error("failed to parse message", "component", "hub", "user_id", msg.Client.ID, "error", err)
 				continue
 			}
 			handler, exists := messageHandlers[base.Type]
 			if !exists {
-				log.Printf("[Warning] Unrecognized message type from %s: %s", msg.Client.ID, base.Type)
+				slog.Warn("unrecognized message type", "component", "hub", "user_id", msg.Client.ID, "msg_type", base.Type)
 				continue
 			}
+			metrics.CommandsTotal.WithLabelValues(base.Type).Inc()
+			start := time.Now()
 			handler(h, msg.Client, msg.Data)
+			metrics.CommandDuration.WithLabelValues(base.Type).Observe(time.Since(start).Seconds())
 		}
 	}
 }
@@ -343,7 +374,8 @@ func (h *Hub) onRegister(client *Client) {
 	h.Clients[client] = true
 	total := len(h.Clients)
 	h.mutex.Unlock()
-	log.Printf("[Connection] %s joined. Total clients: %d", client.ID, total)
+	metrics.ConnectionsActive.Set(float64(total))
+	slog.Info("connected", "component", "hub", "user_id", client.ID, "total_clients", total)
 
 	// A resuming client goes straight back to the room it was in, character
 	// and all. If it never got as far as creating one, the client simply asks
@@ -354,7 +386,7 @@ func (h *Hub) onRegister(client *Client) {
 		h.setRoom(client, room.ID)
 		h.sendRoomJoined(client, room.ID, room.Name)
 		h.broadcastGameState(room)
-		log.Printf("[Resume] %s rejoined room %s", client.ID, room.ID)
+		slog.Info("resumed room", "component", "hub", "user_id", client.ID, "match_id", room.ID)
 		return
 	}
 
@@ -374,7 +406,8 @@ func (h *Hub) onUnregister(client *Client) {
 	if !known {
 		return
 	}
-	log.Printf("[Disconnection] %s left. Total clients: %d", client.Session.Name, total)
+	metrics.ConnectionsActive.Set(float64(total))
+	slog.Info("disconnected", "component", "hub", "user_id", client.ID, "user_name", client.Session.Name, "total_clients", total)
 
 	room, ok := h.lobby.Get(client.RoomID)
 	if !ok {
@@ -404,7 +437,7 @@ func (h *Hub) onForfeit(f Forfeit) {
 		return
 	}
 
-	log.Printf("[Forfeit] %s did not come back to room %s", f.UserID, f.RoomID)
+	slog.Info("forfeit", "component", "hub", "user_id", f.UserID, "match_id", f.RoomID)
 	room.Game.RemovePlayer(f.UserID)
 	sess.RoomID = ""
 	h.sessions.Drop(f.Token)
