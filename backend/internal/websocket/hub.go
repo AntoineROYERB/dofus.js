@@ -231,7 +231,7 @@ func (h *Hub) onTick(roomID string) {
 	var changed bool
 	if _, isBot := room.Game.CurrentBot(); isBot {
 		changed = room.Game.PlayBotStep()
-	} else if room.Game.ExpireTurnIfDue(time.Now()) {
+	} else if room.Game.ExpireTurnIfDue() {
 		log.Printf("[Turn] room %s: turn expired", roomID)
 		changed = true
 	}

@@ -2,7 +2,6 @@ package game
 
 import (
 	"errors"
-	"math/rand"
 	"testing"
 
 	"game-server/internal/types"
@@ -29,7 +28,7 @@ func TestRestartSetsUpARematchWithTheSameCharacters(t *testing.T) {
 		t.Fatalf("status = %q, want the game to be over", g.Status())
 	}
 
-	if err := g.Restart(); err != nil {
+	if err := g.Restart("a"); err != nil {
 		t.Fatalf("Restart: %v", err)
 	}
 
@@ -72,7 +71,7 @@ func TestRestartSetsUpARematchWithTheSameCharacters(t *testing.T) {
 
 func TestRestartOnlyAfterTheGameIsOver(t *testing.T) {
 	g := twoPlayerGame(t)
-	if err := g.Restart(); !errors.Is(err, ErrWrongPhase) {
+	if err := g.Restart("a"); !errors.Is(err, ErrWrongPhase) {
 		t.Errorf("Restart mid-game = %v, want ErrWrongPhase", err)
 	}
 }
@@ -90,7 +89,7 @@ func TestRematchCanBePlayedThrough(t *testing.T) {
 	if err := g.CastSpell("a", 1, types.Position{X: 0, Y: 3}); err != nil {
 		t.Fatalf("CastSpell: %v", err)
 	}
-	if err := g.Restart(); err != nil {
+	if err := g.Restart("a"); err != nil {
 		t.Fatalf("Restart: %v", err)
 	}
 
@@ -116,7 +115,7 @@ func TestRematchCanBePlayedThrough(t *testing.T) {
 // A player who places second would otherwise always know exactly where the
 // first is standing before a single spell has been cast.
 func TestAnOpponentsStartingCellIsHiddenUntilPlayBegins(t *testing.T) {
-	g := NewWithRand(rand.New(rand.NewSource(1)))
+	g := NewWithSeed(1)
 	for _, id := range []string{"a", "b"} {
 		if err := g.AddPlayer(id, "User-"+id, look("Player"+id)); err != nil {
 			t.Fatalf("AddPlayer(%s): %v", id, err)

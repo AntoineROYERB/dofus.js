@@ -2,6 +2,7 @@ package game
 
 import (
 	"fmt"
+	"sort"
 	"time"
 
 	"game-server/internal/types"
@@ -60,9 +61,14 @@ func DecideBotAction(state types.GameState, botID string) BotAction {
 	// Best spell the bot can actually cast right now, strongest first. It has
 	// to respect cooldowns, per-turn limits and line of sight like anyone else,
 	// or it would spend its turn on casts the server refuses.
+	// Sorted rather than ranged over directly: two spells can be tied on
+	// damage — Frost Nova and Drain both do 10 — and Go map order would pick a
+	// different one on each run, which is enough to make a recorded match
+	// replay into a different fight.
 	best := types.Spell{}
 	bestID := 0
-	for key, spell := range state.Spells {
+	for _, key := range sortedKeys(state.Spells) {
+		spell := state.Spells[key]
 		if spell.APCost > me.Character.ActionPoints {
 			continue
 		}
@@ -96,9 +102,12 @@ func DecideBotAction(state types.GameState, botID string) BotAction {
 }
 
 func nearestEnemy(state types.GameState, botID string, from types.Position) (types.Position, bool) {
+	// Ties go to the lowest user id rather than to whichever key Go's map
+	// happened to hand out first.
 	best := types.Position{}
 	bestDist := -1
-	for id, p := range state.Players {
+	for _, id := range sortedKeys(state.Players) {
+		p := state.Players[id]
 		if id == botID || !p.Character.IsAlive || p.Character.Position == nil {
 			continue
 		}
@@ -118,12 +127,43 @@ func stepToward(from, target types.Position, mp int, blocked func(types.Position
 	best := from
 	bestDist := Distance(from, target)
 
-	for cell := range Reachable(from, mp, blocked) {
+	// Reachable returns a map, and several cells are usually the same distance
+	// from the target. Walking it in a fixed order is what stops the bot from
+	// stepping somewhere else on a replay.
+	reachable := Reachable(from, mp, blocked)
+	cells := make([]types.Position, 0, len(reachable))
+	for cell := range reachable {
+		cells = append(cells, cell)
+	}
+	sortPositions(cells)
+
+	for _, cell := range cells {
 		if d := Distance(cell, target); d < bestDist {
 			best, bestDist = cell, d
 		}
 	}
 	return best, best != from
+}
+
+// sortedKeys walks a map in a fixed order. Everything the bot decides from is
+// a map on a snapshot, and every one of those decisions has to come out the
+// same way twice.
+func sortedKeys[V any](m map[string]V) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
+func sortPositions(list []types.Position) {
+	sort.Slice(list, func(i, j int) bool {
+		if list[i].X != list[j].X {
+			return list[i].X < list[j].X
+		}
+		return list[i].Y < list[j].Y
+	})
 }
 
 // ---------------------------------------------------------------------------
@@ -143,6 +183,7 @@ func (g *Game) AddBot() (string, error) {
 	}
 
 	id := fmt.Sprintf("%s%d", BotIDPrefix, len(g.players)+1)
+	g.recordLocked(id, CmdAddBot, nil)
 	g.players[id] = types.Player{
 		UserID:    id,
 		UserName:  "Cpu",
@@ -205,7 +246,8 @@ func (g *Game) PlayBotStep() (acted bool) {
 // placeBotsLocked puts every bot on one of its offered cells as soon as the
 // placement phase opens, so a human never waits on the computer.
 func (g *Game) placeBotsLocked() {
-	for id, p := range g.players {
+	for _, id := range g.sortedPlayerIDsLocked() {
+		p := g.players[id]
 		if !p.IsBot || p.HasPositioned {
 			continue
 		}
@@ -224,13 +266,23 @@ func (g *Game) placeBotsLocked() {
 
 // ExpireTurnIfDue passes the turn on when the current player has run out of
 // time, and reports whether it did.
-func (g *Game) ExpireTurnIfDue(now time.Time) bool {
+//
+// The deadline is read from the game's own clock rather than taken as an
+// argument: a timeout changes the game, so it is a recorded command, and a
+// command whose timestamp came from somewhere the recording cannot see would
+// make the replay diverge the moment a player let their clock run out.
+func (g *Game) ExpireTurnIfDue() bool {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
-	if g.status != types.StatusPlaying || g.turnEndsAt.IsZero() || now.Before(g.turnEndsAt) {
+	if g.status != types.StatusPlaying || g.turnEndsAt.IsZero() || g.now().Before(g.turnEndsAt) {
 		return false
 	}
+	current := ""
+	if g.turnIdx < len(g.turnOrder) {
+		current = g.turnOrder[g.turnIdx]
+	}
+	g.recordLocked(current, CmdTimeout, nil)
 	g.advanceTurnLocked()
 	return true
 }

@@ -268,7 +268,7 @@ func TestRestartClearsTheLogAndSpellState(t *testing.T) {
 	if err := g.CastSpell("a", 1, types.Position{X: 0, Y: 3}); err != nil {
 		t.Fatalf("CastSpell: %v", err)
 	}
-	if err := g.Restart(); err != nil {
+	if err := g.Restart("a"); err != nil {
 		t.Fatalf("Restart: %v", err)
 	}
 
@@ -310,7 +310,7 @@ func TestBotWillNotPickASpellItCannotCast(t *testing.T) {
 }
 
 func TestBotStillFinishesAMatchUnderTheNewRules(t *testing.T) {
-	g := NewWithOptions(rand.New(rand.NewSource(11)), time.Minute)
+	g := NewWithOptions(Options{Seed: 11, TurnDuration: time.Minute})
 	if _, err := g.AddBot(); err != nil {
 		t.Fatalf("AddBot: %v", err)
 	}

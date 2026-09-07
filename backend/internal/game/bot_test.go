@@ -2,7 +2,6 @@ package game
 
 import (
 	"errors"
-	"math/rand"
 	"testing"
 	"time"
 
@@ -139,7 +138,7 @@ func TestBotTakesItsStartingCellWithoutBeingAsked(t *testing.T) {
 // A lone visitor has to be able to play a whole match, which is the entire
 // reason the bot exists.
 func TestAHumanCanPlayAWholeMatchAgainstTheBot(t *testing.T) {
-	g := NewWithOptions(rand.New(rand.NewSource(3)), time.Minute)
+	g := NewWithOptions(Options{Seed: 3, TurnDuration: time.Minute})
 	botID, err := g.AddBot()
 	if err != nil {
 		t.Fatalf("AddBot: %v", err)
@@ -191,13 +190,19 @@ func TestAHumanCanPlayAWholeMatchAgainstTheBot(t *testing.T) {
 func TestTurnExpiresAndPassesPlayOn(t *testing.T) {
 	g := twoPlayerGame(t)
 
+	// The clock is swapped for one the test drives, which is the same seam a
+	// replay uses to put a recorded timeout back where it happened.
+	clock := newFakeClock(g.TurnEndsAt().Add(-time.Second))
+	g.clock = clock.Now
+
 	first := currentPlayerID(g)
-	if g.ExpireTurnIfDue(time.Now()) {
+	if g.ExpireTurnIfDue() {
 		t.Fatal("the turn expired immediately")
 	}
 
 	// Well past the deadline.
-	if !g.ExpireTurnIfDue(g.TurnEndsAt().Add(time.Second)) {
+	clock.set(g.TurnEndsAt().Add(time.Second))
+	if !g.ExpireTurnIfDue() {
 		t.Fatal("the turn did not expire once its deadline passed")
 	}
 	if second := currentPlayerID(g); second == first {
@@ -233,7 +238,7 @@ func TestNoTurnDeadlineOutsidePlay(t *testing.T) {
 	if got := g.Snapshot().TurnEndsAt; got != 0 {
 		t.Errorf("TurnEndsAt = %d before the match starts, want 0", got)
 	}
-	if g.ExpireTurnIfDue(time.Now().Add(time.Hour)) {
+	if g.ExpireTurnIfDue() {
 		t.Error("a turn expired while no match was running")
 	}
 }
