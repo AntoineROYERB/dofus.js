@@ -5,6 +5,8 @@
 package config
 
 import (
+	cryptorand "crypto/rand"
+	"encoding/hex"
 	"log/slog"
 	"os"
 	"strconv"
@@ -46,6 +48,26 @@ type Config struct {
 	// (unlike the docker-compose/nginx setup, which never proxies /metrics
 	// at all) does not expose it by accident. Empty disables metrics.
 	MetricsAddr string
+	// GoogleClientID and GoogleClientSecret are the Google OAuth2 app's
+	// credentials. Both empty (the default) means Google Sign-In is off:
+	// /auth/* is never registered, and anonymous play is all there is.
+	GoogleClientID     string
+	GoogleClientSecret string
+	// GoogleRedirectURL is the callback URL registered with Google, e.g.
+	// "https://dofusjs-api.onrender.com/auth/google/callback". It must
+	// match exactly what is configured in the Google Cloud Console.
+	GoogleRedirectURL string
+	// SessionCookieSecret signs the HTTP session cookie so a client cannot
+	// forge another browser's resume token. A random one is generated at
+	// boot if unset, which is fine for a single instance but will not
+	// survive a restart or work across replicas — set it explicitly for
+	// any real deployment.
+	SessionCookieSecret string
+	// FrontendURL is where a successful (or failed) Google sign-in redirects
+	// back to. Empty means same-origin ("/"), which is right for the
+	// combined single-binary deployment; the split Render deployment needs
+	// it set to the static site's URL.
+	FrontendURL string
 }
 
 func Load() Config {
@@ -59,13 +81,36 @@ func Load() Config {
 		LogFormat:      envString("LOG_FORMAT", "json"),
 		LogLevel:       envString("LOG_LEVEL", "info"),
 		MetricsAddr:    envString("METRICS_ADDR", "127.0.0.1:9090"),
+
+		GoogleClientID:      envString("GOOGLE_CLIENT_ID", ""),
+		GoogleClientSecret:  envString("GOOGLE_CLIENT_SECRET", ""),
+		GoogleRedirectURL:   envString("GOOGLE_REDIRECT_URL", ""),
+		SessionCookieSecret: envString("SESSION_COOKIE_SECRET", ""),
+		FrontendURL:         envString("FRONTEND_URL", ""),
 	}
 	cfg.Balance = LoadBalance(cfg.BalanceFile)
 
 	if cfg.AllowsAnyOrigin() {
 		slog.Warn("every origin may connect", "component", "config", "allowed_origins", "*")
 	}
+	if cfg.GoogleOAuthConfigured() && cfg.SessionCookieSecret == "" {
+		secret, err := randomSecret(32)
+		if err != nil {
+			slog.Error("failed to generate a session cookie secret", "component", "config", "error", err)
+		} else {
+			cfg.SessionCookieSecret = secret
+			slog.Warn("SESSION_COOKIE_SECRET not set, generated a random one for this process; sessions will not survive a restart or work across replicas", "component", "config")
+		}
+	}
 	return cfg
+}
+
+// GoogleOAuthConfigured reports whether Google Sign-In has credentials to
+// run at all. main.go only registers /auth/* when this is true, so an
+// unconfigured deployment behaves exactly as it did before this feature
+// existed.
+func (c Config) GoogleOAuthConfigured() bool {
+	return c.GoogleClientID != "" && c.GoogleClientSecret != ""
 }
 
 // AllowsAnyOrigin reports whether the origin check is effectively disabled.
@@ -134,6 +179,14 @@ func envString(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+func randomSecret(n int) (string, error) {
+	buf := make([]byte, n)
+	if _, err := cryptorand.Read(buf); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(buf), nil
 }
 
 func envInt(key string, fallback int) int {

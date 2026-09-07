@@ -5,6 +5,7 @@ import LobbyPage from "./pages/LobbyPage";
 import GamePage from "./pages/GamePage";
 import MatchHistoryPage from "./pages/MatchHistoryPage";
 import ReplayPage from "./pages/ReplayPage";
+import ProfilePage from "./pages/ProfilePage";
 
 function App() {
   return (
@@ -16,6 +17,7 @@ function App() {
           <Route path="/game" element={<GamePage />} />
           <Route path="/matches" element={<MatchHistoryPage />} />
           <Route path="/matches/:id" element={<ReplayPage />} />
+          <Route path="/profile" element={<ProfilePage />} />
         </Routes>
       </Router>
     </WebSocketProvider>

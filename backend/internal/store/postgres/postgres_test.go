@@ -35,7 +35,9 @@ func openTestStore(t *testing.T) *Store {
 
 	// Each test gets a clean slate rather than its own database, since the
 	// migration runner is what is under test as much as the queries are.
-	if _, err := s.db.ExecContext(ctx, `TRUNCATE matches, match_commands`); err != nil {
+	// CASCADE also clears match_claims (internal/auth/postgres), which has
+	// a foreign key onto matches and would otherwise block this truncate.
+	if _, err := s.db.ExecContext(ctx, `TRUNCATE matches, match_commands CASCADE`); err != nil {
 		t.Fatalf("truncate: %v", err)
 	}
 	return s

@@ -35,6 +35,13 @@ services:
       # this, and the server runs exactly as it did before persistence
       # existed — that fallback is load-bearing, not a convenience.
       DATABASE_URL: "postgres://dofusjs:${POSTGRES_PASSWORD:-dofusjs}@postgres:5432/dofusjs?sslmode=disable"
+      # Google Sign-In stays off (both empty, the default) until you set
+      # these. See the README's Configuration table.
+      GOOGLE_CLIENT_ID: "${GOOGLE_CLIENT_ID:-}"
+      GOOGLE_CLIENT_SECRET: "${GOOGLE_CLIENT_SECRET:-}"
+      GOOGLE_REDIRECT_URL: "${GOOGLE_REDIRECT_URL:-}"
+      SESSION_COOKIE_SECRET: "${SESSION_COOKIE_SECRET:-}"
+      FRONTEND_URL: "${FRONTEND_URL:-}"
     depends_on:
       postgres:
         condition: service_healthy

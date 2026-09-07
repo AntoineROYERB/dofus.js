@@ -4,6 +4,8 @@ import {
   MatchSnapshots,
   MatchSummary,
 } from "../types/match";
+import { SessionInfo } from "../types/auth";
+import { getResumeToken } from "./sessionToken";
 
 /**
  * Where the game server's REST API lives. Mirrors socketUrl() in
@@ -47,3 +49,40 @@ export const fetchMatchSnapshots = (id: string): Promise<MatchSnapshots> =>
 
 export const fetchMatchRecording = (id: string): Promise<MatchRecording> =>
   getJSON<MatchRecording>(`/api/matches/${encodeURIComponent(id)}/recording`);
+
+// --- Google sign-in ---------------------------------------------------
+//
+// These calls carry the session cookie set by /auth/google/callback, unlike
+// everything above: match history stays public and cookie-free, only the
+// account-linked endpoints need credentials.
+
+async function authFetch<T>(path: string, init?: RequestInit): Promise<T | null> {
+  const res = await fetch(`${apiBaseUrl()}${path}`, {
+    ...init,
+    credentials: "include",
+  });
+  if (res.status === 204) return null;
+  if (!res.ok) {
+    throw new Error(`${path}: ${res.status} ${res.statusText}`);
+  }
+  return res.json() as Promise<T>;
+}
+
+/**
+ * Where "Sign in with Google" navigates to. Passing the browser's existing
+ * resume token lets the server link the account to the match history this
+ * browser already has, rather than starting a second identity.
+ */
+export const googleLoginUrl = (): string =>
+  `${apiBaseUrl()}/auth/google/login?token=${encodeURIComponent(getResumeToken())}`;
+
+/** null means this browser isn't signed in. */
+export const fetchSession = (): Promise<SessionInfo | null> => authFetch<SessionInfo>("/auth/session");
+
+export const logout = (): Promise<void> =>
+  authFetch<void>("/auth/logout", { method: "POST" }).then(() => undefined);
+
+export const fetchMyMatches = (cursor?: string): Promise<MatchPage> => {
+  const query = cursor ? `?cursor=${encodeURIComponent(cursor)}` : "";
+  return authFetch<MatchPage>(`/auth/matches${query}`).then((page) => page ?? { matches: [], nextCursor: "" });
+};
