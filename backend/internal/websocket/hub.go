@@ -149,7 +149,10 @@ func (h *Hub) persistMatch(room *game.Room, winner string) {
 	snapshot := room.Game.Snapshot()
 	players := make([]store.Player, 0, len(snapshot.Players))
 	for _, p := range snapshot.Players {
-		players = append(players, store.Player{UserID: p.UserID, UserName: p.UserName, IsBot: p.IsBot})
+		// The character's name, not the account's: that is what the board,
+		// the combat log and the winner banner show everywhere else while
+		// the match is live, so history and replay show the same name.
+		players = append(players, store.Player{UserID: p.UserID, UserName: p.Character.Name, IsBot: p.IsBot})
 	}
 
 	match := store.Match{

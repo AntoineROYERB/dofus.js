@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"game-server/internal/game"
 	"game-server/internal/store"
 )
 
@@ -21,6 +22,8 @@ const defaultPageLimit = 20
 //	GET /api/matches?limit=&cursor=   recent finished matches
 //	GET /api/matches/{id}             one match's result summary
 //	GET /api/matches/{id}/recording   the recording, for Replay
+//	GET /api/matches/{id}/snapshots   one board state per command, for a
+//	                                  replay view to step through
 func RegisterMatchRoutes(mux *http.ServeMux, matches store.MatchStore) {
 	mux.HandleFunc("GET /api/matches", func(w http.ResponseWriter, r *http.Request) {
 		limit := defaultPageLimit
@@ -61,6 +64,24 @@ func RegisterMatchRoutes(mux *http.ServeMux, matches store.MatchStore) {
 			return
 		}
 		writeJSON(w, http.StatusOK, rec)
+	})
+
+	mux.HandleFunc("GET /api/matches/{id}/snapshots", func(w http.ResponseWriter, r *http.Request) {
+		rec, err := matches.GetRecording(r.Context(), r.PathValue("id"))
+		if errors.Is(err, store.ErrNotFound) {
+			writeError(w, http.StatusNotFound, err)
+			return
+		}
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err)
+			return
+		}
+		snapshots, err := game.ReplaySnapshots(rec)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, snapshots)
 	})
 }
 

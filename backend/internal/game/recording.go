@@ -212,30 +212,60 @@ func (g *Game) CommandCount() int {
 // swallowed: it means the game no longer plays the way this recording says it
 // did.
 func Replay(rec Recording) (*Game, error) {
+	g, at, err := newReplayGame(rec)
+	if err != nil {
+		return nil, err
+	}
+	for _, cmd := range rec.Commands {
+		*at = rec.StartedAt + cmd.At
+		if err := g.applyCommand(cmd); err != nil {
+			return nil, fmt.Errorf("command %d (%s from %s): %w", cmd.Seq, cmd.Kind, cmd.UserID, err)
+		}
+	}
+	return g, nil
+}
+
+// newReplayGame builds the game a recording replays into, and the clock cell
+// that drives it: every command is applied at the instant it was accepted,
+// so the turn deadlines a replay produces are the ones the original had. The
+// caller advances *at before each command.
+func newReplayGame(rec Recording) (*Game, *int64, error) {
 	if rec.Version != RecordingVersion {
-		return nil, fmt.Errorf("recording version %d, this server replays version %d", rec.Version, RecordingVersion)
+		return nil, nil, fmt.Errorf("recording version %d, this server replays version %d", rec.Version, RecordingVersion)
 	}
 	if want := RulesFingerprint(); rec.Rules != want {
-		return nil, fmt.Errorf("%w: recorded under %s, this server runs %s", ErrRulesChanged, short(rec.Rules), short(want))
+		return nil, nil, fmt.Errorf("%w: recorded under %s, this server runs %s", ErrRulesChanged, short(rec.Rules), short(want))
 	}
 
-	// The clock is the recording. Every command is applied at the instant it
-	// was accepted at, so the turn deadlines the replayed snapshots carry are
-	// the ones the original carried.
 	at := rec.StartedAt
 	g := NewWithOptions(Options{
 		Seed:         rec.Seed,
 		TurnDuration: time.Duration(rec.TurnDurationMS) * time.Millisecond,
 		Clock:        func() time.Time { return time.UnixMilli(at) },
 	})
+	return g, &at, nil
+}
 
+// ReplaySnapshots replays a recording and returns the board state after each
+// command, in the same order — the frames a replay view steps through. This
+// is the server's own replay engine doing the work, rather than the rules
+// being reimplemented client-side: the two would drift apart the moment
+// either changed.
+func ReplaySnapshots(rec Recording) ([]types.GameState, error) {
+	g, at, err := newReplayGame(rec)
+	if err != nil {
+		return nil, err
+	}
+
+	snapshots := make([]types.GameState, 0, len(rec.Commands))
 	for _, cmd := range rec.Commands {
-		at = rec.StartedAt + cmd.At
+		*at = rec.StartedAt + cmd.At
 		if err := g.applyCommand(cmd); err != nil {
 			return nil, fmt.Errorf("command %d (%s from %s): %w", cmd.Seq, cmd.Kind, cmd.UserID, err)
 		}
+		snapshots = append(snapshots, g.Snapshot())
 	}
-	return g, nil
+	return snapshots, nil
 }
 
 // ReplayPrefix replays the first n commands, which is how a replay is compared
