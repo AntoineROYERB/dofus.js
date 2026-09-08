@@ -2,12 +2,12 @@ import React, { useEffect, useState, useCallback, useRef } from "react";
 import { WebSocketContext } from "../context/WebSocketContext";
 import { ChatMessage, GameState, Message, RoomSummary } from "../types/message";
 import { GameAction } from "../types/game";
+import { TOKEN_KEY } from "../lib/sessionToken";
 
 type WebSocketProviderProps = {
   children: React.ReactNode;
 };
 
-const TOKEN_KEY = "dofusjs.sessionToken";
 const RECONNECT_BASE_MS = 500;
 const RECONNECT_MAX_MS = 15000;
 

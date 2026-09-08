@@ -14,6 +14,8 @@ import (
 	"time"
 
 	"game-server/internal/api"
+	"game-server/internal/auth"
+	authpostgres "game-server/internal/auth/postgres"
 	"game-server/internal/config"
 	"game-server/internal/game"
 	"game-server/internal/metrics"
@@ -52,6 +54,25 @@ func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/ws", hub.HandleWebSocket)
 	api.RegisterMatchRoutes(mux, matches)
+	if cfg.GoogleOAuthConfigured() {
+		authSvc := auth.New(auth.Config{
+			ClientID:     cfg.GoogleClientID,
+			ClientSecret: cfg.GoogleClientSecret,
+			RedirectURL:  cfg.GoogleRedirectURL,
+			CookieSecret: cfg.SessionCookieSecret,
+			FrontendURL:  cfg.FrontendURL,
+			// ALLOWED_ORIGINS="*" only happens in local/dev setups (it also
+			// logs its own warning in config.Load), which is also exactly
+			// when the cookie needs to work over plain HTTP; any real
+			// deployment sets an explicit origin and gets Secure, which
+			// SameSite=None requires anyway.
+			CookieSecure: !cfg.AllowsAnyOrigin(),
+		}, hub.Sessions(), openUserStore(matches))
+		auth.RegisterRoutes(mux, authSvc, cfg.OriginAllowed)
+		slog.Info("google sign-in enabled", "component", "auth")
+	} else {
+		slog.Info("GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET not set, google sign-in is disabled", "component", "auth")
+	}
 	if cfg.StaticDir != "" {
 		mux.Handle("/", spaHandler(cfg.StaticDir))
 		slog.Info("serving static frontend", "component", "server", "dir", cfg.StaticDir)
@@ -147,6 +168,17 @@ func openStore(databaseURL string) (store.MatchStore, error) {
 	return pg, nil
 }
 
+// openUserStore picks the account store to run google sign-in against,
+// sharing the postgres connection pool matches already opened rather than
+// opening a second one. Only called when Google OAuth is configured, so the
+// memory fallback here only ever backs a memory match store too.
+func openUserStore(matches store.MatchStore) auth.UserStore {
+	if pg, ok := matches.(*postgres.Store); ok {
+		return authpostgres.New(pg.DB())
+	}
+	return auth.NewMemoryUserStore(matches)
+}
+
 // runReproject rebuilds every match's projection from its command log,
 // which is the whole point of keeping the log: match_results (in this
 // store, the projection columns on matches) can always be dropped and
@@ -197,8 +229,18 @@ func spaHandler(dir string) http.Handler {
 
 // cors answers preflight requests and echoes the configured origin. The old
 // middleware always sent Access-Control-Allow-Origin: *, whatever the request.
+//
+// /auth/* is left untouched: those endpoints read and set the session
+// cookie, so they need Access-Control-Allow-Credentials and never a "*"
+// origin, which this middleware isn't set up for. auth.RegisterRoutes wraps
+// them in its own CORS handling, including answering their own preflight.
 func cors(cfg config.Config, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, "/auth/") {
+			next.ServeHTTP(w, r)
+			return
+		}
+
 		origin := r.Header.Get("Origin")
 		if cfg.OriginAllowed(origin) {
 			if cfg.AllowsAnyOrigin() {

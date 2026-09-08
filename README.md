@@ -138,6 +138,11 @@ Copy `.env.example` to `.env`. Everything has a working default.
 | `LOG_FORMAT` | `json` | Server log format: `json` for an aggregator, `text` for a terminal |
 | `LOG_LEVEL` | `info` | Minimum log level: `debug`, `info`, `warn` or `error` |
 | `METRICS_ADDR` | `127.0.0.1:9090` | Listen address for `/metrics` (Prometheus), served on its own loopback-only listener — see [Performance](#performance). Empty disables it. |
+| `GOOGLE_CLIENT_ID` | unset | Google OAuth2 client ID. Both this and `GOOGLE_CLIENT_SECRET` must be set for Google Sign-In to turn on at all — unset (the default), `/auth/*` isn't even registered and anonymous play is all there is. |
+| `GOOGLE_CLIENT_SECRET` | unset | Google OAuth2 client secret. Keep it out of the client bundle and out of version control. |
+| `GOOGLE_REDIRECT_URL` | unset | The callback URL, e.g. `https://dofusjs-api.onrender.com/auth/google/callback`. Must exactly match an authorized redirect URI in the Google Cloud Console OAuth client, or Google rejects the request before it reaches this server. |
+| `SESSION_COOKIE_SECRET` | random per boot | Signs the session cookie. A random one is generated (and logged as a warning) if unset — fine for a single instance, but it won't survive a restart or work across replicas, so set it explicitly for any real deployment. |
+| `FRONTEND_URL` | unset | Where a completed Google sign-in redirects back to. Unset means same-origin (`/profile`), right for the single-binary deployment; the split Render deployment needs it set to the static site's URL. |
 | `VITE_WS_URL` | unset | Build-time, client side: where the game server lives when it is not the host serving the page |
 
 ## Deploying
@@ -175,6 +180,19 @@ other origin can open a socket against the server.
 Because the server keeps every game in memory, a sleep wipes the lobby. That is
 the design, not a regression: rooms are transient, and a returning player just
 starts a new one.
+
+Turning on Google Sign-In (`GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` on
+`dofusjs-api`) needs three things set deliberately, because the two services
+sit on different `onrender.com` subdomains — different *sites*, for cookie
+purposes, not just different origins:
+
+- `GOOGLE_REDIRECT_URL` must match, character for character, an authorized
+  redirect URI on the Google Cloud Console OAuth client.
+- The session cookie is set `SameSite=None; Secure`, which is what a
+  cross-site cookie requires — there is no same-site option that works here.
+- `ALLOWED_ORIGINS` must be the static site's exact origin, never `*`: a
+  cookie-carrying request needs `Access-Control-Allow-Credentials`, which
+  browsers refuse to honor together with a wildcard origin.
 
 ### Anywhere else
 

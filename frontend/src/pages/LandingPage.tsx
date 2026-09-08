@@ -1,4 +1,4 @@
-import React, { useState, useRef, useLayoutEffect } from "react";
+import React, { useEffect, useState, useRef, useLayoutEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import SpriteAnimation from "../components/Game/SpriteAnimation";
 import { CharacterCreationForm } from "../components/Game/CharacterCreationForm";
@@ -7,6 +7,8 @@ import { AboutDialog } from "../components/AboutDialog";
 import { HowToPlayDialog } from "../components/HowToPlayDialog";
 import { saveCharacter } from "../utils/characterStorage";
 import { PLAYER_COLORS } from "../constants";
+import { fetchSession, googleLoginUrl } from "../lib/api";
+import { SessionInfo } from "../types/auth";
 
 const idle = {
   spriteSheet: "/animation/Idle.png",
@@ -28,7 +30,16 @@ const LandingPage: React.FC = () => {
   const [isNameValid, setIsNameValid] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
   const [howToPlayOpen, setHowToPlayOpen] = useState(false);
+  const [session, setSession] = useState<SessionInfo | null>(null);
   const navigate = useNavigate();
+
+  // Signing in is entirely optional: this only decides which link to show
+  // in the header, and a failed or slow check never blocks "Find a game".
+  useEffect(() => {
+    fetchSession()
+      .then(setSession)
+      .catch(() => setSession(null));
+  }, []);
 
   const handleJoinMatch = () => {
     if (!isNameValid) return;
@@ -76,6 +87,22 @@ const LandingPage: React.FC = () => {
           >
             What is this?
           </button>
+          {session ? (
+            <button
+              type="button"
+              onClick={() => navigate("/profile")}
+              className="font-mono text-[9.5px] uppercase tracking-label text-ink underline decoration-rule underline-offset-4 transition-colors hover:text-vermilion"
+            >
+              {session.displayName}
+            </button>
+          ) : (
+            <a
+              href={googleLoginUrl()}
+              className="font-mono text-[9.5px] uppercase tracking-label text-ink underline decoration-rule underline-offset-4 transition-colors hover:text-vermilion"
+            >
+              Sign in with Google
+            </a>
+          )}
         </div>
       </header>
 

@@ -21,6 +21,13 @@ import (
 // activeSessions map here, written from every HTTP goroutine without a lock,
 // whose lookup could never hit because the id it checked had just been
 // generated two lines above.
+// Sessions exposes the hub's session store so internal/auth can link a
+// browser's existing resume-token session to a Google account after
+// sign-in, without owning a second identity store.
+func (h *Hub) Sessions() *Sessions {
+	return h.sessions
+}
+
 func (h *Hub) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 	session, resumed := h.sessions.Resume(r.URL.Query().Get("token"))
 	if !resumed {
