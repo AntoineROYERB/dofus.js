@@ -54,18 +54,17 @@ func (s *Store) GetUser(ctx context.Context, id int64) (auth.User, error) {
 }
 
 // ClaimMatches attaches every match played under anonymousID to userID.
-// It only reads matches.players (via jsonb_array_elements) and inserts into
-// match_claims — matches and match_commands, the log and its projection,
-// are never written by this feature.
+// It only reads matches.players (via a jsonb containment check, which
+// never errors even if a row's players is malformed or not an array —
+// unlike jsonb_array_elements, which would abort the whole statement) and
+// inserts into match_claims — matches and match_commands, the log and its
+// projection, are never written by this feature.
 func (s *Store) ClaimMatches(ctx context.Context, userID int64, anonymousID string) error {
 	_, err := s.db.ExecContext(ctx, `
 		INSERT INTO match_claims (match_id, anonymous_id, user_id, claimed_at)
 		SELECT m.id, $2, $1, now()
 		FROM matches m
-		WHERE EXISTS (
-			SELECT 1 FROM jsonb_array_elements(m.players) AS p
-			WHERE p->>'userId' = $2
-		)
+		WHERE m.players @> jsonb_build_array(jsonb_build_object('userId', $2::text))
 		ON CONFLICT (match_id, anonymous_id) DO NOTHING`,
 		userID, anonymousID,
 	)
