@@ -5,7 +5,7 @@
     "seed": 3,
     "startedAt": 1700000000000,
     "turnDurationMs": 3000,
-    "rules": "fd3b5b1ee2336918ed2b5a90349065dd8eee74724f476fd30354bf465dc57330",
+    "rules": "8bfc0ab85841dbbbbb18fd4c2033f5e9b02f4ec0eef5e659f99ba701ad1941cc",
     "commands": [
       {
         "seq": 1,
@@ -17,7 +17,8 @@
           "character": {
             "name": "Alice",
             "color": "#ff0000",
-            "symbol": "A"
+            "symbol": "A",
+            "class": "pyromancer"
           }
         }
       },
@@ -31,7 +32,8 @@
           "character": {
             "name": "Bob",
             "color": "#ff0000",
-            "symbol": "B"
+            "symbol": "B",
+            "class": "pyromancer"
           }
         }
       },
@@ -75,15 +77,9 @@
         "seq": 6,
         "at": 3581,
         "userId": "alice",
-        "kind": "end_turn"
-      },
-      {
-        "seq": 7,
-        "at": 4538,
-        "userId": "bob",
         "kind": "cast",
         "payload": {
-          "spellId": 1,
+          "spellId": 9,
           "target": {
             "x": -3,
             "y": -2
@@ -91,294 +87,444 @@
         }
       },
       {
+        "seq": 7,
+        "at": 4538,
+        "userId": "alice",
+        "kind": "timeout"
+      },
+      {
         "seq": 8,
-        "at": 4811,
+        "at": 5341,
         "userId": "bob",
-        "kind": "move",
+        "kind": "cast",
         "payload": {
-          "position": {
-            "x": -2,
-            "y": 1
+          "spellId": 9,
+          "target": {
+            "x": 0,
+            "y": 2
           }
         }
       },
       {
         "seq": 9,
-        "at": 5963,
+        "at": 5341,
         "userId": "bob",
-        "kind": "cast",
+        "kind": "connect",
         "payload": {
-          "spellId": 2,
-          "target": {
-            "x": -2,
-            "y": 1
-          }
+          "connected": false
         }
       },
       {
         "seq": 10,
-        "at": 6587,
+        "at": 6609,
         "userId": "bob",
-        "kind": "timeout"
+        "kind": "move",
+        "payload": {
+          "position": {
+            "x": -2,
+            "y": -1
+          }
+        }
       },
       {
         "seq": 11,
-        "at": 8789,
-        "userId": "alice",
+        "at": 7151,
+        "userId": "bob",
         "kind": "cast",
         "payload": {
-          "spellId": 2,
+          "spellId": 1,
           "target": {
-            "x": -2,
-            "y": 1
+            "x": 0,
+            "y": 2
           }
         }
       },
       {
         "seq": 12,
-        "at": 9087,
+        "at": 8387,
+        "userId": "bob",
+        "kind": "timeout"
+      },
+      {
+        "seq": 13,
+        "at": 9011,
         "userId": "alice",
+        "kind": "end_turn"
+      },
+      {
+        "seq": 14,
+        "at": 9806,
+        "userId": "bob",
+        "kind": "cast",
+        "payload": {
+          "spellId": 2,
+          "target": {
+            "x": 0,
+            "y": 2
+          }
+        }
+      },
+      {
+        "seq": 15,
+        "at": 10831,
+        "userId": "bob",
         "kind": "cast",
         "payload": {
           "spellId": 1,
           "target": {
-            "x": -2,
-            "y": 1
-          }
-        }
-      },
-      {
-        "seq": 13,
-        "at": 9577,
-        "userId": "alice",
-        "kind": "move",
-        "payload": {
-          "position": {
-            "x": -2,
-            "y": 0
-          }
-        }
-      },
-      {
-        "seq": 14,
-        "at": 11327,
-        "userId": "alice",
-        "kind": "timeout"
-      },
-      {
-        "seq": 15,
-        "at": 12716,
-        "userId": "bob",
-        "kind": "cast",
-        "payload": {
-          "spellId": 8,
-          "target": {
-            "x": -2,
-            "y": 0
+            "x": 0,
+            "y": 2
           }
         }
       },
       {
         "seq": 16,
-        "at": 14046,
+        "at": 11750,
         "userId": "bob",
-        "kind": "end_turn"
-      },
-      {
-        "seq": 17,
-        "at": 15199,
-        "userId": "alice",
-        "kind": "cast",
+        "kind": "move",
         "payload": {
-          "spellId": 3,
-          "target": {
-            "x": -2,
-            "y": 0
+          "position": {
+            "x": -1,
+            "y": 2
           }
         }
       },
       {
+        "seq": 17,
+        "at": 13500,
+        "userId": "bob",
+        "kind": "timeout"
+      },
+      {
         "seq": 18,
-        "at": 16981,
+        "at": 14889,
         "userId": "alice",
         "kind": "cast",
         "payload": {
-          "spellId": 5,
+          "spellId": 2,
           "target": {
-            "x": -2,
-            "y": 1
+            "x": -1,
+            "y": 2
           }
         }
       },
       {
         "seq": 19,
-        "at": 17844,
+        "at": 16219,
         "userId": "alice",
-        "kind": "timeout"
-      },
-      {
-        "seq": 20,
-        "at": 19498,
-        "userId": "bob",
         "kind": "cast",
         "payload": {
-          "spellId": 2,
+          "spellId": 1,
           "target": {
-            "x": -2,
-            "y": 0
+            "x": -1,
+            "y": 2
           }
         }
       },
       {
-        "seq": 21,
-        "at": 21293,
-        "userId": "bob",
+        "seq": 20,
+        "at": 17372,
+        "userId": "alice",
         "kind": "timeout"
       },
       {
-        "seq": 22,
-        "at": 22848,
-        "userId": "alice",
+        "seq": 21,
+        "at": 17706,
+        "userId": "bob",
         "kind": "cast",
         "payload": {
-          "spellId": 2,
+          "spellId": 1,
           "target": {
-            "x": -2,
-            "y": 1
+            "x": 0,
+            "y": 2
+          }
+        }
+      },
+      {
+        "seq": 22,
+        "at": 18792,
+        "userId": "bob",
+        "kind": "cast",
+        "payload": {
+          "spellId": 9,
+          "target": {
+            "x": 0,
+            "y": 2
           }
         }
       },
       {
         "seq": 23,
-        "at": 24323,
-        "userId": "alice",
+        "at": 20446,
+        "userId": "bob",
         "kind": "timeout"
       },
       {
         "seq": 24,
-        "at": 24984,
-        "userId": "bob",
+        "at": 21254,
+        "userId": "alice",
         "kind": "cast",
         "payload": {
-          "spellId": 8,
+          "spellId": 9,
           "target": {
-            "x": -2,
-            "y": 0
+            "x": -1,
+            "y": 2
           }
         }
       },
       {
         "seq": 25,
-        "at": 25755,
+        "at": 22809,
         "userId": "alice",
-        "kind": "restart"
-      },
-      {
-        "seq": 26,
-        "at": 27508,
-        "userId": "alice",
-        "kind": "position",
+        "kind": "cast",
         "payload": {
-          "position": {
-            "x": 1,
-            "y": 5
+          "spellId": 1,
+          "target": {
+            "x": -1,
+            "y": 2
           }
         }
       },
       {
+        "seq": 26,
+        "at": 24284,
+        "userId": "alice",
+        "kind": "timeout"
+      },
+      {
         "seq": 27,
-        "at": 28432,
+        "at": 24945,
         "userId": "bob",
-        "kind": "position",
+        "kind": "cast",
         "payload": {
-          "position": {
-            "x": -2,
-            "y": -4
+          "spellId": 2,
+          "target": {
+            "x": 0,
+            "y": 2
           }
         }
       },
       {
         "seq": 28,
-        "at": 29180,
-        "userId": "alice",
-        "kind": "move",
+        "at": 25716,
+        "userId": "bob",
+        "kind": "cast",
         "payload": {
-          "position": {
-            "x": -2,
-            "y": 4
+          "spellId": 1,
+          "target": {
+            "x": 0,
+            "y": 2
           }
         }
       },
       {
         "seq": 29,
-        "at": 29764,
-        "userId": "alice",
+        "at": 26464,
+        "userId": "bob",
         "kind": "end_turn"
       },
       {
         "seq": 30,
-        "at": 31036,
-        "userId": "bob",
-        "kind": "move",
+        "at": 27048,
+        "userId": "alice",
+        "kind": "cast",
         "payload": {
-          "position": {
-            "x": -2,
-            "y": 0
+          "spellId": 2,
+          "target": {
+            "x": -1,
+            "y": 2
           }
         }
       },
       {
         "seq": 31,
-        "at": 31385,
-        "userId": "bob",
+        "at": 28320,
+        "userId": "alice",
         "kind": "cast",
         "payload": {
-          "spellId": 2,
+          "spellId": 1,
           "target": {
-            "x": -2,
-            "y": 4
+            "x": -1,
+            "y": 2
           }
         }
       },
       {
         "seq": 32,
-        "at": 32516,
-        "userId": "bob",
-        "kind": "cast",
+        "at": 28669,
+        "userId": "alice",
+        "kind": "restart"
+      },
+      {
+        "seq": 33,
+        "at": 29716,
+        "userId": "alice",
+        "kind": "position",
         "payload": {
-          "spellId": 1,
-          "target": {
-            "x": -2,
-            "y": 4
+          "position": {
+            "x": 4,
+            "y": 2
           }
         }
       },
       {
-        "seq": 33,
-        "at": 33687,
-        "userId": "bob",
-        "kind": "timeout"
-      },
-      {
         "seq": 34,
-        "at": 35126,
-        "userId": "alice",
-        "kind": "cast",
+        "at": 30847,
+        "userId": "bob",
+        "kind": "position",
         "payload": {
-          "spellId": 2,
-          "target": {
-            "x": -2,
-            "y": 0
+          "position": {
+            "x": -4,
+            "y": -2
           }
         }
       },
       {
         "seq": 35,
-        "at": 35726,
+        "at": 32432,
+        "userId": "alice",
+        "kind": "end_turn"
+      },
+      {
+        "seq": 36,
+        "at": 33599,
+        "userId": "bob",
+        "kind": "end_turn"
+      },
+      {
+        "seq": 37,
+        "at": 34181,
+        "userId": "alice",
+        "kind": "cast",
+        "payload": {
+          "spellId": 2,
+          "target": {
+            "x": 4,
+            "y": 2
+          }
+        }
+      },
+      {
+        "seq": 38,
+        "at": 34685,
+        "userId": "alice",
+        "kind": "move",
+        "payload": {
+          "position": {
+            "x": 2,
+            "y": 0
+          }
+        }
+      },
+      {
+        "seq": 39,
+        "at": 35078,
+        "userId": "alice",
+        "kind": "end_turn"
+      },
+      {
+        "seq": 40,
+        "at": 36677,
+        "userId": "bob",
+        "kind": "move",
+        "payload": {
+          "position": {
+            "x": -4,
+            "y": -1
+          }
+        }
+      },
+      {
+        "seq": 41,
+        "at": 37430,
+        "userId": "bob",
+        "kind": "cast",
+        "payload": {
+          "spellId": 9,
+          "target": {
+            "x": 2,
+            "y": 0
+          }
+        }
+      },
+      {
+        "seq": 42,
+        "at": 39035,
+        "userId": "bob",
+        "kind": "timeout"
+      },
+      {
+        "seq": 43,
+        "at": 40134,
+        "userId": "alice",
+        "kind": "cast",
+        "payload": {
+          "spellId": 9,
+          "target": {
+            "x": -4,
+            "y": -1
+          }
+        }
+      },
+      {
+        "seq": 44,
+        "at": 40934,
+        "userId": "alice",
+        "kind": "move",
+        "payload": {
+          "position": {
+            "x": 0,
+            "y": 0
+          }
+        }
+      },
+      {
+        "seq": 45,
+        "at": 41164,
         "userId": "alice",
         "kind": "cast",
         "payload": {
           "spellId": 1,
+          "target": {
+            "x": -4,
+            "y": -1
+          }
+        }
+      },
+      {
+        "seq": 46,
+        "at": 41612,
+        "userId": "alice",
+        "kind": "move",
+        "payload": {
+          "position": {
+            "x": -2,
+            "y": 0
+          }
+        }
+      },
+      {
+        "seq": 47,
+        "at": 42453,
+        "userId": "alice",
+        "kind": "timeout"
+      },
+      {
+        "seq": 48,
+        "at": 42815,
+        "userId": "alice",
+        "kind": "connect",
+        "payload": {
+          "connected": false
+        }
+      },
+      {
+        "seq": 49,
+        "at": 43898,
+        "userId": "bob",
+        "kind": "cast",
+        "payload": {
+          "spellId": 2,
           "target": {
             "x": -2,
             "y": 0
@@ -386,154 +532,129 @@
         }
       },
       {
-        "seq": 36,
-        "at": 36744,
-        "userId": "alice",
+        "seq": 50,
+        "at": 46856,
+        "userId": "bob",
         "kind": "timeout"
       },
       {
-        "seq": 37,
-        "at": 37913,
-        "userId": "bob",
-        "kind": "cast",
-        "payload": {
-          "spellId": 1,
-          "target": {
-            "x": -2,
-            "y": 4
-          }
-        }
-      },
-      {
-        "seq": 38,
-        "at": 38117,
-        "userId": "bob",
-        "kind": "cast",
-        "payload": {
-          "spellId": 5,
-          "target": {
-            "x": -2,
-            "y": 4
-          }
-        }
-      },
-      {
-        "seq": 39,
-        "at": 38530,
-        "userId": "bob",
-        "kind": "move",
-        "payload": {
-          "position": {
-            "x": -2,
-            "y": 3
-          }
-        }
-      },
-      {
-        "seq": 40,
-        "at": 39283,
-        "userId": "bob",
-        "kind": "end_turn"
-      },
-      {
-        "seq": 41,
-        "at": 40888,
-        "userId": "alice",
-        "kind": "cast",
-        "payload": {
-          "spellId": 8,
-          "target": {
-            "x": -2,
-            "y": 3
-          }
-        }
-      },
-      {
-        "seq": 42,
-        "at": 42213,
-        "userId": "alice",
-        "kind": "end_turn"
-      },
-      {
-        "seq": 43,
-        "at": 43054,
-        "userId": "bob",
-        "kind": "cast",
-        "payload": {
-          "spellId": 3,
-          "target": {
-            "x": -2,
-            "y": 4
-          }
-        }
-      },
-      {
-        "seq": 44,
-        "at": 44539,
-        "userId": "bob",
-        "kind": "end_turn"
-      },
-      {
-        "seq": 45,
-        "at": 45236,
-        "userId": "alice",
-        "kind": "cast",
-        "payload": {
-          "spellId": 3,
-          "target": {
-            "x": -2,
-            "y": 3
-          }
-        }
-      },
-      {
-        "seq": 46,
-        "at": 46781,
+        "seq": 51,
+        "at": 48077,
         "userId": "alice",
         "kind": "cast",
         "payload": {
           "spellId": 2,
           "target": {
-            "x": -2,
-            "y": 3
+            "x": -4,
+            "y": -1
           }
         }
       },
       {
-        "seq": 47,
-        "at": 47414,
+        "seq": 52,
+        "at": 48458,
         "userId": "alice",
-        "kind": "end_turn"
+        "kind": "cast",
+        "payload": {
+          "spellId": 1,
+          "target": {
+            "x": -4,
+            "y": -1
+          }
+        }
       },
       {
-        "seq": 48,
-        "at": 49912,
+        "seq": 53,
+        "at": 49778,
+        "userId": "alice",
+        "kind": "move",
+        "payload": {
+          "position": {
+            "x": -5,
+            "y": -1
+          }
+        }
+      },
+      {
+        "seq": 54,
+        "at": 51216,
+        "userId": "alice",
+        "kind": "timeout"
+      },
+      {
+        "seq": 55,
+        "at": 52555,
         "userId": "bob",
         "kind": "cast",
         "payload": {
           "spellId": 3,
           "target": {
-            "x": -2,
-            "y": 4
+            "x": -5,
+            "y": -1
           }
         }
       },
       {
-        "seq": 49,
-        "at": 51140,
+        "seq": 56,
+        "at": 53783,
+        "userId": "bob",
+        "kind": "cast",
+        "payload": {
+          "spellId": 9,
+          "target": {
+            "x": -5,
+            "y": -1
+          }
+        }
+      },
+      {
+        "seq": 57,
+        "at": 55199,
         "userId": "bob",
         "kind": "timeout"
       },
       {
-        "seq": 50,
-        "at": 51493,
+        "seq": 58,
+        "at": 56695,
         "userId": "alice",
         "kind": "cast",
         "payload": {
-          "spellId": 8,
+          "spellId": 9,
           "target": {
-            "x": -2,
-            "y": 3
+            "x": -4,
+            "y": -1
+          }
+        }
+      },
+      {
+        "seq": 59,
+        "at": 57696,
+        "userId": "alice",
+        "kind": "cast",
+        "payload": {
+          "spellId": 1,
+          "target": {
+            "x": -4,
+            "y": -1
+          }
+        }
+      },
+      {
+        "seq": 60,
+        "at": 58413,
+        "userId": "alice",
+        "kind": "timeout"
+      },
+      {
+        "seq": 61,
+        "at": 59290,
+        "userId": "bob",
+        "kind": "cast",
+        "payload": {
+          "spellId": 2,
+          "target": {
+            "x": -5,
+            "y": -1
           }
         }
       }
@@ -549,31 +670,32 @@
           "name": "Alice",
           "color": "#ff0000",
           "symbol": "A",
+          "class": "pyromancer",
           "position": {
-            "x": -2,
-            "y": 4
+            "x": -5,
+            "y": -1
           },
-          "actionPoints": 1,
+          "actionPoints": 0,
           "movementPoints": 4,
           "maxActionPoints": 6,
           "maxMovementPoints": 4,
           "isCurrentTurn": false,
           "initialPositions": [
             {
-              "x": 2,
-              "y": 5
+              "x": 5,
+              "y": 2
             },
             {
-              "x": 1,
-              "y": 5
+              "x": 4,
+              "y": 2
             },
             {
-              "x": 2,
-              "y": 4
+              "x": 5,
+              "y": 1
             }
           ],
           "health": 0,
-          "maxHealth": 100,
+          "maxHealth": 95,
           "isAlive": false,
           "effects": [
             {
@@ -586,10 +708,14 @@
         },
         "isCurrentTurn": false,
         "hasPositioned": true,
-        "connected": true,
+        "connected": false,
         "isBot": false,
         "spells": {
           "1": {
+            "castsThisTurn": 1,
+            "cooldownLeft": 0
+          },
+          "10": {
             "castsThisTurn": 0,
             "cooldownLeft": 0
           },
@@ -609,19 +735,25 @@
             "castsThisTurn": 0,
             "cooldownLeft": 0
           },
-          "6": {
-            "castsThisTurn": 0,
-            "cooldownLeft": 0
-          },
           "7": {
             "castsThisTurn": 0,
             "cooldownLeft": 0
           },
-          "8": {
+          "9": {
             "castsThisTurn": 1,
-            "cooldownLeft": 2
+            "cooldownLeft": 1
           }
-        }
+        },
+        "spellBar": [
+          "1",
+          "2",
+          "9",
+          "10",
+          "3",
+          "5",
+          "7",
+          "4"
+        ]
       },
       "bob": {
         "userId": "bob",
@@ -630,56 +762,54 @@
           "name": "Bob",
           "color": "#ff0000",
           "symbol": "B",
+          "class": "pyromancer",
           "position": {
-            "x": -2,
-            "y": 3
+            "x": -4,
+            "y": -1
           },
-          "actionPoints": 4,
+          "actionPoints": 2,
           "movementPoints": 4,
           "maxActionPoints": 6,
           "maxMovementPoints": 4,
           "isCurrentTurn": false,
           "initialPositions": [
             {
-              "x": -2,
-              "y": -5
+              "x": -5,
+              "y": -2
             },
             {
-              "x": -1,
-              "y": -5
+              "x": -4,
+              "y": -2
             },
             {
-              "x": -2,
-              "y": -4
+              "x": -5,
+              "y": -1
             }
           ],
-          "health": 7,
-          "maxHealth": 100,
+          "health": 32,
+          "maxHealth": 95,
           "isAlive": true,
-          "effects": [
-            {
-              "kind": "poison",
-              "value": 5,
-              "turnsLeft": 2,
-              "source": "Venom"
-            }
-          ]
+          "effects": null
         },
         "isCurrentTurn": false,
         "hasPositioned": true,
-        "connected": true,
+        "connected": false,
         "isBot": false,
         "spells": {
           "1": {
             "castsThisTurn": 0,
             "cooldownLeft": 0
           },
-          "2": {
+          "10": {
             "castsThisTurn": 0,
             "cooldownLeft": 0
           },
-          "3": {
+          "2": {
             "castsThisTurn": 1,
+            "cooldownLeft": 2
+          },
+          "3": {
+            "castsThisTurn": 0,
             "cooldownLeft": 0
           },
           "4": {
@@ -690,19 +820,25 @@
             "castsThisTurn": 0,
             "cooldownLeft": 0
           },
-          "6": {
-            "castsThisTurn": 0,
-            "cooldownLeft": 0
-          },
           "7": {
             "castsThisTurn": 0,
             "cooldownLeft": 0
           },
-          "8": {
+          "9": {
             "castsThisTurn": 0,
             "cooldownLeft": 0
           }
-        }
+        },
+        "spellBar": [
+          "1",
+          "2",
+          "9",
+          "10",
+          "3",
+          "5",
+          "7",
+          "4"
+        ]
       }
     },
     "turnNumber": 5,
@@ -725,6 +861,157 @@
         "criticalChance": 20,
         "criticalDamage": 11,
         "effect": null
+      },
+      "10": {
+        "id": 10,
+        "name": "Cinders",
+        "color": "#dc2626",
+        "icon": "♨️",
+        "APCost": 3,
+        "range": 3,
+        "damage": 9,
+        "areaOfEffect": "cross",
+        "element": "Fire",
+        "description": "Fire · 9 damage · 3 AP · range 3 · cross · 1 turn cooldown",
+        "needsLineOfSight": true,
+        "maxCastsPerTurn": 1,
+        "cooldown": 1,
+        "criticalChance": 15,
+        "criticalDamage": 14,
+        "effect": null
+      },
+      "11": {
+        "id": 11,
+        "name": "Miasma",
+        "color": "#16a34a",
+        "icon": "🌫️",
+        "APCost": 4,
+        "range": 5,
+        "damage": 3,
+        "areaOfEffect": "circle",
+        "element": "Air",
+        "description": "Air · 3 damage then 4 a turn for 3 turns · 4 AP · range 5 · circle · 2 turn cooldown",
+        "needsLineOfSight": true,
+        "maxCastsPerTurn": 1,
+        "cooldown": 2,
+        "criticalChance": 15,
+        "criticalDamage": 5,
+        "effect": {
+          "kind": "poison",
+          "value": 4,
+          "duration": 3,
+          "onSelf": false
+        }
+      },
+      "12": {
+        "id": 12,
+        "name": "Crosswind",
+        "color": "#16a34a",
+        "icon": "🍃",
+        "APCost": 3,
+        "range": 5,
+        "damage": 7,
+        "areaOfEffect": "line",
+        "element": "Air",
+        "description": "Air · 7 damage and −1 movement for 2 turns · 3 AP · range 5 · line · twice a turn",
+        "needsLineOfSight": true,
+        "maxCastsPerTurn": 2,
+        "cooldown": 0,
+        "criticalChance": 15,
+        "criticalDamage": 11,
+        "effect": {
+          "kind": "mp",
+          "value": -1,
+          "duration": 2,
+          "onSelf": false
+        }
+      },
+      "13": {
+        "id": 13,
+        "name": "Undertow",
+        "color": "#2563eb",
+        "icon": "🌊",
+        "APCost": 4,
+        "range": 5,
+        "damage": 9,
+        "areaOfEffect": "none",
+        "element": "Water",
+        "description": "Water · 9 damage and −2 action points for 2 turns · 4 AP · range 5 · 2 turn cooldown",
+        "needsLineOfSight": true,
+        "maxCastsPerTurn": 1,
+        "cooldown": 2,
+        "criticalChance": 15,
+        "criticalDamage": 14,
+        "effect": {
+          "kind": "ap",
+          "value": -2,
+          "duration": 2,
+          "onSelf": false
+        }
+      },
+      "14": {
+        "id": 14,
+        "name": "Tide Pool",
+        "color": "#2563eb",
+        "icon": "🫧",
+        "APCost": 2,
+        "range": 0,
+        "damage": 0,
+        "areaOfEffect": "none",
+        "element": "Water",
+        "description": "Water · heals you 5 a turn for 3 turns · 2 AP · cast on yourself · 3 turn cooldown",
+        "needsLineOfSight": false,
+        "maxCastsPerTurn": 1,
+        "cooldown": 3,
+        "criticalChance": 0,
+        "criticalDamage": 0,
+        "effect": {
+          "kind": "regen",
+          "value": 5,
+          "duration": 3,
+          "onSelf": true
+        }
+      },
+      "15": {
+        "id": 15,
+        "name": "Rockfall",
+        "color": "#b45309",
+        "icon": "🪨",
+        "APCost": 4,
+        "range": 6,
+        "damage": 11,
+        "areaOfEffect": "circle",
+        "element": "Earth",
+        "description": "Earth · 11 damage · 4 AP · range 6 · circle · ignores line of sight · 2 turn cooldown",
+        "needsLineOfSight": false,
+        "maxCastsPerTurn": 1,
+        "cooldown": 2,
+        "criticalChance": 15,
+        "criticalDamage": 16,
+        "effect": null
+      },
+      "16": {
+        "id": 16,
+        "name": "Quake",
+        "color": "#b45309",
+        "icon": "🌋",
+        "APCost": 3,
+        "range": 2,
+        "damage": 9,
+        "areaOfEffect": "cross",
+        "element": "Earth",
+        "description": "Earth · 9 damage and −2 movement for 2 turns · 3 AP · range 2 · cross · ignores line of sight",
+        "needsLineOfSight": false,
+        "maxCastsPerTurn": 1,
+        "cooldown": 1,
+        "criticalChance": 10,
+        "criticalDamage": 13,
+        "effect": {
+          "kind": "mp",
+          "value": -2,
+          "duration": 2,
+          "onSelf": false
+        }
       },
       "2": {
         "id": 2,
@@ -876,6 +1163,24 @@
         "criticalChance": 15,
         "criticalDamage": 24,
         "effect": null
+      },
+      "9": {
+        "id": 9,
+        "name": "Flame Lance",
+        "color": "#dc2626",
+        "icon": "🔱",
+        "APCost": 4,
+        "range": 7,
+        "damage": 12,
+        "areaOfEffect": "line",
+        "element": "Fire",
+        "description": "Fire · 12 damage · 4 AP · range 7 · line · 1 turn cooldown",
+        "needsLineOfSight": true,
+        "maxCastsPerTurn": 1,
+        "cooldown": 1,
+        "criticalChance": 20,
+        "criticalDamage": 18,
+        "effect": null
       }
     },
     "turnOrder": [
@@ -885,22 +1190,119 @@
     "turnEndsAt": 0,
     "log": [
       {
-        "seq": 22,
+        "seq": 27,
         "turn": 1,
         "actor": "Alice",
         "kind": "turn",
         "text": "starts their turn"
       },
       {
-        "seq": 23,
+        "seq": 28,
         "turn": 1,
         "actor": "Bob",
         "kind": "turn",
         "text": "starts their turn"
       },
       {
-        "seq": 24,
-        "turn": 1,
+        "seq": 29,
+        "turn": 2,
+        "actor": "Alice",
+        "kind": "turn",
+        "text": "starts their turn"
+      },
+      {
+        "seq": 30,
+        "turn": 2,
+        "actor": "Alice",
+        "kind": "cast",
+        "text": "cast Fireball — critical!",
+        "damage": 27,
+        "crit": true,
+        "spellId": 2,
+        "origin": {
+          "x": 4,
+          "y": 2
+        },
+        "target": {
+          "x": 4,
+          "y": 2
+        }
+      },
+      {
+        "seq": 31,
+        "turn": 2,
+        "actor": "Bob",
+        "kind": "turn",
+        "text": "starts their turn"
+      },
+      {
+        "seq": 32,
+        "turn": 2,
+        "actor": "Bob",
+        "kind": "cast",
+        "text": "cast Flame Lance",
+        "damage": 12,
+        "spellId": 9,
+        "origin": {
+          "x": -4,
+          "y": -1
+        },
+        "target": {
+          "x": 2,
+          "y": 0
+        }
+      },
+      {
+        "seq": 33,
+        "turn": 3,
+        "actor": "Alice",
+        "kind": "turn",
+        "text": "starts their turn"
+      },
+      {
+        "seq": 34,
+        "turn": 3,
+        "actor": "Alice",
+        "kind": "cast",
+        "text": "cast Flame Lance",
+        "damage": 12,
+        "spellId": 9,
+        "origin": {
+          "x": 2,
+          "y": 0
+        },
+        "target": {
+          "x": -4,
+          "y": -1
+        }
+      },
+      {
+        "seq": 35,
+        "turn": 3,
+        "actor": "Alice",
+        "kind": "cast",
+        "text": "cast Ember",
+        "damage": 7,
+        "spellId": 1,
+        "origin": {
+          "x": 0,
+          "y": 0
+        },
+        "target": {
+          "x": -4,
+          "y": -1
+        }
+      },
+      {
+        "seq": 36,
+        "turn": 3,
+        "actor": "Bob",
+        "kind": "turn",
+        "text": "starts their turn"
+      },
+      {
+        "seq": 37,
+        "turn": 3,
         "actor": "Bob",
         "kind": "cast",
         "text": "cast Fireball — critical!",
@@ -908,41 +1310,24 @@
         "crit": true,
         "spellId": 2,
         "origin": {
-          "x": -2,
-          "y": 0
+          "x": -4,
+          "y": -1
         },
         "target": {
           "x": -2,
-          "y": 4
-        }
-      },
-      {
-        "seq": 25,
-        "turn": 1,
-        "actor": "Bob",
-        "kind": "cast",
-        "text": "cast Ember",
-        "damage": 7,
-        "spellId": 1,
-        "origin": {
-          "x": -2,
           "y": 0
-        },
-        "target": {
-          "x": -2,
-          "y": 4
         }
       },
       {
-        "seq": 26,
-        "turn": 2,
+        "seq": 38,
+        "turn": 4,
         "actor": "Alice",
         "kind": "turn",
         "text": "starts their turn"
       },
       {
-        "seq": 27,
-        "turn": 2,
+        "seq": 39,
+        "turn": 4,
         "actor": "Alice",
         "kind": "cast",
         "text": "cast Fireball",
@@ -950,178 +1335,29 @@
         "spellId": 2,
         "origin": {
           "x": -2,
-          "y": 4
-        },
-        "target": {
-          "x": -2,
-          "y": 0
-        }
-      },
-      {
-        "seq": 28,
-        "turn": 2,
-        "actor": "Alice",
-        "kind": "cast",
-        "text": "cast Ember",
-        "damage": 7,
-        "spellId": 1,
-        "origin": {
-          "x": -2,
-          "y": 4
-        },
-        "target": {
-          "x": -2,
-          "y": 0
-        }
-      },
-      {
-        "seq": 29,
-        "turn": 2,
-        "actor": "Bob",
-        "kind": "turn",
-        "text": "starts their turn"
-      },
-      {
-        "seq": 30,
-        "turn": 2,
-        "actor": "Bob",
-        "kind": "cast",
-        "text": "cast Ember",
-        "damage": 7,
-        "spellId": 1,
-        "origin": {
-          "x": -2,
           "y": 0
         },
         "target": {
-          "x": -2,
-          "y": 4
-        }
-      },
-      {
-        "seq": 31,
-        "turn": 2,
-        "actor": "Bob",
-        "kind": "cast",
-        "text": "cast Frost Nova — critical!",
-        "damage": 15,
-        "crit": true,
-        "mpChange": -2,
-        "spellId": 5,
-        "origin": {
-          "x": -2,
-          "y": 0
-        },
-        "target": {
-          "x": -2,
-          "y": 4
-        }
-      },
-      {
-        "seq": 32,
-        "turn": 3,
-        "actor": "Alice",
-        "kind": "turn",
-        "text": "starts their turn"
-      },
-      {
-        "seq": 33,
-        "turn": 3,
-        "actor": "Alice",
-        "kind": "cast",
-        "text": "cast Gwendo na Gwendo",
-        "damage": 32,
-        "spellId": 8,
-        "origin": {
-          "x": -2,
-          "y": 4
-        },
-        "target": {
-          "x": -2,
-          "y": 3
-        }
-      },
-      {
-        "seq": 34,
-        "turn": 3,
-        "actor": "Bob",
-        "kind": "turn",
-        "text": "starts their turn"
-      },
-      {
-        "seq": 35,
-        "turn": 3,
-        "actor": "Bob",
-        "kind": "cast",
-        "text": "cast Venom",
-        "damage": 4,
-        "spellId": 3,
-        "origin": {
-          "x": -2,
-          "y": 3
-        },
-        "target": {
-          "x": -2,
-          "y": 4
-        }
-      },
-      {
-        "seq": 36,
-        "turn": 4,
-        "actor": "Alice",
-        "kind": "effect",
-        "text": "suffers from its wounds",
-        "damage": 5
-      },
-      {
-        "seq": 37,
-        "turn": 4,
-        "actor": "Alice",
-        "kind": "turn",
-        "text": "starts their turn"
-      },
-      {
-        "seq": 38,
-        "turn": 4,
-        "actor": "Alice",
-        "kind": "cast",
-        "text": "cast Venom",
-        "damage": 4,
-        "spellId": 3,
-        "origin": {
-          "x": -2,
-          "y": 4
-        },
-        "target": {
-          "x": -2,
-          "y": 3
-        }
-      },
-      {
-        "seq": 39,
-        "turn": 4,
-        "actor": "Alice",
-        "kind": "cast",
-        "text": "cast Fireball — critical!",
-        "damage": 27,
-        "crit": true,
-        "spellId": 2,
-        "origin": {
-          "x": -2,
-          "y": 4
-        },
-        "target": {
-          "x": -2,
-          "y": 3
+          "x": -4,
+          "y": -1
         }
       },
       {
         "seq": 40,
         "turn": 4,
-        "actor": "Bob",
-        "kind": "effect",
-        "text": "suffers from its wounds",
-        "damage": 5
+        "actor": "Alice",
+        "kind": "cast",
+        "text": "cast Ember",
+        "damage": 7,
+        "spellId": 1,
+        "origin": {
+          "x": -2,
+          "y": 0
+        },
+        "target": {
+          "x": -4,
+          "y": -1
+        }
       },
       {
         "seq": 41,
@@ -1139,16 +1375,34 @@
         "damage": 4,
         "spellId": 3,
         "origin": {
-          "x": -2,
-          "y": 3
+          "x": -4,
+          "y": -1
         },
         "target": {
-          "x": -2,
-          "y": 4
+          "x": -5,
+          "y": -1
         }
       },
       {
         "seq": 43,
+        "turn": 4,
+        "actor": "Bob",
+        "kind": "cast",
+        "text": "cast Flame Lance — critical!",
+        "damage": 18,
+        "crit": true,
+        "spellId": 9,
+        "origin": {
+          "x": -4,
+          "y": -1
+        },
+        "target": {
+          "x": -5,
+          "y": -1
+        }
+      },
+      {
+        "seq": 44,
         "turn": 5,
         "actor": "Alice",
         "kind": "effect",
@@ -1156,38 +1410,80 @@
         "damage": 5
       },
       {
-        "seq": 44,
+        "seq": 45,
         "turn": 5,
         "actor": "Alice",
         "kind": "turn",
         "text": "starts their turn"
       },
       {
-        "seq": 45,
+        "seq": 46,
         "turn": 5,
         "actor": "Alice",
         "kind": "cast",
-        "text": "cast Gwendo na Gwendo",
-        "damage": 32,
-        "spellId": 8,
+        "text": "cast Flame Lance",
+        "damage": 12,
+        "spellId": 9,
         "origin": {
-          "x": -2,
-          "y": 4
+          "x": -5,
+          "y": -1
         },
         "target": {
-          "x": -2,
-          "y": 3
+          "x": -4,
+          "y": -1
         }
       },
       {
-        "seq": 46,
+        "seq": 47,
+        "turn": 5,
+        "actor": "Alice",
+        "kind": "cast",
+        "text": "cast Ember",
+        "damage": 7,
+        "spellId": 1,
+        "origin": {
+          "x": -5,
+          "y": -1
+        },
+        "target": {
+          "x": -4,
+          "y": -1
+        }
+      },
+      {
+        "seq": 48,
+        "turn": 5,
+        "actor": "Bob",
+        "kind": "turn",
+        "text": "starts their turn"
+      },
+      {
+        "seq": 49,
+        "turn": 5,
+        "actor": "Bob",
+        "kind": "cast",
+        "text": "cast Fireball — critical!",
+        "damage": 27,
+        "crit": true,
+        "spellId": 2,
+        "origin": {
+          "x": -4,
+          "y": -1
+        },
+        "target": {
+          "x": -5,
+          "y": -1
+        }
+      },
+      {
+        "seq": 50,
         "turn": 5,
         "actor": "Alice",
         "kind": "death",
         "text": "is out of the fight"
       },
       {
-        "seq": 47,
+        "seq": 51,
         "turn": 5,
         "actor": "Bob",
         "kind": "end",
@@ -1196,60 +1492,60 @@
     ],
     "obstacles": [
       {
-        "x": -5,
-        "y": 2
+        "x": -3,
+        "y": -3
       },
       {
-        "x": -4,
-        "y": -2
-      },
-      {
-        "x": -1,
-        "y": -2
-      },
-      {
-        "x": -1,
-        "y": 2
-      },
-      {
-        "x": -1,
+        "x": -2,
         "y": 3
       },
       {
-        "x": 1,
-        "y": -2
+        "x": -1,
+        "y": -3
+      },
+      {
+        "x": -1,
+        "y": 6
+      },
+      {
+        "x": 0,
+        "y": -7
       },
       {
         "x": 1,
         "y": 2
       },
       {
-        "x": 2,
-        "y": -2
+        "x": 1,
+        "y": 3
       },
       {
         "x": 2,
-        "y": 2
+        "y": -1
       },
       {
-        "x": 3,
-        "y": 0
+        "x": 2,
+        "y": 1
+      },
+      {
+        "x": 2,
+        "y": 4
       },
       {
         "x": 4,
-        "y": -2
+        "y": -3
       },
       {
-        "x": 5,
-        "y": 1
+        "x": 4,
+        "y": -1
       },
       {
-        "x": 5,
-        "y": 2
+        "x": 4,
+        "y": 0
       },
       {
-        "x": 6,
-        "y": 1
+        "x": 7,
+        "y": 0
       }
     ]
   }

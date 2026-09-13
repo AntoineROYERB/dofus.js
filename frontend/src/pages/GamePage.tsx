@@ -17,6 +17,9 @@ import { SideRail } from "../components/Game/SideRail";
 import { useRejectionBanner } from "../hooks/useRejectionBanner";
 import { GameTutorial } from "../components/Game/GameTutorial";
 import { hasSeenTutorial, markTutorialSeen } from "../utils/tutorialStorage";
+import { barSpells, unlockedBy } from "../utils/classUtils";
+import { markDefeated, readDefeated } from "../utils/progressStorage";
+import { useContent } from "../hooks/useContent";
 
 /** What the turn zone says above the countdown. */
 const phaseLabel = (status: GameStatus, isMyTurn: boolean | undefined) => {
@@ -77,6 +80,38 @@ function GamePage() {
   const gameStatus: GameStatus =
     (gameState?.status as GameStatus) || GAME_STATUS.CREATING_PLAYER;
   const userHasCharacter = !!currentPlayer;
+  const { content } = useContent();
+
+  // The solo arc. A win over a computer opponent is written down once, and
+  // whatever that win opens up is worked out against what was already open,
+  // so the modal only announces what is actually new.
+  const [soloResult, setSoloResult] = useState<{
+    farewell?: { name: string; line: string };
+    unlocked: string[];
+  } | null>(null);
+  const bot = Object.values(gameState?.players ?? {}).find((p) => p.isBot);
+  const wonAgainstBot =
+    !!winner && !!bot && !!currentCharacter?.isAlive && !bot.character.isAlive;
+  useEffect(() => {
+    if (!winner) {
+      setSoloResult(null);
+      return;
+    }
+    if (!wonAgainstBot || !bot?.character.class || !content) return;
+    const classId = bot.character.class;
+    const before = readDefeated();
+    markDefeated(classId);
+    const beaten = content.classes.find((c) => c.id === classId);
+    setSoloResult({
+      farewell: beaten
+        ? { name: beaten.opponent.name, line: beaten.opponent.lines[1] ?? "" }
+        : undefined,
+      unlocked: before.has(classId)
+        ? []
+        : unlockedBy(content.classes, classId).map((c) => c.opponent.name),
+    });
+    // Once per result: the bot's snapshot changes every tick, its class does not.
+  }, [winner, wonAgainstBot, bot?.character.class, content]);
 
   // The server owns room membership; if we are not in one, go back to the list.
   useEffect(() => {
@@ -144,9 +179,8 @@ function GamePage() {
   // turn (P also confirms a placement), the way the game this is modelled on
   // does it. Keystrokes aimed at the chat are left alone.
   useEffect(() => {
-    const catalogue = Object.values(gameState?.spells ?? {}).sort(
-      (a, b) => a.id - b.id
-    );
+    // The same order the bar draws its slots in, so key 3 is the third slot.
+    const catalogue = barSpells(currentPlayer, gameState?.spells);
     if (catalogue.length === 0) return;
 
     const onKeyDown = (event: KeyboardEvent) => {
@@ -185,7 +219,13 @@ function GamePage() {
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [gameState?.spells, isMyTurn, handleEndTurnClick, handleMainButtonKey]);
+  }, [
+    gameState?.spells,
+    currentPlayer,
+    isMyTurn,
+    handleEndTurnClick,
+    handleMainButtonKey,
+  ]);
 
   const handlePlayAgain = () => {
     const { messageId, timestamp } = generateMessageId();
@@ -376,6 +416,8 @@ function GamePage() {
           winner={winner}
           onPlayAgain={handlePlayAgain}
           onExit={handleLeave}
+          farewell={soloResult?.farewell}
+          unlocked={soloResult?.unlocked}
         />
       )}
 

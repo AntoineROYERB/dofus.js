@@ -20,10 +20,11 @@ FROM alpine:3.20
 RUN adduser -D -u 10001 app
 COPY --from=build /out/server /usr/local/bin/server
 COPY --from=web /app/dist /srv/web
-# Gameplay constants (health, AP, MP): a plain JSON file, editable without a
-# rebuild — but it still has to exist inside the image, since nothing else
-# from the source tree is copied here.
-COPY backend/config/balance.json /config/balance.json
+# Game content and balance (balance.json, spells.json, classes.json): plain
+# JSON files, editable without a rebuild — but they still have to exist
+# inside the image, since nothing else from the source tree is copied here.
+# The server refuses to start if spells.json or classes.json is missing.
+COPY backend/config/*.json /config/
 
 USER app
 ENV PORT=8080 STATIC_DIR=/srv/web

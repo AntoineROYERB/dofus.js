@@ -3,6 +3,8 @@ import { Player } from "../../types/game";
 import { GameState } from "../../types/message";
 import { EffectBadges } from "./EffectBadges";
 import { TurnClock } from "./TurnClock";
+import { ClassTag } from "./ClassTag";
+import { useContent } from "../../hooks/useContent";
 
 interface TurnTimelineProps {
   latestGameState: GameState | null;
@@ -22,6 +24,7 @@ export const TurnTimeline: React.FC<TurnTimelineProps> = ({
   userId,
   onOpenRail,
 }) => {
+  const { content } = useContent();
   const players = latestGameState?.players ?? {};
   const order = latestGameState?.turnOrder ?? [];
 
@@ -84,6 +87,12 @@ export const TurnTimeline: React.FC<TurnTimelineProps> = ({
               >
                 {player.character.name}
               </b>
+              {/* An opponent's class is the first thing worth knowing about them. */}
+              <ClassTag
+                classId={player.character.class}
+                classes={content?.classes}
+                className="hidden sm:inline-flex"
+              />
               <span className="hidden font-mono text-[9.5px] text-muted sm:inline">
                 {isYou ? "you" : `${player.character.health} HP`}
                 {player.isBot && !isYou ? " · cpu" : ""}

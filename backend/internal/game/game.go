@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"game-server/internal/content"
 	"game-server/internal/types"
 )
 
@@ -37,6 +38,8 @@ var (
 	ErrTooManyCasts        = errors.New("that spell cannot be cast again this turn")
 	ErrBlocked             = errors.New("that cell is blocked")
 	ErrNoRoute             = errors.New("there is no way through to that cell")
+	ErrUnknownClass        = errors.New("unknown class")
+	ErrSpellNotOnBar       = errors.New("that spell is not one of yours")
 )
 
 // MaxLogEntries bounds the combat log carried in every snapshot.
@@ -56,9 +59,12 @@ type Game struct {
 	players    map[string]types.Player
 	turnOrder  []string // initiative, fixed for the whole game
 	turnIdx    int      // index into turnOrder of the player currently acting
-	spells     map[string]types.Spell
-	obstacles  map[types.Position]bool
-	log        []types.LogEntry
+	// catalogue is the content this game was built from; spells is this
+	// game's own copy of its spell list.
+	catalogue content.Catalogue
+	spells    map[string]types.Spell
+	obstacles map[types.Position]bool
+	log       []types.LogEntry
 	// logSeq numbers log entries so a client can recognise the ones it has
 	// already played. It is never reset while the game object lives, so a
 	// rematch cannot hand out a sequence number twice.
@@ -100,6 +106,10 @@ type Options struct {
 	// Clock reads wall-clock time. Zero means the real one; a replay supplies
 	// one driven by the recorded command timestamps.
 	Clock func() time.Time
+	// Content is the spells and classes the match is played with. Nil means
+	// the catalogue installed with ApplyContent. A recording's rules
+	// fingerprint covers it, so a replay has to run under the same content.
+	Content *content.Catalogue
 }
 
 func New() *Game { return NewWithSeed(NewSeed()) }
@@ -123,11 +133,16 @@ func NewWithOptions(opts Options) *Game {
 	if opts.Clock == nil {
 		opts.Clock = defaultClock
 	}
+	cat := current
+	if opts.Content != nil {
+		cat = *opts.Content
+	}
 
 	g := &Game{
 		status:       types.StatusCreatingPlayer,
 		players:      make(map[string]types.Player),
-		spells:       Catalogue(),
+		catalogue:    cat,
+		spells:       copySpells(cat.Spells),
 		seed:         opts.Seed,
 		rng:          rand.New(rand.NewSource(opts.Seed)),
 		clock:        opts.Clock,
@@ -189,8 +204,16 @@ func (g *Game) snapshotLocked() types.GameState {
 		if c.Effects != nil {
 			c.Effects = append([]types.Effect(nil), c.Effects...)
 		}
-		c.MaxActionPoints, c.MaxMovementPoints = turnPoints(c)
+		c.MaxActionPoints, c.MaxMovementPoints = g.turnPoints(c)
 		p.Character = c
+		if p.Spells != nil {
+			spells := make(map[string]types.SpellState, len(p.Spells))
+			for k, v := range p.Spells {
+				spells[k] = v
+			}
+			p.Spells = spells
+		}
+		p.SpellBar = append(make([]string, 0, len(p.SpellBar)), p.SpellBar...)
 		players[id] = p
 	}
 
@@ -253,8 +276,9 @@ func (g *Game) Winner() (string, bool) {
 // Lobby
 // ---------------------------------------------------------------------------
 
-// AddPlayer registers a character for a connection. Every stat is set here:
-// the client only chooses a name, a colour and a symbol.
+// AddPlayer registers a character for a connection. Every stat is set here,
+// from the class: the client only chooses a name, a colour, a symbol and
+// which class to play.
 func (g *Game) AddPlayer(userID, userName string, look types.CharacterAppearance) error {
 	g.mu.Lock()
 	defer g.mu.Unlock()
@@ -268,31 +292,74 @@ func (g *Game) AddPlayer(userID, userName string, look types.CharacterAppearance
 	if !namePattern.MatchString(look.Name) {
 		return ErrInvalidName
 	}
+	class, err := g.classLocked(look.Class)
+	if err != nil {
+		return err
+	}
 
 	symbol := look.Symbol
 	if symbol == "" {
 		symbol = look.Name[:1]
 	}
+	// The class is written down resolved, so a recording says what was played
+	// rather than leaving "the default" to be worked out again on replay.
+	look.Class = class.ID
 	g.recordLocked(userID, CmdJoin, joinPayload{UserName: userName, Character: look})
 
-	g.players[userID] = types.Player{
+	g.players[userID] = newPlayer(userID, userName, class, types.Character{
+		Name:   look.Name,
+		Color:  look.Color,
+		Symbol: symbol,
+	})
+	g.startPlacementIfReadyLocked()
+	return nil
+}
+
+// classLocked resolves a class id, empty meaning the default class.
+func (g *Game) classLocked(id string) (types.Class, error) {
+	if id == "" {
+		return g.catalogue.DefaultClass(), nil
+	}
+	class, ok := g.catalogue.Class(id)
+	if !ok {
+		return types.Class{}, ErrUnknownClass
+	}
+	return class, nil
+}
+
+// newPlayer deals a fresh character of a class: its stats, and a bar holding
+// its spells and nothing else.
+func newPlayer(userID, userName string, class types.Class, look types.Character) types.Player {
+	look.Class = class.ID
+	look.ActionPoints = class.ActionPoints
+	look.MovementPoints = class.MovementPoints
+	look.Health = class.Health
+	look.MaxHealth = class.Health
+	look.IsAlive = true
+	return types.Player{
 		UserID:    userID,
 		UserName:  userName,
 		Connected: true,
-		Spells:    g.freshSpellStateLocked(),
-		Character: types.Character{
-			Name:           look.Name,
-			Color:          look.Color,
-			Symbol:         symbol,
-			ActionPoints:   StartingActionPoints,
-			MovementPoints: StartingMovementPoints,
-			Health:         StartingHealth,
-			MaxHealth:      StartingHealth,
-			IsAlive:        true,
-		},
+		Spells:    freshSpellState(class.Spells),
+		SpellBar:  append([]string(nil), class.Spells...),
+		Character: look,
 	}
-	g.startPlacementIfReadyLocked()
-	return nil
+}
+
+// baseStats is what a character's class deals it before any effect has its
+// say. A character with no class — only ever one a test seats by hand — gets
+// the balance defaults.
+func (g *Game) baseStats(c types.Character) (health, actionPoints, movementPoints int) {
+	if class, ok := g.catalogue.Class(c.Class); ok {
+		return class.Health, class.ActionPoints, class.MovementPoints
+	}
+	return StartingHealth, StartingActionPoints, StartingMovementPoints
+}
+
+// turnPoints gives the points a character starts its turn with.
+func (g *Game) turnPoints(c types.Character) (actionPoints, movementPoints int) {
+	_, ap, mp := g.baseStats(c)
+	return turnPoints(c, ap, mp)
 }
 
 // RemovePlayer takes a player out for good. Mid-game this is a forfeit, so
@@ -378,20 +445,23 @@ func (g *Game) Restart(userID string) error {
 
 func (g *Game) returnToLobbyLocked() {
 	for id, p := range g.players {
+		health, actionPoints, movementPoints := g.baseStats(p.Character)
 		p.HasPositioned = false
 		p.IsCurrentTurn = false
-		p.Character.Health = StartingHealth
-		p.Character.ActionPoints = StartingActionPoints
-		p.Character.MovementPoints = StartingMovementPoints
+		p.Character.Health = health
+		p.Character.ActionPoints = actionPoints
+		p.Character.MovementPoints = movementPoints
 		p.Character.IsAlive = true
 		p.Character.IsCurrentTurn = false
 		p.Character.Position = nil
 		p.Character.InitialPositions = nil
 		p.Character.Effects = nil
-		g.players[id] = p
-	}
-	for id, p := range g.players {
-		p.Spells = g.freshSpellStateLocked()
+		// The bar stays what it was; only its counters are cleared.
+		spells := make(map[string]types.SpellState, len(p.Spells))
+		for key := range p.Spells {
+			spells[key] = types.SpellState{}
+		}
+		p.Spells = spells
 		g.players[id] = p
 	}
 	g.status = types.StatusCreatingPlayer
@@ -409,10 +479,10 @@ func (g *Game) returnToLobbyLocked() {
 	g.startPlacementIfReadyLocked()
 }
 
-// freshSpellStateLocked gives a player a clean slate for every spell.
-func (g *Game) freshSpellStateLocked() map[string]types.SpellState {
-	state := make(map[string]types.SpellState, len(g.spells))
-	for id := range g.spells {
+// freshSpellState gives a player a clean slate for every spell on their bar.
+func freshSpellState(bar []string) map[string]types.SpellState {
+	state := make(map[string]types.SpellState, len(bar))
+	for _, id := range bar {
 		state[id] = types.SpellState{}
 	}
 	return state
@@ -462,10 +532,10 @@ func (g *Game) startTurnForLocked(userID string) (alive bool) {
 		return false
 	}
 
-	p.Character.ActionPoints, p.Character.MovementPoints = turnPoints(p.Character)
+	p.Character.ActionPoints, p.Character.MovementPoints = g.turnPoints(p.Character)
 
-	spells := make(map[string]types.SpellState, len(g.spells))
-	for id := range g.spells {
+	spells := make(map[string]types.SpellState, len(p.Spells))
+	for id := range p.Spells {
 		st := p.Spells[id]
 		st.CastsThisTurn = 0
 		if st.CooldownLeft > 0 {
@@ -548,6 +618,15 @@ func (g *Game) beginPlacementLocked() {
 	// Bots take their starting cell immediately; a human never waits on them.
 	g.placeBotsLocked()
 	g.status = types.StatusPositionCharacters
+
+	// A room of nothing but bots has nobody left to place, so nothing else
+	// would ever start the fight.
+	for _, p := range g.players {
+		if !p.HasPositioned {
+			return
+		}
+	}
+	g.beginPlayLocked()
 }
 
 // ChooseInitialPosition places a character on one of the cells it was offered.
@@ -670,11 +749,16 @@ func (g *Game) CastSpell(userID string, spellID int, target types.Position) erro
 	if Distance(origin, target) > spell.Range {
 		return ErrOutOfRange
 	}
+	// The catalogue holds every class's spells; a caster may only use the ones
+	// on their own bar.
+	state, onBar := caster.Spells[key]
+	if !onBar {
+		return ErrSpellNotOnBar
+	}
 	if caster.Character.ActionPoints < spell.APCost {
 		return ErrNotEnoughAP
 	}
 
-	state := caster.Spells[key]
 	if state.CooldownLeft > 0 {
 		return ErrSpellOnCooldown
 	}

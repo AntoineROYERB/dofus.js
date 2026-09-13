@@ -1,3 +1,4 @@
+import { ContentResponse } from "../types/message";
 import {
   MatchPage,
   MatchRecording,
@@ -47,3 +48,6 @@ export const fetchMatchSnapshots = (id: string): Promise<MatchSnapshots> =>
 
 export const fetchMatchRecording = (id: string): Promise<MatchRecording> =>
   getJSON<MatchRecording>(`/api/matches/${encodeURIComponent(id)}/recording`);
+
+export const fetchContent = (): Promise<ContentResponse> =>
+  getJSON<ContentResponse>("/api/classes");
