@@ -233,9 +233,23 @@ export const Grid: React.FC<GridProps> = ({
   };
 
   // Sort coordinates for rendering order (back to front)
-  const sortedCoordinates = sortCoordinates(
-    generateIsometricCoordinates(gridSize)
+  const sortedCoordinates = React.useMemo(
+    () => sortCoordinates(generateIsometricCoordinates(gridSize)),
+    [gridSize]
   );
+
+  /*
+   * One click handler for every cell, stable across renders, reading the
+   * latest props through a ref. A fresh closure per cell per render would
+   * defeat the tiles' memo on every animation frame.
+   */
+  const latestClick = useRef({ confirmsTap, onCellClick });
+  latestClick.current = { confirmsTap, onCellClick };
+  const handleTileClick = React.useCallback((cell: Position) => {
+    // On a touch screen the first tap only previews the cell.
+    const { confirmsTap, onCellClick } = latestClick.current;
+    if (confirmsTap(cell)) onCellClick(cell);
+  }, []);
 
   // Cells the selected spell can actually reach: in range, and seen from where
   // the caster stands. A cell it cannot reach must not look targetable — cover
@@ -254,8 +268,7 @@ export const Grid: React.FC<GridProps> = ({
       inRange.add(`${x},${y}`);
     });
     return inRange;
-    // sortedCoordinates is derived from gridSize alone and is stable enough.
-  }, [characterPosition, selectedSpell, blocked, gridSize]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [characterPosition, selectedSpell, blocked, sortedCoordinates]);
 
   /*
    * Only the centre a spell lands on needs a clear line to the caster — the
@@ -361,8 +374,7 @@ export const Grid: React.FC<GridProps> = ({
               maxMovementCost={movementPoints ?? 0}
               isPathCell={isPathCell}
               zoneEdges={zoneEdges(x, y)}
-              // On a touch screen the first tap only previews the cell.
-              onClick={() => confirmsTap({ x, y }) && onCellClick({ x, y })}
+              onCellClick={handleTileClick}
             />
           );
         })}

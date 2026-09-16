@@ -69,7 +69,7 @@ export const FighterPanel: React.FC<FighterPanelProps> = ({
   return (
     <div className="flex h-full flex-col">
       <div className="flex items-baseline justify-between">
-        <span className="font-mono text-[9.5px] uppercase tracking-label text-muted short:hidden">
+        <span className="font-mono text-[9.5px] uppercase tracking-label text-muted narrow:hidden short:hidden">
           Fighter
         </span>
         {connected ? (

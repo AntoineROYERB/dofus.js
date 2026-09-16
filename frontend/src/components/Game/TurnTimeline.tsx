@@ -91,7 +91,7 @@ export const TurnTimeline: React.FC<TurnTimelineProps> = ({
               <ClassTag
                 classId={player.character.class}
                 classes={content?.classes}
-                className="hidden sm:inline-flex"
+                className="hidden sm:inline-flex short:hidden"
               />
               <span className="hidden font-mono text-[9.5px] text-muted sm:inline">
                 {isYou ? "you" : `${player.character.health} HP`}

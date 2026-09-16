@@ -12,7 +12,12 @@ interface TileProps {
   screenPosition: Position;
   isHovered: boolean;
   isValidTarget?: boolean;
-  onClick?: () => void;
+  /**
+   * Called with this cell. It takes the cell rather than closing over it so
+   * the board can hand every tile the same function, which is what lets a
+   * tile skip re-rendering (see the memo at the bottom).
+   */
+  onCellClick?: (cell: Position) => void;
   isPositioningPhase: boolean;
   /**
    * True while the player still owes the game a starting cell. The cells they
@@ -77,14 +82,14 @@ const costOpacity = (cost: number | undefined, maxCost: number): number => {
   return 0.08 + share * 0.22;
 };
 
-export const Tile: React.FC<TileProps> = ({
+const TileView: React.FC<TileProps> = ({
   x,
   y,
   tileSize,
   screenPosition,
   isHovered,
   isValidTarget,
-  onClick,
+  onCellClick,
   isPositioningPhase,
   awaitingPlacement,
   allPlayersInitialPositions,
@@ -210,13 +215,13 @@ export const Tile: React.FC<TileProps> = ({
         // it would also cut off the raised faces of cover.
         clipPath: isObstacle ? undefined : "polygon(50% 0, 100% 50%, 50% 100%, 0 50%)",
       }}
-      onClick={interactive ? onClick : undefined}
+      onClick={interactive ? () => onCellClick?.({ x, y }) : undefined}
       onKeyDown={
         interactive
           ? (event) => {
               if (event.key === "Enter" || event.key === " ") {
                 event.preventDefault();
-                onClick?.();
+                onCellClick?.({ x, y });
               }
             }
           : undefined
@@ -305,3 +310,32 @@ export const Tile: React.FC<TileProps> = ({
     </div>
   );
 };
+
+const sameEdges = (a?: boolean[], b?: boolean[]) =>
+  a === b ||
+  (!!a && !!b && a.length === b.length && a.every((edge, i) => edge === b[i]));
+
+/*
+ * The board re-renders on every frame of a walk, as the fighter's position is
+ * interpolated, and on every pointer move. Redrawing all ~110 cells each time
+ * is what made the board stutter on a phone; a cell now redraws only when
+ * something about that cell changed. The board builds a fresh position object
+ * and a fresh edge array per render, so those two are compared by value.
+ */
+export const Tile = React.memo(TileView, (prev, next) => {
+  for (const key of Object.keys(next) as (keyof TileProps)[]) {
+    if (key === "screenPosition") {
+      if (
+        prev.screenPosition.x !== next.screenPosition.x ||
+        prev.screenPosition.y !== next.screenPosition.y
+      ) {
+        return false;
+      }
+    } else if (key === "zoneEdges") {
+      if (!sameEdges(prev.zoneEdges, next.zoneEdges)) return false;
+    } else if (prev[key] !== next[key]) {
+      return false;
+    }
+  }
+  return true;
+});

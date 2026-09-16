@@ -20,6 +20,7 @@ import { hasSeenTutorial, markTutorialSeen } from "../utils/tutorialStorage";
 import { barSpells, unlockedBy } from "../utils/classUtils";
 import { markDefeated, readDefeated } from "../utils/progressStorage";
 import { useContent } from "../hooks/useContent";
+import { hapticGameOver, hapticTurnStart } from "../lib/native";
 
 /** What the turn zone says above the countdown. */
 const phaseLabel = (status: GameStatus, isMyTurn: boolean | undefined) => {
@@ -112,6 +113,17 @@ function GamePage() {
     });
     // Once per result: the bot's snapshot changes every tick, its class does not.
   }, [winner, wonAgainstBot, bot?.character.class, content]);
+
+  // On the iOS app the phone buzzes as the turn comes round and as the fight
+  // ends; a player can look away from the board without missing either.
+  useEffect(() => {
+    if (gameStatus === GAME_STATUS.PLAYING && isMyTurn) hapticTurnStart();
+  }, [gameStatus, isMyTurn]);
+  useEffect(() => {
+    if (winner) hapticGameOver(!!currentCharacter?.isAlive);
+    // Once per result, not on every tick that follows it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [winner]);
 
   // The server owns room membership; if we are not in one, go back to the list.
   useEffect(() => {
@@ -279,7 +291,7 @@ function GamePage() {
   };
 
   return (
-    <div className="relative flex h-[100dvh] max-h-[100dvh] flex-col overflow-hidden bg-paper text-ink">
+    <div className="relative flex h-[100dvh] max-h-[100dvh] flex-col overflow-hidden bg-paper text-ink short:flex-row">
       {visibleRejection && (
         <div
           role="status"
@@ -294,10 +306,15 @@ function GamePage() {
         top of it: the rail is beside it and the bar is under it, which is the
         point of the whole layout. On a narrow screen the rail becomes a sheet
         rather than taking the board's room.
+
+        A phone held sideways has width to spare and no height at all, so
+        there the bar stands up as a column on the right instead of eating
+        the board's rows — the board roughly doubles in size. Held upright,
+        it is the other way round, and the spells get a row of their own.
       */}
-      <div className="flex min-h-0 flex-1">
+      <div className="flex min-h-0 min-w-0 flex-1">
         <div className="flex min-h-0 flex-1 flex-col pl-[env(safe-area-inset-left)]">
-          <div className="flex-none px-3 pt-3 sm:px-6 sm:pt-4">
+          <div className="flex-none px-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:px-6 sm:pt-4 short:px-4 short:pt-2">
             <TurnTimeline
               latestGameState={gameState}
               userId={userId}
@@ -328,17 +345,17 @@ function GamePage() {
         </aside>
       </div>
 
-      <div className="flex h-[168px] flex-none overflow-hidden border-t-2 border-ink bg-panel pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] short:h-[118px]">
+      <div className="flex h-[168px] flex-none overflow-hidden border-t-2 border-ink bg-panel pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] narrow:h-auto narrow:flex-wrap short:h-auto short:w-[228px] short:flex-col short:border-l-2 short:border-t-0 short:pl-0 short:pt-[env(safe-area-inset-top)]">
         <div
           id="tutorial-fighter-panel"
-          className="w-[142px] flex-none px-3 py-2 sm:w-[230px] sm:px-5 sm:py-3 lg:w-[336px]"
+          className="w-[142px] flex-none px-3 py-2 narrow:min-w-0 narrow:flex-1 sm:w-[230px] sm:px-5 sm:py-3 lg:w-[336px] short:w-full short:px-3 short:py-2"
         >
           <FighterPanel currentPlayer={currentPlayer} connected={connected} />
         </div>
 
         <div
           id="tutorial-spellbar"
-          className="min-w-0 flex-1 border-l border-ink px-3 py-2 sm:px-5 sm:py-3"
+          className="min-w-0 flex-1 border-l border-ink px-3 py-2 narrow:order-last narrow:basis-full narrow:border-l-0 narrow:border-t narrow:pb-3 sm:px-5 sm:py-3 short:min-h-0 short:w-full short:border-l-0 short:border-t short:px-3 short:py-2"
         >
           <SpellBar
             handleSpellClick={handleSpellClick}
@@ -350,7 +367,7 @@ function GamePage() {
 
         <div
           id="tutorial-mainbutton"
-          className="flex w-[124px] flex-none flex-col border-l border-ink px-3 py-2 sm:w-[176px] sm:px-5 sm:py-3 lg:w-[248px]"
+          className="flex w-[124px] flex-none flex-col border-l border-ink px-3 py-2 sm:w-[176px] sm:px-5 sm:py-3 lg:w-[248px] short:w-full short:border-l-0 short:border-t short:px-3 short:py-2"
         >
           <div className="flex items-baseline justify-between gap-2">
             <span className="font-mono text-[9.5px] uppercase tracking-label text-muted">
@@ -377,7 +394,7 @@ function GamePage() {
               variant="display"
             />
           </div>
-          <div className="mt-auto">
+          <div className="mt-auto narrow:pt-2 short:pt-1.5">
             <MainButton
               gameStatus={gameStatus}
               connected={connected}

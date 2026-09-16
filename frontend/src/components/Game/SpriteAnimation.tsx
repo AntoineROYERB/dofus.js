@@ -67,21 +67,27 @@ const SpriteAnimation: React.FC<SpriteAnimationProps> = ({
     // been dyed. Drawing from the plain image until then avoids a blank frame.
     let source: CanvasImageSource = playerImage;
 
+    // The sheet only advances every staggerFrames ticks; the ticks between
+    // used to redraw the very same frame, several canvases at 60 fps.
+    let drawnFrame = -1;
+
     const animate = () => {
       if (cancelled) return;
-      ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-
-      ctx.drawImage(
-        source,
-        animationState.current.frameX * frameWidth, // X source
-        directionRow * frameHeight, // Y source (ligne pour la direction)
-        frameWidth,
-        frameHeight,
-        0,
-        0,
-        CANVAS_WIDTH,
-        CANVAS_HEIGHT
-      );
+      if (drawnFrame !== animationState.current.frameX) {
+        drawnFrame = animationState.current.frameX;
+        ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+        ctx.drawImage(
+          source,
+          animationState.current.frameX * frameWidth, // X source
+          directionRow * frameHeight, // Y source (ligne pour la direction)
+          frameWidth,
+          frameHeight,
+          0,
+          0,
+          CANVAS_WIDTH,
+          CANVAS_HEIGHT
+        );
+      }
 
       if (animationState.current.gameFrame % staggerFrames === 0) {
         animationState.current.frameX =

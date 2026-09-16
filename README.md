@@ -27,7 +27,9 @@ instantly either way.
 <img src="docs/assets/05-phone.png" alt="The same fight on a phone held sideways" width="100%">
 
 On a phone, hold it sideways: the board is twice as wide as it is tall, and the
-bar folds down to the figures, the spells and the button. There is no hovering
+bar stands up as a column on the right — figures, a 4×2 block of spells, the
+button — so the board keeps the full height. Held upright, the spells get a row
+of their own under the board. There is no hovering
 on a touch screen, so a tap previews a cell — its walk, its area of effect, the
 damage it would do — and a second tap on the same cell commits it.
 
@@ -217,6 +219,68 @@ fly secrets set ALLOWED_ORIGINS=https://your-app.fly.dev
 
 `docker-compose.yml` keeps the nginx + backend split instead, which is closer
 to a classic production layout and is what local development uses.
+
+## iOS app
+
+The same client ships as a native iOS app through
+[Capacitor](https://capacitorjs.com): Vite builds the page, and the Xcode
+project in `frontend/ios` serves it from the app bundle. Only the game server
+is remote. On the device the app buzzes when your turn comes round and when a
+fight ends; in a browser those calls do nothing.
+
+It needs a full Xcode (not only the command-line tools), Node 22+ for the
+Capacitor CLI, and, once:
+
+```bash
+sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+sudo xcodebuild -license accept
+```
+
+**Day to day: live reload.** Run the backend and `npm run dev` as usual, and
+point the app at the Vite dev server. Edits show up without rebuilding. In the
+simulator `localhost` is the Mac; on a phone, use the Mac's LAN address.
+
+```bash
+cd frontend && npm run build && CAP_SERVER_URL=http://localhost:5173 npm run ios:dev
+```
+
+```bash
+cd frontend && npm run build && CAP_SERVER_URL=http://192.168.1.20:5173 npm run ios:dev
+```
+
+**Checking how it feels.** Live reload runs React's development build, which
+is several times slower; judge smoothness on a production build instead,
+served from the Mac and rebuilt after each change:
+
+```bash
+cd frontend && VITE_WS_URL=ws://192.168.1.20:8080 npm run build && npx vite preview --host --port 4173
+```
+
+```bash
+cd frontend && CAP_SERVER_URL=http://192.168.1.20:4173 npm run ios:dev
+```
+
+The app is locked to landscape; the portrait layout is for the browser.
+
+**A bundled build.** The page inside the app has no server behind it, so
+`ios:sync` refuses to run without `VITE_WS_URL`. Bake the address in, and let
+the app's origin through on the server:
+
+```bash
+cd frontend && VITE_WS_URL=wss://dofusjs.onrender.com npm run ios:sync && npm run ios:open
+```
+
+```bash
+ALLOWED_ORIGINS=https://dofusjs.onrender.com,capacitor://localhost
+```
+
+**TestFlight and the App Store.** Running on your own phone from Xcode works
+with a free Apple ID (the install expires after seven days). TestFlight and
+the store need the paid Apple Developer Program: register the bundle id from
+`frontend/capacitor.config.ts` (`com.antoineroyerb.dofusjs`), pick the team
+under *Signing & Capabilities*, then *Product → Archive → Distribute App*.
+Google Sign-In does not work inside the app: Google refuses OAuth in embedded
+web views, so the app plays anonymously.
 
 ## Tests
 
