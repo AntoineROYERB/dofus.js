@@ -6,6 +6,53 @@ import { RoomSummary } from "../types/message";
 import { readCharacter } from "../utils/characterStorage";
 import { useRejectionBanner } from "../hooks/useRejectionBanner";
 import { HowToPlayDialog } from "../components/HowToPlayDialog";
+import { useContent } from "../hooks/useContent";
+import { readDefeated } from "../utils/progressStorage";
+import { isUnlocked, nextChallenge } from "../utils/classUtils";
+import { CharacterClass } from "../types/message";
+
+/**
+ * One rung of the solo arc: an opponent, and whether it can be fought yet.
+ * Locked rungs still show who they are and what opens them, so the arc reads
+ * as somewhere to go rather than a row of padlocks.
+ */
+const OpponentRow: React.FC<{
+  cls: CharacterClass;
+  classes: CharacterClass[];
+  defeated: ReadonlySet<string>;
+  disabled: boolean;
+  onChallenge: (classId: string) => void;
+}> = ({ cls, classes, defeated, disabled, onChallenge }) => {
+  const open = isUnlocked(cls, defeated);
+  const beaten = defeated.has(cls.id);
+  const opener = classes.find((c) => c.id === cls.unlockedBy);
+
+  return (
+    <li className="flex items-center gap-3 border-b border-hairline py-2.5 last:border-b-0">
+      <span aria-hidden className="w-6 flex-none text-center text-[17px]">
+        {open ? cls.symbol : "·"}
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className={`truncate font-display text-[15px] font-bold ${open ? "" : "text-muted"}`}>
+          {cls.opponent.name}
+        </p>
+        <p className="truncate font-mono text-[9.5px] uppercase tracking-label text-muted">
+          {cls.name}
+          {beaten ? " · beaten" : ""}
+          {!open && opener ? ` · beat ${opener.opponent.name} first` : ""}
+        </p>
+      </div>
+      <button
+        type="button"
+        disabled={disabled || !open}
+        onClick={() => onChallenge(cls.id)}
+        className="border border-ink px-4 py-2.5 font-mono text-[10px] uppercase tracking-label text-ink transition-colors hover:bg-ink hover:text-paper disabled:cursor-not-allowed disabled:border-hairline disabled:text-muted disabled:hover:bg-transparent disabled:hover:text-muted sm:py-1.5"
+      >
+        {open ? "Fight" : "Locked"}
+      </button>
+    </li>
+  );
+};
 
 const statusLabel: Record<string, string> = {
   creating_player: "Waiting for players",
@@ -57,6 +104,12 @@ const LobbyPage: React.FC = () => {
   const notice = useRejectionBanner(rejection);
 
   const character = readCharacter();
+  const { content } = useContent();
+  const classes = content?.classes ?? [];
+  // Read on every render: coming back from a won match has to show the rung
+  // it opened without a reload.
+  const defeated = readDefeated();
+  const next = classes.length > 0 ? nextChallenge(classes, defeated) : undefined;
 
   // Pick a character before entering a room; otherwise there is nothing to
   // send once we get there.
@@ -78,15 +131,18 @@ const LobbyPage: React.FC = () => {
     setNewRoomName("");
   };
 
-  // A visitor with no one to play against can still see the whole game.
-  const playSolo = () => {
+  // A visitor with no one to play against can still see the whole game. With
+  // no class list to hand the server picks the opponent, as it always did.
+  const playSolo = (botClass?: string) => {
+    const opponent = classes.find((c) => c.id === botClass)?.opponent.name;
     const { messageId, timestamp } = generateMessageId();
     sendGameAction({
       type: "create_room",
       messageId,
       timestamp,
-      name: `${character?.name ?? "Solo"} vs Cpu`.slice(0, 24),
+      name: `${character?.name ?? "Solo"} vs ${opponent ?? "Cpu"}`.slice(0, 24),
       withBot: true,
+      ...(botClass ? { botClass } : {}),
     });
   };
 
@@ -136,14 +192,40 @@ const LobbyPage: React.FC = () => {
         */}
         <button
           type="button"
-          onClick={playSolo}
+          onClick={() => playSolo(next?.id)}
           disabled={!connected}
           className={`mt-5 w-full bg-vermilion px-4 py-4 font-display text-[16px] font-bold text-white sm:mt-6 sm:py-3.5 transition-colors hover:bg-[#b93a25] disabled:cursor-not-allowed disabled:bg-hairline disabled:text-muted ${
             connected ? "animate-beckon" : ""
           }`}
         >
-          Play against the computer
+          {next ? `Challenge ${next.opponent.name}` : "Play against the computer"}
         </button>
+        {next && (
+          <p className="mt-2 text-center text-[13px] italic text-graphite">
+            “{next.opponent.lines[0]}”
+          </p>
+        )}
+
+        {classes.length > 1 && (
+          <details className="mt-3 border-t border-hairline">
+            <summary className="cursor-pointer py-2 font-mono text-[9.5px] uppercase tracking-label text-muted transition-colors hover:text-vermilion">
+              Every opponent · {classes.filter((c) => defeated.has(c.id)).length}/
+              {classes.length} beaten
+            </summary>
+            <ul>
+              {classes.map((cls) => (
+                <OpponentRow
+                  key={cls.id}
+                  cls={cls}
+                  classes={classes}
+                  defeated={defeated}
+                  disabled={!connected}
+                  onChallenge={playSolo}
+                />
+              ))}
+            </ul>
+          </details>
+        )}
 
         <div className="mt-7 flex items-center gap-3 font-mono text-[9.5px] uppercase tracking-label text-muted">
           <span className="h-px flex-1 bg-rule" />

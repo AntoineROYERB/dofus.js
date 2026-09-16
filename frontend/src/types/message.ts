@@ -123,6 +123,34 @@ export type LogEntry = {
 
 export type SpellBook = { [spellId: string]: Spell };
 
+/**
+ * A playable class, as loaded by the server from config/classes.json. Like
+ * spells, the client keeps no copy: it fetches them from /api/classes. The
+ * palette is hex for the same reason a spell's colour is.
+ */
+export type CharacterClass = {
+  id: string;
+  name: string;
+  element: string;
+  symbol: string;
+  palette: { primary: string; secondary: string };
+  lore: string;
+  health: number;
+  actionPoints: number;
+  movementPoints: number;
+  /** Spell ids, in bar order. */
+  spells: string[];
+  /** Who stands for this class in solo play: a challenge line, a defeat line. */
+  opponent: { name: string; lines: string[] };
+  /** The class whose opponent has to be beaten first; empty when open. */
+  unlockedBy: string;
+};
+
+export type ContentResponse = {
+  classes: CharacterClass[];
+  spells: SpellBook;
+};
+
 export interface GameState {
   type: "game_state";
   players: { [userId: string]: Player };

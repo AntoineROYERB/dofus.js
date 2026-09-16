@@ -18,9 +18,13 @@ type Position struct {
 // shared between two separate state maps, which is what let the old
 // PlayerManager and GameManager stay accidentally in sync.
 type Character struct {
-	Name           string    `json:"name"`
-	Color          string    `json:"color"`
-	Symbol         string    `json:"symbol"`
+	Name   string `json:"name"`
+	Color  string `json:"color"`
+	Symbol string `json:"symbol"`
+	// Class is the id of the class this character was built from, which is
+	// what decides its starting stats and its spell bar. Empty only for a
+	// character a test seats by hand.
+	Class          string    `json:"class"`
 	Position       *Position `json:"position"`
 	ActionPoints   int       `json:"actionPoints"`
 	MovementPoints int       `json:"movementPoints"`
@@ -74,8 +78,12 @@ type Player struct {
 	// still play a whole match.
 	IsBot bool `json:"isBot"`
 	// Spells tracks per-spell usage, keyed the same way as the catalogue, so
-	// the client can grey out what cannot be cast right now.
+	// the client can grey out what cannot be cast right now. A spell missing
+	// from it is not on this player's bar, and casting it is refused.
 	Spells map[string]SpellState `json:"spells"`
+	// SpellBar is the order this player's spells sit in on the bar, which is
+	// the order the number keys select them in. Always an array.
+	SpellBar []string `json:"spellBar"`
 }
 
 // SpellState is one spell's availability for one player.
@@ -175,6 +183,46 @@ type SpellEffect struct {
 	// OnSelf applies the effect to the caster instead of to what it hit, which
 	// is how a spell buffs or shields its own caster.
 	OnSelf bool `json:"onSelf"`
+}
+
+// Class is one playable archetype: the numbers a character starts with, the
+// spells on its bar, and the opponent that stands for it in solo play. Classes
+// are content, loaded from config/classes.json, not code.
+type Class struct {
+	ID      string `json:"id"`
+	Name    string `json:"name"`
+	Element string `json:"element"`
+	// Symbol is a short glyph shown beside the class name in the picker.
+	Symbol  string       `json:"symbol"`
+	Palette ClassPalette `json:"palette"`
+	Lore    string       `json:"lore"`
+
+	Health         int `json:"health"`
+	ActionPoints   int `json:"actionPoints"`
+	MovementPoints int `json:"movementPoints"`
+
+	// Spells are catalogue ids, in bar order.
+	Spells   []string      `json:"spells"`
+	Opponent ClassOpponent `json:"opponent"`
+	// UnlockedBy names the class whose opponent has to be beaten in solo play
+	// before this one's can be challenged. Empty means open from the start.
+	UnlockedBy string `json:"unlockedBy"`
+}
+
+// ClassPalette is hex, never CSS class names, for the same reason as a
+// spell's colour: the client's Tailwind build would purge names it only
+// learns about at runtime. Primary also dyes the class's computer opponent,
+// so like a player's colour it should stay clear of the board's vermilion.
+type ClassPalette struct {
+	Primary   string `json:"primary"`
+	Secondary string `json:"secondary"`
+}
+
+// ClassOpponent is the named computer player a class is embodied by in solo
+// mode: one line when the challenge is offered, one when it is beaten.
+type ClassOpponent struct {
+	Name  string   `json:"name"`
+	Lines []string `json:"lines"`
 }
 
 // RoomSummary is one line in the lobby list.

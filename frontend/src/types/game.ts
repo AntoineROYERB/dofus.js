@@ -9,6 +9,8 @@ export type Character = {
   name: string;
   color: string;
   symbol: string;
+  /** The class id this character was built from; empty on old recordings. */
+  class?: string;
   position?: Position;
   actionPoints: number;
   movementPoints: number;
@@ -39,6 +41,8 @@ export interface Player {
   isBot: boolean;
   /** Per-spell availability, keyed like the catalogue. */
   spells: { [spellId: string]: SpellState } | null;
+  /** This player's spell ids in bar order, which number keys follow. */
+  spellBar?: string[] | null;
 }
 
 /**
@@ -49,6 +53,8 @@ export type CharacterAppearance = {
   name: string;
   color: string;
   symbol: string;
+  /** A class id. Left out, the server deals the first class. */
+  class?: string;
 };
 
 /**
@@ -90,6 +96,8 @@ export interface CreateRoomAction extends ActionEnvelope {
   name: string;
   /** Open the room with a server-played opponent already in it. */
   withBot?: boolean;
+  /** Which class's opponent the computer plays. */
+  botClass?: string;
 }
 
 export interface JoinRoomAction extends ActionEnvelope {

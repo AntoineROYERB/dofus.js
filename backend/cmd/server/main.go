@@ -17,6 +17,7 @@ import (
 	"game-server/internal/auth"
 	authpostgres "game-server/internal/auth/postgres"
 	"game-server/internal/config"
+	"game-server/internal/content"
 	"game-server/internal/game"
 	"game-server/internal/metrics"
 	"game-server/internal/store"
@@ -36,6 +37,16 @@ func main() {
 	slog.SetDefault(logger)
 	game.ApplyBalance(cfg.Balance)
 
+	// Content is checked before anything listens: a typo in a spell should
+	// stop the deploy, not the first match that casts it.
+	catalogue, err := content.Load(cfg.SpellsFile, cfg.ClassesFile, cfg.Balance, game.ContentBounds())
+	if err != nil {
+		slog.Error("invalid game content, refusing to start", "component", "content", "error", err)
+		os.Exit(1)
+	}
+	game.ApplyContent(catalogue)
+	slog.Info("content loaded", "component", "content", "spells", len(catalogue.Spells), "classes", len(catalogue.Classes))
+
 	matches, err := openStore(cfg.DatabaseURL)
 	if err != nil {
 		slog.Error("failed to open store", "component", "store", "error", err)
@@ -54,6 +65,7 @@ func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/ws", hub.HandleWebSocket)
 	api.RegisterMatchRoutes(mux, matches)
+	api.RegisterContentRoutes(mux, catalogue)
 	if cfg.GoogleOAuthConfigured() {
 		authSvc := auth.New(auth.Config{
 			ClientID:     cfg.GoogleClientID,

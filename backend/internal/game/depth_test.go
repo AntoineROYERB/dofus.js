@@ -315,7 +315,7 @@ func TestPointsNeverGoNegative(t *testing.T) {
 		{Kind: types.EffectAP, Value: -99},
 		{Kind: types.EffectMP, Value: -99},
 	}}
-	ap, mp := turnPoints(c)
+	ap, mp := turnPoints(c, StartingActionPoints, StartingMovementPoints)
 	if ap != 0 || mp != 0 {
 		t.Errorf("points = %d AP / %d MP, want 0 and 0", ap, mp)
 	}

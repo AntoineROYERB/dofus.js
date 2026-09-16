@@ -32,6 +32,12 @@ type Config struct {
 	// Balance is what BalanceFile resolved to — loaded once, here, rather
 	// than wherever a room happens to be created.
 	Balance Balance
+	// SpellsFile and ClassesFile hold the game's content: every spell, and
+	// every class with its stats, spell bar and solo opponent. Unlike the
+	// balance file there is no fallback — a missing or invalid file stops the
+	// server at startup (see internal/content).
+	SpellsFile  string
+	ClassesFile string
 	// DatabaseURL, when set, switches match persistence from the in-memory
 	// store to Postgres. Empty means no database: the game must run
 	// without one, so this is a deliberate default, not a missing
@@ -77,6 +83,8 @@ func Load() Config {
 		TurnDuration:   time.Duration(envInt("TURN_SECONDS", 45)) * time.Second,
 		StaticDir:      envString("STATIC_DIR", ""),
 		BalanceFile:    envString("BALANCE_FILE", "config/balance.json"),
+		SpellsFile:     envString("SPELLS_FILE", "config/spells.json"),
+		ClassesFile:    envString("CLASSES_FILE", "config/classes.json"),
 		DatabaseURL:    envString("DATABASE_URL", ""),
 		LogFormat:      envString("LOG_FORMAT", "json"),
 		LogLevel:       envString("LOG_LEVEL", "info"),
