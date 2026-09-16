@@ -113,6 +113,8 @@ export const Grid: React.FC<GridProps> = ({
     return blockedBy(obstacles, occupied);
   }, [players, obstacles]);
 
+  const powerOrb = latestGameState?.powerOrb;
+
   const obstacleSet = React.useMemo(
     () => new Set(obstacles.map((o) => `${o.x},${o.y}`)),
     [obstacles]
@@ -355,6 +357,7 @@ export const Grid: React.FC<GridProps> = ({
               isInSpellRange={isInCastRange}
               canCastAtHovered={hoveredCastable}
               isObstacle={isObstacle}
+              hasPowerOrb={powerOrb?.x === x && powerOrb?.y === y}
               isInRange={isInRange}
               showMovementWash={showMovementWash}
               movementCost={walkable.get(`${x},${y}`)}

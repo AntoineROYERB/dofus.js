@@ -64,7 +64,10 @@ type Game struct {
 	catalogue content.Catalogue
 	spells    map[string]types.Spell
 	obstacles map[types.Position]bool
-	log       []types.LogEntry
+	// powerOrb is where the power orb sits, nil until it appears and again
+	// once somebody has claimed it.
+	powerOrb *types.Position
+	log      []types.LogEntry
 	// logSeq numbers log entries so a client can recognise the ones it has
 	// already played. It is never reset while the game object lives, so a
 	// rematch cannot hand out a sequence number twice.
@@ -246,6 +249,12 @@ func (g *Game) snapshotLocked() types.GameState {
 		return obstacles[i].Y < obstacles[j].Y
 	})
 
+	var powerOrb *types.Position
+	if g.powerOrb != nil {
+		at := *g.powerOrb
+		powerOrb = &at
+	}
+
 	return types.GameState{
 		MessageType: "game_state",
 		Players:     players,
@@ -256,6 +265,7 @@ func (g *Game) snapshotLocked() types.GameState {
 		TurnEndsAt:  turnEndsAt,
 		Log:         log,
 		Obstacles:   obstacles,
+		PowerOrb:    powerOrb,
 	}
 }
 
@@ -472,6 +482,7 @@ func (g *Game) returnToLobbyLocked() {
 	g.turnEndsAt = time.Time{}
 	g.log = nil
 	g.obstacles = nil
+	g.powerOrb = nil
 
 	// A rematch between two players who are both still here goes straight back
 	// to choosing cells. Only a room that has dropped below a duel waits, and
@@ -724,6 +735,7 @@ func (g *Game) Move(userID string, to types.Position) error {
 	dest := to
 	p.Character.Position = &dest
 	g.players[userID] = p
+	g.claimPowerOrbLocked(userID)
 	return nil
 }
 
@@ -775,6 +787,11 @@ func (g *Game) CastSpell(userID string, spellID int, target types.Position) erro
 	damage, crit := spell.Damage, false
 	if spell.CriticalChance > 0 && g.rng.Intn(100) < spell.CriticalChance {
 		damage, crit = spell.CriticalDamage, true
+	}
+	// Power only sharpens a spell that hurts; it does not turn a heal or a
+	// buff into an attack.
+	if damage > 0 {
+		damage += effectTotal(caster.Character, types.EffectPower)
 	}
 
 	caster.Character.ActionPoints -= spell.APCost
@@ -924,6 +941,9 @@ func (g *Game) advanceTurnLocked() {
 		// whether or not the player at that index is the one who ends up acting.
 		if idx == 0 {
 			g.turnNumber++
+			if g.turnNumber == PowerOrbTurn {
+				g.spawnPowerOrbLocked()
+			}
 		}
 		p, ok := g.players[g.turnOrder[idx]]
 		if !ok || !p.Character.IsAlive {

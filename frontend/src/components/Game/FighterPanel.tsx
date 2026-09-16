@@ -124,7 +124,9 @@ export const FighterPanel: React.FC<FighterPanelProps> = ({
 
       <div className="mt-auto hidden min-h-[22px] items-center gap-2 border-t border-hairline pt-1.5 text-[11.5px] text-graphite sm:flex short:hidden">
         {character.effects && character.effects.length > 0 ? (
-          <EffectBadges effects={character.effects} />
+          <div className="min-w-0 overflow-x-auto">
+            <EffectBadges effects={character.effects} nowrap />
+          </div>
         ) : (
           <span className="text-muted">No effect running</span>
         )}

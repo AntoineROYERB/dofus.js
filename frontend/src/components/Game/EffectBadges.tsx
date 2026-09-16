@@ -3,6 +3,11 @@ import { Effect, EffectKind } from "../../types/message";
 
 interface EffectBadgesProps {
   effects: Effect[] | null | undefined;
+  /**
+   * Keep every badge on one line. For a fixed-height panel, where a second
+   * row would push the fighter's name out of the top of the box.
+   */
+  nowrap?: boolean;
 }
 
 export const effectLook: Record<EffectKind, { icon: string; label: string }> = {
@@ -11,6 +16,7 @@ export const effectLook: Record<EffectKind, { icon: string; label: string }> = {
   shield: { icon: "◈", label: "shield" },
   ap: { icon: "★", label: "AP" },
   mp: { icon: "◆", label: "MP" },
+  power: { icon: "✦", label: "power" },
 };
 
 const describe = (effect: Effect): string => {
@@ -22,6 +28,8 @@ const describe = (effect: Effect): string => {
       return `${effect.source}: heals ${effect.value} a turn, ${turns} left`;
     case "shield":
       return `${effect.source}: soaks ${effect.value} per hit, ${turns} left`;
+    case "power":
+      return `${effect.source}: +${effect.value} damage on every hit, ${turns} left`;
     default:
       return `${effect.source}: ${effect.value > 0 ? "+" : ""}${effect.value} ${
         effectLook[effect.kind].label
@@ -35,11 +43,11 @@ const describe = (effect: Effect): string => {
  * set in the label face, in graphite, because they are a state and not an
  * alarm — the one colour on this screen is spent elsewhere.
  */
-export const EffectBadges: React.FC<EffectBadgesProps> = ({ effects }) => {
+export const EffectBadges: React.FC<EffectBadgesProps> = ({ effects, nowrap }) => {
   if (!effects || effects.length === 0) return null;
 
   return (
-    <span className="inline-flex flex-wrap items-center gap-1">
+    <span className={`inline-flex items-center gap-1 ${nowrap ? "flex-nowrap" : "flex-wrap"}`}>
       {effects.map((effect, i) => (
         <span
           key={`${effect.kind}-${effect.source}-${i}`}

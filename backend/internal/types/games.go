@@ -63,6 +63,7 @@ const (
 	EffectAP     = "ap"     // action points added (or removed, when negative)
 	EffectMP     = "mp"     // movement points added or removed
 	EffectShield = "shield" // flat damage soaked from each hit
+	EffectPower  = "power"  // flat damage added to each hit the bearer lands
 )
 
 type Player struct {
@@ -110,6 +111,9 @@ type GameState struct {
 	Log []LogEntry `json:"log"`
 	// Obstacles are cells nobody can stand on and nothing can be seen through.
 	Obstacles []Position `json:"obstacles"`
+	// PowerOrb is the cell the power orb waits on, or null when there is none
+	// on the board — not yet appeared, or already claimed.
+	PowerOrb *Position `json:"powerOrb"`
 }
 
 // LogEntry is one line of the combat log. The client renders these; without
@@ -148,6 +152,7 @@ const (
 	LogTurn   = "turn"
 	LogEnd    = "end"
 	LogEffect = "effect"
+	LogOrb    = "orb"
 )
 
 // Spell is the single source of truth for the spell catalogue: the client no
