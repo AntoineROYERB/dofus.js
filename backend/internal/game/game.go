@@ -64,7 +64,15 @@ type Game struct {
 	catalogue content.Catalogue
 	spells    map[string]types.Spell
 	obstacles map[types.Position]bool
-	log       []types.LogEntry
+	// terrain is what spells have left on the board, one kind per cell.
+	terrain map[types.Position]types.TerrainCell
+	// zones are the areas ultimates keep acting on.
+	zones []types.Zone
+	log   []types.LogEntry
+	// While a cast resolves, what it sets off is held back in deferred so the
+	// cast's own line can be written first.
+	deferLog bool
+	deferred []types.LogEntry
 	// logSeq numbers log entries so a client can recognise the ones it has
 	// already played. It is never reset while the game object lives, so a
 	// rematch cannot hand out a sequence number twice.
@@ -256,6 +264,8 @@ func (g *Game) snapshotLocked() types.GameState {
 		TurnEndsAt:  turnEndsAt,
 		Log:         log,
 		Obstacles:   obstacles,
+		Terrain:     g.terrainSnapshotLocked(),
+		Zones:       g.zonesSnapshotLocked(),
 	}
 }
 
@@ -472,6 +482,8 @@ func (g *Game) returnToLobbyLocked() {
 	g.turnEndsAt = time.Time{}
 	g.log = nil
 	g.obstacles = nil
+	g.terrain = nil
+	g.zones = nil
 
 	// A rematch between two players who are both still here goes straight back
 	// to choosing cells. Only a room that has dropped below a duel waits, and
@@ -490,6 +502,10 @@ func freshSpellState(bar []string) map[string]types.SpellState {
 
 // appendLogLocked records one line of combat history, keeping the tail.
 func (g *Game) appendLogLocked(entry types.LogEntry) {
+	if g.deferLog {
+		g.deferred = append(g.deferred, entry)
+		return
+	}
 	entry.Turn = g.turnNumber
 	g.logSeq++
 	entry.Seq = g.logSeq
@@ -499,19 +515,27 @@ func (g *Game) appendLogLocked(entry types.LogEntry) {
 	}
 }
 
-// startTurnForLocked refreshes what a new turn restores: points, the per-turn
-// cast counters, and one tick off every cooldown.
-// startTurnForLocked resolves everything a turn beginning brings: effects tick
-// first (they can kill), then points are set from what is left of the buffs
-// and debuffs, then the spell counters roll over. It reports whether the
-// character survived its own effects.
+// startTurnForLocked resolves everything a turn beginning brings, in order:
+// the character's own zones age, enemy zones and the ground it stands on act,
+// its effects tick (any of these can kill), then its points are set from what
+// is left of its buffs and debuffs, its effects age, and its spell counters
+// roll over. It reports whether the character survived all of that.
 func (g *Game) startTurnForLocked(userID string) (alive bool) {
-	p, ok := g.players[userID]
-	if !ok {
+	if _, ok := g.players[userID]; !ok {
 		return false
 	}
+	before := g.aliveLocked()
 
-	damage, healing := tickEffects(&p.Character)
+	g.ageZonesLocked(userID)
+	g.zonesActOnLocked(userID)
+	slowed := g.terrainAtTurnStartLocked(userID)
+
+	p := g.players[userID]
+	damage, healing := 0, 0
+	if p.Character.IsAlive {
+		damage, healing = tickEffects(&p.Character)
+		g.players[userID] = p
+	}
 	if damage > 0 {
 		g.appendLogLocked(types.LogEntry{
 			Actor: p.Character.Name, Kind: types.LogEffect,
@@ -525,14 +549,15 @@ func (g *Game) startTurnForLocked(userID string) (alive bool) {
 		})
 	}
 	if !p.Character.IsAlive {
-		g.players[userID] = p
-		g.appendLogLocked(types.LogEntry{
-			Actor: p.Character.Name, Kind: types.LogDeath, Text: "is out of the fight",
-		})
+		g.logDeathsSinceLocked(before)
 		return false
 	}
 
 	p.Character.ActionPoints, p.Character.MovementPoints = g.turnPoints(p.Character)
+	if slowed && p.Character.MovementPoints > 0 {
+		p.Character.MovementPoints = max(0, p.Character.MovementPoints-WaterSlow)
+	}
+	ageEffects(&p.Character)
 
 	spells := make(map[string]types.SpellState, len(p.Spells))
 	for id := range p.Spells {
@@ -700,7 +725,7 @@ func (g *Game) Move(userID string, to types.Position) error {
 	if *p.Character.Position == to {
 		return ErrSameCell
 	}
-	if g.obstacles[to] {
+	if g.solidLocked(to) {
 		return ErrBlocked
 	}
 	if _, taken := g.playerAtLocked(to); taken {
@@ -714,165 +739,48 @@ func (g *Game) Move(userID string, to types.Position) error {
 	if path == nil {
 		return ErrNoRoute
 	}
-	if cost := len(path); cost > p.Character.MovementPoints {
+	if len(path) > p.Character.MovementPoints {
 		return ErrNotEnoughMP
-	} else {
-		p.Character.MovementPoints -= cost
 	}
 	g.recordLocked(userID, CmdMove, movePayload{Position: to})
 
-	dest := to
-	p.Character.Position = &dest
+	// The walk is taken a cell at a time, because the ground can stop it: a
+	// trap holds its victim where it is, and ice carries them past where they
+	// meant to go. Only the steps actually walked are paid for.
+	before := g.aliveLocked()
+	walked := 0
+	for _, step := range path {
+		from := *g.players[userID].Character.Position
+		g.setPositionLocked(userID, step)
+		walked++
+		if g.enterCellLocked(userID) {
+			break
+		}
+		if g.slideLocked(userID, types.Position{X: step.X - from.X, Y: step.Y - from.Y}) > 0 {
+			break
+		}
+	}
+	p = g.players[userID]
+	p.Character.MovementPoints = max(0, p.Character.MovementPoints-walked)
+	if hasEffect(p.Character, types.EffectRoot) {
+		p.Character.MovementPoints = 0
+	}
 	g.players[userID] = p
-	return nil
-}
 
-// CastSpell charges action points and applies damage to every living
-// character standing in the resulting area.
-func (g *Game) CastSpell(userID string, spellID int, target types.Position) error {
-	g.mu.Lock()
-	defer g.mu.Unlock()
-
-	caster, err := g.requireActingPlayerLocked(userID)
-	if err != nil {
-		return err
-	}
-	key := strconv.Itoa(spellID)
-	spell, ok := g.spells[key]
-	if !ok {
-		return ErrUnknownSpell
-	}
-	if !InGrid(target) {
-		return ErrOffGrid
-	}
-	origin := *caster.Character.Position
-	if Distance(origin, target) > spell.Range {
-		return ErrOutOfRange
-	}
-	// The catalogue holds every class's spells; a caster may only use the ones
-	// on their own bar.
-	state, onBar := caster.Spells[key]
-	if !onBar {
-		return ErrSpellNotOnBar
-	}
-	if caster.Character.ActionPoints < spell.APCost {
-		return ErrNotEnoughAP
-	}
-
-	if state.CooldownLeft > 0 {
-		return ErrSpellOnCooldown
-	}
-	if spell.MaxCastsPerTurn > 0 && state.CastsThisTurn >= spell.MaxCastsPerTurn {
-		return ErrTooManyCasts
-	}
-	if spell.NeedsLineOfSight && !HasLineOfSight(origin, target, g.blocksSightLocked) {
-		return ErrNoLineOfSight
-	}
-	g.recordLocked(userID, CmdCast, castPayload{SpellID: spellID, Target: target})
-
-	// A critical replaces the damage outright rather than adding to it, which
-	// is how the numbers in the catalogue were always written.
-	damage, crit := spell.Damage, false
-	if spell.CriticalChance > 0 && g.rng.Intn(100) < spell.CriticalChance {
-		damage, crit = spell.CriticalDamage, true
-	}
-
-	caster.Character.ActionPoints -= spell.APCost
-	state.CastsThisTurn++
-	state.CooldownLeft = spell.Cooldown
-	caster.Spells[key] = state
-	g.players[userID] = caster
-
-	hits, dealt, killed := 0, 0, []string{}
-	effectApplied := false
-	for _, cell := range AffectedPositions(spell, target, origin) {
-		id, ok := g.playerAtLocked(cell)
-		if !ok {
-			continue
-		}
-		hit := g.players[id]
-		if !hit.Character.IsAlive {
-			continue
-		}
-
-		through := absorb(hit.Character, damage)
-		hit.Character.Health -= through
-		hits++
-		dealt += through
-		if hit.Character.Health <= 0 {
-			hit.Character.Health = 0
-			hit.Character.IsAlive = false
-			killed = append(killed, hit.Character.Name)
-		}
-		if spell.Effect != nil && !spell.Effect.OnSelf && hit.Character.IsAlive {
-			applyEffect(&hit.Character, types.Effect{
-				Kind:      spell.Effect.Kind,
-				Value:     spell.Effect.Value,
-				TurnsLeft: spell.Effect.Duration,
-				Source:    spell.Name,
-			})
-			effectApplied = true
-		}
-		g.players[id] = hit
-	}
-
-	if spell.Effect != nil && spell.Effect.OnSelf {
-		self := g.players[userID]
-		applyEffect(&self.Character, types.Effect{
-			Kind:      spell.Effect.Kind,
-			Value:     spell.Effect.Value,
-			TurnsLeft: spell.Effect.Duration,
-			Source:    spell.Name,
-		})
-		g.players[userID] = self
-		effectApplied = true
-	}
-
-	var apChange, mpChange, shieldChange int
-	if effectApplied {
-		switch spell.Effect.Kind {
-		case types.EffectAP:
-			apChange = spell.Effect.Value
-		case types.EffectMP:
-			mpChange = spell.Effect.Value
-		case types.EffectShield:
-			shieldChange = spell.Effect.Value
-		}
-	}
-
-	castOrigin, castTarget := origin, target
-	g.appendLogLocked(types.LogEntry{
-		Actor:        caster.Character.Name,
-		Kind:         types.LogCast,
-		Text:         castSummary(spell.Name, hits, crit),
-		Damage:       dealt,
-		Crit:         crit,
-		APChange:     apChange,
-		MPChange:     mpChange,
-		ShieldChange: shieldChange,
-		SpellID:      spell.ID,
-		Origin:       &castOrigin,
-		Target:       &castTarget,
-	})
-	for _, name := range killed {
-		g.appendLogLocked(types.LogEntry{Actor: name, Kind: types.LogDeath, Text: "is out of the fight"})
-	}
-
+	g.logDeathsSinceLocked(before)
 	if g.checkGameOverLocked() {
 		return nil
 	}
-	// A caster who killed themselves in their own blast cannot end their turn,
-	// so move play along rather than deadlocking the game.
 	if !g.players[userID].Character.IsAlive {
 		g.advanceTurnLocked()
 	}
 	return nil
 }
 
-// blocksSightLocked reports whether a cell stops a line of sight: cover, or a
-// living character standing in the way.
+// blocksSightLocked reports whether a cell stops a line of sight: cover,
+// smoke, or a living character standing in the way.
 func (g *Game) blocksSightLocked(pos types.Position) bool {
-	if g.obstacles[pos] {
+	if g.obstacles[pos] || g.terrainKindLocked(pos) == types.TerrainSmoke {
 		return true
 	}
 	id, ok := g.playerAtLocked(pos)
@@ -881,7 +789,7 @@ func (g *Game) blocksSightLocked(pos types.Position) bool {
 
 // blocksMovementLocked reports whether a cell cannot be walked through.
 func (g *Game) blocksMovementLocked(pos types.Position) bool {
-	if g.obstacles[pos] {
+	if g.solidLocked(pos) {
 		return true
 	}
 	_, taken := g.playerAtLocked(pos)

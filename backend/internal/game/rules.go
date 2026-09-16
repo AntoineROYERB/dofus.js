@@ -83,10 +83,14 @@ func Rotate(p types.Position, direction string) types.Position {
 func AreaPattern(areaOfEffect string) (pattern []types.Position, rotates bool) {
 	switch areaOfEffect {
 	case types.AoECircle:
-		// The targeted cell is part of the blast. It used to be missing, so a
-		// fireball aimed straight at an enemy did nothing to them.
+		// Every cell within two steps. The targeted cell is part of the blast —
+		// it used to be missing, so a fireball aimed straight at an enemy did
+		// nothing to them — and so are the four right next to it, which were
+		// missing too until an earthquake failed to touch someone standing
+		// against its caster.
 		return []types.Position{
 			{X: 0, Y: 0},
+			{X: 1, Y: 0}, {X: 0, Y: 1}, {X: -1, Y: 0}, {X: 0, Y: -1},
 			{X: 2, Y: 0}, {X: 1, Y: 1}, {X: 0, Y: 2}, {X: -1, Y: 1},
 			{X: -2, Y: 0}, {X: 1, Y: -1}, {X: 0, Y: -2}, {X: -1, Y: -1},
 		}, false

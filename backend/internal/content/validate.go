@@ -21,7 +21,32 @@ var knownAreas = map[string]bool{
 
 var knownEffects = map[string]bool{
 	types.EffectPoison: true, types.EffectRegen: true, types.EffectAP: true,
-	types.EffectMP: true, types.EffectShield: true,
+	types.EffectMP: true, types.EffectShield: true, types.EffectBurn: true,
+	types.EffectRoot: true,
+}
+
+var knownTargeting = map[string]bool{
+	types.TargetAny: true, types.TargetSelf: true, types.TargetEmpty: true,
+}
+
+// Terrain a spell may leave. Craters and fissures are dug by specials, never
+// spread over an area, so they are not in here.
+var knownTerrain = map[string]bool{
+	types.TerrainFire: true, types.TerrainSmoke: true, types.TerrainWater: true,
+	types.TerrainIce: true, types.TerrainTrap: true,
+}
+
+var knownZones = map[string]bool{types.ZoneStorm: true, types.ZoneMaelstrom: true}
+
+var knownSpecials = map[string]bool{
+	types.SpecialDetonate: true, types.SpecialLeap: true, types.SpecialRelay: true,
+	types.SpecialPillar: true, types.SpecialCrater: true, types.SpecialQuake: true,
+}
+
+// Specials that act on the cell they are aimed at, which therefore has to be
+// free.
+var specialsNeedingAnEmptyCell = map[string]bool{
+	types.SpecialLeap: true, types.SpecialRelay: true, types.SpecialPillar: true,
 }
 
 var (
@@ -112,8 +137,15 @@ func (v *validator) spells(file string, sf spellsFile, bounds Bounds) map[string
 		if s.Effect != nil {
 			v.effect(file, fmt.Sprintf("spells[%q].effect", key), *s.Effect)
 		}
-		if s.Damage == 0 && s.Effect == nil {
-			v.add(file, fmt.Sprintf("spells[%q]", key), "does no damage and has no effect")
+		v.mechanics(file, key, s, bounds)
+		if s.Damage == 0 && s.Effect == nil && s.Terrain == "" && s.Zone == nil &&
+			s.Push == 0 && s.GrantMP == 0 && s.Special == "" {
+			v.add(file, fmt.Sprintf("spells[%q]", key), "does nothing: no damage, effect, terrain, zone, push, points or special")
+		}
+
+		targeting := s.Targeting
+		if targeting == "" {
+			targeting = types.TargetAny
 		}
 
 		spells[key] = types.Spell{
@@ -133,9 +165,78 @@ func (v *validator) spells(file string, sf spellsFile, bounds Bounds) map[string
 			CriticalChance:   s.CriticalChance,
 			CriticalDamage:   s.CriticalDamage,
 			Effect:           s.Effect,
+			Role:             s.Role,
+			Ultimate:         s.Ultimate,
+			Targeting:        targeting,
+			Push:             s.Push,
+			Terrain:          s.Terrain,
+			Zone:             s.Zone,
+			GrantMP:          s.GrantMP,
+			Special:          s.Special,
+			Relayed:          s.Relayed,
+			Conducts:         s.Conducts,
 		}
 	}
 	return spells
+}
+
+// mechanics checks the fields that give a spell its behaviour beyond damage.
+func (v *validator) mechanics(file, key string, s spellEntry, bounds Bounds) {
+	field := func(name string) string { return fmt.Sprintf("spells[%q].%s", key, name) }
+
+	if strings.TrimSpace(s.Role) == "" {
+		v.add(file, field("role"), "must not be empty: the bar shows it under the spell")
+	}
+	if s.Targeting != "" && !knownTargeting[s.Targeting] {
+		v.add(file, field("targeting"), "unknown targeting %q (known: %s)", s.Targeting, knownList(knownTargeting))
+	}
+	switch s.Targeting {
+	case types.TargetSelf:
+		if s.Range != 0 {
+			v.add(file, field("range"), "is %d on a spell cast on its caster, must be 0", s.Range)
+		}
+		if s.Push != 0 {
+			v.add(file, field("push"), "a spell cast on its caster has nowhere to push from")
+		}
+	case types.TargetEmpty:
+		if s.Range < 1 {
+			v.add(file, field("range"), "is %d on a spell aimed at a free cell, must be at least 1", s.Range)
+		}
+	}
+	if s.Special != "" && !knownSpecials[s.Special] {
+		v.add(file, field("special"), "unknown special %q (known: %s)", s.Special, knownList(knownSpecials))
+	}
+	if specialsNeedingAnEmptyCell[s.Special] && s.Targeting != types.TargetEmpty {
+		v.add(file, field("targeting"), "the %s special acts on the cell it is aimed at, so targeting must be %q", s.Special, types.TargetEmpty)
+	}
+	if s.Special == types.SpecialQuake && s.Targeting != types.TargetSelf {
+		v.add(file, field("targeting"), "the quake special opens fissures around its caster, so targeting must be %q", types.TargetSelf)
+	}
+	if s.Terrain != "" && !knownTerrain[s.Terrain] {
+		v.add(file, field("terrain"), "unknown terrain %q (known: %s)", s.Terrain, knownList(knownTerrain))
+	}
+	if s.Push < -bounds.MaxRange || s.Push > bounds.MaxRange {
+		v.add(file, field("push"), "is %d, must be between %d and %d", s.Push, -bounds.MaxRange, bounds.MaxRange)
+	}
+	if s.GrantMP < 0 {
+		v.add(file, field("grantMP"), "is %d, must not be negative", s.GrantMP)
+	}
+	if s.Zone != nil {
+		if !knownZones[s.Zone.Kind] {
+			v.add(file, field("zone.kind"), "unknown zone %q (known: %s)", s.Zone.Kind, knownList(knownZones))
+		}
+		if s.Zone.Duration < 1 {
+			v.add(file, field("zone.duration"), "is %d, must be at least 1 turn", s.Zone.Duration)
+		}
+	}
+	if s.Ultimate {
+		if s.Cooldown != 0 {
+			v.add(file, field("cooldown"), "is %d on an ultimate, which is cast once a fight anyway; leave it at 0", s.Cooldown)
+		}
+		if s.MaxCastsPerTurn != 1 {
+			v.add(file, field("maxCastsPerTurn"), "is %d on an ultimate, set it to 1", s.MaxCastsPerTurn)
+		}
+	}
 }
 
 func (v *validator) effect(file, field string, e types.SpellEffect) {
@@ -147,7 +248,11 @@ func (v *validator) effect(file, field string, e types.SpellEffect) {
 		v.add(file, field+".duration", "is %d, must be at least 1 turn", e.Duration)
 	}
 	switch e.Kind {
-	case types.EffectPoison, types.EffectRegen, types.EffectShield:
+	case types.EffectRoot:
+		if e.OnSelf {
+			v.add(file, field+".onSelf", "a root on its own caster only ever hurts them")
+		}
+	case types.EffectPoison, types.EffectRegen, types.EffectShield, types.EffectBurn:
 		if e.Value <= 0 {
 			v.add(file, field+".value", "is %d, a %s effect must be positive", e.Value, e.Kind)
 		}
@@ -189,6 +294,12 @@ func (v *validator) classes(file string, cf classesFile, spells map[string]types
 		if strings.TrimSpace(c.Lore) == "" {
 			v.add(file, field("lore"), "must not be empty")
 		}
+		if strings.TrimSpace(c.Passive) == "" {
+			v.add(file, field("passive"), "must not be empty: the picker shows it")
+		}
+		if c.MeleeBonus < 0 || c.MeleeBonus > 200 {
+			v.add(file, field("meleeBonus"), "is %d, must be a percentage between 0 and 200", c.MeleeBonus)
+		}
 		if !knownElements[c.Element] {
 			v.add(file, field("element"), "unknown element %q (known: %s)", c.Element, knownList(knownElements))
 		}
@@ -214,6 +325,7 @@ func (v *validator) classes(file string, cf classesFile, spells map[string]types
 		if len(c.Spells) == 0 || len(c.Spells) > BarSlots {
 			v.add(file, field("spells"), "has %d spells, the bar holds 1 to %d", len(c.Spells), BarSlots)
 		}
+		ultimates := 0
 		onBar := make(map[string]bool, len(c.Spells))
 		for j, id := range c.Spells {
 			spellField := fmt.Sprintf("classes[%d].spells[%d]", i, j)
@@ -230,6 +342,12 @@ func (v *validator) classes(file string, cf classesFile, spells map[string]types
 			if spell.APCost > actionPoints {
 				v.add(file, spellField, "%s costs %d AP, more than the class's %d", spell.Name, spell.APCost, actionPoints)
 			}
+			if spell.Ultimate {
+				ultimates++
+			}
+		}
+		if ultimates > 1 {
+			v.add(file, field("spells"), "has %d ultimates, a class gets at most one", ultimates)
 		}
 
 		if strings.TrimSpace(c.Opponent.Name) == "" {
@@ -259,6 +377,8 @@ func (v *validator) classes(file string, cf classesFile, spells map[string]types
 			Symbol:         c.Symbol,
 			Palette:        c.Palette,
 			Lore:           c.Lore,
+			Passive:        c.Passive,
+			MeleeBonus:     c.MeleeBonus,
 			Health:         health,
 			ActionPoints:   actionPoints,
 			MovementPoints: movementPoints,
