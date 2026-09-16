@@ -3,6 +3,7 @@ import { Player } from "../../types/game";
 import { Spell, SpellBook, SpellState } from "../../types/message";
 import { SpellGlyph } from "./SpellGlyph";
 import { SpellTooltip } from "./SpellTooltip";
+import { barSpells } from "../../utils/classUtils";
 
 interface SpellBarProps {
   handleSpellClick: (spellId: number) => void;
@@ -138,9 +139,11 @@ const SpellBar: React.FC<SpellBarProps> = ({
   currentPlayer,
   spells,
 }) => {
+  // The player's own bar, in its own order: the catalogue carries every
+  // class's spells, and a class may carry fewer than there are slots.
   const catalogue = React.useMemo(
-    () => Object.values(spells ?? {}).sort((a, b) => a.id - b.id),
-    [spells]
+    () => barSpells(currentPlayer, spells),
+    [currentPlayer, spells]
   );
 
   const actionPoints = currentPlayer?.character?.actionPoints ?? 0;
@@ -178,7 +181,7 @@ const SpellBar: React.FC<SpellBarProps> = ({
           <SpellSlot
             key={spell.id}
             spell={spell}
-            // The number key that selects this slot, in catalogue order.
+            // The number key that selects this slot, in bar order.
             shortcut={index + 1}
             state={currentPlayer?.spells?.[String(spell.id)]}
             actionPoints={actionPoints}

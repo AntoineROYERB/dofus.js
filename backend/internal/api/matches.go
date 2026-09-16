@@ -1,4 +1,5 @@
-// Package api is the read-only HTTP API for finished matches: history and
+// Package api is the read-only HTTP API: the game content a client needs
+// before it joins a room, and finished matches — history and
 // the recordings a replay view steps through. It sits beside /ws in
 // cmd/server/main.go rather than inside the websocket package, because
 // unlike everything else the hub serves, a match that already finished has

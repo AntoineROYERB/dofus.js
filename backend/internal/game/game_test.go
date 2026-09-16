@@ -29,7 +29,7 @@ func playingGame(t *testing.T, placement map[string]types.Position, order ...str
 			UserID:    id,
 			UserName:  "User-" + id,
 			Connected: true,
-			Spells:    g.freshSpellStateLocked(),
+			Spells:    freshSpellState(sortedKeys(g.spells)),
 			Character: types.Character{
 				Name:           "Player" + id,
 				Color:          "#ff0000",
@@ -405,10 +405,12 @@ func TestServerOwnsCharacterStats(t *testing.T) {
 	if err := g.AddPlayer("a", "User-a", look("Alice")); err != nil {
 		t.Fatalf("AddPlayer: %v", err)
 	}
+	// No class asked for: the first one in classes.json, with its numbers.
+	class := Content().DefaultClass()
 	c := g.Snapshot().Players["a"].Character
-	if c.Health != StartingHealth || c.ActionPoints != StartingActionPoints ||
-		c.MovementPoints != StartingMovementPoints || !c.IsAlive {
-		t.Errorf("stats = %+v, want the server defaults", c)
+	if c.Class != class.ID || c.Health != class.Health || c.MaxHealth != class.Health ||
+		c.ActionPoints != class.ActionPoints || c.MovementPoints != class.MovementPoints || !c.IsAlive {
+		t.Errorf("stats = %+v, want the default class %+v", c, class)
 	}
 }
 

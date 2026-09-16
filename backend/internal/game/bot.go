@@ -3,6 +3,7 @@ package game
 import (
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	"game-server/internal/types"
@@ -65,24 +66,11 @@ func DecideBotAction(state types.GameState, botID string) BotAction {
 	// damage — Frost Nova and Drain both do 10 — and Go map order would pick a
 	// different one on each run, which is enough to make a recorded match
 	// replay into a different fight.
+	ready := readySpells(state, me)
 	best := types.Spell{}
 	bestID := 0
-	for _, key := range sortedKeys(state.Spells) {
-		spell := state.Spells[key]
-		if spell.APCost > me.Character.ActionPoints {
-			continue
-		}
-		if Distance(from, target) > spell.Range {
-			continue
-		}
-		st := me.Spells[key]
-		if st.CooldownLeft > 0 {
-			continue
-		}
-		if spell.MaxCastsPerTurn > 0 && st.CastsThisTurn >= spell.MaxCastsPerTurn {
-			continue
-		}
-		if spell.NeedsLineOfSight && !HasLineOfSight(from, target, blocked) {
+	for _, spell := range ready {
+		if !reaches(from, target, spell, blocked) {
 			continue
 		}
 		if bestID == 0 || spell.Damage > best.Damage {
@@ -93,12 +81,83 @@ func DecideBotAction(state types.GameState, botID string) BotAction {
 		return BotAction{Kind: BotCast, SpellID: bestID, Target: target}
 	}
 
-	if me.Character.MovementPoints > 0 {
-		if dest, ok := stepToward(from, target, me.Character.MovementPoints, blocked); ok {
+	if mp := me.Character.MovementPoints; mp > 0 {
+		// The bot's own cell stops being in the way the moment it leaves it.
+		walkable := func(pos types.Position) bool { return pos != from && blocked(pos) }
+		if dest, ok := stepIntoRange(from, target, mp, ready, walkable); ok {
+			return BotAction{Kind: BotMove, Target: dest}
+		}
+		if dest, ok := stepToward(from, target, mp, walkable); ok {
 			return BotAction{Kind: BotMove, Target: dest}
 		}
 	}
 	return BotAction{Kind: BotEnd}
+}
+
+// readySpells lists the spells on the bot's bar it could cast this turn if the
+// target were in reach: affordable, off cooldown, with casts left. The
+// catalogue carries every class's spells, so the bar is the only place a bot
+// of any class looks.
+func readySpells(state types.GameState, me types.Player) []types.Spell {
+	var ready []types.Spell
+	for _, key := range sortedKeys(state.Spells) {
+		st, onBar := me.Spells[key]
+		if !onBar {
+			continue
+		}
+		spell := state.Spells[key]
+		if spell.APCost > me.Character.ActionPoints || st.CooldownLeft > 0 {
+			continue
+		}
+		if spell.MaxCastsPerTurn > 0 && st.CastsThisTurn >= spell.MaxCastsPerTurn {
+			continue
+		}
+		ready = append(ready, spell)
+	}
+	return ready
+}
+
+// reaches reports whether a spell cast from one cell can land on another
+// without catching its caster in the blast. Friendly fire is real — a cross
+// cast at an adjacent enemy hits both of them — and a bot that never noticed
+// used to trade itself out of fights it was winning.
+func reaches(from, target types.Position, spell types.Spell, blocked func(types.Position) bool) bool {
+	if Distance(from, target) > spell.Range {
+		return false
+	}
+	if spell.NeedsLineOfSight && !HasLineOfSight(from, target, blocked) {
+		return false
+	}
+	return spell.Damage == 0 || !containsPosition(AffectedPositions(spell, target, from), from)
+}
+
+// stepIntoRange finds the nearest reachable cell from which a damaging spell
+// the bot can still afford would land. Walking closer is not the same thing:
+// two characters either side of a single block of cover can be two cells
+// apart with no line between them, and a bot that only ever shortens the
+// distance stands there forever.
+func stepIntoRange(from, target types.Position, mp int, ready []types.Spell, blocked func(types.Position) bool) (types.Position, bool) {
+	reachable := Reachable(from, mp, blocked)
+	cells := make([]types.Position, 0, len(reachable))
+	for cell := range reachable {
+		cells = append(cells, cell)
+	}
+	sortPositions(cells)
+
+	best, bestSteps := types.Position{}, -1
+	for _, cell := range cells {
+		steps := reachable[cell]
+		if bestSteps != -1 && steps >= bestSteps {
+			continue
+		}
+		for _, spell := range ready {
+			if spell.Damage > 0 && reaches(cell, target, spell, blocked) {
+				best, bestSteps = cell, steps
+				break
+			}
+		}
+	}
+	return best, bestSteps != -1
 }
 
 func nearestEnemy(state types.GameState, botID string, from types.Position) (types.Position, bool) {
@@ -122,10 +181,22 @@ func nearestEnemy(state types.GameState, botID string, from types.Position) (typ
 // stepToward picks the reachable cell that gets closest to the target. It uses
 // the same walk the server charges for, so the bot never asks for a move that
 // will be refused — before this it stepped in a straight line and simply
-// bounced off cover.
+// bounced off cover. Closest is measured as a walk too, not as the crow
+// flies: a cell on the far side of a wall is near on paper and nowhere near
+// on foot.
 func stepToward(from, target types.Position, mp int, blocked func(types.Position) bool) (types.Position, bool) {
+	walk := walkingDistances(target, blocked)
+	measure := func(p types.Position) int {
+		if d, ok := walk[p]; ok {
+			return d
+		}
+		// Nothing walks to the target at all — it is boxed in. Straight-line
+		// distance at least gets the bot next to the box.
+		return len(walk) + Distance(p, target)
+	}
+
 	best := from
-	bestDist := Distance(from, target)
+	bestDist := measure(from)
 
 	// Reachable returns a map, and several cells are usually the same distance
 	// from the target. Walking it in a fixed order is what stops the bot from
@@ -138,11 +209,31 @@ func stepToward(from, target types.Position, mp int, blocked func(types.Position
 	sortPositions(cells)
 
 	for _, cell := range cells {
-		if d := Distance(cell, target); d < bestDist {
+		if d := measure(cell); d < bestDist {
 			best, bestDist = cell, d
 		}
 	}
 	return best, best != from
+}
+
+// walkingDistances measures, for every cell that can walk to the target, how
+// many steps that walk takes. The target itself is usually occupied, so it is
+// the one cell that counts as open.
+func walkingDistances(target types.Position, blocked func(types.Position) bool) map[types.Position]int {
+	dist := map[types.Position]int{target: 0}
+	queue := []types.Position{target}
+	for len(queue) > 0 {
+		current := queue[0]
+		queue = queue[1:]
+		for _, next := range Neighbours(current) {
+			if _, seen := dist[next]; seen || blocked(next) {
+				continue
+			}
+			dist[next] = dist[current] + 1
+			queue = append(queue, next)
+		}
+	}
+	return dist
 }
 
 // sortedKeys walks a map in a fixed order. Everything the bot decides from is
@@ -170,8 +261,15 @@ func sortPositions(list []types.Position) {
 // Game integration
 // ---------------------------------------------------------------------------
 
-// AddBot drops a server-played opponent into the room, already ready to start.
+// AddBot drops a server-played opponent of the default class into the room.
 func (g *Game) AddBot() (string, error) {
+	return g.AddBotOfClass("")
+}
+
+// AddBotOfClass drops a server-played opponent into the room, already ready
+// to start. It plays the class it is given, under that class's opponent's
+// name and colours; empty means the default class.
+func (g *Game) AddBotOfClass(classID string) (string, error) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
@@ -181,26 +279,21 @@ func (g *Game) AddBot() (string, error) {
 	if len(g.players) >= MaxPlayersPerRoom {
 		return "", ErrRoomFull
 	}
+	class, err := g.classLocked(classID)
+	if err != nil {
+		return "", err
+	}
 
 	id := fmt.Sprintf("%s%d", BotIDPrefix, len(g.players)+1)
-	g.recordLocked(id, CmdAddBot, nil)
-	g.players[id] = types.Player{
-		UserID:    id,
-		UserName:  "Cpu",
-		Connected: true,
-		IsBot:     true,
-		Spells:    g.freshSpellStateLocked(),
-		Character: types.Character{
-			Name:           "Cpu",
-			Color:          "#7c3aed",
-			Symbol:         "C",
-			ActionPoints:   StartingActionPoints,
-			MovementPoints: StartingMovementPoints,
-			Health:         StartingHealth,
-			MaxHealth:      StartingHealth,
-			IsAlive:        true,
-		},
-	}
+	g.recordLocked(id, CmdAddBot, addBotPayload{Class: class.ID})
+	name := class.Opponent.Name
+	p := newPlayer(id, name, class, types.Character{
+		Name:   name,
+		Color:  class.Palette.Primary,
+		Symbol: strings.ToUpper(string([]rune(name)[:1])),
+	})
+	p.IsBot = true
+	g.players[id] = p
 	g.startPlacementIfReadyLocked()
 	return id, nil
 }

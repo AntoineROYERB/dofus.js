@@ -59,6 +59,15 @@ func handleCreateRoom(h *Hub, c *Client, data []byte) {
 		return
 	}
 
+	// An opponent that cannot be seated is refused before the room exists,
+	// rather than leaving the player alone in a solo room with nobody in it.
+	if in.WithBot && in.BotClass != "" {
+		if _, ok := game.Content().Class(in.BotClass); !ok {
+			h.reject(c, "create_room", in.MessageID, game.ErrUnknownClass)
+			return
+		}
+	}
+
 	room, err := h.lobby.Create(in.Name)
 	if err != nil {
 		h.reject(c, "create_room", in.MessageID, err)
@@ -66,7 +75,7 @@ func handleCreateRoom(h *Hub, c *Client, data []byte) {
 	}
 
 	if in.WithBot {
-		if botID, err := room.Game.AddBot(); err != nil {
+		if botID, err := room.Game.AddBotOfClass(in.BotClass); err != nil {
 			slog.Warn("could not add bot", "component", "handler", "match_id", room.ID, "error", err)
 		} else {
 			slog.Info("bot added", "component", "handler", "match_id", room.ID, "bot_id", botID)

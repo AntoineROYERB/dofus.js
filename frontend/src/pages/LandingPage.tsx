@@ -5,7 +5,9 @@ import { CharacterCreationForm } from "../components/Game/CharacterCreationForm"
 import { CharacterStand, STAND } from "../components/Game/CharacterStand";
 import { AboutDialog } from "../components/AboutDialog";
 import { HowToPlayDialog } from "../components/HowToPlayDialog";
-import { saveCharacter } from "../utils/characterStorage";
+import { readCharacter, saveCharacter } from "../utils/characterStorage";
+import { ClassPicker } from "../components/Game/ClassPicker";
+import { useContent } from "../hooks/useContent";
 import { PLAYER_COLORS } from "../constants";
 
 const idle = {
@@ -18,7 +20,7 @@ const idle = {
 
 /**
  * One column, in the same order at every size: what the game is called, the
- * character you are about to name, the two things to choose, and the way in.
+ * character you are about to name, the three things to choose, and the way in.
  * Everything else — the pitch, the stack, the numbers — is behind "What is
  * this?", because none of it is needed to start playing.
  */
@@ -30,10 +32,20 @@ const LandingPage: React.FC = () => {
   const [howToPlayOpen, setHowToPlayOpen] = useState(false);
   const navigate = useNavigate();
 
+  // Classes come from the server. Until they arrive — or if they never do —
+  // the way in stays open, and the server deals its default class.
+  const { content } = useContent();
+  const [selectedClass, setSelectedClass] = useState<string | null>(
+    () => readCharacter()?.class ?? null
+  );
+  const classes = content?.classes ?? [];
+  const chosenClass =
+    classes.find((c) => c.id === selectedClass)?.id ?? classes[0]?.id;
+
   const handleJoinMatch = () => {
     if (!isNameValid) return;
     // Stored rather than passed through router state so it survives a reload.
-    saveCharacter(characterName, selectedColor);
+    saveCharacter(characterName, selectedColor, chosenClass);
     navigate("/lobby");
   };
 
@@ -124,6 +136,14 @@ const LandingPage: React.FC = () => {
             setIsNameValid={setIsNameValid}
             onSubmit={handleJoinMatch}
           />
+          {content && classes.length > 0 && (
+            <ClassPicker
+              classes={classes}
+              spells={content.spells}
+              selected={chosenClass ?? null}
+              onSelect={setSelectedClass}
+            />
+          )}
           <button
             type="button"
             onClick={handleJoinMatch}

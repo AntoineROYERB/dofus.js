@@ -7,11 +7,16 @@ const KEY = "dofusjs.character";
  * rather than in router state so it survives a reload — which matters now that
  * a reconnecting client resumes its session instead of starting over.
  */
-export const saveCharacter = (name: string, color: string): void => {
+export const saveCharacter = (
+  name: string,
+  color: string,
+  characterClass?: string
+): void => {
   const character: CharacterAppearance = {
     name,
     color,
     symbol: (name || "P")[0].toUpperCase(),
+    ...(characterClass ? { class: characterClass } : {}),
   };
   try {
     localStorage.setItem(KEY, JSON.stringify(character));
@@ -30,6 +35,9 @@ export const readCharacter = (): CharacterAppearance | null => {
       name: parsed.name,
       color: parsed.color,
       symbol: parsed.symbol ?? parsed.name[0].toUpperCase(),
+      // A character saved before classes existed simply has none, and the
+      // server deals it the first one.
+      ...(parsed.class ? { class: parsed.class } : {}),
     };
   } catch {
     return null;

@@ -6,7 +6,7 @@ isometric board on top of them.
 
 ### ▶ [Play it here](https://dofusjs.onrender.com)
 
-No account, no install. Pick a name, hit **Play against the computer**, and you
+No account, no install. Pick a name and a class, challenge the computer, and you
 have a whole match to yourself. The server sleeps after 15 minutes on the free
 tier, so the first connection can take a minute to come back — the board loads
 instantly either way.
@@ -37,14 +37,20 @@ damage it would do — and a second tap on the same cell commits it.
 docker compose up --build
 ```
 
-Then open <http://localhost>. Pick a name and a colour, and either **play
-against the computer** or open a game and wait for someone to join. Two
+Then open <http://localhost>. Pick a name, a colour and a class, and either
+**challenge the computer** or open a game and wait for someone to join. Two
 browser tabs are enough for a real 1v1.
+
+There are four classes, one per element: the **Pyromancer** (raw damage), the
+**Windwalker** (poison and movement), the **Tidecaller** (control and sustain)
+and the **Stonewarden** (defence, and reach through cover). Each carries two
+signature spells on top of a shared pool. In solo play each class is a named
+opponent, and beating one unlocks the next.
 
 Number keys `1`–`8` pick a spell, `Escape` drops the selection, and on a touch
 screen a first tap previews a cell while a second one acts on it. Cover blocks
-both movement and line of sight; `Gwendo na Gwendo` is the one spell that
-reaches through it.
+both movement and line of sight; Earth spells are the ones that reach through
+it.
 
 <details>
 <summary>Without Docker</summary>
@@ -86,6 +92,16 @@ lock. Broadcasts are scoped to a room, so two matches never see each other.
 walking away. The computer opponent runs on the same clock, one action per
 tick, so its moves are watchable rather than instant.
 
+**Content is data, and data is checked.** Spells and classes live in
+`backend/config/spells.json` and `classes.json`, not in Go. They are validated
+once at startup — unknown fields, unknown spell ids, AP costs a class cannot
+pay, ranges off the board, criticals weaker than the hit — and a bad file
+stops the server with the file, the field and the problem, instead of shipping
+a fight that breaks on the first cast. Adding a class is a `classes.json` edit.
+Balance is a test rather than an opinion: every class is played against every
+class by the server's own bot over seeded matches, and CI fails if any class
+wins more than 65% of a matchup or fights stop lasting four to eight turns.
+
 **Rendering is hand-written.** No game engine: the isometric projection, the
 back-to-front draw order, the screen-to-grid hit test and the sprite-sheet
 animation loop are all in the client, and the geometry is unit-tested.
@@ -111,7 +127,9 @@ look is a change to those two files.
 backend/
   cmd/server/          entry point: config, HTTP, graceful shutdown
   internal/config/     environment-driven settings
-  internal/game/       rules, lobby, spell catalogue, computer opponent
+  config/              balance.json, spells.json, classes.json — the game's numbers
+  internal/content/    loads and validates spells and classes
+  internal/game/       rules, lobby, computer opponent, balance simulation
   internal/websocket/  hub, sessions, per-connection pumps, handlers
   internal/types/      wire format shared by every layer
 frontend/src/
@@ -134,7 +152,9 @@ Copy `.env.example` to `.env`. Everything has a working default.
 | `ALLOWED_ORIGINS` | `*` | Origins allowed to open a WebSocket. **Pin this for a public deployment.** |
 | `TURN_SECONDS` | `45` | How long a player gets before their turn passes on |
 | `STATIC_DIR` | unset | When set, the Go binary also serves the built frontend |
-| `BALANCE_FILE` | `config/balance.json` | JSON file with gameplay constants (health, action points, movement points). Edit `backend/config/balance.json` to retune a fight without touching code. |
+| `BALANCE_FILE` | `config/balance.json` | Default health, action points and movement points, for every class that does not set its own. Edit `backend/config/balance.json` to retune every fight at once. A missing file falls back to built-in defaults. |
+| `SPELLS_FILE` | `config/spells.json` | Every spell, keyed by id, and one colour per element. Validated at startup: the server refuses to start on a bad file. |
+| `CLASSES_FILE` | `config/classes.json` | Every class, in picker order: name, element, symbol, palette, lore, optional health/AP/MP overrides, spell bar (1 to 8 ids), the named solo opponent with its two lines, and which class unlocks it. Validated at startup like `SPELLS_FILE`. |
 | `LOG_FORMAT` | `json` | Server log format: `json` for an aggregator, `text` for a terminal |
 | `LOG_LEVEL` | `info` | Minimum log level: `debug`, `info`, `warn` or `error` |
 | `METRICS_ADDR` | `127.0.0.1:9090` | Listen address for `/metrics` (Prometheus), served on its own loopback-only listener — see [Performance](#performance). Empty disables it. |
@@ -201,8 +221,8 @@ to a classic production layout and is what local development uses.
 ## Tests
 
 ```bash
-cd backend && go test -race ./...     # rules, lobby, turn cycle, bot
-cd frontend && npm test               # isometric geometry
+cd backend && go test -race ./...     # rules, lobby, turn cycle, bot, content, balance
+cd frontend && npm test               # isometric geometry, spell bar, solo arc
 cd frontend && npm run lint && npm run build
 ```
 

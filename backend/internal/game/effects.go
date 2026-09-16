@@ -87,10 +87,10 @@ func absorb(c types.Character, damage int) int {
 }
 
 // turnPoints gives the points a character starts its turn with, once its
-// effects have had their say.
-func turnPoints(c types.Character) (actionPoints, movementPoints int) {
-	actionPoints = StartingActionPoints + effectTotal(c, types.EffectAP)
-	movementPoints = StartingMovementPoints + effectTotal(c, types.EffectMP)
+// effects have had their say over what its class deals it.
+func turnPoints(c types.Character, baseActionPoints, baseMovementPoints int) (actionPoints, movementPoints int) {
+	actionPoints = baseActionPoints + effectTotal(c, types.EffectAP)
+	movementPoints = baseMovementPoints + effectTotal(c, types.EffectMP)
 	if actionPoints < 0 {
 		actionPoints = 0
 	}

@@ -34,10 +34,14 @@ func TestBotClosesTheDistanceWhenNothingIsInRange(t *testing.T) {
 	if action.Kind != BotMove {
 		t.Fatalf("action = %+v, want a move", action)
 	}
-	before := Distance(types.Position{X: -7, Y: 0}, types.Position{X: 7, Y: 0})
-	after := Distance(action.Target, types.Position{X: 7, Y: 0})
-	if after >= before {
-		t.Errorf("move to %+v does not close the distance (%d -> %d)", action.Target, before, after)
+	// Closer on foot, around the cover the board was dealt — which is not
+	// always closer as the crow flies.
+	from, target := types.Position{X: -7, Y: 0}, types.Position{X: 7, Y: 0}
+	g.mu.RLock()
+	walk := walkingDistances(target, func(p types.Position) bool { return p != from && g.blocksMovementLocked(p) })
+	g.mu.RUnlock()
+	if before, after := walk[from], walk[action.Target]; after >= before {
+		t.Errorf("move to %+v does not close the walk (%d -> %d)", action.Target, before, after)
 	}
 	if !InGrid(action.Target) {
 		t.Errorf("move target %+v is off the board", action.Target)
@@ -100,8 +104,13 @@ func TestAddBotJoinsReadyAndFlagged(t *testing.T) {
 	if !p.IsBot || !p.Connected {
 		t.Errorf("bot player = %+v, want it flagged and connected", p)
 	}
-	if p.Character.Health != StartingHealth {
-		t.Errorf("bot health = %d, want %d", p.Character.Health, StartingHealth)
+	class := Content().DefaultClass()
+	if p.Character.Class != class.ID || p.Character.Health != class.Health {
+		t.Errorf("bot is %s with %d health, want the default class %s with %d",
+			p.Character.Class, p.Character.Health, class.ID, class.Health)
+	}
+	if p.Character.Name != class.Opponent.Name {
+		t.Errorf("bot is named %q, want its class's opponent %q", p.Character.Name, class.Opponent.Name)
 	}
 }
 

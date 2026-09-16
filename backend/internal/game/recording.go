@@ -11,6 +11,7 @@ import (
 	"log"
 	"time"
 
+	"game-server/internal/content"
 	"game-server/internal/types"
 )
 
@@ -82,6 +83,9 @@ type (
 		UserName  string                    `json:"userName"`
 		Character types.CharacterAppearance `json:"character"`
 	}
+	addBotPayload struct {
+		Class string `json:"class"`
+	}
 	connectPayload struct {
 		Connected bool `json:"connected"`
 	}
@@ -115,11 +119,16 @@ func NewSeed() int64 {
 	return int64(binary.LittleEndian.Uint64(buf[:]) >> 1)
 }
 
-// RulesFingerprint hashes every number a replay depends on. Starting stats
-// come from balance.json and the catalogue is compiled in, but both are just
-// numbers the fight was fought under, and changing either invalidates every
-// recording made before it.
+// RulesFingerprint hashes every number a replay depends on, under the content
+// new games are built from. Starting stats come from balance.json, spells and
+// classes from spells.json and classes.json, but all of them are just numbers
+// the fight was fought under, and changing any invalidates every recording
+// made before it.
 func RulesFingerprint() string {
+	return rulesFingerprint(current)
+}
+
+func rulesFingerprint(cat content.Catalogue) string {
 	shape := struct {
 		Health                 int                    `json:"health"`
 		ActionPoints           int                    `json:"actionPoints"`
@@ -128,6 +137,7 @@ func RulesFingerprint() string {
 		InitialPositionChoices int                    `json:"initialPositionChoices"`
 		ObstacleCount          int                    `json:"obstacleCount"`
 		Spells                 map[string]types.Spell `json:"spells"`
+		Classes                []types.Class          `json:"classes"`
 	}{
 		Health:                 StartingHealth,
 		ActionPoints:           StartingActionPoints,
@@ -135,7 +145,8 @@ func RulesFingerprint() string {
 		GridRadius:             GridRadius,
 		InitialPositionChoices: InitialPositionChoices,
 		ObstacleCount:          ObstacleCount,
-		Spells:                 Catalogue(),
+		Spells:                 cat.Spells,
+		Classes:                cat.Classes,
 	}
 	// encoding/json sorts map keys, so the same catalogue always hashes the
 	// same way whatever order it was built in.
@@ -189,7 +200,7 @@ func (g *Game) Recording() Recording {
 		Seed:           g.seed,
 		StartedAt:      g.startedAt.UnixMilli(),
 		TurnDurationMS: g.turnDuration.Milliseconds(),
-		Rules:          RulesFingerprint(),
+		Rules:          rulesFingerprint(g.catalogue),
 		Commands:       append([]Command(nil), g.commands...),
 	}
 }
@@ -288,7 +299,13 @@ func (g *Game) applyCommand(cmd Command) error {
 		return g.AddPlayer(cmd.UserID, p.UserName, p.Character)
 
 	case CmdAddBot:
-		id, err := g.AddBot()
+		var p addBotPayload
+		if len(cmd.Payload) > 0 {
+			if err := json.Unmarshal(cmd.Payload, &p); err != nil {
+				return err
+			}
+		}
+		id, err := g.AddBotOfClass(p.Class)
 		if err != nil {
 			return err
 		}
