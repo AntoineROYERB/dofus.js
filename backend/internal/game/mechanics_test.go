@@ -510,6 +510,25 @@ func TestBubbleTrapHoldsTheFirstEnemyToStepOnIt(t *testing.T) {
 	}
 }
 
+func TestIceCarriesItsVictimIntoATrap(t *testing.T) {
+	g := duel(t, types.Position{X: 2, Y: -4}, types.Position{})
+	lay(g, types.Position{X: 3}, types.TerrainTrap, "a")
+	withAP(g, "a", 99)
+	cast(t, g, "a", spellFrozenGround, types.Position{X: 2})
+	if kind := terrainAt(g, types.Position{X: 3}); kind != types.TerrainTrap {
+		t.Fatalf("terrain under the trap = %q, want the trap left in place", kind)
+	}
+
+	mustEndTurn(t, g)
+	move(t, g, "b", types.Position{X: 1})
+	if at := pos(g, "b"); at != (types.Position{X: 3}) {
+		t.Errorf("b ended at %+v, want to slide on into the trap at (3,0)", at)
+	}
+	if mp := character(g, "b").MovementPoints; mp != 0 {
+		t.Errorf("b has %d movement points after sliding into the trap, want 0", mp)
+	}
+}
+
 func TestATrapNeverCatchesItsOwner(t *testing.T) {
 	g := duel(t, types.Position{}, types.Position{Y: 5})
 	lay(g, types.Position{X: 1}, types.TerrainTrap, "a")

@@ -71,6 +71,14 @@ export const ClassPicker: React.FC<ClassPickerProps> = ({
             {current.movementPoints} mp
           </p>
           <p className="mt-1 short:hidden">{current.lore}</p>
+          {current.passive && (
+            <p className="mt-1 text-[11.5px] text-ink">
+              <span className="font-mono text-[9.5px] uppercase tracking-label text-muted">
+                Passive{" "}
+              </span>
+              {current.passive}
+            </p>
+          )}
           <p className="mt-1 truncate text-[11.5px] text-muted" title={spellNames(current, spells)}>
             {spellNames(current, spells)}
           </p>

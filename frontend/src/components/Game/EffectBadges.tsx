@@ -11,6 +11,8 @@ export const effectLook: Record<EffectKind, { icon: string; label: string }> = {
   shield: { icon: "◈", label: "shield" },
   ap: { icon: "★", label: "AP" },
   mp: { icon: "◆", label: "MP" },
+  burn: { icon: "♨", label: "burn" },
+  root: { icon: "⊗", label: "rooted" },
 };
 
 const describe = (effect: Effect): string => {
@@ -22,6 +24,10 @@ const describe = (effect: Effect): string => {
       return `${effect.source}: heals ${effect.value} a turn, ${turns} left`;
     case "shield":
       return `${effect.source}: soaks ${effect.value} per hit, ${turns} left`;
+    case "burn":
+      return `Burning ×${effect.value}: ${effect.value * 4} damage a turn, ${turns} left`;
+    case "root":
+      return `${effect.source}: cannot move next turn`;
     default:
       return `${effect.source}: ${effect.value > 0 ? "+" : ""}${effect.value} ${
         effectLook[effect.kind].label
@@ -48,8 +54,12 @@ export const EffectBadges: React.FC<EffectBadgesProps> = ({ effects }) => {
         >
           <span aria-hidden>{effectLook[effect.kind]?.icon ?? "•"}</span>
           <span className="tabular-nums">
-            {effect.value > 0 && effect.kind !== "poison" ? "+" : ""}
-            {effect.value}
+            {effect.kind === "burn"
+              ? "×"
+              : effect.value > 0 && effect.kind !== "poison" && effect.kind !== "root"
+                ? "+"
+                : ""}
+            {effect.kind === "root" ? "" : effect.value}
           </span>
           <span className="tabular-nums text-muted">·{effect.turnsLeft}</span>
         </span>

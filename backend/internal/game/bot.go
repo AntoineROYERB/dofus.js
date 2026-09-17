@@ -213,13 +213,14 @@ func (b botBoard) estimate(caster, target types.Position, spell types.Spell) int
 	return amount
 }
 
-// hazard reports ground an enemy left for the bot to walk into.
+// hazard reports ground the bot should not walk into: fire, whoever lit it,
+// and the enemy's traps.
 func (b botBoard) hazard(pos types.Position) bool {
 	cell, ok := b.terrain[pos]
-	if !ok || cell.Owner == b.botID {
+	if !ok {
 		return false
 	}
-	return cell.Kind == types.TerrainTrap || cell.Kind == types.TerrainFire
+	return cell.Kind == types.TerrainFire || (cell.Kind == types.TerrainTrap && cell.Owner != b.botID)
 }
 
 // bestAttack is the hardest-hitting spell that lands on the target right now.

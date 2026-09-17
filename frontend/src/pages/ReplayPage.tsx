@@ -157,6 +157,7 @@ const ReplayPage: React.FC = () => {
               selectedSpellId={null}
               currentPlayer={players.find((p) => p.isCurrentTurn) ?? players[0]}
               spells={state?.spells ?? null}
+              turnNumber={state?.turnNumber ?? 0}
             />
           </div>
         </div>

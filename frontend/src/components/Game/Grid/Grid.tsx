@@ -5,9 +5,17 @@ import {
   generateIsometricCoordinates,
   sortCoordinates,
 } from "../../../utils/isoUtils";
-import { blockedBy, hasLineOfSight, reachable } from "../../../utils/board";
+import { blockedBy, reachable, sightBlockedBy } from "../../../utils/board";
 import { Tile } from "./Tile";
-import { isInSpellRange } from "../../../utils/spellUtils";
+import { castOrigin } from "../../../utils/spellUtils";
+import {
+  isSolidTerrain,
+  relayOf,
+  terrainIndex,
+  TERRAIN_INFO,
+  ZONE_INFO,
+} from "../../../utils/terrain";
+import { TerrainLayer } from "./TerrainLayer";
 import { Character } from "./Character";
 import { Socle } from "./Socle";
 import { CharacterTooltip } from "./CharacterTooltip";
@@ -60,6 +68,16 @@ export const Grid: React.FC<GridProps> = ({
     () => latestGameState?.obstacles ?? [],
     [latestGameState?.obstacles]
   );
+  const terrain = React.useMemo(
+    () => latestGameState?.terrain ?? [],
+    [latestGameState?.terrain]
+  );
+  const zones = React.useMemo(
+    () => latestGameState?.zones ?? [],
+    [latestGameState?.zones]
+  );
+  const terrainAt = React.useMemo(() => terrainIndex(terrain), [terrain]);
+  const relay = React.useMemo(() => relayOf(terrain, userId), [terrain, userId]);
   // The spell catalogue is broadcast with the game state; the client keeps no copy.
   const selectedSpell =
     selectedSpellId === null
@@ -105,14 +123,24 @@ export const Grid: React.FC<GridProps> = ({
     return positionsWithOwners;
   }, [players, userId, isPositioningPhase]);
 
-  // What the board refuses: cover, and everyone standing on it. The server
-  // charges for the walk around all of it, so the preview has to agree.
-  const blocked = React.useMemo(() => {
-    const occupied = Object.values(players ?? {})
-      .map((p) => p.character.position)
-      .filter((p): p is Position => !!p);
-    return blockedBy(obstacles, occupied);
-  }, [players, obstacles]);
+  // What the board refuses: cover, craters and fissures, and everyone
+  // standing on it. The server charges for the walk around all of it, so the
+  // preview has to agree. Sight is stopped by cover, smoke and people instead.
+  const occupied = React.useMemo(
+    () =>
+      Object.values(players ?? {})
+        .map((p) => p.character.position)
+        .filter((p): p is Position => !!p),
+    [players]
+  );
+  const blocked = React.useMemo(
+    () => blockedBy(obstacles, occupied, terrain),
+    [obstacles, occupied, terrain]
+  );
+  const sightBlocked = React.useMemo(
+    () => sightBlockedBy(obstacles, occupied, terrain),
+    [obstacles, occupied, terrain]
+  );
 
   const obstacleSet = React.useMemo(
     () => new Set(obstacles.map((o) => `${o.x},${o.y}`)),
@@ -171,12 +199,8 @@ export const Grid: React.FC<GridProps> = ({
   const damagePreview = React.useMemo(() => {
     if (!selectedSpell || !characterPosition || !hoveredPosition) return null;
     if (!currentPlayer?.isCurrentTurn || selectedSpell.damage <= 0) return null;
-    if (!isInSpellRange(hoveredPosition, characterPosition, selectedSpell)) {
-      return null;
-    }
     if (
-      selectedSpell.needsLineOfSight &&
-      !hasLineOfSight(characterPosition, hoveredPosition, blocked)
+      !castOrigin(selectedSpell, hoveredPosition, characterPosition, sightBlocked, relay)
     ) {
       return null;
     }
@@ -195,11 +219,59 @@ export const Grid: React.FC<GridProps> = ({
     characterPosition,
     hoveredPosition,
     currentPlayer,
-    blocked,
+    sightBlocked,
+    relay,
     tileSize,
     centerX,
     centerY,
   ]);
+
+  // What is lying on the cell under the pointer, when nobody is standing on
+  // it: a scorch mark that means nothing reads as scenery, so ground that does
+  // something says what.
+  const hoveredTerrain = React.useMemo(() => {
+    if (!hoveredPosition) return null;
+    const cell = terrainAt.get(`${hoveredPosition.x},${hoveredPosition.y}`);
+    const zone = zones.find((z) =>
+      z.cells.some((c) => c.x === hoveredPosition.x && c.y === hoveredPosition.y)
+    );
+    if (!cell && !zone) return null;
+    return {
+      lines: [
+        ...(cell
+          ? [
+              {
+                title: `${TERRAIN_INFO[cell.kind].name}${
+                  cell.kind === "relay" || cell.kind === "water" || cell.kind === "trap"
+                    ? cell.owner === userId
+                      ? " · yours"
+                      : " · enemy"
+                    : ""
+                }`,
+                text: TERRAIN_INFO[cell.kind].text,
+              },
+            ]
+          : []),
+        ...(zone
+          ? [
+              {
+                title: `${ZONE_INFO[zone.kind].name} · ${zone.turnsLeft} turn${
+                  zone.turnsLeft > 1 ? "s" : ""
+                } left`,
+                text: ZONE_INFO[zone.kind].text,
+              },
+            ]
+          : []),
+      ],
+      screen: isoToScreen(
+        hoveredPosition.x,
+        hoveredPosition.y,
+        tileSize,
+        centerX,
+        centerY
+      ),
+    };
+  }, [hoveredPosition, terrainAt, zones, userId, tileSize, centerX, centerY]);
 
   // Whoever the pointer is over, keyed the same way as characterRenderState
   // — reusing hoveredPosition rather than a dedicated hitbox, so the card
@@ -257,23 +329,27 @@ export const Grid: React.FC<GridProps> = ({
   }, []);
 
   // Cells the selected spell can actually reach: in range, and seen from where
-  // the caster stands. A cell it cannot reach must not look targetable — cover
-  // in the way is not shown specially, it just isn't one of these.
+  // the caster stands — or from its relay, for a spell that can use one. A
+  // cell it cannot reach must not look targetable. A spell that needs a free
+  // cell only offers free ones, and one cast on yourself only your own.
   const castable = React.useMemo(() => {
     const inRange = new Set<string>();
     if (!characterPosition || !selectedSpell) return inRange;
     sortedCoordinates.forEach(({ x, y }) => {
-      if (!isInSpellRange({ x, y }, characterPosition, selectedSpell)) return;
+      const cell = { x, y };
+      if (!castOrigin(selectedSpell, cell, characterPosition, sightBlocked, relay)) {
+        return;
+      }
       if (
-        selectedSpell.needsLineOfSight &&
-        !hasLineOfSight(characterPosition, { x, y }, blocked)
+        selectedSpell.targeting === "empty" &&
+        (blocked(cell) || isSolidTerrain(terrainAt.get(`${x},${y}`)?.kind))
       ) {
         return;
       }
       inRange.add(`${x},${y}`);
     });
     return inRange;
-  }, [characterPosition, selectedSpell, blocked, sortedCoordinates]);
+  }, [characterPosition, selectedSpell, blocked, sightBlocked, relay, terrainAt, sortedCoordinates]);
 
   /*
    * Only the centre a spell lands on needs a clear line to the caster — the
@@ -283,8 +359,12 @@ export const Grid: React.FC<GridProps> = ({
    * own line of sight: it reads as hit whenever the cell under the cursor is
    * itself a legal cast.
    */
+  // A spell cast on yourself lands on you wherever the click is, so its area
+  // is shown wherever the pointer is.
   const hoveredCastable =
-    !!hoveredPosition && castable.has(`${hoveredPosition.x},${hoveredPosition.y}`);
+    !!hoveredPosition &&
+    (selectedSpell?.targeting === "self" ||
+      castable.has(`${hoveredPosition.x},${hoveredPosition.y}`));
 
   // The walkable wash is only worth showing once the player has actually
   // brought the mouse to the board — otherwise it is noise sitting on screen
@@ -403,6 +483,19 @@ export const Grid: React.FC<GridProps> = ({
             />
           );
         })}
+        {/*
+          What spells left behind: fire, water, ice, cracks under the fighters;
+          smoke, bubbles and storm clouds over them.
+        */}
+        <TerrainLayer
+          terrain={terrain}
+          zones={zones}
+          tileSize={tileSize}
+          centerX={centerX}
+          centerY={centerY}
+          containerRef={containerRef}
+          userId={userId}
+        />
         {/*
           Sits between the floor and the characters: its ground layer puts scars
           under whoever is standing on them, and its upper layer throws debris in
@@ -601,6 +694,29 @@ export const Grid: React.FC<GridProps> = ({
             </div>
           );
         })()}
+
+        {!isPositioningPhase && !hoveredCharacterEntry && !confirmAction && hoveredTerrain && (
+          <div
+            role="tooltip"
+            className="pointer-events-none absolute z-20 w-[200px] border-2 border-ink bg-paper px-2 py-1.5 text-ink shadow-md"
+            style={{
+              left: `${hoveredTerrain.screen.x}px`,
+              top: `${hoveredTerrain.screen.y - tileSize.height * 0.9}px`,
+              transform: "translate(-50%, -100%)",
+            }}
+          >
+            {hoveredTerrain.lines.map((line) => (
+              <div key={line.title} className="[&+&]:mt-1">
+                <div className="font-display text-[12px] font-bold leading-tight">
+                  {line.title}
+                </div>
+                <div className="font-sans text-[10.5px] leading-snug text-graphite">
+                  {line.text}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
 
         {isPositioningPhase && selectedPosition && (
           <Character

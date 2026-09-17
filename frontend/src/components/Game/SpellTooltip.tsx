@@ -4,6 +4,28 @@ import { Spell } from "../../types/message";
 import { Position } from "../../types/game";
 import { areaPattern } from "../../utils/spellUtils";
 import { effectLook } from "./EffectBadges";
+import { RULES, TERRAIN_INFO, ZONE_INFO } from "../../utils/terrain";
+
+/** What a spell does besides damage, one short phrase each. */
+const mechanics = (spell: Spell): string[] => {
+  const out: string[] = [];
+  if (spell.push > 0) out.push(`throws back ${spell.push}`);
+  if (spell.push < 0) out.push(`drags in ${-spell.push}`);
+  if (spell.terrain) out.push(`leaves ${TERRAIN_INFO[spell.terrain].name.toLowerCase()}`);
+  if (spell.special === "crater") out.push("digs a crater");
+  if (spell.special === "quake") out.push("opens fissures");
+  if (spell.special === "pillar") out.push("raises a pillar");
+  if (spell.special === "relay") out.push("sets your relay");
+  if (spell.special === "leap") out.push("leap");
+  if (spell.special === "detonate") out.push("sets burns off");
+  if (spell.zone) {
+    out.push(`${ZONE_INFO[spell.zone.kind].name.toLowerCase()} · ${spell.zone.duration} turns`);
+  }
+  if (spell.grantMP > 0) out.push(`+${spell.grantMP} MP now`);
+  if (spell.relayed) out.push("castable from your relay");
+  if (spell.conducts) out.push("×2 in water");
+  return out;
+};
 
 const ELEMENT_ICON: Record<string, string> = {
   Fire: "🔥",
@@ -118,6 +140,7 @@ export const SpellTooltip: React.FC<SpellTooltipProps> = ({
     : anchorRect.top - gap;
 
   const effect = spell.effect;
+  const extras = mechanics(spell);
 
   return createPortal(
     <div
@@ -135,16 +158,24 @@ export const SpellTooltip: React.FC<SpellTooltipProps> = ({
           {spell.name}
         </span>
         <span
-          aria-hidden
-          className="h-2 w-2 flex-none"
-          style={{ backgroundColor: spell.color }}
-        />
+          className="flex-none border px-1 font-mono text-[9px] uppercase tracking-label"
+          style={{ borderColor: spell.ultimate ? "#c99a1a" : spell.color, color: spell.ultimate ? "#8a6a10" : spell.color }}
+        >
+          {spell.role}
+        </span>
       </div>
+      <p className="mb-1.5 font-sans text-[11px] leading-snug text-ink">
+        {spell.description}
+      </p>
 
       <div className="mb-1.5 flex flex-wrap gap-1">
         <Badge icon="⚡">{spell.APCost} AP</Badge>
         <Badge icon="📏">
-          {spell.range === 0 ? "self" : spell.range}
+          {spell.targeting === "self"
+            ? "self"
+            : spell.targeting === "empty"
+              ? `free cell ≤ ${spell.range}`
+              : spell.range}
         </Badge>
         {spell.damage > 0 && (
           <Badge icon="🗡">
@@ -152,11 +183,14 @@ export const SpellTooltip: React.FC<SpellTooltipProps> = ({
             {spell.criticalChance > 0 ? ` (crit ${spell.criticalChance}%)` : ""}
           </Badge>
         )}
+        {spell.ultimate && (
+          <Badge icon="★">1× a fight · turn {RULES.ultimateFromTurn}+</Badge>
+        )}
         {spell.cooldown > 0 && <Badge icon="⏱">{spell.cooldown}</Badge>}
-        {spell.cooldown === 0 && spell.maxCastsPerTurn > 0 && (
+        {!spell.ultimate && spell.cooldown === 0 && spell.maxCastsPerTurn > 0 && (
           <Badge icon="🔁">{spell.maxCastsPerTurn}/turn</Badge>
         )}
-        {spell.range > 0 && spell.needsLineOfSight === false && (
+        {spell.range > 0 && spell.targeting !== "empty" && spell.needsLineOfSight === false && (
           <Badge icon="👁">ignores line of sight</Badge>
         )}
         {ELEMENT_ICON[spell.element] && (
@@ -168,13 +202,33 @@ export const SpellTooltip: React.FC<SpellTooltipProps> = ({
         <div className="mb-1.5 flex items-center gap-1.5 font-sans text-[10.5px] text-graphite">
           <span aria-hidden>{effectLook[effect.kind]?.icon ?? "•"}</span>
           <span>
-            {effect.value > 0 && effect.kind !== "poison" ? "+" : ""}
-            {effect.value} {effectLook[effect.kind]?.label ?? effect.kind}
+            {effect.kind === "burn"
+              ? `+${effect.value} burn (${RULES.burnDamagePerStack} a turn each)`
+              : effect.kind === "root"
+                ? "cannot move"
+                : `${effect.value > 0 && effect.kind !== "poison" ? "+" : ""}${effect.value} ${
+                    effectLook[effect.kind]?.label ?? effect.kind
+                  }`}
             {" · "}
-            {effect.duration} turn{effect.duration > 1 ? "s" : ""}
+            {effect.kind === "burn"
+              ? "stacks to 3"
+              : `${effect.duration > 1 ? `${effect.duration} turns` : "next turn"}`}
             {" · "}
             {effect.onSelf ? "on self" : "on target"}
           </span>
+        </div>
+      )}
+
+      {extras.length > 0 && (
+        <div className="mb-1.5 flex flex-wrap gap-1">
+          {extras.map((text) => (
+            <span
+              key={text}
+              className="border border-hairline bg-board px-1.5 py-0.5 font-mono text-[10px] leading-4 text-graphite"
+            >
+              {text}
+            </span>
+          ))}
         </div>
       )}
 

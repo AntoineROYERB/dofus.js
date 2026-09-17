@@ -5,7 +5,7 @@
     "seed": 6,
     "startedAt": 1700000000000,
     "turnDurationMs": 3000,
-    "rules": "0344506a3bb736e5c6a3ecba7d1d3a69edc808bb1b34c4d96db6cb0a52632532",
+    "rules": "51a866fad8f115a3853229c302baf42e41cf2e048a4075000132fc0f3d5f87ce",
     "commands": [
       {
         "seq": 1,
@@ -99,8 +99,8 @@
         "kind": "move",
         "payload": {
           "position": {
-            "x": 0,
-            "y": -1
+            "x": -1,
+            "y": 0
           }
         }
       },
@@ -118,8 +118,8 @@
         "payload": {
           "spellId": 5,
           "target": {
-            "x": 0,
-            "y": -1
+            "x": -1,
+            "y": 0
           }
         }
       },
@@ -156,8 +156,8 @@
         "payload": {
           "spellId": 3,
           "target": {
-            "x": 0,
-            "y": 0
+            "x": -1,
+            "y": 1
           }
         }
       },
@@ -311,8 +311,8 @@
         "kind": "move",
         "payload": {
           "position": {
-            "x": -2,
-            "y": 1
+            "x": -3,
+            "y": 2
           }
         }
       },
@@ -339,30 +339,30 @@
         "seq": 34,
         "at": 35593,
         "userId": "alice",
-        "kind": "move",
-        "payload": {
-          "position": {
-            "x": 0,
-            "y": -1
-          }
-        }
+        "kind": "end_turn"
       },
       {
         "seq": 35,
         "at": 35809,
-        "userId": "alice",
-        "kind": "end_turn"
+        "userId": "bot-1",
+        "kind": "move",
+        "payload": {
+          "position": {
+            "x": -3,
+            "y": 1
+          }
+        }
       },
       {
         "seq": 36,
-        "at": 37379,
+        "at": 36865,
         "userId": "bot-1",
         "kind": "cast",
         "payload": {
           "spellId": 3,
           "target": {
-            "x": 0,
-            "y": -1
+            "x": 1,
+            "y": 2
           }
         }
       }
@@ -380,11 +380,11 @@
           "symbol": "A",
           "class": "pyromancer",
           "position": {
-            "x": 0,
-            "y": -1
+            "x": 1,
+            "y": 2
           },
           "actionPoints": 0,
-          "movementPoints": 0,
+          "movementPoints": 4,
           "maxActionPoints": 6,
           "maxMovementPoints": 4,
           "isCurrentTurn": false,
@@ -403,7 +403,7 @@
             }
           ],
           "health": 0,
-          "maxHealth": 95,
+          "maxHealth": 90,
           "isAlive": false,
           "effects": null
         },
@@ -455,11 +455,11 @@
           "symbol": "A",
           "class": "pyromancer",
           "position": {
-            "x": -2,
+            "x": -3,
             "y": 1
           },
           "actionPoints": 2,
-          "movementPoints": 4,
+          "movementPoints": 3,
           "maxActionPoints": 6,
           "maxMovementPoints": 4,
           "isCurrentTurn": false,
@@ -477,8 +477,8 @@
               "y": -1
             }
           ],
-          "health": 81,
-          "maxHealth": 95,
+          "health": 76,
+          "maxHealth": 90,
           "isAlive": true,
           "effects": [
             {
@@ -1287,41 +1287,20 @@
       {
         "seq": 49,
         "turn": 3,
-        "actor": "Alice",
-        "kind": "effect",
-        "text": "catches fire"
-      },
-      {
-        "seq": 50,
-        "turn": 3,
-        "actor": "Alice",
-        "kind": "effect",
-        "text": "catches fire"
-      },
-      {
-        "seq": 51,
-        "turn": 3,
-        "actor": "Alice",
-        "kind": "effect",
-        "text": "catches fire"
-      },
-      {
-        "seq": 52,
-        "turn": 3,
         "actor": "Ashka the Kindled",
         "kind": "effect",
         "text": "suffers from its wounds",
         "damage": 4
       },
       {
-        "seq": 53,
+        "seq": 50,
         "turn": 3,
         "actor": "Ashka the Kindled",
         "kind": "turn",
         "text": "starts their turn"
       },
       {
-        "seq": 54,
+        "seq": 51,
         "turn": 3,
         "actor": "Ashka the Kindled",
         "kind": "cast",
@@ -1329,23 +1308,23 @@
         "damage": 42,
         "spellId": 3,
         "origin": {
-          "x": -2,
+          "x": -3,
           "y": 1
         },
         "target": {
-          "x": 0,
-          "y": -1
+          "x": 1,
+          "y": 2
         }
       },
       {
-        "seq": 55,
+        "seq": 52,
         "turn": 3,
         "actor": "Alice",
         "kind": "death",
         "text": "is out of the fight"
       },
       {
-        "seq": 56,
+        "seq": 53,
         "turn": 3,
         "actor": "Ashka the Kindled",
         "kind": "end",

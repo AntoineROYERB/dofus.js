@@ -1,5 +1,7 @@
 import { Spell, SpellState } from "../types/message";
+import { RULES } from "./terrain";
 import { Position } from "../types/game";
+import { distance, hasLineOfSight, neighbours } from "./board";
 
 type Direction = "up" | "down" | "left" | "right";
 
@@ -33,9 +35,15 @@ export const areaPattern = (
 ): { pattern: Position[]; rotates: boolean } => {
   switch (areaOfEffect) {
     case "circle":
+      // Every cell within two steps, the centre and its four neighbours
+      // included.
       return {
         pattern: [
           { x: 0, y: 0 },
+          { x: 1, y: 0 },
+          { x: 0, y: 1 },
+          { x: -1, y: 0 },
+          { x: 0, y: -1 },
           { x: 2, y: 0 },
           { x: 1, y: 1 },
           { x: 0, y: 2 },
@@ -83,6 +91,29 @@ export function isInSpellRange(
   return distance <= spell.range;
 }
 
+/**
+ * Where a spell aimed at `cell` would be cast from: the caster's own cell if
+ * it lands from there, otherwise the caster's relay for a spell that can use
+ * one, otherwise nowhere. Mirrors castOriginLocked on the server.
+ */
+export function castOrigin(
+  spell: Spell,
+  cell: Position,
+  caster: Position,
+  sightBlocked: (p: Position) => boolean,
+  relay: Position | null
+): Position | null {
+  if (spell.targeting === "self") {
+    return cell.x === caster.x && cell.y === caster.y ? caster : null;
+  }
+  const reaches = (from: Position) =>
+    distance(from, cell) <= spell.range &&
+    (!spell.needsLineOfSight || hasLineOfSight(from, cell, sightBlocked));
+  if (reaches(caster)) return caster;
+  if (spell.relayed && relay && reaches(relay)) return relay;
+  return null;
+}
+
 /** The cells a spell would cover if it were cast at `targetPos`. */
 export function calculateImpactedCells(
   spell: Spell | undefined,
@@ -90,6 +121,9 @@ export function calculateImpactedCells(
   casterPosition: Position
 ): Position[] {
   if (!spell) return [];
+  // A leap shakes the cells around where its caster lands.
+  if (spell.special === "leap") return neighbours(targetPos);
+  if (spell.targeting === "self") targetPos = casterPosition;
 
   const { pattern, rotates } = areaPattern(spell.areaOfEffect);
   const direction = rotates ? getDirection(casterPosition, targetPos) : null;
@@ -107,13 +141,18 @@ const shapes: Record<Spell["areaOfEffect"], string | null> = {
   line: "line",
 };
 
-/** The one line that says what the selected spell actually does. */
+/** The one line that says what the selected spell costs and reaches. */
 export const spec = (spell: Spell): string => {
   const parts = [`${spell.APCost} AP`];
-  parts.push(spell.range === 0 ? "on yourself" : `range ${spell.range}`);
+  if (spell.targeting === "self") parts.push("on yourself");
+  else if (spell.targeting === "empty") parts.push(`a free cell within ${spell.range}`);
+  else parts.push(`range ${spell.range}`);
+  if (spell.relayed) parts.push("or from your relay");
   const shape = shapes[spell.areaOfEffect];
   if (shape) parts.push(shape);
-  if (spell.cooldown > 0) {
+  if (spell.ultimate) {
+    parts.push(`once a fight, from turn ${RULES.ultimateFromTurn}`);
+  } else if (spell.cooldown > 0) {
     parts.push(`${spell.cooldown} turn cooldown`);
   } else if (spell.maxCastsPerTurn > 0) {
     parts.push(
@@ -129,8 +168,13 @@ export const spec = (spell: Spell): string => {
 export const unavailableReason = (
   spell: Spell,
   state: SpellState | undefined,
-  actionPoints: number
+  actionPoints: number,
+  turnNumber: number
 ): string | null => {
+  if (spell.ultimate && state?.spent) return "already used this fight";
+  if (spell.ultimate && turnNumber < RULES.ultimateFromTurn) {
+    return `unlocks on turn ${RULES.ultimateFromTurn}`;
+  }
   if (state && state.cooldownLeft > 0) {
     return `recharging — ${state.cooldownLeft} turn${
       state.cooldownLeft > 1 ? "s" : ""
@@ -146,3 +190,4 @@ export const unavailableReason = (
   if (actionPoints < spell.APCost) return "not enough action points";
   return null;
 };
+

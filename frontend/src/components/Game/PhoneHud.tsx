@@ -233,6 +233,8 @@ interface SpellArcProps {
   } | null;
   isMyTurn: boolean;
   turnEndsAt: number;
+  /** The fight's turn, which is what unlocks an ultimate. */
+  turnNumber: number;
   status: GameStatus;
 }
 
@@ -285,6 +287,7 @@ export const SpellArc: React.FC<SpellArcProps> = ({
   main,
   isMyTurn,
   turnEndsAt,
+  turnNumber,
   status,
 }) => {
   const catalogue = barSpells(player, spells);
@@ -324,7 +327,7 @@ export const SpellArc: React.FC<SpellArcProps> = ({
             <SpellButton
               key={spell.id}
               spell={spell}
-              blocked={unavailableReason(spell, state, actionPoints)}
+              blocked={unavailableReason(spell, state, actionPoints, turnNumber)}
               cooldown={state?.cooldownLeft ?? 0}
               selected={spell.id === selectedSpellId}
               onSelect={() => onSelectSpell(spell.id)}
@@ -391,7 +394,8 @@ export const SpellArc: React.FC<SpellArcProps> = ({
           blocked={unavailableReason(
             peek,
             player?.spells?.[String(peek.id)],
-            actionPoints
+            actionPoints,
+            turnNumber
           )}
         />
       )}

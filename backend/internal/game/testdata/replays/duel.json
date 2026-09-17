@@ -5,7 +5,7 @@
     "seed": 3,
     "startedAt": 1700000000000,
     "turnDurationMs": 3000,
-    "rules": "0344506a3bb736e5c6a3ecba7d1d3a69edc808bb1b34c4d96db6cb0a52632532",
+    "rules": "51a866fad8f115a3853229c302baf42e41cf2e048a4075000132fc0f3d5f87ce",
     "commands": [
       {
         "seq": 1,
@@ -216,7 +216,7 @@
         "payload": {
           "position": {
             "x": -2,
-            "y": 1
+            "y": 3
           }
         }
       },
@@ -235,7 +235,7 @@
           "spellId": 1,
           "target": {
             "x": -2,
-            "y": 1
+            "y": 3
           }
         }
       },
@@ -248,7 +248,7 @@
           "spellId": 1,
           "target": {
             "x": -2,
-            "y": 1
+            "y": 3
           }
         }
       },
@@ -300,198 +300,233 @@
         "seq": 28,
         "at": 25803,
         "userId": "alice",
-        "kind": "cast",
-        "payload": {
-          "spellId": 1,
-          "target": {
-            "x": -2,
-            "y": 0
-          }
-        }
-      },
-      {
-        "seq": 29,
-        "at": 26387,
-        "userId": "alice",
         "kind": "restart"
       },
       {
-        "seq": 30,
-        "at": 27371,
+        "seq": 29,
+        "at": 27058,
         "userId": "alice",
         "kind": "position",
         "payload": {
           "position": {
-            "x": 1,
-            "y": 5
+            "x": -2,
+            "y": -3
+          }
+        }
+      },
+      {
+        "seq": 30,
+        "at": 27642,
+        "userId": "bob",
+        "kind": "position",
+        "payload": {
+          "position": {
+            "x": 4,
+            "y": 3
           }
         }
       },
       {
         "seq": 31,
-        "at": 27664,
+        "at": 28962,
         "userId": "bob",
-        "kind": "position",
+        "kind": "move",
         "payload": {
           "position": {
-            "x": -1,
-            "y": -5
+            "x": 1,
+            "y": 2
           }
         }
       },
       {
         "seq": 32,
-        "at": 28936,
-        "userId": "alice",
-        "kind": "move",
-        "payload": {
-          "position": {
-            "x": 0,
-            "y": 2
-          }
-        }
-      },
-      {
-        "seq": 33,
-        "at": 29285,
-        "userId": "alice",
+        "at": 30231,
+        "userId": "bob",
         "kind": "end_turn"
       },
       {
-        "seq": 34,
-        "at": 30416,
-        "userId": "bob",
-        "kind": "move",
+        "seq": 33,
+        "at": 31732,
+        "userId": "alice",
+        "kind": "connect",
         "payload": {
-          "position": {
-            "x": 0,
-            "y": -5
+          "connected": false
+        }
+      },
+      {
+        "seq": 34,
+        "at": 32314,
+        "userId": "alice",
+        "kind": "cast",
+        "payload": {
+          "spellId": 2,
+          "target": {
+            "x": -2,
+            "y": -3
           }
         }
       },
       {
         "seq": 35,
-        "at": 31587,
-        "userId": "bob",
-        "kind": "cast",
+        "at": 32818,
+        "userId": "alice",
+        "kind": "move",
         "payload": {
-          "spellId": 1,
-          "target": {
-            "x": 0,
-            "y": 2
+          "position": {
+            "x": -1,
+            "y": -3
           }
         }
       },
       {
         "seq": 36,
-        "at": 32754,
-        "userId": "bob",
-        "kind": "timeout"
-      },
-      {
-        "seq": 37,
-        "at": 33354,
+        "at": 33211,
         "userId": "alice",
         "kind": "cast",
         "payload": {
-          "spellId": 5,
+          "spellId": 1,
           "target": {
-            "x": 0,
-            "y": -5
+            "x": 1,
+            "y": 2
           }
         }
       },
       {
-        "seq": 38,
-        "at": 34372,
+        "seq": 37,
+        "at": 34810,
         "userId": "alice",
-        "kind": "move",
+        "kind": "timeout"
+      },
+      {
+        "seq": 38,
+        "at": 36058,
+        "userId": "bob",
+        "kind": "cast",
         "payload": {
-          "position": {
-            "x": 0,
-            "y": -2
+          "spellId": 1,
+          "target": {
+            "x": 1,
+            "y": 2
           }
         }
       },
       {
         "seq": 39,
-        "at": 34876,
-        "userId": "alice",
-        "kind": "end_turn"
-      },
-      {
-        "seq": 40,
-        "at": 35269,
+        "at": 37663,
         "userId": "bob",
         "kind": "cast",
         "payload": {
-          "spellId": 5,
+          "spellId": 1,
           "target": {
-            "x": 0,
-            "y": -2
+            "x": -1,
+            "y": -3
           }
         }
       },
       {
-        "seq": 41,
-        "at": 36868,
+        "seq": 40,
+        "at": 37900,
         "userId": "bob",
-        "kind": "end_turn"
+        "kind": "timeout"
       },
       {
-        "seq": 42,
-        "at": 37621,
+        "seq": 41,
+        "at": 38700,
         "userId": "alice",
         "kind": "cast",
         "payload": {
           "spellId": 3,
           "target": {
-            "x": 0,
-            "y": -6
+            "x": 1,
+            "y": 2
+          }
+        }
+      },
+      {
+        "seq": 42,
+        "at": 38930,
+        "userId": "alice",
+        "kind": "move",
+        "payload": {
+          "position": {
+            "x": -1,
+            "y": 1
           }
         }
       },
       {
         "seq": 43,
-        "at": 39226,
+        "at": 39378,
         "userId": "alice",
-        "kind": "end_turn"
-      },
-      {
-        "seq": 44,
-        "at": 40551,
-        "userId": "bob",
         "kind": "cast",
         "payload": {
-          "spellId": 3,
+          "spellId": 4,
           "target": {
-            "x": 0,
-            "y": -1
+            "x": 1,
+            "y": 2
           }
         }
       },
       {
+        "seq": 44,
+        "at": 40219,
+        "userId": "alice",
+        "kind": "end_turn"
+      },
+      {
         "seq": 45,
-        "at": 41392,
+        "at": 41704,
         "userId": "bob",
         "kind": "end_turn"
       },
       {
         "seq": 46,
-        "at": 42877,
+        "at": 42401,
+        "userId": "alice",
+        "kind": "cast",
+        "payload": {
+          "spellId": 5,
+          "target": {
+            "x": 1,
+            "y": 2
+          }
+        }
+      },
+      {
+        "seq": 47,
+        "at": 43946,
         "userId": "alice",
         "kind": "end_turn"
       },
       {
-        "seq": 47,
-        "at": 43574,
+        "seq": 48,
+        "at": 44579,
         "userId": "bob",
+        "kind": "cast",
+        "payload": {
+          "spellId": 5,
+          "target": {
+            "x": -1,
+            "y": 1
+          }
+        }
+      },
+      {
+        "seq": 49,
+        "at": 47077,
+        "userId": "bob",
+        "kind": "timeout"
+      },
+      {
+        "seq": 50,
+        "at": 48311,
+        "userId": "alice",
         "kind": "cast",
         "payload": {
           "spellId": 3,
           "target": {
-            "x": 0,
-            "y": -1
+            "x": 2,
+            "y": 2
           }
         }
       }
@@ -509,83 +544,8 @@
           "symbol": "A",
           "class": "pyromancer",
           "position": {
-            "x": 0,
-            "y": -1
-          },
-          "actionPoints": 6,
-          "movementPoints": 4,
-          "maxActionPoints": 6,
-          "maxMovementPoints": 4,
-          "isCurrentTurn": false,
-          "initialPositions": [
-            {
-              "x": 2,
-              "y": 5
-            },
-            {
-              "x": 1,
-              "y": 5
-            },
-            {
-              "x": 2,
-              "y": 4
-            }
-          ],
-          "health": 0,
-          "maxHealth": 95,
-          "isAlive": false,
-          "effects": null
-        },
-        "isCurrentTurn": false,
-        "hasPositioned": true,
-        "connected": true,
-        "isBot": false,
-        "spells": {
-          "1": {
-            "castsThisTurn": 0,
-            "cooldownLeft": 0,
-            "spent": false
-          },
-          "2": {
-            "castsThisTurn": 0,
-            "cooldownLeft": 0,
-            "spent": false
-          },
-          "3": {
-            "castsThisTurn": 0,
-            "cooldownLeft": 0,
-            "spent": false
-          },
-          "4": {
-            "castsThisTurn": 0,
-            "cooldownLeft": 0,
-            "spent": false
-          },
-          "5": {
-            "castsThisTurn": 0,
-            "cooldownLeft": 0,
-            "spent": true
-          }
-        },
-        "spellBar": [
-          "1",
-          "2",
-          "3",
-          "4",
-          "5"
-        ]
-      },
-      "bob": {
-        "userId": "bob",
-        "userName": "User-bob",
-        "character": {
-          "name": "Bob",
-          "color": "#ff0000",
-          "symbol": "B",
-          "class": "pyromancer",
-          "position": {
-            "x": 0,
-            "y": -6
+            "x": -2,
+            "y": 1
           },
           "actionPoints": 2,
           "movementPoints": 4,
@@ -594,25 +554,25 @@
           "isCurrentTurn": false,
           "initialPositions": [
             {
-              "x": -2,
-              "y": -5
-            },
-            {
-              "x": -1,
-              "y": -5
+              "x": -3,
+              "y": -3
             },
             {
               "x": -2,
-              "y": -4
+              "y": -3
+            },
+            {
+              "x": -4,
+              "y": -3
             }
           ],
-          "health": 19,
-          "maxHealth": 95,
+          "health": 34,
+          "maxHealth": 90,
           "isAlive": true,
           "effects": [
             {
               "kind": "burn",
-              "value": 2,
+              "value": 3,
               "turnsLeft": 2,
               "source": "Burn"
             }
@@ -645,6 +605,81 @@
           },
           "5": {
             "castsThisTurn": 0,
+            "cooldownLeft": 0,
+            "spent": true
+          }
+        },
+        "spellBar": [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5"
+        ]
+      },
+      "bob": {
+        "userId": "bob",
+        "userName": "User-bob",
+        "character": {
+          "name": "Bob",
+          "color": "#ff0000",
+          "symbol": "B",
+          "class": "pyromancer",
+          "position": {
+            "x": 2,
+            "y": 2
+          },
+          "actionPoints": 0,
+          "movementPoints": 4,
+          "maxActionPoints": 6,
+          "maxMovementPoints": 4,
+          "isCurrentTurn": false,
+          "initialPositions": [
+            {
+              "x": 3,
+              "y": 3
+            },
+            {
+              "x": 4,
+              "y": 3
+            },
+            {
+              "x": 2,
+              "y": 3
+            }
+          ],
+          "health": 0,
+          "maxHealth": 90,
+          "isAlive": false,
+          "effects": null
+        },
+        "isCurrentTurn": false,
+        "hasPositioned": true,
+        "connected": false,
+        "isBot": false,
+        "spells": {
+          "1": {
+            "castsThisTurn": 0,
+            "cooldownLeft": 0,
+            "spent": false
+          },
+          "2": {
+            "castsThisTurn": 0,
+            "cooldownLeft": 0,
+            "spent": false
+          },
+          "3": {
+            "castsThisTurn": 0,
+            "cooldownLeft": 0,
+            "spent": false
+          },
+          "4": {
+            "castsThisTurn": 0,
+            "cooldownLeft": 0,
+            "spent": false
+          },
+          "5": {
+            "castsThisTurn": 1,
             "cooldownLeft": 0,
             "spent": true
           }
@@ -1259,28 +1294,94 @@
       }
     },
     "turnOrder": [
-      "alice",
-      "bob"
+      "bob",
+      "alice"
     ],
     "turnEndsAt": 0,
     "log": [
       {
-        "seq": 35,
-        "turn": 1,
-        "actor": "Alice",
-        "kind": "turn",
-        "text": "starts their turn"
-      },
-      {
-        "seq": 36,
+        "seq": 31,
         "turn": 1,
         "actor": "Bob",
         "kind": "turn",
         "text": "starts their turn"
       },
       {
-        "seq": 37,
+        "seq": 32,
         "turn": 1,
+        "actor": "Alice",
+        "kind": "turn",
+        "text": "starts their turn"
+      },
+      {
+        "seq": 33,
+        "turn": 1,
+        "actor": "Alice",
+        "kind": "cast",
+        "text": "cast Scorched Earth",
+        "damage": 5,
+        "spellId": 2,
+        "origin": {
+          "x": -2,
+          "y": -3
+        },
+        "target": {
+          "x": -2,
+          "y": -3
+        }
+      },
+      {
+        "seq": 34,
+        "turn": 1,
+        "actor": "Alice",
+        "kind": "cast",
+        "text": "cast Kindle",
+        "damage": 6,
+        "spellId": 1,
+        "origin": {
+          "x": -1,
+          "y": -3
+        },
+        "target": {
+          "x": 1,
+          "y": 2
+        }
+      },
+      {
+        "seq": 35,
+        "turn": 2,
+        "actor": "Bob",
+        "kind": "effect",
+        "text": "suffers from its wounds",
+        "damage": 4
+      },
+      {
+        "seq": 36,
+        "turn": 2,
+        "actor": "Bob",
+        "kind": "turn",
+        "text": "starts their turn"
+      },
+      {
+        "seq": 37,
+        "turn": 2,
+        "actor": "Bob",
+        "kind": "cast",
+        "text": "cast Kindle",
+        "damage": 6,
+        "spellId": 1,
+        "origin": {
+          "x": 1,
+          "y": 2
+        },
+        "target": {
+          "x": 1,
+          "y": 2
+        }
+      },
+      {
+        "seq": 38,
+        "turn": 2,
         "actor": "Bob",
         "kind": "cast",
         "text": "cast Kindle — critical!",
@@ -1288,16 +1389,16 @@
         "crit": true,
         "spellId": 1,
         "origin": {
-          "x": 0,
-          "y": -5
+          "x": 1,
+          "y": 2
         },
         "target": {
-          "x": 0,
-          "y": 2
+          "x": -1,
+          "y": -3
         }
       },
       {
-        "seq": 38,
+        "seq": 39,
         "turn": 2,
         "actor": "Alice",
         "kind": "effect",
@@ -1305,279 +1406,245 @@
         "damage": 4
       },
       {
-        "seq": 39,
+        "seq": 40,
         "turn": 2,
         "actor": "Alice",
         "kind": "turn",
         "text": "starts their turn"
       },
       {
-        "seq": 40,
+        "seq": 41,
         "turn": 2,
         "actor": "Alice",
         "kind": "cast",
-        "text": "cast Meteor",
-        "damage": 22,
-        "spellId": 5,
+        "text": "cast Combustion",
+        "damage": 30,
+        "spellId": 3,
         "origin": {
-          "x": 0,
-          "y": 2
+          "x": -1,
+          "y": -3
         },
         "target": {
-          "x": 0,
-          "y": -5
+          "x": 1,
+          "y": 2
         }
-      },
-      {
-        "seq": 41,
-        "turn": 2,
-        "actor": "Bob",
-        "kind": "effect",
-        "text": "catches fire"
       },
       {
         "seq": 42,
         "turn": 2,
-        "actor": "Bob",
-        "kind": "effect",
-        "text": "is thrown back"
+        "actor": "Alice",
+        "kind": "cast",
+        "text": "cast Smokescreen",
+        "spellId": 4,
+        "origin": {
+          "x": -1,
+          "y": 1
+        },
+        "target": {
+          "x": 1,
+          "y": 2
+        }
       },
       {
         "seq": 43,
-        "turn": 2,
+        "turn": 3,
         "actor": "Bob",
-        "kind": "effect",
-        "text": "is standing in fire"
+        "kind": "turn",
+        "text": "starts their turn"
       },
       {
         "seq": 44,
-        "turn": 2,
-        "actor": "Bob",
+        "turn": 3,
+        "actor": "Alice",
         "kind": "effect",
         "text": "suffers from its wounds",
-        "damage": 12
+        "damage": 4
       },
       {
         "seq": 45,
-        "turn": 2,
-        "actor": "Bob",
+        "turn": 3,
+        "actor": "Alice",
         "kind": "turn",
         "text": "starts their turn"
       },
       {
         "seq": 46,
-        "turn": 2,
-        "actor": "Bob",
+        "turn": 3,
+        "actor": "Alice",
         "kind": "cast",
         "text": "cast Meteor",
         "damage": 22,
         "spellId": 5,
         "origin": {
-          "x": 0,
-          "y": -6
+          "x": -1,
+          "y": 1
         },
         "target": {
-          "x": 0,
-          "y": -2
+          "x": 1,
+          "y": 2
         }
       },
       {
         "seq": 47,
-        "turn": 2,
-        "actor": "Alice",
+        "turn": 3,
+        "actor": "Bob",
         "kind": "effect",
         "text": "catches fire"
       },
       {
         "seq": 48,
-        "turn": 2,
-        "actor": "Alice",
+        "turn": 3,
+        "actor": "Bob",
         "kind": "effect",
         "text": "is thrown back"
       },
       {
         "seq": 49,
-        "turn": 3,
-        "actor": "Alice",
+        "turn": 4,
+        "actor": "Bob",
         "kind": "effect",
         "text": "is standing in fire"
       },
       {
         "seq": 50,
-        "turn": 3,
-        "actor": "Alice",
+        "turn": 4,
+        "actor": "Bob",
         "kind": "effect",
         "text": "suffers from its wounds",
         "damage": 12
       },
       {
         "seq": 51,
-        "turn": 3,
-        "actor": "Alice",
+        "turn": 4,
+        "actor": "Bob",
         "kind": "turn",
         "text": "starts their turn"
       },
       {
         "seq": 52,
-        "turn": 3,
-        "actor": "Alice",
+        "turn": 4,
+        "actor": "Bob",
         "kind": "cast",
-        "text": "cast Combustion",
-        "damage": 30,
-        "spellId": 3,
+        "text": "cast Meteor",
+        "damage": 22,
+        "spellId": 5,
         "origin": {
-          "x": 0,
-          "y": -1
+          "x": 2,
+          "y": 2
         },
         "target": {
-          "x": 0,
-          "y": -6
+          "x": -1,
+          "y": 1
         }
       },
       {
         "seq": 53,
-        "turn": 3,
-        "actor": "Bob",
+        "turn": 4,
+        "actor": "Alice",
+        "kind": "effect",
+        "text": "catches fire"
+      },
+      {
+        "seq": 54,
+        "turn": 4,
+        "actor": "Alice",
+        "kind": "effect",
+        "text": "is thrown back"
+      },
+      {
+        "seq": 55,
+        "turn": 4,
+        "actor": "Alice",
         "kind": "effect",
         "text": "is standing in fire"
       },
       {
-        "seq": 54,
-        "turn": 3,
-        "actor": "Bob",
+        "seq": 56,
+        "turn": 4,
+        "actor": "Alice",
         "kind": "effect",
         "text": "suffers from its wounds",
-        "damage": 4
-      },
-      {
-        "seq": 55,
-        "turn": 3,
-        "actor": "Bob",
-        "kind": "turn",
-        "text": "starts their turn"
-      },
-      {
-        "seq": 56,
-        "turn": 3,
-        "actor": "Bob",
-        "kind": "cast",
-        "text": "cast Combustion",
-        "damage": 30,
-        "spellId": 3,
-        "origin": {
-          "x": 0,
-          "y": -6
-        },
-        "target": {
-          "x": 0,
-          "y": -1
-        }
+        "damage": 12
       },
       {
         "seq": 57,
         "turn": 4,
         "actor": "Alice",
-        "kind": "effect",
-        "text": "is standing in fire"
+        "kind": "turn",
+        "text": "starts their turn"
       },
       {
         "seq": 58,
         "turn": 4,
         "actor": "Alice",
-        "kind": "effect",
-        "text": "suffers from its wounds",
-        "damage": 4
+        "kind": "cast",
+        "text": "cast Combustion",
+        "damage": 30,
+        "spellId": 3,
+        "origin": {
+          "x": -2,
+          "y": 1
+        },
+        "target": {
+          "x": 2,
+          "y": 2
+        }
       },
       {
         "seq": 59,
         "turn": 4,
-        "actor": "Alice",
-        "kind": "turn",
-        "text": "starts their turn"
-      },
-      {
-        "seq": 60,
-        "turn": 4,
         "actor": "Bob",
-        "kind": "effect",
-        "text": "is standing in fire"
-      },
-      {
-        "seq": 61,
-        "turn": 4,
-        "actor": "Bob",
-        "kind": "effect",
-        "text": "suffers from its wounds",
-        "damage": 8
-      },
-      {
-        "seq": 62,
-        "turn": 4,
-        "actor": "Bob",
-        "kind": "turn",
-        "text": "starts their turn"
-      },
-      {
-        "seq": 63,
-        "turn": 4,
-        "actor": "Bob",
-        "kind": "cast",
-        "text": "cast Combustion — critical!",
-        "damage": 17,
-        "crit": true,
-        "spellId": 3,
-        "origin": {
-          "x": 0,
-          "y": -6
-        },
-        "target": {
-          "x": 0,
-          "y": -1
-        }
-      },
-      {
-        "seq": 64,
-        "turn": 4,
-        "actor": "Alice",
         "kind": "death",
         "text": "is out of the fight"
       },
       {
-        "seq": 65,
+        "seq": 60,
         "turn": 4,
-        "actor": "Bob",
+        "actor": "Alice",
         "kind": "end",
         "text": "wins the fight"
       }
     ],
     "obstacles": [
       {
-        "x": -5,
-        "y": 2
+        "x": -4,
+        "y": -1
       },
       {
         "x": -4,
-        "y": -2
+        "y": 1
+      },
+      {
+        "x": -2,
+        "y": 2
       },
       {
         "x": -1,
-        "y": -2
+        "y": -4
       },
       {
         "x": -1,
         "y": 2
       },
       {
-        "x": -1,
+        "x": 0,
+        "y": -4
+      },
+      {
+        "x": 0,
         "y": 3
       },
       {
-        "x": 1,
-        "y": -2
+        "x": 0,
+        "y": 4
       },
       {
         "x": 1,
-        "y": 2
+        "y": 6
+      },
+      {
+        "x": 2,
+        "y": -4
       },
       {
         "x": 2,
@@ -1585,34 +1652,30 @@
       },
       {
         "x": 2,
-        "y": 2
+        "y": 1
       },
       {
-        "x": 3,
-        "y": 0
+        "x": 2,
+        "y": 5
       },
       {
         "x": 4,
         "y": -2
-      },
-      {
-        "x": 5,
-        "y": 1
-      },
-      {
-        "x": 5,
-        "y": 2
-      },
-      {
-        "x": 6,
-        "y": 1
       }
     ],
     "terrain": [
       {
         "position": {
+          "x": -3,
+          "y": 1
+        },
+        "kind": "fire",
+        "owner": "bob"
+      },
+      {
+        "position": {
           "x": -2,
-          "y": -5
+          "y": -3
         },
         "kind": "fire",
         "owner": "alice"
@@ -1623,36 +1686,28 @@
           "y": -2
         },
         "kind": "fire",
+        "owner": "alice"
+      },
+      {
+        "position": {
+          "x": -2,
+          "y": -1
+        },
+        "kind": "fire",
+        "owner": "alice"
+      },
+      {
+        "position": {
+          "x": -2,
+          "y": 0
+        },
+        "kind": "fire",
         "owner": "bob"
       },
       {
         "position": {
-          "x": -1,
-          "y": -6
-        },
-        "kind": "fire",
-        "owner": "alice"
-      },
-      {
-        "position": {
-          "x": -1,
-          "y": -5
-        },
-        "kind": "fire",
-        "owner": "alice"
-      },
-      {
-        "position": {
-          "x": -1,
-          "y": -4
-        },
-        "kind": "fire",
-        "owner": "alice"
-      },
-      {
-        "position": {
-          "x": -1,
-          "y": -3
+          "x": -2,
+          "y": 1
         },
         "kind": "fire",
         "owner": "bob"
@@ -1667,56 +1722,24 @@
       },
       {
         "position": {
-          "x": 0,
-          "y": -7
-        },
-        "kind": "fire",
-        "owner": "alice"
-      },
-      {
-        "position": {
-          "x": 0,
-          "y": -6
-        },
-        "kind": "fire",
-        "owner": "alice"
-      },
-      {
-        "position": {
-          "x": 0,
-          "y": -5
-        },
-        "kind": "crater",
-        "owner": "alice"
-      },
-      {
-        "position": {
-          "x": 0,
-          "y": -4
+          "x": -1,
+          "y": 0
         },
         "kind": "fire",
         "owner": "bob"
       },
       {
         "position": {
-          "x": 0,
-          "y": -3
-        },
-        "kind": "fire",
-        "owner": "bob"
-      },
-      {
-        "position": {
-          "x": 0,
-          "y": -2
+          "x": -1,
+          "y": 1
         },
         "kind": "crater",
         "owner": "bob"
       },
       {
         "position": {
-          "x": 0,
-          "y": -1
+          "x": -1,
+          "y": 3
         },
         "kind": "fire",
         "owner": "bob"
@@ -1731,32 +1754,16 @@
       },
       {
         "position": {
-          "x": 1,
-          "y": -6
+          "x": 0,
+          "y": 1
         },
         "kind": "fire",
-        "owner": "alice"
+        "owner": "bob"
       },
       {
         "position": {
-          "x": 1,
-          "y": -5
-        },
-        "kind": "fire",
-        "owner": "alice"
-      },
-      {
-        "position": {
-          "x": 1,
-          "y": -4
-        },
-        "kind": "fire",
-        "owner": "alice"
-      },
-      {
-        "position": {
-          "x": 1,
-          "y": -3
+          "x": 0,
+          "y": 2
         },
         "kind": "fire",
         "owner": "bob"
@@ -1764,15 +1771,63 @@
       {
         "position": {
           "x": 1,
-          "y": -1
+          "y": 0
+        },
+        "kind": "fire",
+        "owner": "alice"
+      },
+      {
+        "position": {
+          "x": 1,
+          "y": 1
         },
         "kind": "fire",
         "owner": "bob"
+      },
+      {
+        "position": {
+          "x": 1,
+          "y": 2
+        },
+        "kind": "crater",
+        "owner": "alice"
+      },
+      {
+        "position": {
+          "x": 1,
+          "y": 3
+        },
+        "kind": "fire",
+        "owner": "alice"
+      },
+      {
+        "position": {
+          "x": 1,
+          "y": 4
+        },
+        "kind": "fire",
+        "owner": "alice"
       },
       {
         "position": {
           "x": 2,
-          "y": -5
+          "y": 2
+        },
+        "kind": "fire",
+        "owner": "alice"
+      },
+      {
+        "position": {
+          "x": 2,
+          "y": 3
+        },
+        "kind": "fire",
+        "owner": "alice"
+      },
+      {
+        "position": {
+          "x": 3,
+          "y": 2
         },
         "kind": "fire",
         "owner": "alice"

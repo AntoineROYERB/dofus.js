@@ -73,15 +73,21 @@ func (g *Game) terrainKindLocked(pos types.Position) string {
 }
 
 // placeTerrainLocked leaves terrain on a cell and reports whether it took.
-// Solid ground and cover are never replaced, fire never takes on water or ice
-// — water puts fire out, not the other way round — and a trap needs a cell
-// nobody is standing on.
+// Solid ground and cover are never replaced; neither are traps and relays,
+// which are things set on the ground rather than the ground itself — ice
+// spread over a trap leaves the trap waiting at the end of the slide. Fire
+// never takes on water or ice: water puts fire out, not the other way round.
+// A trap needs a cell nobody is standing on.
 func (g *Game) placeTerrainLocked(pos types.Position, kind, owner string) bool {
 	if !InGrid(pos) || g.obstacles[pos] {
 		return false
 	}
 	existing, has := g.terrain[pos]
 	if has && isSolidTerrain(existing.Kind) {
+		return false
+	}
+	if has && kind != types.TerrainRelay &&
+		(existing.Kind == types.TerrainTrap || existing.Kind == types.TerrainRelay) {
 		return false
 	}
 	if kind == types.TerrainFire && has &&

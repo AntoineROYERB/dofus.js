@@ -1,26 +1,18 @@
 import { bubblePlacement, confirmActionFor } from "./touchConfirm";
 import { Player } from "../types/game";
 import { Spell } from "../types/message";
+import { makeSpell } from "../test/fixtures";
 
-const spell = (overrides: Partial<Spell> = {}): Spell => ({
-  id: 1,
-  name: "Ember",
-  color: "#d8ae31",
-  icon: "*",
-  APCost: 2,
-  range: 4,
-  damage: 7,
-  areaOfEffect: "none",
-  element: "Fire",
-  description: "",
-  needsLineOfSight: true,
-  maxCastsPerTurn: 2,
-  cooldown: 0,
-  criticalChance: 0,
-  criticalDamage: 0,
-  effect: null,
-  ...overrides,
-});
+const spell = (overrides: Partial<Spell> = {}): Spell =>
+  makeSpell({
+    name: "Ember",
+    color: "#d8ae31",
+    range: 4,
+    damage: 7,
+    maxCastsPerTurn: 2,
+    criticalDamage: 7,
+    ...overrides,
+  });
 
 const fighter = (userId: string, name: string, health: number): Player =>
   ({ userId, character: { name, health } } as unknown as Player);

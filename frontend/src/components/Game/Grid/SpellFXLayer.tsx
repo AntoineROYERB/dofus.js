@@ -1,6 +1,20 @@
 import React, { useEffect, useRef } from "react";
 import { GameState } from "../../../types/message";
-import { CastEvent, Element, SpellFx } from "../../../vfx/spellFx";
+import { CastEvent, Element, Signature, SpellFx } from "../../../vfx/spellFx";
+import { Spell } from "../../../types/message";
+import { calculateImpactedCells } from "../../../utils/spellUtils";
+
+/** Which spells are drawn as themselves rather than as their element. */
+const signatureOf = (spell: Spell): Signature | undefined => {
+  if (spell.special === "leap") return "leap";
+  if (spell.special === "relay") return "relay";
+  if (spell.special === "quake") return "quake";
+  if (spell.special === "crater") return "meteor";
+  if (spell.zone?.kind === "storm") return "tempest";
+  if (spell.zone?.kind === "maelstrom") return "maelstrom";
+  if (spell.targeting === "self") return "self";
+  return undefined;
+};
 
 interface SpellFXLayerProps {
   latestGameState?: GameState | null;
@@ -114,8 +128,9 @@ export const SpellFXLayer: React.FC<SpellFXLayerProps> = ({
     const toEvent = (entry: (typeof log)[number]): CastEvent | null => {
       if (entry.kind !== "cast") return null;
       if (entry.spellId === undefined || !entry.origin || !entry.target) return null;
-      const element = spells[String(entry.spellId)]?.element;
-      if (!isElement(element)) return null;
+      const spell = spells[String(entry.spellId)];
+      const element = spell?.element;
+      if (!spell || !isElement(element)) return null;
       return {
         seq: entry.seq,
         element,
@@ -123,6 +138,10 @@ export const SpellFXLayer: React.FC<SpellFXLayerProps> = ({
         target: entry.target,
         crit: !!entry.crit,
         damage: entry.damage ?? 0,
+        signature: signatureOf(spell),
+        via: entry.via,
+        area: calculateImpactedCells(spell, entry.target, entry.via ?? entry.origin),
+        terrain: spell.terrain,
       };
     };
 
