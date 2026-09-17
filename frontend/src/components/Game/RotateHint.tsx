@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { isNativeApp } from "../../lib/native";
 
 const KEY = "dofusjs.rotateHintSeen";
 
@@ -27,7 +28,8 @@ export const RotateHint: React.FC = () => {
     return () => query.removeEventListener("change", update);
   }, []);
 
-  if (!portrait || dismissed) return null;
+  // The iOS app is locked to landscape; there is nothing to turn.
+  if (isNativeApp || !portrait || dismissed) return null;
 
   const dismiss = () => {
     setDismissed(true);

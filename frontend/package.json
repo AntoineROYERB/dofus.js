@@ -8,15 +8,23 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test": "jest"
+    "test": "jest",
+    "ios:sync": "node scripts/require-server-url.mjs && npm run build && cap sync ios",
+    "ios:open": "cap open ios",
+    "ios:dev": "cap run ios"
   },
   "dependencies": {
+    "@capacitor/core": "^8.5.2",
+    "@capacitor/haptics": "^8.0.2",
+    "@capacitor/ios": "^8.5.2",
+    "@capacitor/status-bar": "^8.0.3",
     "@tailwindcss/cli": "^4.0.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^7.18.3"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.5.2",
     "@eslint/js": "^9.17.0",
     "@types/jest": "^29.5.14",
     "@types/node": "^22.13.0",

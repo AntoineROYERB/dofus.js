@@ -3,12 +3,19 @@ import { Player } from "../../types/game";
 import { GameState } from "../../types/message";
 import { EffectBadges } from "./EffectBadges";
 import { TurnClock } from "./TurnClock";
+import { ClassTag } from "./ClassTag";
+import { useContent } from "../../hooks/useContent";
 
 interface TurnTimelineProps {
   latestGameState: GameState | null;
   userId: string;
   /** Opens the log sheet, on the screens too narrow to keep the rail. */
   onOpenRail?: () => void;
+  /**
+   * Leaves the room. The rail carries its own Leave button, but below lg the
+   * rail is a sheet, and a way out hidden behind "Log" is one nobody finds.
+   */
+  onLeave?: () => void;
 }
 
 /**
@@ -21,7 +28,9 @@ export const TurnTimeline: React.FC<TurnTimelineProps> = ({
   latestGameState,
   userId,
   onOpenRail,
+  onLeave,
 }) => {
+  const { content } = useContent();
   const players = latestGameState?.players ?? {};
   const order = latestGameState?.turnOrder ?? [];
 
@@ -46,6 +55,15 @@ export const TurnTimeline: React.FC<TurnTimelineProps> = ({
               {latestGameState?.turnNumber ?? 0}
             </b>
           </span>
+          {onLeave && (
+            <button
+              type="button"
+              onClick={onLeave}
+              className="font-mono text-[10px] uppercase tracking-label text-muted transition-colors hover:text-vermilion lg:hidden"
+            >
+              Leave
+            </button>
+          )}
           {onOpenRail && (
             <button
               type="button"
@@ -84,6 +102,12 @@ export const TurnTimeline: React.FC<TurnTimelineProps> = ({
               >
                 {player.character.name}
               </b>
+              {/* An opponent's class is the first thing worth knowing about them. */}
+              <ClassTag
+                classId={player.character.class}
+                classes={content?.classes}
+                className="hidden sm:inline-flex short:hidden"
+              />
               <span className="hidden font-mono text-[9.5px] text-muted sm:inline">
                 {isYou ? "you" : `${player.character.health} HP`}
                 {player.isBot && !isYou ? " · cpu" : ""}

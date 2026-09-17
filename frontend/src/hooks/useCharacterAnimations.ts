@@ -121,18 +121,31 @@ export const useCharacterAnimations = (
           (oldPlayer.character.position.x !== newPlayer.character.position.x ||
             oldPlayer.character.position.y !== newPlayer.character.position.y)
         ) {
+          // A walk spends movement points and nothing else. Anything else that
+          // moved a fighter — a push, a pull, a leap, a maelstrom — carried
+          // it in a straight line, and is drawn as one.
+          const walked =
+            newPlayer.isCurrentTurn &&
+            newPlayer.character.movementPoints <
+              oldPlayer.character.movementPoints &&
+            newPlayer.character.actionPoints === oldPlayer.character.actionPoints;
           // Walk the route the server actually took, so a character no longer
           // slides through cover on its way.
           const others = Object.entries(latestGameState.players)
             .filter(([id]) => id !== playerId)
             .map(([, p]) => p.character.position)
             .filter((p): p is Position => !!p);
-          const steps = findPath(
+          const steps = walked
+            ? findPath(
+                oldPlayer.character.position,
+                newPlayer.character.position,
+                blockedBy(latestGameState.obstacles, others, latestGameState.terrain)
+              )
+            : null;
+          const path = [
             oldPlayer.character.position,
-            newPlayer.character.position,
-            blockedBy(latestGameState.obstacles, others)
-          );
-          const path = [oldPlayer.character.position, ...(steps ?? [])];
+            ...(steps ?? [newPlayer.character.position]),
+          ];
           if (path.length > 1) {
             newAnimations[playerId] = {
               type: "move",

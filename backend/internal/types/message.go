@@ -20,11 +20,15 @@ type ChatMessageIn struct {
 }
 
 // CharacterAppearance is everything a client is allowed to choose about its
-// character. Every stat (health, AP, MP) is assigned by the server.
+// character. Every stat (health, AP, MP) is assigned by the server, from the
+// class picked here.
 type CharacterAppearance struct {
 	Name   string `json:"name"`
 	Color  string `json:"color"`
 	Symbol string `json:"symbol"`
+	// Class is a class id. Empty picks the first class in classes.json, so a
+	// client that predates classes still gets a character.
+	Class string `json:"class,omitempty"`
 }
 
 type CreateCharacterIn struct {
@@ -58,6 +62,9 @@ type CreateRoomIn struct {
 	// WithBot opens the room with a server-played opponent already in it, so a
 	// lone visitor can play a whole match.
 	WithBot bool `json:"withBot"`
+	// BotClass picks which class's opponent the bot plays. Empty means the
+	// first class in classes.json.
+	BotClass string `json:"botClass,omitempty"`
 }
 
 type JoinRoomIn struct {

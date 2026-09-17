@@ -2,7 +2,6 @@ package game
 
 import (
 	"errors"
-	"math/rand"
 	"testing"
 	"time"
 
@@ -11,14 +10,17 @@ import (
 
 func TestBotCastsTheStrongestSpellItCanAfford(t *testing.T) {
 	g := twoPlayerGame(t)
+	// Ranged spells only, so a leap into melee is not an option.
+	setBar(g, "a", "1", "7", "11", "14")
 
-	// "a" stands at (0,0), "b" at (0,3): within Fireball's range of 6.
+	// "a" stands at (0,0), "b" at (0,3): within Geyser's range of 6, and
+	// nothing else in reach hits as hard.
 	action := DecideBotAction(g.Snapshot(), "a")
 	if action.Kind != BotCast {
 		t.Fatalf("action = %+v, want a cast", action)
 	}
-	if action.SpellID != 2 {
-		t.Errorf("spell = %d, want 2 (Fireball, the most damaging affordable one)", action.SpellID)
+	if action.SpellID != 11 {
+		t.Errorf("spell = %d, want 11 (Geyser, the most damaging affordable one)", action.SpellID)
 	}
 	if action.Target != (types.Position{X: 0, Y: 3}) {
 		t.Errorf("target = %+v, want the enemy's cell", action.Target)
@@ -30,15 +32,22 @@ func TestBotClosesTheDistanceWhenNothingIsInRange(t *testing.T) {
 		"a": {X: -7, Y: 0},
 		"b": {X: 7, Y: 0},
 	}, "a", "b")
+	// Only a plain spell on the bar: nothing to leap, relay or speed up with,
+	// so walking is the only way to get anywhere.
+	setBar(g, "a", "1")
 
 	action := DecideBotAction(g.Snapshot(), "a")
 	if action.Kind != BotMove {
 		t.Fatalf("action = %+v, want a move", action)
 	}
-	before := Distance(types.Position{X: -7, Y: 0}, types.Position{X: 7, Y: 0})
-	after := Distance(action.Target, types.Position{X: 7, Y: 0})
-	if after >= before {
-		t.Errorf("move to %+v does not close the distance (%d -> %d)", action.Target, before, after)
+	// Closer on foot, around the cover the board was dealt — which is not
+	// always closer as the crow flies.
+	from, target := types.Position{X: -7, Y: 0}, types.Position{X: 7, Y: 0}
+	g.mu.RLock()
+	walk := walkingDistances(target, func(p types.Position) bool { return p != from && g.blocksMovementLocked(p) })
+	g.mu.RUnlock()
+	if before, after := walk[from], walk[action.Target]; after >= before {
+		t.Errorf("move to %+v does not close the walk (%d -> %d)", action.Target, before, after)
 	}
 	if !InGrid(action.Target) {
 		t.Errorf("move target %+v is off the board", action.Target)
@@ -76,6 +85,7 @@ func TestBotIgnoresDeadOpponents(t *testing.T) {
 	p.Character.IsAlive = false
 	g.players["b"] = p
 	g.mu.Unlock()
+	setBar(g, "a", "1", "7", "11", "14")
 
 	action := DecideBotAction(g.Snapshot(), "a")
 	if action.Kind != BotCast {
@@ -101,8 +111,13 @@ func TestAddBotJoinsReadyAndFlagged(t *testing.T) {
 	if !p.IsBot || !p.Connected {
 		t.Errorf("bot player = %+v, want it flagged and connected", p)
 	}
-	if p.Character.Health != StartingHealth {
-		t.Errorf("bot health = %d, want %d", p.Character.Health, StartingHealth)
+	class := Content().DefaultClass()
+	if p.Character.Class != class.ID || p.Character.Health != class.Health {
+		t.Errorf("bot is %s with %d health, want the default class %s with %d",
+			p.Character.Class, p.Character.Health, class.ID, class.Health)
+	}
+	if p.Character.Name != class.Opponent.Name {
+		t.Errorf("bot is named %q, want its class's opponent %q", p.Character.Name, class.Opponent.Name)
 	}
 }
 
@@ -139,7 +154,7 @@ func TestBotTakesItsStartingCellWithoutBeingAsked(t *testing.T) {
 // A lone visitor has to be able to play a whole match, which is the entire
 // reason the bot exists.
 func TestAHumanCanPlayAWholeMatchAgainstTheBot(t *testing.T) {
-	g := NewWithOptions(rand.New(rand.NewSource(3)), time.Minute)
+	g := NewWithOptions(Options{Seed: 3, TurnDuration: time.Minute})
 	botID, err := g.AddBot()
 	if err != nil {
 		t.Fatalf("AddBot: %v", err)
@@ -191,13 +206,19 @@ func TestAHumanCanPlayAWholeMatchAgainstTheBot(t *testing.T) {
 func TestTurnExpiresAndPassesPlayOn(t *testing.T) {
 	g := twoPlayerGame(t)
 
+	// The clock is swapped for one the test drives, which is the same seam a
+	// replay uses to put a recorded timeout back where it happened.
+	clock := newFakeClock(g.TurnEndsAt().Add(-time.Second))
+	g.clock = clock.Now
+
 	first := currentPlayerID(g)
-	if g.ExpireTurnIfDue(time.Now()) {
+	if g.ExpireTurnIfDue() {
 		t.Fatal("the turn expired immediately")
 	}
 
 	// Well past the deadline.
-	if !g.ExpireTurnIfDue(g.TurnEndsAt().Add(time.Second)) {
+	clock.set(g.TurnEndsAt().Add(time.Second))
+	if !g.ExpireTurnIfDue() {
 		t.Fatal("the turn did not expire once its deadline passed")
 	}
 	if second := currentPlayerID(g); second == first {
@@ -233,7 +254,7 @@ func TestNoTurnDeadlineOutsidePlay(t *testing.T) {
 	if got := g.Snapshot().TurnEndsAt; got != 0 {
 		t.Errorf("TurnEndsAt = %d before the match starts, want 0", got)
 	}
-	if g.ExpireTurnIfDue(time.Now().Add(time.Hour)) {
+	if g.ExpireTurnIfDue() {
 		t.Error("a turn expired while no match was running")
 	}
 }

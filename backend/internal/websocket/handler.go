@@ -2,10 +2,12 @@ package websocket
 
 import (
 	"encoding/json"
-	"log"
+	"log/slog"
 	"net/http"
+	"strconv"
 	"time"
 
+	"game-server/internal/metrics"
 	"game-server/internal/types"
 
 	"github.com/gorilla/websocket"
@@ -25,15 +27,16 @@ func (h *Hub) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 		var err error
 		session, err = h.sessions.Create()
 		if err != nil {
-			log.Printf("[Error] Creating session: %v", err)
+			slog.Error("failed to create session", "component", "handler", "error", err)
 			http.Error(w, "internal error", http.StatusInternalServerError)
 			return
 		}
 	}
+	metrics.Reconnects.WithLabelValues(strconv.FormatBool(resumed)).Inc()
 
 	conn, err := h.upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Printf("[Error] Upgrading connection: %v", err)
+		slog.Error("failed to upgrade connection", "component", "handler", "error", err)
 		return
 	}
 
@@ -46,13 +49,13 @@ func (h *Hub) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 		Resumed:   resumed,
 	})
 	if err != nil {
-		log.Printf("[Error] Marshaling init message: %v", err)
+		slog.Error("failed to marshal init message", "component", "handler", "user_id", session.UserID, "error", err)
 		conn.Close()
 		return
 	}
 
 	if err := conn.WriteMessage(websocket.TextMessage, initMsg); err != nil {
-		log.Printf("[Error] Sending init message: %v", err)
+		slog.Error("failed to send init message", "component", "handler", "user_id", session.UserID, "error", err)
 		conn.Close()
 		return
 	}
@@ -65,11 +68,7 @@ func (h *Hub) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 		Session: session,
 	}
 
-	if resumed {
-		log.Printf("[Connection] %s resumed (%s)", session.UserID, session.Name)
-	} else {
-		log.Printf("[Connection] %s new (%s)", session.UserID, session.Name)
-	}
+	slog.Info("connection upgraded", "component", "handler", "user_id", session.UserID, "user_name", session.Name, "resumed", resumed)
 
 	// Run() sends the newcomer its lobby or room state as part of registering
 	// it. Doing that from here would race: the send can reach the client map

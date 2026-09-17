@@ -46,7 +46,9 @@ const socketUrl = (): string => {
   if (configured) return `${configured}${query}`;
 
   if (import.meta.env.DEV) {
-    return `ws://localhost:8080/ws${query}`;
+    // The page's own host, as in api.ts: a phone loading the dev server over
+    // the LAN (or the iOS app in live reload) would otherwise dial itself.
+    return `ws://${window.location.hostname}:8080/ws${query}`;
   }
   const scheme = window.location.protocol === "https:" ? "wss:" : "ws:";
   return `${scheme}//${window.location.host}/ws${query}`;

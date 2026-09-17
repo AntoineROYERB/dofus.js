@@ -4,12 +4,18 @@ interface GameOverModalProps {
   winner: string;
   onPlayAgain: () => void;
   onExit: () => void;
+  /** What a computer opponent says on its way out, when there was one. */
+  farewell?: { name: string; line: string };
+  /** Opponents a solo win has just opened up. */
+  unlocked?: string[];
 }
 
 export const GameOverModal: React.FC<GameOverModalProps> = ({
   winner,
   onPlayAgain,
   onExit,
+  farewell,
+  unlocked = [],
 }) => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/70 px-6">
@@ -20,6 +26,19 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
         <h2 className="mt-2 font-display text-[29px] font-bold leading-none tracking-tight">
           {winner} wins
         </h2>
+        {farewell && (
+          <blockquote className="mt-5 border-l-2 border-rule pl-3 text-[13.5px] italic text-graphite">
+            “{farewell.line}”
+            <footer className="mt-1 font-mono text-[9.5px] uppercase not-italic tracking-label text-muted">
+              {farewell.name}
+            </footer>
+          </blockquote>
+        )}
+        {unlocked.length > 0 && (
+          <p className="mt-4 font-mono text-[9.5px] uppercase tracking-label text-ink">
+            Unlocked · {unlocked.join(", ")}
+          </p>
+        )}
         <div className="mt-7 flex gap-3">
           <button
             onClick={onPlayAgain}

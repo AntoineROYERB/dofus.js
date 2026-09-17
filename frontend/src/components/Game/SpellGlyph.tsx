@@ -2,78 +2,168 @@ import React from "react";
 
 /**
  * The catalogue ships an emoji per spell, and emoji are the single thing that
- * dated the old bar the most: eight different drawing styles, eight different
+ * dated the old bar the most: many different drawing styles, many different
  * weights, and a rendering that changes with the operating system. These are
- * the same eight spells drawn with one stroke, keyed by catalogue id.
+ * the same spells drawn with one stroke, keyed by catalogue id.
  *
  * An unknown id falls back to the server's emoji, so adding a spell server-side
  * still renders something.
  */
+const flame = "M12 3c.4 3.2 2.2 4.4 3.6 6.2A6.5 6.5 0 0 1 17 13a5 5 0 0 1-10 0c0-1.6.7-2.8 1.6-3.8.3 1 .9 1.6 1.6 1.9-.6-2.9-.1-6 1.8-8.1Z";
+const smallFlame = (x: number) =>
+  `M${x} 17c-1.8-1-2.2-2.6-1.4-4.2.4.8.9 1 1.3 1.1-.2-1.4.3-2.6 1.3-3.4.1 1.6 1.4 2.4 1.4 4.1A2.6 2.6 0 0 1 ${x} 17Z`;
+const cloud = "M7 15.5a3.5 3.5 0 0 1-.4-7A5 5 0 0 1 16.2 7 3.8 3.8 0 0 1 17 15.5Z";
+
 const paths: Record<number, React.ReactNode> = {
-  // Braise
+  // Kindle
   1: (
     <>
-      <path d="M12 3c.4 3.2 2.2 4.4 3.6 6.2A6.5 6.5 0 0 1 17 13a5 5 0 0 1-10 0c0-1.6.7-2.8 1.6-3.8.3 1 .9 1.6 1.6 1.9-.6-2.9-.1-6 1.8-8.1Z" />
+      <path d={flame} />
       <path d="M12 21a3 3 0 0 0 3-3c0-1.4-1.4-2.2-3-4.2-1.6 2-3 2.8-3 4.2a3 3 0 0 0 3 3Z" />
     </>
   ),
-  // Boule de feu
+  // Scorched Earth
   2: (
+    <>
+      <path d="M2.5 20.5h19" />
+      <path d={smallFlame(6)} />
+      <path d={smallFlame(12)} />
+      <path d={smallFlame(18)} />
+    </>
+  ),
+  // Combustion
+  3: (
+    <>
+      <circle cx="12" cy="12" r="3" />
+      <path d="M12 2.5v4M12 17.5v4M2.5 12h4M17.5 12h4M5.3 5.3l2.8 2.8M15.9 15.9l2.8 2.8M18.7 5.3l-2.8 2.8M8.1 15.9l-2.8 2.8" />
+    </>
+  ),
+  // Smokescreen
+  4: (
+    <>
+      <path d="M5 13a3 3 0 0 1 1-5.8A4.5 4.5 0 0 1 14.6 6 3.4 3.4 0 0 1 19 9.3 2.9 2.9 0 0 1 18.5 15H6" />
+      <path d="M4 18.5h11M8 21.5h11" />
+    </>
+  ),
+  // Meteor
+  5: (
     <>
       <circle cx="15.5" cy="8.5" r="4.5" />
       <path d="M8.5 13.5 3 19M9.5 8 5 6.5M14 16.5l1.5 4.5" />
+      <path d="M14 7.5a1.5 1.5 0 0 1 2 1" />
     </>
   ),
-  // Venin
-  3: (
+  // Updraft
+  6: (
     <>
-      <path d="M12 3a7 7 0 0 1 7 7c0 2.6-1.4 3.6-1.4 5.2 0 .9-.7 1.3-1.6 1.3H8c-.9 0-1.6-.4-1.6-1.3C6.4 13.6 5 12.6 5 10a7 7 0 0 1 7-7Z" />
-      <circle cx="9.4" cy="10.2" r="1.6" />
-      <circle cx="14.6" cy="10.2" r="1.6" />
-      <path d="M9.5 16.5v3.5M14.5 16.5v3.5M12 16.5v3" />
+      <path d="M8 21c-3-1.2-3-4 0-5.2s3-4 0-5.2" />
+      <path d="M16 21c3-1.2 3-4 0-5.2s-3-4 0-5.2" />
+      <path d="M12 21V3M8.5 6.5 12 3l3.5 3.5" />
     </>
   ),
-  // Bourrasque
-  4: (
+  // Lightning
+  7: <path d="M13.5 2.5 5 13.5h6l-1.5 8 8.5-11h-6Z" />,
+  // Gale
+  8: (
     <>
       <path d="M12 12.2a2.6 2.6 0 1 1 2.6 2.6c-2.6 0-4.4-2.1-4.4-4.7A6.2 6.2 0 0 1 16.4 4c3.9 0 6.4 3.1 6.4 6.8" />
       <path d="M2 8h7M2 12h5M2 16h8" />
     </>
   ),
-  // Nova de givre
-  5: (
+  // Tailwind
+  9: (
+    <>
+      <path d="M11 6l6 6-6 6M5 6l6 6-6 6" />
+      <path d="M17.5 8.5h4M18.5 12h3M17.5 15.5h4" />
+    </>
+  ),
+  // Tempest
+  10: (
+    <>
+      <path d={cloud} />
+      <path d="M12.5 13 10 17.5h3.2L11.5 21.5" />
+    </>
+  ),
+  // Hydro Cannon
+  11: (
+    <>
+      <path d="M2.5 9.5h5l2-2h3v9h-3l-2-2h-5Z" />
+      <path d="M13.5 10h6M13.5 14h7.5M13.5 12h8.5" />
+      <path d="M20 7.5l1.5-1.5M20.5 16.5l1.5 1.5" />
+    </>
+  ),
+  // Bubble Trap
+  12: (
+    <>
+      <circle cx="9" cy="13" r="5" />
+      <circle cx="17" cy="8" r="3" />
+      <circle cx="17.5" cy="17" r="2" />
+      <path d="M6.8 11a2.5 2.5 0 0 1 2.2-1.6" />
+    </>
+  ),
+  // Downpour
+  13: (
+    <>
+      <path d={cloud} />
+      <path d="M8 18l-1 3M12 18l-1 3M16 18l-1 3" />
+    </>
+  ),
+  // Frozen Ground
+  14: (
     <>
       <path d="M12 2v20M3.4 7l17.2 10M20.6 7 3.4 17" />
-      <path d="M12 6.2 9.8 4.4M12 6.2l2.2-1.8M12 17.8l-2.2 1.8M12 17.8l2.2 1.8M6.2 9.4 3.6 9.6M17.8 14.6l2.6-.2M6.2 14.6l-2.6.2M17.8 9.4l2.6.2" />
+      <path d="M12 6.2 9.8 4.4M12 6.2l2.2-1.8M12 17.8l-2.2 1.8M12 17.8l2.2 1.8" />
     </>
   ),
-  // Drain
-  6: (
+  // Maelstrom
+  15: (
+    <path d="M12 12a1.5 1.5 0 1 1 1.5 1.5A3 3 0 0 1 10.5 10.5 4.5 4.5 0 0 1 15 6a6 6 0 0 1 6 6 7.5 7.5 0 0 1-7.5 7.5A9 9 0 0 1 3 12" />
+  ),
+  // Earthleap
+  16: (
     <>
-      <path d="M12 3.5c4 4.8 6.5 7.6 6.5 10.6a6.5 6.5 0 0 1-13 0C5.5 11.1 8 8.3 12 3.5Z" />
-      <path d="M9 14.2a3 3 0 0 0 3 3" />
+      <path d="M2.5 20.5h19" />
+      <path d="M4 17c2-9 13-9 16 0" />
+      <path d="M16.5 15.5 20 17l1-3.6" />
     </>
   ),
-  // Carapace
-  7: (
+  // Hammer
+  17: (
     <>
-      <path d="M12 2.8 19.5 5.6v6.2c0 5-3.6 8-7.5 9.4-3.9-1.4-7.5-4.4-7.5-9.4V5.6Z" />
-      <path d="M12 8v6M9 11h6" />
+      <path d="M5 4h9l2 2v4H5Z" />
+      <path d="M10 10v11" />
+      <path d="M16 6h3" />
     </>
   ),
-  // Gwendo na Gwendo
-  8: (
+  // Stone Grapple
+  18: (
     <>
-      <path d="M12 2.6 21.4 12 12 21.4 2.6 12Z" />
-      <path d="M12 7.4 16.6 12 12 16.6 7.4 12Z" />
-      <circle cx="12" cy="12" r="1.4" />
+      <rect x="3" y="9" width="6" height="6" rx="1" />
+      <path d="M9 12h3" />
+      <ellipse cx="14.5" cy="12" rx="2.5" ry="1.8" />
+      <path d="M17 12h2.5M21.5 9.5 19.5 12l2 2.5" />
+    </>
+  ),
+  // Pillar
+  19: (
+    <>
+      <path d="M12 3 19 6.5v11L12 21 5 17.5v-11Z" />
+      <path d="M5 6.5 12 10l7-3.5M12 10v11" />
+    </>
+  ),
+  // Earthquake
+  20: (
+    <>
+      <path d="M2.5 14h19" />
+      <path d="M12 14 10 17l3 2-2 2.5M6 14l-1 2.5M18 14l1.5 3" />
+      <path d="M4 9l2-3 2 3 2-3 2 3 2-3 2 3 2-3 2 3" />
     </>
   ),
 };
 
 interface SpellGlyphProps {
   spellId: number;
-  /** Shown when the catalogue grows past the eight drawn glyphs. */
+  /** Shown for a spell that has no drawn glyph yet. */
   fallback: string;
   className?: string;
 }

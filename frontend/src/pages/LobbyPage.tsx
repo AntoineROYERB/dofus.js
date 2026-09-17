@@ -3,9 +3,70 @@ import { useNavigate } from "react-router-dom";
 import { useWebSocket } from "../context/WebSocketContext";
 import { generateMessageId } from "../utils/messageUtils";
 import { RoomSummary } from "../types/message";
-import { readCharacter } from "../utils/characterStorage";
+import { readCharacter, saveCharacter } from "../utils/characterStorage";
 import { useRejectionBanner } from "../hooks/useRejectionBanner";
 import { HowToPlayDialog } from "../components/HowToPlayDialog";
+import { useContent } from "../hooks/useContent";
+import { readDefeated } from "../utils/progressStorage";
+import { isUnlocked, nextChallenge } from "../utils/classUtils";
+import { CharacterClass } from "../types/message";
+import { LobbyHome } from "../components/Lobby/LobbyHome";
+import { RenameDialog } from "../components/Lobby/RenameDialog";
+import { useMediaQuery } from "../hooks/useMediaQuery";
+
+/**
+ * One rung of the solo arc: an opponent, and whether it can be fought yet.
+ * Locked rungs still show who they are and what opens them, so the arc reads
+ * as somewhere to go rather than a row of padlocks.
+ */
+const OpponentRow: React.FC<{
+  cls: CharacterClass;
+  classes: CharacterClass[];
+  defeated: ReadonlySet<string>;
+  disabled: boolean;
+  onChallenge: (classId: string) => void;
+  /**
+   * On the home screen a row picks the opponent Play will start against,
+   * rather than starting the fight itself. Undefined means "fight now".
+   */
+  picked?: boolean;
+}> = ({ cls, classes, defeated, disabled, onChallenge, picked }) => {
+  const open = isUnlocked(cls, defeated);
+  const beaten = defeated.has(cls.id);
+  const opener = classes.find((c) => c.id === cls.unlockedBy);
+
+  return (
+    <li className="flex items-center gap-3 border-b border-hairline py-2.5 last:border-b-0">
+      <span aria-hidden className="w-6 flex-none text-center text-[17px]">
+        {open ? cls.symbol : "·"}
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className={`truncate font-display text-[15px] font-bold ${open ? "" : "text-muted"}`}>
+          {cls.opponent.name}
+        </p>
+        <p className="truncate font-mono text-[9.5px] uppercase tracking-label text-muted">
+          {cls.name}
+          {beaten ? " · beaten" : ""}
+          {!open && opener ? ` · beat ${opener.opponent.name} first` : ""}
+        </p>
+      </div>
+      <button
+        type="button"
+        disabled={disabled || !open}
+        onClick={() => onChallenge(cls.id)}
+        className="border border-ink px-4 py-2.5 font-mono text-[10px] uppercase tracking-label text-ink transition-colors hover:bg-ink hover:text-paper disabled:cursor-not-allowed disabled:border-hairline disabled:text-muted disabled:hover:bg-transparent disabled:hover:text-muted sm:py-1.5"
+      >
+        {!open
+          ? "Locked"
+          : picked === undefined
+            ? "Fight"
+            : picked
+              ? "Picked"
+              : "Pick"}
+      </button>
+    </li>
+  );
+};
 
 const statusLabel: Record<string, string> = {
   creating_player: "Waiting for players",
@@ -47,6 +108,39 @@ const RoomRow: React.FC<{
   );
 };
 
+/** A panel sliding in from the right, over the home screen. */
+const Sheet: React.FC<{
+  title: string;
+  onClose: () => void;
+  children: React.ReactNode;
+}> = ({ title, onClose, children }) => (
+  <div className="fixed inset-0 z-40">
+    <button
+      type="button"
+      aria-label="Close"
+      onClick={onClose}
+      className="absolute inset-0 bg-ink/40"
+    />
+    <aside
+      role="dialog"
+      aria-label={title}
+      className="absolute bottom-0 right-0 top-0 flex w-[min(420px,92vw)] flex-col border-l-2 border-ink bg-paper pb-[env(safe-area-inset-bottom)] pl-5 pr-[calc(1.25rem+env(safe-area-inset-right))] pt-[max(1rem,env(safe-area-inset-top))]"
+    >
+      <div className="flex flex-none items-baseline justify-between border-b-2 border-ink pb-1.5">
+        <span className="font-display text-[17px] font-bold">{title}</span>
+        <button
+          type="button"
+          onClick={onClose}
+          className="font-mono text-[9.5px] uppercase tracking-label text-ink transition-colors hover:text-vermilion"
+        >
+          Close
+        </button>
+      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto pb-3">{children}</div>
+    </aside>
+  </div>
+);
+
 const LobbyPage: React.FC = () => {
   const { connected, rooms, roomId, sendGameAction, rejection } =
     useWebSocket();
@@ -57,6 +151,26 @@ const LobbyPage: React.FC = () => {
   const notice = useRejectionBanner(rejection);
 
   const character = readCharacter();
+  const { content } = useContent();
+  const classes = content?.classes ?? [];
+  // Read on every render: coming back from a won match has to show the rung
+  // it opened without a reload.
+  const defeated = readDefeated();
+  const next = classes.length > 0 ? nextChallenge(classes, defeated) : undefined;
+
+  // A phone held sideways — the iOS app — gets the home screen instead of
+  // the list; the list lives on in its sheets.
+  const homeScreen = useMediaQuery("(max-height: 560px)");
+  const [sheet, setSheet] = useState<"opponents" | "rooms" | null>(null);
+  // The opponent Play starts against: the arc's next one unless picked.
+  const [pickedId, setPickedId] = useState<string | null>(null);
+  const [renaming, setRenaming] = useState(false);
+  // The character lives in storage; bumping this re-reads it after an edit.
+  const [, setEdits] = useState(0);
+  const picked =
+    classes.find(
+      (c) => c.id === pickedId && isUnlocked(c, defeated)
+    ) ?? next;
 
   // Pick a character before entering a room; otherwise there is nothing to
   // send once we get there.
@@ -78,15 +192,18 @@ const LobbyPage: React.FC = () => {
     setNewRoomName("");
   };
 
-  // A visitor with no one to play against can still see the whole game.
-  const playSolo = () => {
+  // A visitor with no one to play against can still see the whole game. With
+  // no class list to hand the server picks the opponent, as it always did.
+  const playSolo = (botClass?: string) => {
+    const opponent = classes.find((c) => c.id === botClass)?.opponent.name;
     const { messageId, timestamp } = generateMessageId();
     sendGameAction({
       type: "create_room",
       messageId,
       timestamp,
-      name: `${character?.name ?? "Solo"} vs Cpu`.slice(0, 24),
+      name: `${character?.name ?? "Solo"} vs ${opponent ?? "Cpu"}`.slice(0, 24),
       withBot: true,
+      ...(botClass ? { botClass } : {}),
     });
   };
 
@@ -94,6 +211,133 @@ const LobbyPage: React.FC = () => {
     const { messageId, timestamp } = generateMessageId();
     sendGameAction({ type: "join_room", messageId, timestamp, roomId: id });
   };
+
+  const opponentList = (pick: boolean) => (
+    <ul>
+      {classes.map((cls) => (
+        <OpponentRow
+          key={cls.id}
+          cls={cls}
+          classes={classes}
+          defeated={defeated}
+          disabled={!connected}
+          onChallenge={
+            pick
+              ? (id) => {
+                  setPickedId(id);
+                  setSheet(null);
+                }
+              : playSolo
+          }
+          picked={pick ? cls.id === picked?.id : undefined}
+        />
+      ))}
+    </ul>
+  );
+
+  const roomsPanel = (
+    <>
+      <form onSubmit={createRoom} className="mt-6 flex flex-col gap-2 sm:flex-row">
+        <input
+          value={newRoomName}
+          onChange={(e) => setNewRoomName(e.target.value)}
+          onFocus={() => setRoomNameFocused(true)}
+          onBlur={() => setRoomNameFocused(false)}
+          placeholder="Name your game"
+          aria-label="Name your game"
+          maxLength={24}
+          className={`h-12 min-w-0 flex-1 border bg-board px-3 text-[15px] text-ink placeholder:text-muted focus:border-ink focus:outline-none sm:h-11 sm:text-[14px] ${
+            newRoomName.length === 0 && !roomNameFocused
+              ? "animate-hint"
+              : "border-rule"
+          }`}
+        />
+        <button
+          type="submit"
+          disabled={!connected || newRoomName.trim().length < 3}
+          className="h-12 flex-none border border-ink bg-ink px-5 font-mono text-[10px] uppercase tracking-label text-paper transition-colors disabled:cursor-not-allowed disabled:border-hairline disabled:bg-transparent disabled:text-muted sm:h-11"
+        >
+          Create
+        </button>
+      </form>
+
+      <div className="mb-1.5 mt-8 font-mono text-[9.5px] uppercase tracking-label text-muted">
+        Open games
+      </div>
+      <section className="flex-1 border-t border-ink">
+        {rooms.length === 0 ? (
+          <p className="py-8 text-center text-[13px] text-muted">
+            No games open yet. Create one and wait for an opponent.
+          </p>
+        ) : (
+          <ul>
+            {rooms.map((room) => (
+              <RoomRow key={room.id} room={room} onJoin={joinRoom} />
+            ))}
+          </ul>
+        )}
+      </section>
+    </>
+  );
+
+  const howToPlay = (
+    <HowToPlayDialog
+      open={howToPlayOpen}
+      onClose={() => setHowToPlayOpen(false)}
+    />
+  );
+
+  if (homeScreen && character) {
+    const joinable = rooms.filter(
+      (r) => r.status === "creating_player" && r.players < r.maxPlayers
+    ).length;
+    return (
+      <>
+        <LobbyHome
+          character={character}
+          classes={classes}
+          connected={connected}
+          notice={notice}
+          opponent={picked}
+          beaten={classes.filter((c) => defeated.has(c.id)).length}
+          openRooms={joinable}
+          onPlay={() => playSolo(picked?.id)}
+          onRename={() => setRenaming(true)}
+          onSelectClass={(cls) => {
+            // The fighter wears its class's colour.
+            saveCharacter(character.name, cls.palette.primary, cls.id);
+            setEdits((n) => n + 1);
+          }}
+          onOpenOpponents={() => setSheet("opponents")}
+          onOpenRooms={() => setSheet("rooms")}
+          onOpenHistory={() => navigate("/matches")}
+          onOpenHelp={() => setHowToPlayOpen(true)}
+        />
+        {sheet === "opponents" && (
+          <Sheet title="Rivals" onClose={() => setSheet(null)}>
+            {opponentList(true)}
+          </Sheet>
+        )}
+        {sheet === "rooms" && (
+          <Sheet title="Rooms" onClose={() => setSheet(null)}>
+            {roomsPanel}
+          </Sheet>
+        )}
+        {renaming && (
+          <RenameDialog
+            name={character.name}
+            onSave={(name) => {
+              saveCharacter(name, character.color, character.class);
+              setRenaming(false);
+              setEdits((n) => n + 1);
+            }}
+            onCancel={() => setRenaming(false)}
+          />
+        )}
+        {howToPlay}
+      </>
+    );
+  }
 
   return (
     <div className="flex min-h-[100dvh] flex-col bg-paper text-ink">
@@ -136,14 +380,29 @@ const LobbyPage: React.FC = () => {
         */}
         <button
           type="button"
-          onClick={playSolo}
+          onClick={() => playSolo(next?.id)}
           disabled={!connected}
           className={`mt-5 w-full bg-vermilion px-4 py-4 font-display text-[16px] font-bold text-white sm:mt-6 sm:py-3.5 transition-colors hover:bg-[#b93a25] disabled:cursor-not-allowed disabled:bg-hairline disabled:text-muted ${
             connected ? "animate-beckon" : ""
           }`}
         >
-          Play against the computer
+          {next ? `Challenge ${next.opponent.name}` : "Play against the computer"}
         </button>
+        {next && (
+          <p className="mt-2 text-center text-[13px] italic text-graphite">
+            “{next.opponent.lines[0]}”
+          </p>
+        )}
+
+        {classes.length > 1 && (
+          <details className="mt-3 border-t border-hairline">
+            <summary className="cursor-pointer py-2 font-mono text-[9.5px] uppercase tracking-label text-muted transition-colors hover:text-vermilion">
+              Every opponent · {classes.filter((c) => defeated.has(c.id)).length}/
+              {classes.length} beaten
+            </summary>
+            {opponentList(false)}
+          </details>
+        )}
 
         <div className="mt-7 flex items-center gap-3 font-mono text-[9.5px] uppercase tracking-label text-muted">
           <span className="h-px flex-1 bg-rule" />
@@ -151,46 +410,7 @@ const LobbyPage: React.FC = () => {
           <span className="h-px flex-1 bg-rule" />
         </div>
 
-        <form onSubmit={createRoom} className="mt-6 flex flex-col gap-2 sm:flex-row">
-          <input
-            value={newRoomName}
-            onChange={(e) => setNewRoomName(e.target.value)}
-            onFocus={() => setRoomNameFocused(true)}
-            onBlur={() => setRoomNameFocused(false)}
-            placeholder="Name your game"
-            aria-label="Name your game"
-            maxLength={24}
-            className={`h-12 min-w-0 flex-1 border bg-board px-3 text-[15px] text-ink placeholder:text-muted focus:border-ink focus:outline-none sm:h-11 sm:text-[14px] ${
-              newRoomName.length === 0 && !roomNameFocused
-                ? "animate-hint"
-                : "border-rule"
-            }`}
-          />
-          <button
-            type="submit"
-            disabled={!connected || newRoomName.trim().length < 3}
-            className="h-12 flex-none border border-ink bg-ink px-5 font-mono text-[10px] uppercase tracking-label text-paper transition-colors disabled:cursor-not-allowed disabled:border-hairline disabled:bg-transparent disabled:text-muted sm:h-11"
-          >
-            Create
-          </button>
-        </form>
-
-        <div className="mb-1.5 mt-8 font-mono text-[9.5px] uppercase tracking-label text-muted">
-          Open games
-        </div>
-        <section className="flex-1 border-t border-ink">
-          {rooms.length === 0 ? (
-            <p className="py-8 text-center text-[13px] text-muted">
-              No games open yet. Create one and wait for an opponent.
-            </p>
-          ) : (
-            <ul>
-              {rooms.map((room) => (
-                <RoomRow key={room.id} room={room} onJoin={joinRoom} />
-              ))}
-            </ul>
-          )}
-        </section>
+        {roomsPanel}
 
         <div className="my-4 flex gap-5">
           <button
@@ -202,6 +422,13 @@ const LobbyPage: React.FC = () => {
           </button>
           <button
             type="button"
+            onClick={() => navigate("/matches")}
+            className="self-start font-mono text-[9.5px] uppercase tracking-label text-muted transition-colors hover:text-vermilion"
+          >
+            Match history
+          </button>
+          <button
+            type="button"
             onClick={() => navigate("/")}
             className="self-start font-mono text-[9.5px] uppercase tracking-label text-muted transition-colors hover:text-vermilion"
           >
@@ -210,10 +437,7 @@ const LobbyPage: React.FC = () => {
         </div>
       </div>
 
-      <HowToPlayDialog
-        open={howToPlayOpen}
-        onClose={() => setHowToPlayOpen(false)}
-      />
+      {howToPlay}
     </div>
   );
 };

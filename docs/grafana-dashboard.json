@@ -1,0 +1,83 @@
+{
+  "title": "dofus.js server",
+  "uid": "dofusjs-server",
+  "timezone": "browser",
+  "refresh": "10s",
+  "schemaVersion": 39,
+  "panels": [
+    {
+      "id": 1,
+      "title": "Connections active",
+      "type": "stat",
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 0 },
+      "targets": [{ "expr": "dofusjs_connections_active", "refId": "A" }]
+    },
+    {
+      "id": 2,
+      "title": "Rooms by status",
+      "type": "timeseries",
+      "gridPos": { "h": 6, "w": 10, "x": 6, "y": 0 },
+      "targets": [{ "expr": "dofusjs_rooms", "legendFormat": "{{status}}", "refId": "A" }]
+    },
+    {
+      "id": 3,
+      "title": "Client sends dropped",
+      "type": "stat",
+      "gridPos": { "h": 6, "w": 8, "x": 16, "y": 0 },
+      "targets": [{ "expr": "rate(dofusjs_client_send_dropped_total[5m])", "refId": "A" }]
+    },
+    {
+      "id": 4,
+      "title": "Commands/sec by kind",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
+      "targets": [{ "expr": "sum by (kind) (rate(dofusjs_commands_total[1m]))", "legendFormat": "{{kind}}", "refId": "A" }]
+    },
+    {
+      "id": 5,
+      "title": "Command duration p50/p95/p99 by kind",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 },
+      "targets": [
+        { "expr": "histogram_quantile(0.5, sum by (le, kind) (rate(dofusjs_command_duration_seconds_bucket[5m])))", "legendFormat": "p50 {{kind}}", "refId": "A" },
+        { "expr": "histogram_quantile(0.95, sum by (le, kind) (rate(dofusjs_command_duration_seconds_bucket[5m])))", "legendFormat": "p95 {{kind}}", "refId": "B" },
+        { "expr": "histogram_quantile(0.99, sum by (le, kind) (rate(dofusjs_command_duration_seconds_bucket[5m])))", "legendFormat": "p99 {{kind}}", "refId": "C" }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Actions rejected/sec by reason",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 14 },
+      "targets": [{ "expr": "sum by (reason) (rate(dofusjs_actions_rejected_total[5m]))", "legendFormat": "{{reason}}", "refId": "A" }]
+    },
+    {
+      "id": 7,
+      "title": "Turn timeouts/sec",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 14 },
+      "targets": [{ "expr": "rate(dofusjs_turn_timeouts_total[5m])", "refId": "A" }]
+    },
+    {
+      "id": 8,
+      "title": "Bot decision duration p99",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 22 },
+      "targets": [{ "expr": "histogram_quantile(0.99, sum by (le) (rate(dofusjs_bot_decision_duration_seconds_bucket[5m])))", "refId": "A" }]
+    },
+    {
+      "id": 9,
+      "title": "Broadcast duration p99",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 22 },
+      "targets": [{ "expr": "histogram_quantile(0.99, sum by (le) (rate(dofusjs_broadcast_duration_seconds_bucket[5m])))", "refId": "A" }]
+    },
+    {
+      "id": 10,
+      "title": "Reconnects/sec (resumed vs new)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 22 },
+      "targets": [{ "expr": "sum by (resumed) (rate(dofusjs_reconnects_total[5m]))", "legendFormat": "resumed={{resumed}}", "refId": "A" }]
+    }
+  ]
+}

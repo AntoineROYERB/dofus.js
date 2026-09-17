@@ -18,9 +18,13 @@ type Position struct {
 // shared between two separate state maps, which is what let the old
 // PlayerManager and GameManager stay accidentally in sync.
 type Character struct {
-	Name           string    `json:"name"`
-	Color          string    `json:"color"`
-	Symbol         string    `json:"symbol"`
+	Name   string `json:"name"`
+	Color  string `json:"color"`
+	Symbol string `json:"symbol"`
+	// Class is the id of the class this character was built from, which is
+	// what decides its starting stats and its spell bar. Empty only for a
+	// character a test seats by hand.
+	Class          string    `json:"class"`
 	Position       *Position `json:"position"`
 	ActionPoints   int       `json:"actionPoints"`
 	MovementPoints int       `json:"movementPoints"`
@@ -59,6 +63,11 @@ const (
 	EffectAP     = "ap"     // action points added (or removed, when negative)
 	EffectMP     = "mp"     // movement points added or removed
 	EffectShield = "shield" // flat damage soaked from each hit
+	// EffectBurn stacks: its value is how many burns are riding on the
+	// character, and each one burns at the start of the victim's turn.
+	EffectBurn = "burn"
+	// EffectRoot takes every movement point a turn would restore.
+	EffectRoot = "root"
 )
 
 type Player struct {
@@ -74,8 +83,12 @@ type Player struct {
 	// still play a whole match.
 	IsBot bool `json:"isBot"`
 	// Spells tracks per-spell usage, keyed the same way as the catalogue, so
-	// the client can grey out what cannot be cast right now.
+	// the client can grey out what cannot be cast right now. A spell missing
+	// from it is not on this player's bar, and casting it is refused.
 	Spells map[string]SpellState `json:"spells"`
+	// SpellBar is the order this player's spells sit in on the bar, which is
+	// the order the number keys select them in. Always an array.
+	SpellBar []string `json:"spellBar"`
 }
 
 // SpellState is one spell's availability for one player.
@@ -84,6 +97,8 @@ type SpellState struct {
 	CastsThisTurn int `json:"castsThisTurn"`
 	// CooldownLeft is the number of that player's turns still to wait.
 	CooldownLeft int `json:"cooldownLeft"`
+	// Spent marks an ultimate that has already been cast this fight.
+	Spent bool `json:"spent"`
 }
 
 // GameState is the snapshot broadcast to every client after each accepted
@@ -101,8 +116,56 @@ type GameState struct {
 	// Log is the recent combat history, oldest first and bounded.
 	Log []LogEntry `json:"log"`
 	// Obstacles are cells nobody can stand on and nothing can be seen through.
+	// A Stonewarden's pillars are obstacles too, once raised.
 	Obstacles []Position `json:"obstacles"`
+	// Terrain is what spells have left on the board. It stays for the rest of
+	// the fight unless something replaces it. Always an array.
+	Terrain []TerrainCell `json:"terrain"`
+	// Zones are the weather an ultimate leaves over an area for a few turns.
+	// Always an array.
+	Zones []Zone `json:"zones"`
 }
+
+// TerrainCell is one cell a spell has changed.
+type TerrainCell struct {
+	Position Position `json:"position"`
+	Kind     string   `json:"kind"`
+	// Owner is the user id of whoever made it. Water heals its owner and slows
+	// everyone else, a trap never catches the one who set it, and a relay only
+	// carries its owner's spells.
+	Owner string `json:"owner"`
+}
+
+// Terrain kinds.
+const (
+	TerrainFire    = "fire"    // burns whoever walks in or starts a turn on it
+	TerrainSmoke   = "smoke"   // blocks line of sight, not movement
+	TerrainWater   = "water"   // slows enemies, heals its owner; puts out fire
+	TerrainIce     = "ice"     // whoever steps on it slides to the far side
+	TerrainTrap    = "trap"    // springs on the first enemy to step on it
+	TerrainRelay   = "relay"   // its owner's air spells can be cast from here
+	TerrainCrater  = "crater"  // nobody can walk through it
+	TerrainFissure = "fissure" // nobody can walk through it
+	// TerrainPillar marks a raised pillar. The pillar itself is an obstacle;
+	// this only tells the client it was built rather than dealt with the map.
+	TerrainPillar = "pillar"
+)
+
+// Zone is an area an ultimate keeps acting on, turn after turn.
+type Zone struct {
+	Kind   string     `json:"kind"`
+	Owner  string     `json:"owner"`
+	Center Position   `json:"center"`
+	Cells  []Position `json:"cells"`
+	// TurnsLeft counts down at the start of each of its owner's turns.
+	TurnsLeft int `json:"turnsLeft"`
+}
+
+// Zone kinds.
+const (
+	ZoneStorm     = "storm"     // strikes every enemy inside at the start of their turn
+	ZoneMaelstrom = "maelstrom" // drags enemies back to its centre and strips their buffs
+)
 
 // LogEntry is one line of the combat log. The client renders these; without
 // them a spell that missed because of line of sight, or one that landed as a
@@ -131,6 +194,8 @@ type LogEntry struct {
 	SpellID int       `json:"spellId,omitempty"`
 	Origin  *Position `json:"origin,omitempty"`
 	Target  *Position `json:"target,omitempty"`
+	// Via is the relay an air spell was cast from, when it was.
+	Via *Position `json:"via,omitempty"`
 }
 
 // Log entry kinds.
@@ -165,6 +230,55 @@ type Spell struct {
 	// Effect, when set, is applied on top of the damage. Always serialised, so
 	// the client sees an explicit null rather than a missing field.
 	Effect *SpellEffect `json:"effect"`
+
+	// Role is the one word the bar shows under the spell: what it is for.
+	Role string `json:"role"`
+	// Ultimate spells can be cast once a fight, and not on the first turn.
+	Ultimate bool `json:"ultimate"`
+	// Targeting says which cells a spell may be aimed at: any cell in range
+	// (TargetAny, the default), the caster's own (TargetSelf), or a cell with
+	// nothing on it (TargetEmpty).
+	Targeting string `json:"targeting"`
+	// Push moves every character hit that many cells away from where the
+	// spell came from. Negative pulls them towards the caster instead.
+	Push int `json:"push"`
+	// Terrain is left on the cells the spell covers, for the rest of the fight.
+	Terrain string `json:"terrain"`
+	// Zone, when set, keeps acting on the covered cells for a few turns.
+	Zone *SpellZone `json:"zone"`
+	// GrantMP is movement points the caster gains on the spot.
+	GrantMP int `json:"grantMP"`
+	// Special names a behaviour no field above describes; see the Special*
+	// constants.
+	Special string `json:"special"`
+	// Relayed spells may be cast from their caster's relay as well as from
+	// where the caster stands.
+	Relayed bool `json:"relayed"`
+	// Conducts doubles the damage on a target standing in water.
+	Conducts bool `json:"conducts"`
+}
+
+// Spell targeting.
+const (
+	TargetAny   = "any"
+	TargetSelf  = "self"
+	TargetEmpty = "empty"
+)
+
+// Spell specials.
+const (
+	SpecialDetonate = "detonate" // cashes in the target's burns at once
+	SpecialLeap     = "leap"     // the caster lands on the target cell and shakes its neighbours
+	SpecialRelay    = "relay"    // sets the caster's relay on the target cell
+	SpecialPillar   = "pillar"   // raises a permanent obstacle on the target cell
+	SpecialCrater   = "crater"   // digs a crater where the spell lands
+	SpecialQuake    = "quake"    // opens fissures around the caster
+)
+
+// SpellZone is the weather a spell leaves behind.
+type SpellZone struct {
+	Kind     string `json:"kind"`
+	Duration int    `json:"duration"`
 }
 
 // SpellEffect describes the status effect a spell leaves behind.
@@ -175,6 +289,54 @@ type SpellEffect struct {
 	// OnSelf applies the effect to the caster instead of to what it hit, which
 	// is how a spell buffs or shields its own caster.
 	OnSelf bool `json:"onSelf"`
+}
+
+// Class is one playable archetype: the numbers a character starts with, the
+// spells on its bar, and the opponent that stands for it in solo play. Classes
+// are content, loaded from config/classes.json, not code.
+type Class struct {
+	ID      string `json:"id"`
+	Name    string `json:"name"`
+	Element string `json:"element"`
+	// Symbol is a short glyph shown beside the class name in the picker.
+	Symbol  string       `json:"symbol"`
+	Palette ClassPalette `json:"palette"`
+	Lore    string       `json:"lore"`
+
+	Health         int `json:"health"`
+	ActionPoints   int `json:"actionPoints"`
+	MovementPoints int `json:"movementPoints"`
+
+	// Passive is the class's standing rule, as the picker shows it.
+	Passive string `json:"passive"`
+	// MeleeBonus is the extra damage, in percent, the class deals to a target
+	// standing right next to it.
+	MeleeBonus int `json:"meleeBonus"`
+	// PushResist is how many cells shorter every push against the class is.
+	PushResist int `json:"pushResist"`
+
+	// Spells are catalogue ids, in bar order.
+	Spells   []string      `json:"spells"`
+	Opponent ClassOpponent `json:"opponent"`
+	// UnlockedBy names the class whose opponent has to be beaten in solo play
+	// before this one's can be challenged. Empty means open from the start.
+	UnlockedBy string `json:"unlockedBy"`
+}
+
+// ClassPalette is hex, never CSS class names, for the same reason as a
+// spell's colour: the client's Tailwind build would purge names it only
+// learns about at runtime. Primary also dyes the class's computer opponent,
+// so like a player's colour it should stay clear of the board's vermilion.
+type ClassPalette struct {
+	Primary   string `json:"primary"`
+	Secondary string `json:"secondary"`
+}
+
+// ClassOpponent is the named computer player a class is embodied by in solo
+// mode: one line when the challenge is offered, one when it is beaten.
+type ClassOpponent struct {
+	Name  string   `json:"name"`
+	Lines []string `json:"lines"`
 }
 
 // RoomSummary is one line in the lobby list.
@@ -193,4 +355,7 @@ const (
 	AoECircle = "circle"
 	AoELine   = "line"
 	AoECross  = "cross"
+	// AoEWall is five cells in a straight line across the cast, centred on
+	// the target.
+	AoEWall = "wall"
 )

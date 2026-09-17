@@ -6,30 +6,47 @@ isometric board on top of them.
 
 ### ▶ [Play it here](https://dofusjs.onrender.com)
 
-No account, no install. Pick a name, hit **Play against the computer**, and you
+No account, no install. Pick a name and a class, challenge the computer, and you
 have a whole match to yourself. The server sleeps after 15 minutes on the free
 tier, so the first connection can take a minute to come back — the board loads
 instantly either way.
 
-![Naming a fighter, picking a starting cell in the green block while the opponent's is marked off in red, and a Fireball landing for 18](docs/assets/demo.gif)
+![Picking a starting cell in the green block, a wall of fire laid across the board, and the bot answering with a Meteor that leaves a crater](docs/assets/demo.gif)
 
 <table>
 <tr>
-<td width="50%"><img src="docs/assets/01-landing.png" alt="Naming a fighter, who stands on a few cells of the board"></td>
-<td width="50%"><img src="docs/assets/02-lobby.png" alt="Lobby: open games and a solo match against the computer"></td>
+<td width="50%"><img src="docs/assets/01-landing.png" alt="Naming a fighter and picking a class, whose passive and five spells read underneath"></td>
+<td width="50%"><img src="docs/assets/02-lobby.png" alt="Lobby: the class's own opponent to challenge, open games, and a game to create"></td>
 </tr>
 <tr>
 <td width="50%"><img src="docs/assets/03-placement.png" alt="Placement: three adjacent cells to start on, in green; the opponent's block is marked off in red"></td>
-<td width="50%"><img src="docs/assets/04-combat.png" alt="Combat: cast range outlined, area of effect marked, estimated damage above the target"></td>
+<td width="50%"><img src="docs/assets/04-combat.png" alt="Combat: a wall of fire and a crater left on the board, burn counters over both fighters, and the spell bar naming each spell's role"></td>
 </tr>
 </table>
 
-<img src="docs/assets/05-phone.png" alt="The same fight on a phone held sideways" width="100%">
+<table>
+<tr>
+<td width="50%"><img src="docs/assets/06-phone-home.png" alt="The phone's home screen: the fighter on a stand, its class and passive, one Play button"></td>
+<td width="50%"><img src="docs/assets/05-phone.png" alt="The same fight on a phone held sideways: the spells in an arc under the thumb, and a card explaining the fire a cell is carrying"></td>
+</tr>
+</table>
 
-On a phone, hold it sideways: the board is twice as wide as it is tall, and the
-bar folds down to the figures, the spells and the button. There is no hovering
-on a touch screen, so a tap previews a cell — its walk, its area of effect, the
-damage it would do — and a second tap on the same cell commits it.
+![The same fight on a phone: a wall of fire, the bot's Meteor, and the spells in an arc under the thumb](docs/assets/demo-phone.gif)
+
+On a phone, hold it sideways. The lobby becomes a home screen: your fighter in
+the middle, arrows (or a swipe) to slide through the classes with the others
+waiting faded on either side, a tap on your name to rename, and one big Play
+button under the right thumb. In a fight the board takes the whole screen and
+the controls float over its corners — turn order top left, your HP, AP and MP
+bottom left, and your spells in an arc around the End turn button bottom
+right, all five of them on one ring.
+
+There is no hovering on a touch screen, so a tap previews a cell — its walk,
+its area of effect, who it would hit and what they would be left with — and a
+bubble beside it confirms (*Move · 3 MP*, *Cast −7*). Holding a spell opens a
+card that plays the spell out on a few cells: its range, the shot, the area
+it lands on, the damage. Held upright, in a browser, the spells get a row of
+their own under the board instead.
 
 ## Run it yourself
 
@@ -37,14 +54,27 @@ damage it would do — and a second tap on the same cell commits it.
 docker compose up --build
 ```
 
-Then open <http://localhost>. Pick a name and a colour, and either **play
-against the computer** or open a game and wait for someone to join. Two
+Then open <http://localhost>. Pick a name, a colour and a class, and either
+**challenge the computer** or open a game and wait for someone to join. Two
 browser tabs are enough for a real 1v1.
 
-Number keys `1`–`8` pick a spell, `Escape` drops the selection, and on a touch
+There are four classes, one per element: the **Pyromancer** (burns that stack
+and then go off at once), the **Windwalker** (reach, through a relay it sets
+across the board, and displacement), the **Tidecaller** (control: traps, ice
+and water) and the **Stonewarden** (a brawler that leaps into reach and walls
+off the way out). Each carries five spells of its own element, every one with
+its own job, and one **ultimate** — cast once a fight, from turn 2. In solo
+play each class is a named opponent, and beating one unlocks the next.
+
+Spells change the board and what they leave stays for the rest of the fight:
+fire that burns whoever walks in, smoke nothing is seen through, water that
+slows enemies and puts fire out, ice you slide across, bubble traps, pillars,
+craters and fissures nobody walks through. Hover a changed cell to read what
+it does.
+
+Number keys `1`–`5` pick a spell, `Escape` drops the selection, and on a touch
 screen a first tap previews a cell while a second one acts on it. Cover blocks
-both movement and line of sight; `Gwendo na Gwendo` is the one spell that
-reaches through it.
+both movement and line of sight; smoke blocks sight alone.
 
 <details>
 <summary>Without Docker</summary>
@@ -86,15 +116,27 @@ lock. Broadcasts are scoped to a room, so two matches never see each other.
 walking away. The computer opponent runs on the same clock, one action per
 tick, so its moves are watchable rather than instant.
 
+**Content is data, and data is checked.** Spells and classes live in
+`backend/config/spells.json` and `classes.json`, not in Go. They are validated
+once at startup — unknown fields, unknown spell ids, AP costs a class cannot
+pay, ranges off the board, criticals weaker than the hit — and a bad file
+stops the server with the file, the field and the problem, instead of shipping
+a fight that breaks on the first cast. Adding a class is a `classes.json` edit.
+Balance is a test rather than an opinion: every class is played against every
+class by the server's own bot over seeded matches, and CI fails if any class
+wins more than 65% of a matchup or fights stop lasting four to eight turns. The
+shipped kits sit between 40% and 60%, over fights of five turns.
+
 **Rendering is hand-written.** No game engine: the isometric projection, the
 back-to-front draw order, the screen-to-grid hit test and the sprite-sheet
 animation loop are all in the client, and the geometry is unit-tested.
 
-**One layout, three shapes.** The board keeps the screen and is never covered:
-the log sits beside it on a wide screen, behind a button on a narrow one, and
-the bar folds from three roomy zones to three tight ones. A phone held sideways
-is the shape the board actually wants, so the HUD has a compact form for short
-viewports rather than a separate mobile design.
+**One board, two layouts.** On a wide screen the board is never covered: the
+log sits beside it, and the bar under it folds from three roomy zones to three
+tight ones as the width shrinks. A phone held sideways — the shape the board
+actually wants — gets its own layout instead, chosen by viewport height: the
+board fills the screen, the HUD floats over the diamond's empty corners, and
+every action sits under a thumb.
 
 **The screen has one rule.** Paper, ink, graphite and a single vermilion: three
 weights of rule and the size of the figures do the separating, and the only
@@ -111,17 +153,23 @@ look is a change to those two files.
 backend/
   cmd/server/          entry point: config, HTTP, graceful shutdown
   internal/config/     environment-driven settings
-  internal/game/       rules, lobby, spell catalogue, computer opponent
+  config/              balance.json, spells.json, classes.json — the game's numbers
+  internal/content/    loads and validates spells and classes
+  internal/game/       rules, lobby, computer opponent, balance simulation
   internal/websocket/  hub, sessions, per-connection pumps, handlers
   internal/types/      wire format shared by every layer
 frontend/src/
   pages/               landing, lobby, board
-  components/Game/     board, tiles, characters, spell bar, turn order, log
+  components/Game/     board, tiles, characters, spell bar, turn order, log,
+                       the phone HUD (spell arc, fighter status) and spell cards
+  components/Lobby/    the phone home screen: class line-up, rename dialog
   components/Chat/     the rail's chat section
   hooks/               animation loop, grid interaction, tile sizing
+  lib/native.ts        what the iOS app does that a browser cannot (haptics)
   utils/               isometric maths, pathing, spell areas
   constants.ts         board palette and stroke widths
   tailwind.config.js   the screen's colours and three typefaces
+frontend/ios/          the Capacitor Xcode project for the iOS app
 ```
 
 ## Configuration
@@ -134,7 +182,12 @@ Copy `.env.example` to `.env`. Everything has a working default.
 | `ALLOWED_ORIGINS` | `*` | Origins allowed to open a WebSocket. **Pin this for a public deployment.** |
 | `TURN_SECONDS` | `45` | How long a player gets before their turn passes on |
 | `STATIC_DIR` | unset | When set, the Go binary also serves the built frontend |
-| `BALANCE_FILE` | `config/balance.json` | JSON file with gameplay constants (health, action points, movement points). Edit `backend/config/balance.json` to retune a fight without touching code. |
+| `BALANCE_FILE` | `config/balance.json` | Default health, action points and movement points, for every class that does not set its own. Edit `backend/config/balance.json` to retune every fight at once. A missing file falls back to built-in defaults. |
+| `SPELLS_FILE` | `config/spells.json` | Every spell, keyed by id, and one colour per element. Beyond cost, range, damage and area, a spell says what it is for (`role`), whether it is an `ultimate`, what it may be aimed at (`targeting`), how far it pushes or pulls (`push`), what `terrain` or `zone` it leaves, and which `special` it runs. Validated at startup: the server refuses to start on a bad file. |
+| `CLASSES_FILE` | `config/classes.json` | Every class, in picker order: name, element, symbol, palette, lore, the passive line the picker shows, optional health/AP/MP overrides, the melee bonus and push resistance it fights with, its spell bar (1 to 8 ids; the shipped classes carry five), the named solo opponent with its two lines, and which class unlocks it. Validated at startup like `SPELLS_FILE`. |
+| `LOG_FORMAT` | `json` | Server log format: `json` for an aggregator, `text` for a terminal |
+| `LOG_LEVEL` | `info` | Minimum log level: `debug`, `info`, `warn` or `error` |
+| `METRICS_ADDR` | `127.0.0.1:9090` | Listen address for `/metrics` (Prometheus), served on its own loopback-only listener — see [Performance](#performance). Empty disables it. |
 | `VITE_WS_URL` | unset | Build-time, client side: where the game server lives when it is not the host serving the page |
 
 ## Deploying
@@ -195,16 +248,140 @@ fly secrets set ALLOWED_ORIGINS=https://your-app.fly.dev
 `docker-compose.yml` keeps the nginx + backend split instead, which is closer
 to a classic production layout and is what local development uses.
 
+## iOS app
+
+The same client ships as a native iOS app through
+[Capacitor](https://capacitorjs.com): Vite builds the page, and the Xcode
+project in `frontend/ios` serves it from the app bundle. Only the game server
+is remote. On the device the app buzzes when your turn comes round and when a
+fight ends; in a browser those calls do nothing.
+
+It needs a full Xcode (not only the command-line tools), Node 22+ for the
+Capacitor CLI, and, once:
+
+```bash
+sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+sudo xcodebuild -license accept
+```
+
+**Day to day: live reload.** Run the backend and `npm run dev` as usual, and
+point the app at the Vite dev server. Edits show up without rebuilding. In the
+simulator `localhost` is the Mac; on a phone, use the Mac's LAN address.
+
+```bash
+cd frontend && npm run build && CAP_SERVER_URL=http://localhost:5173 npm run ios:dev
+```
+
+```bash
+cd frontend && npm run build && CAP_SERVER_URL=http://192.168.1.20:5173 npm run ios:dev
+```
+
+**Checking how it feels.** Live reload runs React's development build, which
+is several times slower; judge smoothness on a production build instead,
+served from the Mac and rebuilt after each change:
+
+```bash
+cd frontend && VITE_WS_URL=ws://192.168.1.20:8080 npm run build && npx vite preview --host --port 4173
+```
+
+```bash
+cd frontend && CAP_SERVER_URL=http://192.168.1.20:4173 npm run ios:dev
+```
+
+The app is locked to landscape; the portrait layout is for the browser.
+
+**A bundled build.** The page inside the app has no server behind it, so
+`ios:sync` refuses to run without `VITE_WS_URL`. Bake the address in, and let
+the app's origin through on the server:
+
+```bash
+cd frontend && VITE_WS_URL=wss://dofusjs.onrender.com npm run ios:sync && npm run ios:open
+```
+
+```bash
+ALLOWED_ORIGINS=https://dofusjs.onrender.com,capacitor://localhost
+```
+
+**On your own iPhone, for free.** A free Apple ID is enough: add it under
+Xcode → Settings → Accounts, plug the phone in, turn on *Settings → Privacy &
+Security → Developer Mode*, pick your *Personal Team* under *Signing &
+Capabilities* and press Run. The first launch asks you to trust your developer
+profile under *Settings → General → VPN & Device Management*. A free install
+stops opening after seven days; running it again from Xcode renews it. The
+live-reload and preview builds above bake in the Mac's LAN address, so a new
+address means a new install.
+
+**TestFlight and the App Store.** TestFlight and
+the store need the paid Apple Developer Program: register the bundle id from
+`frontend/capacitor.config.ts` (`com.antoineroyerb.dofusjs`), pick the team
+under *Signing & Capabilities*, then *Product → Archive → Distribute App*.
+Google Sign-In does not work inside the app: Google refuses OAuth in embedded
+web views, so the app plays anonymously.
+
 ## Tests
 
 ```bash
-cd backend && go test -race ./...     # rules, lobby, turn cycle, bot
-cd frontend && npm test               # isometric geometry
+cd backend && go test -race ./...     # rules, lobby, turn cycle, bot, content, balance
+cd frontend && npm test               # isometric geometry, spell text, terrain, solo arc, phone HUD
+cd frontend && npm test -- --coverage # the same, failing if the phone HUD's logic loses coverage
 cd frontend && npm run lint && npm run build
 ```
 
-CI runs all of it on every push, plus `gofmt`, `go vet` and a full
-`docker compose build`.
+The README's screenshots and GIFs are shot by a script, against a real server,
+so they cannot drift from the game: see `frontend/scripts/shoot-readme.mjs`
+for the two commands.
+
+The phone layout's decisions — the spell arc's slots and folding, the class
+line-up, what the confirm bubble offers and where it opens, the board's tile
+fit, the native helpers — live in plain modules, so they are tested without
+a DOM.
+
+CI runs all of it on every push, plus `gofmt`, `go vet`, a full
+`docker compose build`, and, on macOS, the iOS app: the web bundle synced into
+the Xcode project and compiled for the simulator, unsigned.
+
+## Performance
+
+The server logs structured JSON (`LOG_FORMAT`/`LOG_LEVEL`, see
+[Configuration](#configuration)) — every line inside a match carries
+`match_id`, and every line inside a connection carries `user_id`, so one fight
+can be `grep`'d out of the stream. It also exposes Prometheus metrics
+(connections, rooms by status, command counts and latency, rejections, turn
+timeouts, bot decision time, broadcast fan-out time, dropped sends,
+reconnects — see `backend/internal/metrics/metrics.go`) at `/metrics`, on its
+**own listener bound to `127.0.0.1:9090` by default**, separate from the
+public port — set `METRICS_ADDR` to widen that deliberately (e.g. for a
+Prometheus scraper on the same host or network). A starter
+[Grafana dashboard](docs/grafana-dashboard.json) covers all of them.
+
+`backend/cmd/loadtest` opens real WebSocket clients, pairs them two per room,
+and plays each pair through a full match using the same decision logic as the
+server's own bot opponent — so it exercises real command handling, not just
+open sockets:
+
+```bash
+cd backend
+go run ./cmd/server                    # one terminal
+go run ./cmd/loadtest -clients=500     # another
+```
+
+Measured on 2026-09-07, on a laptop-class machine (Apple M5 Pro, 15 cores,
+24 GB RAM, macOS, Go 1.27.1, in-memory match store — not the production
+Render/Fly instance):
+
+| Clients | Concurrent matches | Result | Command latency (p50 / p95 / p99) |
+|---|---|---|---|
+| 500 | 250 | 250/250 finished, 127 matches/sec | 391µs / 1.18ms / 1.73ms |
+
+This is a local dev-machine number, not a production benchmark — reproduce it
+yourself with the command above and your own hardware. Pushing further, to
+2000 clients (1000 concurrent matches), surfaced a real bottleneck rather than
+a clean number: about 6% of room joins never completed and p99 latency rose to
+~50ms even with a fixed, realistic connection ramp rate (ruling out the load
+test itself as the cause). That is being tracked as a follow-up rather than
+papered over here — the `Hub` in `internal/websocket/hub.go` runs as a single
+goroutine, and its lobby broadcast rescans every connected client on every
+room event, which is a plausible culprit at that scale.
 
 ## Status
 

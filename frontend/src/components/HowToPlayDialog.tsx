@@ -203,6 +203,22 @@ export const HowToPlayDialog: React.FC<HowToPlayDialogProps> = ({
                 once they land.
               </p>
               <SpellRangeDiagram />
+              <p>
+                Every class carries five spells, each with its own job — the
+                word under its icon says which. The gold one is its{" "}
+                <b className="text-ink">ultimate</b>: it unlocks on turn 2 and
+                can be cast once a fight.
+              </p>
+            </Section>
+
+            <Section label="The board changes">
+              <p>
+                Spells leave things behind for the rest of the fight: fire that
+                burns, water that slows, ice that makes you slide, smoke you
+                cannot see through, traps, pillars and fissures you cannot walk
+                through. <b className="text-ink">Hover a cell</b> to see what is
+                on it and what it does.
+              </p>
             </Section>
 
             <Section label="Winning">

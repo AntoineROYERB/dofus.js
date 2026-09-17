@@ -2,14 +2,14 @@
 # frontend, so a deployment is one container. docker-compose.yml keeps the
 # nginx + backend split for local work.
 
-FROM node:20-alpine AS web
+FROM node:22-alpine AS web
 WORKDIR /app
 COPY frontend/package*.json ./
 RUN npm ci
 COPY frontend/ ./
 RUN npm run build
 
-FROM golang:1.23-alpine AS build
+FROM golang:1.25-alpine AS build
 WORKDIR /src
 COPY backend/go.mod backend/go.sum ./
 RUN go mod download
@@ -20,10 +20,11 @@ FROM alpine:3.20
 RUN adduser -D -u 10001 app
 COPY --from=build /out/server /usr/local/bin/server
 COPY --from=web /app/dist /srv/web
-# Gameplay constants (health, AP, MP): a plain JSON file, editable without a
-# rebuild — but it still has to exist inside the image, since nothing else
-# from the source tree is copied here.
-COPY backend/config/balance.json /config/balance.json
+# Game content and balance (balance.json, spells.json, classes.json): plain
+# JSON files, editable without a rebuild — but they still have to exist
+# inside the image, since nothing else from the source tree is copied here.
+# The server refuses to start if spells.json or classes.json is missing.
+COPY backend/config/*.json /config/
 
 USER app
 ENV PORT=8080 STATIC_DIR=/srv/web

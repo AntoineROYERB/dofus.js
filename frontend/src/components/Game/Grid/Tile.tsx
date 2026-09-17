@@ -12,7 +12,12 @@ interface TileProps {
   screenPosition: Position;
   isHovered: boolean;
   isValidTarget?: boolean;
-  onClick?: () => void;
+  /**
+   * Called with this cell. It takes the cell rather than closing over it so
+   * the board can hand every tile the same function, which is what lets a
+   * tile skip re-rendering (see the memo at the bottom).
+   */
+  onCellClick?: (cell: Position) => void;
   isPositioningPhase: boolean;
   /**
    * True while the player still owes the game a starting cell. The cells they
@@ -30,6 +35,8 @@ interface TileProps {
   selectedSpellId: number | null;
   isImpactedCell: boolean;
   isInSpellRange: boolean;
+  /** In range only through the caster's relay: washed in the wind's green. */
+  viaRelay?: boolean;
   /**
    * Whether the cell under the cursor — the blast's centre, not necessarily
    * this cell — is itself a legal cast. The server checks line of sight once,
@@ -48,6 +55,8 @@ interface TileProps {
   isPathCell: boolean;
   /** Cover: nobody stands here and nothing is seen through it. */
   isObstacle: boolean;
+  /** Cover a Stonewarden raised, drawn taller and in earth. */
+  isPillar?: boolean;
   /**
    * For a cell inside the area you may act in: which of its four edges face
    * out of that area, up-left, up-right, down-right, down-left. Undefined for
@@ -77,14 +86,14 @@ const costOpacity = (cost: number | undefined, maxCost: number): number => {
   return 0.08 + share * 0.22;
 };
 
-export const Tile: React.FC<TileProps> = ({
+const TileView: React.FC<TileProps> = ({
   x,
   y,
   tileSize,
   screenPosition,
   isHovered,
   isValidTarget,
-  onClick,
+  onCellClick,
   isPositioningPhase,
   awaitingPlacement,
   allPlayersInitialPositions,
@@ -92,6 +101,7 @@ export const Tile: React.FC<TileProps> = ({
   selectedSpellId,
   isImpactedCell,
   isInSpellRange,
+  viaRelay = false,
   canCastAtHovered,
   isInRange,
   showMovementWash,
@@ -99,6 +109,7 @@ export const Tile: React.FC<TileProps> = ({
   maxMovementCost,
   isPathCell,
   isObstacle,
+  isPillar = false,
   zoneEdges,
 }) => {
   const { width: w, height: h } = tileSize;
@@ -153,6 +164,14 @@ export const Tile: React.FC<TileProps> = ({
 
     if (isCharacterTurn && selectedSpellId) {
       if (isImpactedCell && canCastAtHovered) return marked(0.3);
+      if (isInSpellRange && viaRelay) {
+        return {
+          fill: BOARD.relay,
+          opacity: 0.2,
+          stroke: BOARD.stroke,
+          strokeWidth: BOARD.strokes.tile,
+        };
+      }
       if (isInSpellRange) return graphite(0.14);
     }
 
@@ -189,9 +208,29 @@ export const Tile: React.FC<TileProps> = ({
   // a pointing device.
   const interactive = !!isValidTarget;
 
+  // A pillar comes up out of the ground the moment it is raised.
+  const [grown, setGrown] = React.useState(isPillar ? 0 : 1);
+  React.useEffect(() => {
+    if (!isPillar) {
+      setGrown(1);
+      return;
+    }
+    let frame = 0;
+    const start = performance.now();
+    const step = (now: number) => {
+      const p = Math.min(1, (now - start) / BOARD.pillar.grow);
+      // Overshoots a little and settles, like rock shoved up from below.
+      setGrown(p < 1 ? 1 - Math.pow(1 - p, 3) * Math.cos(p * 5) : 1);
+      if (p < 1) frame = requestAnimationFrame(step);
+    };
+    frame = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(frame);
+  }, [isPillar]);
+
   // Cover stands above the ground rather than lying flat on it, so a wall
   // reads as something to walk around and not as a differently coloured floor.
-  const rise = isObstacle ? h * BOARD.block.rise : 0;
+  const block = isPillar ? BOARD.pillar : BOARD.block;
+  const rise = isObstacle ? h * block.rise * grown : 0;
 
   return (
     <div
@@ -210,13 +249,13 @@ export const Tile: React.FC<TileProps> = ({
         // it would also cut off the raised faces of cover.
         clipPath: isObstacle ? undefined : "polygon(50% 0, 100% 50%, 50% 100%, 0 50%)",
       }}
-      onClick={interactive ? onClick : undefined}
+      onClick={interactive ? () => onCellClick?.({ x, y }) : undefined}
       onKeyDown={
         interactive
           ? (event) => {
               if (event.key === "Enter" || event.key === " ") {
                 event.preventDefault();
-                onClick?.();
+                onCellClick?.({ x, y });
               }
             }
           : undefined
@@ -233,19 +272,26 @@ export const Tile: React.FC<TileProps> = ({
           <g>
             <polygon
               points={`0,${h / 2} ${w / 2},${h} ${w / 2},${h - rise} 0,${h / 2 - rise}`}
-              fill={BOARD.block.left}
+              fill={block.left}
             />
             <polygon
               points={`${w},${h / 2} ${w / 2},${h} ${w / 2},${h - rise} ${w},${h / 2 - rise}`}
-              fill={BOARD.block.right}
+              fill={block.right}
             />
             <polygon
               points={points}
               transform={`translate(0, ${-rise})`}
-              fill={BOARD.block.top}
-              stroke={BOARD.block.stroke}
+              fill={block.top}
+              stroke={block.stroke}
               strokeWidth={1}
             />
+            {isPillar && (
+              // Strata, so it reads as rock and not as a taller crate.
+              <g stroke={block.stroke} strokeOpacity={0.45} strokeWidth={1}>
+                <line x1={0} y1={h / 2 - rise * 0.35} x2={w / 2} y2={h - rise * 0.35} />
+                <line x1={w / 2} y1={h - rise * 0.65} x2={w} y2={h / 2 - rise * 0.65} />
+              </g>
+            )}
           </g>
         ) : (
           <>
@@ -305,3 +351,32 @@ export const Tile: React.FC<TileProps> = ({
     </div>
   );
 };
+
+const sameEdges = (a?: boolean[], b?: boolean[]) =>
+  a === b ||
+  (!!a && !!b && a.length === b.length && a.every((edge, i) => edge === b[i]));
+
+/*
+ * The board re-renders on every frame of a walk, as the fighter's position is
+ * interpolated, and on every pointer move. Redrawing all ~110 cells each time
+ * is what made the board stutter on a phone; a cell now redraws only when
+ * something about that cell changed. The board builds a fresh position object
+ * and a fresh edge array per render, so those two are compared by value.
+ */
+export const Tile = React.memo(TileView, (prev, next) => {
+  for (const key of Object.keys(next) as (keyof TileProps)[]) {
+    if (key === "screenPosition") {
+      if (
+        prev.screenPosition.x !== next.screenPosition.x ||
+        prev.screenPosition.y !== next.screenPosition.y
+      ) {
+        return false;
+      }
+    } else if (key === "zoneEdges") {
+      if (!sameEdges(prev.zoneEdges, next.zoneEdges)) return false;
+    } else if (prev[key] !== next[key]) {
+      return false;
+    }
+  }
+  return true;
+});

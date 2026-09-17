@@ -11,11 +11,23 @@ export default {
     extend: {
       screens: {
         /*
+         * A phone held upright. Tailwind turns its own max-* variants off as
+         * soon as a raw screen exists, so this stands in for max-sm. It comes
+         * before short so that, on a screen both narrow and short, short wins.
+         */
+        narrow: { max: "639px" },
+        /*
          * A phone held sideways is the shape this board wants — wide and
          * shallow — but it leaves barely 300px of height once the browser's
          * own chrome is out. Everything in the HUD has a compact form here.
          */
         short: { raw: "(max-height: 560px)" },
+        /*
+         * A finger rather than a cursor: no hover to reveal a tooltip, and no
+         * keyboard to press a number key on. Copy that talks about either is
+         * swapped for copy that talks about tapping.
+         */
+        touch: { raw: "(hover: none) and (pointer: coarse)" },
       },
       colors: {
         paper: "#f2f2f0",
@@ -77,12 +89,30 @@ export default {
           "0%": { backgroundColor: "rgba(209, 70, 47, 0.10)" },
           "100%": { backgroundColor: "rgba(209, 70, 47, 0)" },
         },
+        // The route an air spell takes through its relay, flowing forward.
+        "wind-dash": {
+          "0%": { strokeDashoffset: "34" },
+          "100%": { strokeDashoffset: "0" },
+        },
+        // A burning fighter's flame, never quite still.
+        flicker: {
+          "0%, 100%": { transform: "scale(1, 1) rotate(-3deg)" },
+          "50%": { transform: "scale(0.92, 1.12) rotate(3deg)" },
+        },
+        // A burn that just got worse.
+        "burn-pop": {
+          "0%": { transform: "scale(1.6)" },
+          "100%": { transform: "scale(1)" },
+        },
       },
       animation: {
         placeable: "placeable 1.9s ease-in-out infinite",
         beckon: "beckon 1.6s ease-out infinite",
         hint: "hint 1.8s ease-in-out infinite",
         "log-settle": "log-settle 2.4s ease-out 1",
+        "wind-dash": "wind-dash 0.6s linear infinite",
+        flicker: "flicker 0.45s ease-in-out infinite",
+        "burn-pop": "burn-pop 0.35s ease-out 1",
       },
     },
   },

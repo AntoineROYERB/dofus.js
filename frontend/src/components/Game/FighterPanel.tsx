@@ -2,6 +2,8 @@ import React from "react";
 import { Player } from "../../types/game";
 import { EffectBadges } from "./EffectBadges";
 import { effectTotal } from "../../utils/effectUtils";
+import { ClassTag } from "./ClassTag";
+import { useContent } from "../../hooks/useContent";
 
 interface FighterPanelProps {
   currentPlayer: Player | undefined;
@@ -35,6 +37,7 @@ export const FighterPanel: React.FC<FighterPanelProps> = ({
   connected,
 }) => {
   const character = currentPlayer?.character;
+  const { content } = useContent();
 
   if (!character) {
     return (
@@ -66,10 +69,16 @@ export const FighterPanel: React.FC<FighterPanelProps> = ({
   return (
     <div className="flex h-full flex-col">
       <div className="flex items-baseline justify-between">
-        <span className="font-mono text-[9.5px] uppercase tracking-label text-muted short:hidden">
+        <span className="font-mono text-[9.5px] uppercase tracking-label text-muted narrow:hidden short:hidden">
           Fighter
         </span>
-        {!connected && (
+        {connected ? (
+          <ClassTag
+            classId={character.class}
+            classes={content?.classes}
+            className="short:hidden"
+          />
+        ) : (
           <span className="font-mono text-[9.5px] uppercase tracking-label text-vermilion">
             offline
           </span>
