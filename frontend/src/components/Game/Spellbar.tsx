@@ -5,6 +5,7 @@ import { SpellGlyph } from "./SpellGlyph";
 import { SpellTooltip } from "./SpellTooltip";
 import { barSpells } from "../../utils/classUtils";
 import { RULES } from "../../utils/terrain";
+import { BOARD } from "../../constants";
 import { spec, unavailableReason } from "../../utils/spellUtils";
 
 /** The ultimate's own colour: gold, the one thing on the bar that is rare. */
@@ -18,6 +19,8 @@ interface SpellBarProps {
   spells: SpellBook | null;
   /** The fight's turn, which is what unlocks an ultimate. */
   turnNumber?: number;
+  /** Whether this player has a relay out, which changes how air spells go. */
+  hasRelay?: boolean;
 }
 
 const SpellSlot: React.FC<{
@@ -26,9 +29,11 @@ const SpellSlot: React.FC<{
   state: SpellState | undefined;
   actionPoints: number;
   turnNumber: number;
+  hasRelay: boolean;
   isSelected: boolean;
   onSelect: (spellId: number) => void;
-}> = ({ spell, shortcut, state, actionPoints, turnNumber, isSelected, onSelect }) => {
+}> = ({ spell, shortcut, state, actionPoints, turnNumber, hasRelay, isSelected, onSelect }) => {
+  const throughRelay = spell.relayed && hasRelay;
   const blocked = unavailableReason(spell, state, actionPoints, turnNumber);
   const spent = spell.ultimate && !!state?.spent;
   const locked = spell.ultimate && !spent && turnNumber < RULES.ultimateFromTurn;
@@ -50,7 +55,13 @@ const SpellSlot: React.FC<{
             ? "border-2 hover:border-graphite"
             : "border border-rule hover:border-graphite"
       } ${blocked && !locked ? "opacity-35" : ""}`}
-      style={spell.ultimate && !isSelected ? { borderColor: ULTIMATE } : undefined}
+      style={
+        spell.ultimate && !isSelected
+          ? { borderColor: ULTIMATE }
+          : throughRelay && !isSelected
+            ? { borderColor: BOARD.relay, boxShadow: `inset 0 0 0 1px ${BOARD.relay}` }
+            : undefined
+      }
       aria-label={`${spell.name} — ${spec(spell)} — press ${shortcut}${
         blocked ? ` (${blocked})` : ""
       }`}
@@ -72,11 +83,13 @@ const SpellSlot: React.FC<{
         {shortcut}
       </span>
       {/* The element is a 6px square, the only place a spell's own colour shows. */}
-      <span
-        aria-hidden
-        className="absolute right-1.5 top-1.5 h-1.5 w-1.5"
-        style={{ backgroundColor: spell.color }}
-      />
+      {!throughRelay && (
+        <span
+          aria-hidden
+          className="absolute right-1.5 top-1.5 h-1.5 w-1.5"
+          style={{ backgroundColor: spell.color }}
+        />
+      )}
       <span
         className={`flex h-full items-center justify-center ${locked ? "opacity-40" : ""}`}
         style={spell.ultimate ? { color: "#8a6a10" } : undefined}
@@ -90,6 +103,16 @@ const SpellSlot: React.FC<{
       <span className="absolute bottom-0.5 right-1.5 font-mono text-[10px] tabular-nums text-muted">
         {spell.APCost}
       </span>
+      {throughRelay && (
+        // The relay is out: this spell will go through it, harder.
+        <span
+          className="absolute inset-x-1 top-0.5 text-right font-mono text-[9px] font-semibold leading-none"
+          style={{ color: BOARD.relay }}
+          title={`Goes through your relay: +${RULES.relayBonus}% damage`}
+        >
+          ↺+{RULES.relayBonus}%
+        </span>
+      )}
       {cooldown > 0 && (
         <span className="absolute inset-0 grid place-items-center bg-paper/80 font-mono text-[18px] font-semibold tabular-nums">
           {cooldown}
@@ -139,6 +162,7 @@ const SpellBar: React.FC<SpellBarProps> = ({
   currentPlayer,
   spells,
   turnNumber = 0,
+  hasRelay = false,
 }) => {
   // The player's own bar, in its own order: the catalogue carries every
   // class's spells, and a class may carry fewer than there are slots.
@@ -194,6 +218,7 @@ const SpellBar: React.FC<SpellBarProps> = ({
             state={currentPlayer?.spells?.[String(spell.id)]}
             actionPoints={actionPoints}
             turnNumber={turnNumber}
+            hasRelay={hasRelay}
             isSelected={selectedSpellId === spell.id}
             onSelect={handleSpellClick}
           />

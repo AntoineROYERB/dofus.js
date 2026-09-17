@@ -8,9 +8,12 @@ import {
 import { blockedBy, reachable, sightBlockedBy } from "../../../utils/board";
 import { Tile } from "./Tile";
 import { castOrigin } from "../../../utils/spellUtils";
+import { BurnMarker } from "./BurnMarker";
 import {
   isSolidTerrain,
   relayOf,
+  RULES,
+  withBonus,
   terrainIndex,
   TERRAIN_INFO,
   ZONE_INFO,
@@ -199,13 +202,27 @@ export const Grid: React.FC<GridProps> = ({
   const damagePreview = React.useMemo(() => {
     if (!selectedSpell || !characterPosition || !hoveredPosition) return null;
     if (!currentPlayer?.isCurrentTurn || selectedSpell.damage <= 0) return null;
+    const origin = castOrigin(
+      selectedSpell,
+      hoveredPosition,
+      characterPosition,
+      sightBlocked,
+      relay
+    );
+    if (!origin) return null;
+    const throughRelay =
+      !!relay && origin.x === relay.x && origin.y === relay.y && selectedSpell.relayed;
+    let damage = selectedSpell.damage;
+    if (throughRelay) damage = withBonus(damage, RULES.relayBonus);
     if (
-      !castOrigin(selectedSpell, hoveredPosition, characterPosition, sightBlocked, relay)
+      selectedSpell.conducts &&
+      terrainAt.get(`${hoveredPosition.x},${hoveredPosition.y}`)?.kind === "water"
     ) {
-      return null;
+      damage = withBonus(damage, RULES.conductBonus);
     }
     return {
-      damage: selectedSpell.damage,
+      damage,
+      throughRelay,
       screen: isoToScreen(
         hoveredPosition.x,
         hoveredPosition.y,
@@ -221,10 +238,25 @@ export const Grid: React.FC<GridProps> = ({
     currentPlayer,
     sightBlocked,
     relay,
+    terrainAt,
     tileSize,
     centerX,
     centerY,
   ]);
+
+  // Cells the selected spell only reaches by going through the relay, and the
+  // route a hovered cast would take: the caster, the relay, the target.
+  const relayed = !!selectedSpell?.relayed && !!relay;
+  const relayRoute = React.useMemo(() => {
+    if (!relayed || !relay || !characterPosition || !hoveredPosition || !selectedSpell) {
+      return null;
+    }
+    const origin = castOrigin(selectedSpell, hoveredPosition, characterPosition, sightBlocked, relay);
+    if (!origin || origin.x !== relay.x || origin.y !== relay.y) return null;
+    return [characterPosition, relay, hoveredPosition].map((p) =>
+      isoToScreen(p.x, p.y, tileSize, centerX, centerY)
+    );
+  }, [relayed, relay, characterPosition, hoveredPosition, selectedSpell, sightBlocked, tileSize, centerX, centerY]);
 
   // What is lying on the cell under the pointer, when nobody is standing on
   // it: a scorch mark that means nothing reads as scenery, so ground that does
@@ -440,6 +472,15 @@ export const Grid: React.FC<GridProps> = ({
           const isInRange = walkable.has(`${x},${y}`);
 
           const isInCastRange = castable.has(`${x},${y}`);
+          const reachedViaRelay =
+            isInCastRange &&
+            relayed &&
+            !!selectedSpell &&
+            !!characterPosition &&
+            (() => {
+              const o = castOrigin(selectedSpell, { x, y }, characterPosition, sightBlocked, relay);
+              return !!o && !!relay && o.x === relay.x && o.y === relay.y;
+            })();
 
           const isImpactedCell = impactedCells.some(
             (pos) => pos.x === x && pos.y === y
@@ -471,8 +512,10 @@ export const Grid: React.FC<GridProps> = ({
               selectedSpellId={selectedSpellId}
               isImpactedCell={isImpactedCell}
               isInSpellRange={isInCastRange}
+              viaRelay={reachedViaRelay}
               canCastAtHovered={hoveredCastable}
               isObstacle={isObstacle}
+              isPillar={isObstacle && terrainAt.get(`${x},${y}`)?.kind === "pillar"}
               isInRange={isInRange}
               showMovementWash={showMovementWash}
               movementCost={walkable.get(`${x},${y}`)}
@@ -495,6 +538,7 @@ export const Grid: React.FC<GridProps> = ({
           centerY={centerY}
           containerRef={containerRef}
           userId={userId}
+          relayActive={relayed && !!currentPlayer?.isCurrentTurn}
         />
         {/*
           Sits between the floor and the characters: its ground layer puts scars
@@ -545,6 +589,21 @@ export const Grid: React.FC<GridProps> = ({
               scale={tileSize.width / 256}
               color={players?.[playerId]?.character.color}
               opacity={renderData.opacity}
+            />
+          );
+        })}
+        {/* Burning fighters, burning where everyone can see it. */}
+        {Object.entries(characterRenderState).map(([playerId, renderData]) => {
+          const character = players?.[playerId]?.character;
+          const burn = character?.effects?.find((e) => e.kind === "burn");
+          if (!renderData || !character?.isAlive || !burn || isPositioningPhase) return null;
+          return (
+            <BurnMarker
+              key={`burn-${playerId}`}
+              screenPosition={renderData.screenPosition}
+              tileSize={tileSize}
+              stacks={burn.value}
+              turnsLeft={burn.turnsLeft}
             />
           );
         })}
@@ -634,6 +693,14 @@ export const Grid: React.FC<GridProps> = ({
             }}
           >
             &minus;{damagePreview.damage}
+            {damagePreview.throughRelay && (
+              <span
+                className="ml-1 align-middle font-mono text-[10px] font-semibold uppercase tracking-label"
+                style={{ color: BOARD.relay }}
+              >
+                via relay +{RULES.relayBonus}%
+              </span>
+            )}
           </div>
         )}
 
@@ -695,7 +762,32 @@ export const Grid: React.FC<GridProps> = ({
           );
         })()}
 
-        {!isPositioningPhase && !hoveredCharacterEntry && !confirmAction && hoveredTerrain && (
+                {/* The wind's route: from the caster, round the relay, to the target. */}
+        {relayRoute && (
+          <svg
+            className="pointer-events-none absolute inset-0 z-10 h-full w-full overflow-visible"
+            aria-hidden
+          >
+            <path
+              d={`M ${relayRoute[0].x} ${relayRoute[0].y - tileSize.height * 0.9} Q ${
+                (relayRoute[0].x + relayRoute[1].x) / 2
+              } ${Math.min(relayRoute[0].y, relayRoute[1].y) - tileSize.height * 2.2} ${relayRoute[1].x} ${
+                relayRoute[1].y - tileSize.height * 0.9
+              } Q ${(relayRoute[1].x + relayRoute[2].x) / 2} ${
+                Math.min(relayRoute[1].y, relayRoute[2].y) - tileSize.height * 2.2
+              } ${relayRoute[2].x} ${relayRoute[2].y - tileSize.height * 0.5}`}
+              fill="none"
+              stroke={BOARD.relay}
+              strokeWidth={3}
+              strokeDasharray="10 7"
+              strokeLinecap="round"
+              className="animate-wind-dash"
+            />
+            <circle cx={relayRoute[2].x} cy={relayRoute[2].y - tileSize.height * 0.5} r={4} fill={BOARD.relay} />
+          </svg>
+        )}
+
+                {!isPositioningPhase && !hoveredCharacterEntry && !confirmAction && hoveredTerrain && (
           <div
             role="tooltip"
             className="pointer-events-none absolute z-20 w-[200px] border-2 border-ink bg-paper px-2 py-1.5 text-ink shadow-md"

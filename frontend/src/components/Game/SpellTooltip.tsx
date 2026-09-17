@@ -22,8 +22,8 @@ const mechanics = (spell: Spell): string[] => {
     out.push(`${ZONE_INFO[spell.zone.kind].name.toLowerCase()} · ${spell.zone.duration} turns`);
   }
   if (spell.grantMP > 0) out.push(`+${spell.grantMP} MP now`);
-  if (spell.relayed) out.push("castable from your relay");
-  if (spell.conducts) out.push("×2 in water");
+  if (spell.relayed) out.push(`+${RULES.relayBonus}% through your relay`);
+  if (spell.conducts) out.push(`+${RULES.conductBonus}% in water`);
   return out;
 };
 

@@ -92,9 +92,10 @@ export function isInSpellRange(
 }
 
 /**
- * Where a spell aimed at `cell` would be cast from: the caster's own cell if
- * it lands from there, otherwise the caster's relay for a spell that can use
- * one, otherwise nowhere. Mirrors castOriginLocked on the server.
+ * Where a spell aimed at `cell` would be cast from: the caster's relay, for a
+ * spell that can use one and whenever the relay reaches, otherwise the
+ * caster's own cell if it lands from there, otherwise nowhere. Mirrors
+ * castOriginLocked on the server.
  */
 export function castOrigin(
   spell: Spell,
@@ -109,8 +110,8 @@ export function castOrigin(
   const reaches = (from: Position) =>
     distance(from, cell) <= spell.range &&
     (!spell.needsLineOfSight || hasLineOfSight(from, cell, sightBlocked));
-  if (reaches(caster)) return caster;
   if (spell.relayed && relay && reaches(relay)) return relay;
+  if (reaches(caster)) return caster;
   return null;
 }
 

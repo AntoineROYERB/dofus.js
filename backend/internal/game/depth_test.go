@@ -267,14 +267,14 @@ func TestShieldSoaksDamage(t *testing.T) {
 	g.players["b"] = p
 	g.mu.Unlock()
 
-	// Lightning deals 10; six of it is soaked. Force a normal hit.
+	// Frozen Ground deals 10; six of it is soaked. Force a normal hit.
 	g.mu.Lock()
-	spell := g.spells["7"]
+	spell := g.spells["14"]
 	spell.CriticalChance = 0
-	g.spells["7"] = spell
+	g.spells["14"] = spell
 	g.mu.Unlock()
 
-	if err := g.CastSpell("a", 7, types.Position{X: 0, Y: 3}); err != nil {
+	if err := g.CastSpell("a", 14, types.Position{X: 0, Y: 3}); err != nil {
 		t.Fatalf("CastSpell: %v", err)
 	}
 	if hp := g.Snapshot().Players["b"].Character.Health; hp != StartingHealth-4 {

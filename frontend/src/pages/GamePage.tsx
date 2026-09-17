@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { generateMessageId } from "../utils/messageUtils";
 import { GameBoard } from "../components/Game/GameBoard";
 import SpellBar from "../components/Game/Spellbar";
+import { relayOf } from "../utils/terrain";
 import { GameAction, Position, GameStatus, GAME_STATUS } from "../types/game";
 import { FighterPanel } from "../components/Game/FighterPanel";
 import { TurnTimeline } from "../components/Game/TurnTimeline";
@@ -521,6 +522,7 @@ function GamePage() {
             currentPlayer={currentPlayer}
             spells={gameState?.spells ?? null}
             turnNumber={gameState?.turnNumber ?? 0}
+            hasRelay={!!relayOf(gameState?.terrain, userId)}
           />
         </div>
 

@@ -94,8 +94,9 @@
         "secondary": "#dcf8f1"
       },
       "lore": "Slow to start and terrible up close. Leaps into reach, drags enemies in, and walls off their way out.",
-      "passive": "+50% damage against a target standing right next to you.",
+      "passive": "+50% damage against a target right next to you. Hard to move: pushes carry you 2 cells less.",
       "meleeBonus": 50,
+      "pushResist": 2,
       "movementPoints": 4,
       "spells": [
         "16",

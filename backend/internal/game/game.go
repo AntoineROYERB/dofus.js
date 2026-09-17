@@ -796,9 +796,9 @@ func (g *Game) blocksMovementLocked(pos types.Position) bool {
 	return taken
 }
 
-func castSummary(spell string, hits int, crit bool) string {
+func castSummary(spell string, hits int, crit bool, harmless bool) string {
 	switch {
-	case hits == 0:
+	case hits == 0 && !harmless:
 		return "cast " + spell + ", hitting nothing"
 	case crit:
 		return "cast " + spell + " — critical!"

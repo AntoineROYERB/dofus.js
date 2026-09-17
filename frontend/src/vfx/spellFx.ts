@@ -31,7 +31,10 @@ export type Signature =
   | "quake"
   | "leap"
   | "relay"
-  | "self";
+  | "self"
+  | "cannon"
+  | "hammer"
+  | "pillar";
 
 /** What a cast needs to be drawn, independent of where the log came from. */
 export type CastEvent = {
@@ -48,6 +51,8 @@ export type CastEvent = {
   /** Every cell the spell covered, and what it left there. */
   area?: Position[];
   terrain?: "fire" | "smoke" | "water" | "ice" | "trap" | "";
+  /** Already waited for the wind to reach the relay. */
+  arrived?: boolean;
 };
 
 export type Geometry = {
@@ -147,6 +152,12 @@ type Timer = { due: number; run: () => void };
 /** An ink whirlpool turning on the ground. */
 type Swirl = { x: number; y: number; r: number; born: number; dur: number };
 
+/** A jet of water between two points, held for a moment. */
+type Beam = { ax: number; ay: number; bx: number; by: number; born: number; dur: number; width: number };
+
+/** A stone hammer swinging down onto a point. */
+type Hammer = { x: number; y: number; size: number; born: number; dur: number };
+
 /** A lightning bolt, falling from off the top of the board. Never a scar — it's gone before it can mark anything. */
 type Bolt = {
   pts: Position[];
@@ -228,6 +239,8 @@ export class SpellFx {
   private writings: Writing[] = [];
   private bolts: Bolt[] = [];
   private swirls: Swirl[] = [];
+  private beams: Beam[] = [];
+  private hammers: Hammer[] = [];
   private timers: Timer[] = [];
 
   private shakeMag = 0;
@@ -450,6 +463,8 @@ export class SpellFx {
       this.writings.length > 0 ||
       this.bolts.length > 0 ||
       this.swirls.length > 0 ||
+      this.beams.length > 0 ||
+      this.hammers.length > 0 ||
       this.timers.length > 0 ||
       this.flash !== null ||
       performance.now() < this.shakeEnd
@@ -470,6 +485,8 @@ export class SpellFx {
     this.writings = [];
     this.bolts = [];
     this.swirls = [];
+    this.beams = [];
+    this.hammers = [];
     this.timers = [];
     this.flash = null;
     this.renderScars();
@@ -485,8 +502,14 @@ export class SpellFx {
 
   play(event: CastEvent) {
     const plans = this.plan(event);
-    if (event.via) this.playRelayPulse(event.via);
+    if (event.via) this.playRelayStream(event.origin, event.via);
     switch (event.signature) {
+      case "cannon":
+        return this.playCannon(event, plans);
+      case "hammer":
+        return this.playHammer(event, plans);
+      case "pillar":
+        return this.playPillar(event);
       case "meteor":
         return this.playMeteor(event, plans);
       case "tempest":
@@ -528,8 +551,26 @@ export class SpellFx {
     const { element, target, origin, crit } = event;
     // What moves or buffs leaves no mark of its own; the terrain layer draws
     // whatever it did leave.
-    if (event.signature === "leap" || event.signature === "relay" || event.signature === "self") {
+    if (
+      event.signature === "leap" ||
+      event.signature === "relay" ||
+      event.signature === "self" ||
+      event.signature === "pillar"
+    ) {
       return { scars: [] };
+    }
+    if (event.signature === "hammer") {
+      const scars: Scar[] = [];
+      for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * TAU + rand(-0.25, 0.25);
+        const len = rand(0.5, 1.1) * (crit ? 1.4 : 1);
+        scars.push({
+          kind: "fracture",
+          pts: jagged(target, { x: target.x + Math.cos(a) * len, y: target.y + Math.sin(a) * len }, 5, 0.12),
+          width: rand(1.2, 2.6),
+        });
+      }
+      return { scars };
     }
     if (event.signature === "quake") {
       const scars: Scar[] = [];
@@ -813,6 +854,10 @@ export class SpellFx {
   }
 
   private playAir(event: CastEvent, plans: { scars: Scar[] }) {
+    if (event.via && !event.arrived) {
+      this.at(220, () => this.playAir({ ...event, arrived: true }, plans));
+      return;
+    }
     const b = this.screen(event.target);
     const k = this.reduced ? 0.35 : event.crit ? 1.7 : 1;
     const tw = this.geometry.tileSize.width;
@@ -821,8 +866,10 @@ export class SpellFx {
     // travel from the caster the way the other elements do.
     const boltDur = this.reduced ? 70 : event.crit ? 200 : 150;
     const topY = -Math.max(70, tw * 1.6);
+    // Through a relay, the bolt comes off the relay rather than out of the sky.
+    const relay = event.via ? this.screen(event.via) : null;
     const main = jagged(
-      { x: b.x, y: topY },
+      relay ? { x: relay.x, y: relay.y - tw * 0.9 } : { x: b.x, y: topY },
       { x: b.x, y: b.y - 6 },
       8,
       tw * (event.crit ? 0.34 : 0.24)
@@ -1052,6 +1099,30 @@ export class SpellFx {
     });
   }
 
+  /** The wind running from the caster to its relay before the spell goes out. */
+  private playRelayStream(from: Position, via: Position) {
+    const a = this.screen(from);
+    const b = this.screen(via);
+    const tw = this.geometry.tileSize.width;
+    const n = this.reduced ? 4 : 18;
+    for (let i = 0; i < n; i++) {
+      this.at((i * 180) / n, () => {
+        this.spawn({
+          x: a.x,
+          y: a.y - tw * 0.5,
+          vx: 0,
+          vy: 0,
+          life: 260,
+          size: rand(1.2, 2.2),
+          type: "dot",
+          color: "#2e9e6a",
+          path: { x: b.x, y: b.y - tw * 0.5, fromX: a.x, fromY: a.y - tw * 0.5, arc: tw * rand(0.6, 1.2) },
+        });
+      });
+    }
+    this.at(200, () => this.playRelayPulse(via, true));
+  }
+
   /** A gust going up where an air relay stands. */
   private playRelayPulse(at: Position, placed = false) {
     const c = this.screen(at);
@@ -1090,6 +1161,231 @@ export class SpellFx {
         type: "spark",
         color: "#6fcf97",
       });
+    }
+  }
+
+  /** A jet of water hard enough to throw whoever it hits. */
+  private playCannon(event: CastEvent, plans: { scars: Scar[] }) {
+    const a = this.screen(event.origin);
+    const b = this.screen(event.target);
+    const tw = this.geometry.tileSize.width;
+    const dur = this.reduced ? 200 : 700;
+    const lift = tw * 0.35;
+    this.beams.push({
+      ax: a.x,
+      ay: a.y - lift,
+      bx: b.x,
+      by: b.y - lift * 0.8,
+      born: performance.now(),
+      dur,
+      width: tw * (event.crit ? 0.3 : 0.24),
+    });
+    // The kick of it going out.
+    this.ring(a.x, a.y, { r0: 4, rMax: tw * 0.7, dur: 300, color: INK, width: 3 });
+    this.shake(this.reduced ? 0 : 5, dur);
+    this.at(120, () => {
+      this.shake(this.reduced ? 0 : event.crit ? 13 : 9, 420);
+      this.ring(b.x, b.y, { r0: 4, rMax: tw * 1.4, dur: 520, color: INK, width: 3.5 });
+      this.commit(plans.scars[0]);
+    });
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const len = Math.hypot(dx, dy) || 1;
+    const k = this.reduced ? 0.3 : 1;
+    // Spray thrown on past the target, the way the water is going.
+    for (let t = 0; t < 8; t++) {
+      this.at(120 + t * 70, () => {
+        for (let i = 0; i < 9 * k; i++) {
+          const sp = rand(90, 260);
+          const spread = rand(-0.7, 0.7);
+          this.spawn({
+            x: b.x + rand(-6, 6),
+            y: b.y - lift * 0.8 + rand(-6, 6),
+            vx: (dx / len) * sp + (-dy / len) * sp * spread,
+            vy: (dy / len) * sp + (dx / len) * sp * spread - rand(40, 140),
+            g: 420,
+            drag: 0.99,
+            life: rand(350, 700),
+            size: rand(1.4, 3.2),
+            type: "dot",
+            color: Math.random() < 0.4 ? "#d8ecff" : "#3f74c9",
+          });
+        }
+      });
+    }
+  }
+
+  /** A stone hammer brought down from above the target. */
+  private playHammer(event: CastEvent, plans: { scars: Scar[] }) {
+    const b = this.screen(event.target);
+    const tw = this.geometry.tileSize.width;
+    const fall = this.reduced ? 120 : 380;
+    this.hammers.push({ x: b.x, y: b.y, size: tw * (event.crit ? 0.9 : 0.75), born: performance.now(), dur: fall + 380 });
+    this.at(fall, () => {
+      this.shake(this.reduced ? 0 : event.crit ? 20 : 14, 520);
+      this.flash = { color: "#2a1d10", alpha: event.crit ? 0.18 : 0.1, born: performance.now(), dur: 160 };
+      this.ring(b.x, b.y, { r0: 4, rMax: tw * 1.6, dur: 520, color: "#a3722c", width: 4.5 });
+      for (const scar of plans.scars) this.commit(scar);
+      const k = this.reduced ? 0.3 : 1;
+      for (let j = 0; j < 16 * k; j++) {
+        this.spawn({
+          x: b.x + rand(-12, 12),
+          y: b.y + rand(-6, 6),
+          vx: rand(-140, 140),
+          vy: -rand(160, 320),
+          g: 680,
+          drag: 0.998,
+          life: rand(600, 1000),
+          size: rand(3, 8),
+          rot: rand(0, TAU),
+          vrot: rand(-8, 8),
+          type: "chunk",
+          color: "#f4f4f2",
+        });
+      }
+      for (let m = 0; m < 14 * k; m++) {
+        this.spawn({
+          x: b.x + rand(-18, 18),
+          y: b.y + rand(-8, 8),
+          vx: rand(-60, 60),
+          vy: rand(-40, -10),
+          g: 20,
+          life: rand(800, 1400),
+          size: rand(7, 13),
+          type: "smoke",
+          color: DUST,
+        });
+      }
+    });
+  }
+
+  /** Rock shoved up out of the ground; the tile draws the pillar itself. */
+  private playPillar(event: CastEvent) {
+    const b = this.screen(event.target);
+    const tw = this.geometry.tileSize.width;
+    this.shake(this.reduced ? 0 : 8, 500);
+    this.ring(b.x, b.y, { r0: tw * 0.3, rMax: tw * 1.2, dur: 500, color: "#a3722c", width: 3 });
+    for (let j = 0; j < (this.reduced ? 4 : 14); j++) {
+      this.spawn({
+        x: b.x + rand(-tw * 0.3, tw * 0.3),
+        y: b.y + rand(-4, 4),
+        vx: rand(-90, 90),
+        vy: -rand(120, 260),
+        g: 640,
+        life: rand(500, 900),
+        size: rand(2.5, 6),
+        rot: rand(0, TAU),
+        vrot: rand(-6, 6),
+        type: "chunk",
+        color: "#c9a56a",
+      });
+    }
+    for (let m = 0; m < (this.reduced ? 3 : 10); m++) {
+      this.spawn({
+        x: b.x + rand(-20, 20),
+        y: b.y + rand(-6, 6),
+        vx: rand(-50, 50),
+        vy: rand(-30, -8),
+        g: 15,
+        life: rand(700, 1200),
+        size: rand(6, 11),
+        type: "smoke",
+        color: DUST,
+      });
+    }
+  }
+
+  private drawBeams(ctx: CanvasRenderingContext2D, now: number) {
+    for (let i = this.beams.length - 1; i >= 0; i--) {
+      const beam = this.beams[i];
+      const p = (now - beam.born) / beam.dur;
+      if (p >= 1) {
+        this.beams.splice(i, 1);
+        continue;
+      }
+      // It shoots out, holds, and thins away.
+      const reach = ease(clamp01(p / 0.18));
+      const thin = p < 0.7 ? 1 : 1 - (p - 0.7) / 0.3;
+      const ex = beam.ax + (beam.bx - beam.ax) * reach;
+      const ey = beam.ay + (beam.by - beam.ay) * reach;
+      const dx = ex - beam.ax;
+      const dy = ey - beam.ay;
+      const len = Math.hypot(dx, dy) || 1;
+      const nx = -dy / len;
+      const ny = dx / len;
+      const layers: [string, number][] = [
+        ["rgba(22,52,111,.55)", 1.25],
+        ["#3f74c9", 1],
+        ["#8fb4ea", 0.55],
+        ["#eef6ff", 0.22],
+      ];
+      ctx.save();
+      ctx.lineCap = "round";
+      for (const [color, share] of layers) {
+        ctx.strokeStyle = color;
+        ctx.lineWidth = Math.max(1, beam.width * share * thin);
+        ctx.beginPath();
+        const steps = 16;
+        for (let s = 0; s <= steps; s++) {
+          const t = s / steps;
+          const wob = Math.sin(t * 14 - now / 30) * beam.width * 0.12 * t;
+          const x = beam.ax + dx * t + nx * wob;
+          const y = beam.ay + dy * t + ny * wob;
+          if (s === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      }
+      ctx.restore();
+      if (!this.reduced && Math.random() < 0.8) {
+        this.spawn({
+          x: beam.ax + dx * Math.random(),
+          y: beam.ay + dy * Math.random(),
+          vx: nx * rand(-60, 60),
+          vy: ny * rand(-60, 60) + 20,
+          g: 300,
+          life: rand(200, 400),
+          size: rand(1, 2),
+          type: "dot",
+          color: "#8fb4ea",
+        });
+      }
+    }
+  }
+
+  private drawHammers(ctx: CanvasRenderingContext2D, now: number) {
+    for (let i = this.hammers.length - 1; i >= 0; i--) {
+      const h = this.hammers[i];
+      const age = now - h.born;
+      if (age >= h.dur) {
+        this.hammers.splice(i, 1);
+        continue;
+      }
+      const fall = h.dur - 380;
+      const p = clamp01(age / fall);
+      // Raised high and tilted back, then brought down all at once.
+      const drop = p * p * p;
+      const angle = -1.4 * (1 - drop);
+      const y = h.y - h.size * 1.9 * (1 - drop);
+      const alpha = age > fall ? 1 - (age - fall) / 380 : 1;
+      const s = h.size;
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, alpha);
+      ctx.translate(h.x + s * 0.55, y - s * 0.1);
+      ctx.rotate(angle);
+      // Handle.
+      ctx.fillStyle = "#5a4428";
+      ctx.fillRect(-s * 0.05, -s * 1.15, s * 0.1, s * 0.95);
+      // Head, a block of stone with a dark face.
+      ctx.translate(-s * 0.55, -s * 0.25);
+      ctx.fillStyle = "#8a6a3a";
+      ctx.fillRect(-s * 0.1, -s * 0.12, s * 1.3, s * 0.42);
+      ctx.fillStyle = "#c9a56a";
+      ctx.fillRect(-s * 0.1, -s * 0.12, s * 1.3, s * 0.12);
+      ctx.strokeStyle = "#2a1d10";
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(-s * 0.1, -s * 0.12, s * 1.3, s * 0.42);
+      ctx.restore();
     }
   }
 
@@ -1375,6 +1671,8 @@ export class SpellFx {
     }
 
     this.drawBolts(air, now);
+    this.drawBeams(air, now);
+    this.drawHammers(air, now);
     this.drawParticles(air, now);
 
     if (this.flash) {

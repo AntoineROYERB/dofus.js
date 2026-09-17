@@ -92,6 +92,9 @@ func (g *Game) CastSpell(userID string, spellID int, target types.Position) erro
 	}
 
 	affected := g.coveredCellsLocked(spell, target, origin)
+	if via != nil {
+		damage = damage * (100 + RelayBonus) / 100
+	}
 	hits, dealt, victims := g.strikeLocked(userID, spell, affected, damage)
 
 	var apChange, mpChange, shieldChange int
@@ -125,7 +128,7 @@ func (g *Game) CastSpell(userID string, spellID int, target types.Position) erro
 	entry := types.LogEntry{
 		Actor:        caster.Character.Name,
 		Kind:         types.LogCast,
-		Text:         castSummary(spell.Name, hits, crit),
+		Text:         castSummary(spell.Name, hits, crit, spell.Damage == 0),
 		Damage:       dealt,
 		Crit:         crit,
 		APChange:     apChange,
@@ -158,10 +161,11 @@ func (g *Game) CastSpell(userID string, spellID int, target types.Position) erro
 	return nil
 }
 
-// castOriginLocked works out where a spell is cast from: where its caster
-// stands if it can land from there, otherwise the caster's relay if the spell
-// can be relayed and lands from that. The error is always the one the
-// caster's own cell got, since that is the cast the player was thinking of.
+// castOriginLocked works out where a spell is cast from. A spell that can go
+// through its caster's relay always does when the relay reaches the target —
+// that is where it hits hardest — and otherwise goes out from where its
+// caster stands. The error is always the one the caster's own cell got, since
+// that is the cast the player was thinking of.
 func (g *Game) castOriginLocked(userID string, standing, target types.Position, spell types.Spell) (types.Position, *types.Position, error) {
 	reach := func(from types.Position) error {
 		if Distance(from, target) > spell.Range {
@@ -172,16 +176,15 @@ func (g *Game) castOriginLocked(userID string, standing, target types.Position, 
 		}
 		return nil
 	}
-	err := reach(standing)
-	if err == nil {
-		return standing, nil, nil
-	}
 	if spell.Relayed {
 		if relay, ok := g.relayOfLocked(userID); ok && reach(relay) == nil {
 			return relay, &relay, nil
 		}
 	}
-	return types.Position{}, nil, err
+	if err := reach(standing); err != nil {
+		return types.Position{}, nil, err
+	}
+	return standing, nil, nil
 }
 
 // coveredCellsLocked lists the cells a cast acts on. A leap shakes the cells
@@ -224,7 +227,7 @@ func (g *Game) strikeLocked(userID string, spell types.Spell, cells []types.Posi
 			amount += stacks * turns * BurnDamagePerStack
 		}
 		if spell.Conducts && g.terrainKindLocked(cell) == types.TerrainWater {
-			amount *= ConductMultiplier
+			amount = amount * (100 + ConductBonus) / 100
 		}
 		if bonus > 0 && id != userID && Distance(*g.players[userID].Character.Position, cell) == 1 {
 			amount = amount * (100 + bonus) / 100
@@ -288,11 +291,14 @@ func (g *Game) reshapeBoardLocked(userID string, spell types.Spell, target, orig
 		}
 		g.placeTerrainLocked(target, types.TerrainRelay, userID)
 	case types.SpecialPillar:
-		delete(g.terrain, target)
 		if g.obstacles == nil {
 			g.obstacles = make(map[types.Position]bool)
 		}
 		g.obstacles[target] = true
+		if g.terrain == nil {
+			g.terrain = make(map[types.Position]types.TerrainCell)
+		}
+		g.terrain[target] = types.TerrainCell{Position: target, Kind: types.TerrainPillar, Owner: userID}
 	case types.SpecialCrater:
 		// Whoever was standing there has been thrown out of it by now, unless
 		// something stopped them; a crater is never dug under someone.

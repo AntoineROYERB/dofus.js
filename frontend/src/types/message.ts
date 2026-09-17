@@ -108,7 +108,9 @@ export type TerrainKind =
   | SpreadTerrain
   | "relay"
   | "crater"
-  | "fissure";
+  | "fissure"
+  /** A raised pillar: the obstacle itself is in `obstacles`. */
+  | "pillar";
 
 export type TerrainCell = {
   position: Position;
@@ -205,6 +207,8 @@ export type CharacterClass = {
   passive: string;
   /** Extra damage, in percent, against a target standing next to it. */
   meleeBonus?: number;
+  /** How many cells shorter every push against the class is. */
+  pushResist?: number;
   health: number;
   actionPoints: number;
   movementPoints: number;

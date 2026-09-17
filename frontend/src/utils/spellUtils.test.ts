@@ -90,6 +90,12 @@ describe("areaPattern", () => {
 describe("castOrigin", () => {
   const caster = { x: -4, y: 0 };
 
+  it("prefers the relay whenever it reaches, for a relayed spell", () => {
+    const spell = makeSpell({ range: 5, relayed: true });
+    const relay = { x: -2, y: 1 };
+    expect(castOrigin(spell, { x: 0, y: 0 }, caster, open, relay)).toEqual(relay);
+  });
+
   it("casts from where the caster stands when that reaches", () => {
     const spell = makeSpell({ range: 5 });
     expect(castOrigin(spell, { x: 0, y: 0 }, caster, open, null)).toEqual(caster);

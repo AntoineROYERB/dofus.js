@@ -20,7 +20,7 @@ const (
 	spellGale         = 8
 	spellTailwind     = 9
 	spellTempest      = 10
-	spellGeyser       = 11
+	spellHydroCannon  = 11
 	spellBubbleTrap   = 12
 	spellDownpour     = 13
 	spellFrozenGround = 14
@@ -308,8 +308,8 @@ func TestARelayCarriesAirSpellsOutOfReach(t *testing.T) {
 	if last.Via == nil || *last.Via != (types.Position{X: 1}) {
 		t.Errorf("cast log via = %v, want the relay", last.Via)
 	}
-	if want := StartingHealth - damageOf(g, spellLightning); health(t, g, "b") != want {
-		t.Errorf("health = %d, want %d", health(t, g, "b"), want)
+	if want := StartingHealth - damageOf(g, spellLightning)*(100+RelayBonus)/100; health(t, g, "b") != want {
+		t.Errorf("health = %d, want %d: the relay's bonus included", health(t, g, "b"), want)
 	}
 
 	// A new relay replaces the old one.
@@ -324,6 +324,23 @@ func TestARelayCarriesAirSpellsOutOfReach(t *testing.T) {
 	}
 	if relays != 1 {
 		t.Errorf("%d relays on the board, want 1", relays)
+	}
+}
+
+func TestARelayInReachIsAlwaysUsed(t *testing.T) {
+	g := duel(t, types.Position{}, types.Position{Y: 3})
+	cast(t, g, "a", spellUpdraft, types.Position{X: 2, Y: 3})
+	cast(t, g, "a", spellLightning, types.Position{Y: 3})
+	if want := StartingHealth - damageOf(g, spellLightning)*(100+RelayBonus)/100; health(t, g, "b") != want {
+		t.Errorf("health = %d, want %d: in reach of both, the spell goes through the relay", health(t, g, "b"), want)
+	}
+}
+
+func TestPillarIsMarkedAsBuilt(t *testing.T) {
+	g := duel(t, types.Position{}, types.Position{Y: 4})
+	cast(t, g, "a", spellPillar, types.Position{X: 2})
+	if kind := terrainAt(g, types.Position{X: 2}); kind != types.TerrainPillar {
+		t.Errorf("terrain under the pillar = %q, want it marked as a pillar", kind)
 	}
 }
 
@@ -366,6 +383,16 @@ func TestGaleThrowsAndCollisionsHurt(t *testing.T) {
 	}
 }
 
+func TestStonewardenIsHardToThrow(t *testing.T) {
+	g := duel(t, types.Position{}, types.Position{Y: 2})
+	asClass(g, "b", "stonewarden")
+	cast(t, g, "a", spellGale, types.Position{Y: 2})
+	class, _ := Content().Class("stonewarden")
+	if want := (types.Position{Y: 2 + 3 - class.PushResist}); pos(g, "b") != want {
+		t.Errorf("b was thrown to %+v, want %+v", pos(g, "b"), want)
+	}
+}
+
 func TestTailwindGivesMovementRightAway(t *testing.T) {
 	g := duel(t, types.Position{}, types.Position{Y: 3})
 	cast(t, g, "a", spellTailwind, types.Position{X: 5, Y: 0}) // the cell clicked does not matter
@@ -405,7 +432,7 @@ func TestLightningConductsThroughWater(t *testing.T) {
 	g := duel(t, types.Position{}, types.Position{Y: 3})
 	lay(g, types.Position{Y: 3}, types.TerrainWater, "a")
 	cast(t, g, "a", spellLightning, types.Position{Y: 3})
-	if want := StartingHealth - damageOf(g, spellLightning)*ConductMultiplier; health(t, g, "b") != want {
+	if want := StartingHealth - damageOf(g, spellLightning)*(100+ConductBonus)/100; health(t, g, "b") != want {
 		t.Errorf("health = %d, want %d", health(t, g, "b"), want)
 	}
 }
@@ -429,11 +456,11 @@ func TestADebuffLastingOneTurnDoesCostThatTurn(t *testing.T) {
 // Water
 // ---------------------------------------------------------------------------
 
-func TestGeyserThrowsAndLeavesWater(t *testing.T) {
+func TestHydroCannonThrowsAndLeavesWater(t *testing.T) {
 	g := duel(t, types.Position{}, types.Position{Y: 2})
-	cast(t, g, "a", spellGeyser, types.Position{Y: 2})
-	if at := pos(g, "b"); at != (types.Position{Y: 4}) {
-		t.Errorf("b was thrown to %+v, want (0,4)", at)
+	cast(t, g, "a", spellHydroCannon, types.Position{Y: 2})
+	if at := pos(g, "b"); at != (types.Position{Y: 5}) {
+		t.Errorf("b was thrown to %+v, want (0,5)", at)
 	}
 	if kind := terrainAt(g, types.Position{Y: 2}); kind != types.TerrainWater {
 		t.Errorf("terrain where b stood = %q, want water", kind)

@@ -194,6 +194,7 @@ type classEntry struct {
 	Lore           string              `json:"lore"`
 	Passive        string              `json:"passive"`
 	MeleeBonus     int                 `json:"meleeBonus"`
+	PushResist     int                 `json:"pushResist"`
 	Health         *int                `json:"health"`
 	ActionPoints   *int                `json:"actionPoints"`
 	MovementPoints *int                `json:"movementPoints"`

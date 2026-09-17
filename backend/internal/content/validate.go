@@ -297,6 +297,9 @@ func (v *validator) classes(file string, cf classesFile, spells map[string]types
 		if strings.TrimSpace(c.Passive) == "" {
 			v.add(file, field("passive"), "must not be empty: the picker shows it")
 		}
+		if c.PushResist < 0 {
+			v.add(file, field("pushResist"), "is %d, must not be negative", c.PushResist)
+		}
 		if c.MeleeBonus < 0 || c.MeleeBonus > 200 {
 			v.add(file, field("meleeBonus"), "is %d, must be a percentage between 0 and 200", c.MeleeBonus)
 		}
@@ -379,6 +382,7 @@ func (v *validator) classes(file string, cf classesFile, spells map[string]types
 			Lore:           c.Lore,
 			Passive:        c.Passive,
 			MeleeBonus:     c.MeleeBonus,
+			PushResist:     c.PushResist,
 			Health:         health,
 			ActionPoints:   actionPoints,
 			MovementPoints: movementPoints,

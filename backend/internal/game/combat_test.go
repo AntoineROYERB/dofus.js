@@ -84,8 +84,8 @@ func TestSpellWithoutLineOfSightRequirementIgnoresScreens(t *testing.T) {
 		"c": {X: 0, Y: 2},
 	}, "a", "b", "c")
 
-	// Geyser (id 11) erupts under its target and needs no line of sight.
-	if err := g.CastSpell("a", 11, types.Position{X: 0, Y: 2}); err != nil {
+	// Downpour (id 13) falls from the sky and needs no line of sight.
+	if err := g.CastSpell("a", 13, types.Position{X: 0, Y: 2}); err != nil {
 		t.Fatalf("CastSpell that ignores sight: %v", err)
 	}
 }

@@ -13,6 +13,8 @@ interface TerrainLayerProps {
   containerRef: React.RefObject<HTMLDivElement>;
   /** Which side a relay or a trap belongs to decides its colour. */
   userId: string;
+  /** A spell that goes through the relay is selected: make the relay call out. */
+  relayActive?: boolean;
 }
 
 /*
@@ -55,11 +57,12 @@ export const TerrainLayer: React.FC<TerrainLayerProps> = ({
   centerY,
   containerRef,
   userId,
+  relayActive = false,
 }) => {
   const groundRef = useRef<HTMLCanvasElement>(null);
   const topRef = useRef<HTMLCanvasElement>(null);
-  const state = useRef({ terrain, zones, tileSize, centerX, centerY, userId });
-  state.current = { terrain, zones, tileSize, centerX, centerY, userId };
+  const state = useRef({ terrain, zones, tileSize, centerX, centerY, userId, relayActive });
+  state.current = { terrain, zones, tileSize, centerX, centerY, userId, relayActive };
 
   useEffect(() => {
     const ground = groundRef.current;
@@ -250,20 +253,38 @@ export const TerrainLayer: React.FC<TerrainLayerProps> = ({
           case "relay": {
             const color = mine ? WIND : ENEMY;
             diamond(g, cell.position, 0.9);
-            g.fillStyle = mine ? "rgba(46,158,106,.14)" : "rgba(163,35,27,.1)";
+            g.fillStyle = mine ? "rgba(46,158,106,.22)" : "rgba(163,35,27,.1)";
             g.fill();
-            for (let i = 0; i < 7; i++) {
+            g.strokeStyle = color;
+            g.lineWidth = 1.5;
+            g.stroke();
+            if (mine && s.relayActive) {
+              // Rings rolling out from it: this is where the spell will leave from.
+              for (let k = 0; k < 2; k++) {
+                const p = (time * 0.9 + k / 2) % 1;
+                g.strokeStyle = `rgba(46,158,106,${0.8 * (1 - p)})`;
+                g.lineWidth = 2.5;
+                g.beginPath();
+                g.ellipse(c.x, c.y, tw * (0.3 + p * 0.7), th * (0.3 + p * 0.7), 0, 0, TAU);
+                g.stroke();
+              }
+            }
+            const tall = mine && s.relayActive ? 11 : 8;
+            for (let i = 0; i < tall; i++) {
               const rx = tw * (0.08 + i * 0.045);
-              const yy = c.y - i * th * 0.18;
-              const rot = time * 4 + i;
+              const yy = c.y - i * th * 0.2;
+              const rot = time * (mine && s.relayActive ? 7 : 4) + i;
               t.strokeStyle = i % 2 ? "rgba(170,200,185,.9)" : color;
-              t.lineWidth = 1.6;
+              t.lineWidth = 2;
               t.beginPath();
               t.ellipse(c.x + Math.sin(time * 3 + i) * 2, yy, rx, rx * 0.3, 0, rot, rot + 4.6);
               t.stroke();
             }
             break;
           }
+          case "pillar":
+            // Drawn by the tile itself, as raised cover.
+            break;
           case "smoke": {
             for (let i = 0; i < 3; i++) {
               const drift = Math.sin(time * 0.7 + hash(x, y, i) * 6 + i) * tw * 0.08;
@@ -367,7 +388,7 @@ export const TerrainLayer: React.FC<TerrainLayerProps> = ({
     };
     // Restarted whenever the board's contents change, so an idle board can
     // stop drawing without missing the next spell.
-  }, [containerRef, terrain, zones, tileSize, centerX, centerY]);
+  }, [containerRef, terrain, zones, tileSize, centerX, centerY, relayActive]);
 
   return (
     <>

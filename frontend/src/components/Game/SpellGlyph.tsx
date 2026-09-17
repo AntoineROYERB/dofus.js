@@ -84,12 +84,12 @@ const paths: Record<number, React.ReactNode> = {
       <path d="M12.5 13 10 17.5h3.2L11.5 21.5" />
     </>
   ),
-  // Geyser
+  // Hydro Cannon
   11: (
     <>
-      <path d="M3 21h18" />
-      <path d="M10 21V10M14 21V10" />
-      <path d="M12 10c-3.5 0-5-2-5-4.5M12 10c3.5 0 5-2 5-4.5M12 10V3" />
+      <path d="M2.5 9.5h5l2-2h3v9h-3l-2-2h-5Z" />
+      <path d="M13.5 10h6M13.5 14h7.5M13.5 12h8.5" />
+      <path d="M20 7.5l1.5-1.5M20.5 16.5l1.5 1.5" />
     </>
   ),
   // Bubble Trap

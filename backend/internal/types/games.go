@@ -146,6 +146,9 @@ const (
 	TerrainRelay   = "relay"   // its owner's air spells can be cast from here
 	TerrainCrater  = "crater"  // nobody can walk through it
 	TerrainFissure = "fissure" // nobody can walk through it
+	// TerrainPillar marks a raised pillar. The pillar itself is an obstacle;
+	// this only tells the client it was built rather than dealt with the map.
+	TerrainPillar = "pillar"
 )
 
 // Zone is an area an ultimate keeps acting on, turn after turn.
@@ -309,6 +312,8 @@ type Class struct {
 	// MeleeBonus is the extra damage, in percent, the class deals to a target
 	// standing right next to it.
 	MeleeBonus int `json:"meleeBonus"`
+	// PushResist is how many cells shorter every push against the class is.
+	PushResist int `json:"pushResist"`
 
 	// Spells are catalogue ids, in bar order.
 	Spells   []string      `json:"spells"`

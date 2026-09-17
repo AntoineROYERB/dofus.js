@@ -23,14 +23,18 @@ const (
 	// something before it has run its course.
 	CollisionDamage = 6
 	// StormDamage is what a storm does to each enemy standing in it at the
-	// start of their turn, doubled if they are standing in water.
+	// start of their turn, more if they are standing in water.
 	StormDamage = 9
 	// WaterHealing is what its owner's water gives back at the start of their
 	// turn; WaterSlow is the movement it costs anyone else.
 	WaterHealing = 5
 	WaterSlow    = 1
-	// ConductMultiplier is what water does to a conducting spell's damage.
-	ConductMultiplier = 2
+	// ConductBonus is the extra damage, in percent, water adds to a conducting
+	// spell and to a storm.
+	ConductBonus = 50
+	// RelayBonus is the extra damage, in percent, a spell deals when it goes
+	// out through its caster's relay: the wind has had room to build.
+	RelayBonus = 30
 )
 
 var (
@@ -289,6 +293,12 @@ func (g *Game) slideLocked(id string, dir types.Position) int {
 // its victim is next to the one pulling; a push that runs into something
 // before it has run its course hurts.
 func (g *Game) shoveLocked(id string, dir types.Position, n int, pullTo *types.Position) {
+	if pullTo == nil {
+		// Some classes are harder to throw around than others.
+		if class, ok := g.catalogue.Class(g.players[id].Character.Class); ok {
+			n -= class.PushResist
+		}
+	}
 	if dir == (types.Position{}) || n <= 0 {
 		return
 	}
@@ -381,7 +391,7 @@ func (g *Game) zonesActOnLocked(id string) {
 		case types.ZoneStorm:
 			amount := StormDamage
 			if g.terrainKindLocked(*p.Character.Position) == types.TerrainWater {
-				amount *= ConductMultiplier
+				amount = amount * (100 + ConductBonus) / 100
 			}
 			dealt := g.damageLocked(id, amount)
 			g.effectLogLocked(id, "is struck by the storm", dealt)

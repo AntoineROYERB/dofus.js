@@ -9,7 +9,15 @@ export const RULES = {
   ultimateFromTurn: 2,
   trapDamage: 10,
   waterHealing: 5,
+  /** Extra damage, in percent, an air spell deals through its relay. */
+  relayBonus: 30,
+  /** Extra damage, in percent, water adds to lightning and storms. */
+  conductBonus: 50,
 } as const;
+
+/** Damage raised by a percentage bonus, rounded down like the server. */
+export const withBonus = (damage: number, percent: number): number =>
+  Math.floor((damage * (100 + percent)) / 100);
 
 const key = (p: Position) => `${p.x},${p.y}`;
 
@@ -50,15 +58,19 @@ export const TERRAIN_INFO: Record<TerrainKind, { name: string; text: string }> =
     name: "Bubble trap",
     text: `The first enemy to step here takes ${RULES.trapDamage} and cannot move again this turn.`,
   },
-  relay: { name: "Relay", text: "Its owner's air spells can be cast from here." },
+  relay: {
+    name: "Relay",
+    text: `Its owner's air spells go out from here whenever it reaches, ${RULES.relayBonus}% harder.`,
+  },
   crater: { name: "Crater", text: "Nobody can walk through it." },
   fissure: { name: "Fissure", text: "Nobody can walk through it." },
+  pillar: { name: "Pillar", text: "Raised by a Stonewarden. Nothing walks through it or sees past it." },
 };
 
 export const ZONE_INFO: Record<ZoneKind, { name: string; text: string }> = {
   storm: {
     name: "Storm",
-    text: "Strikes every enemy inside at the start of their turn, twice as hard in water.",
+    text: `Strikes every enemy inside at the start of their turn, ${RULES.conductBonus}% harder in water.`,
   },
   maelstrom: {
     name: "Maelstrom",

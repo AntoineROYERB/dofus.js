@@ -37,6 +37,8 @@ export const BOARD = {
   pa: "#2f6fd1",
   /** Movement points, same occasions. */
   pm: "#2f9e44",
+  /** Cells an air spell reaches through its caster's relay. */
+  relay: "#2e9e6a",
   /**
    * Where the opponent may start. Deliberately not the vermilion accent: this
    * marks a cell you must keep off, never one your click is about to act on.
@@ -61,6 +63,16 @@ export const BOARD = {
     stroke: "#a9aaa6",
     /** Share of a tile's height the cover stands above the ground. */
     rise: 0.38,
+  },
+  /** A Stonewarden's pillar: raw earth, and taller than the map's own cover. */
+  pillar: {
+    top: "#c9a56a",
+    left: "#8a6a3a",
+    right: "#6e5230",
+    stroke: "#4a3620",
+    rise: 1.25,
+    /** How long it takes to come up out of the ground, in ms. */
+    grow: 520,
   },
   /**
    * The ring under a fighter's feet, which is the only place a player's own

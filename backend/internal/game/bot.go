@@ -178,6 +178,9 @@ func (b botBoard) origins(from types.Position, spell types.Spell) []types.Positi
 // the bot ranks its options by.
 func (b botBoard) estimate(caster, target types.Position, spell types.Spell) int {
 	amount := spell.Damage
+	if spell.Relayed && b.relay != nil && b.lands(*b.relay, caster, target, spell) {
+		amount = amount * (100 + RelayBonus) / 100
+	}
 	if spell.Special == types.SpecialDetonate {
 		for _, id := range sortedKeys(b.state.Players) {
 			c := b.state.Players[id].Character
@@ -194,7 +197,7 @@ func (b botBoard) estimate(caster, target types.Position, spell types.Spell) int
 		amount += spell.Effect.Value * BurnDamagePerStack
 	}
 	if spell.Conducts && b.terrain[target].Kind == types.TerrainWater {
-		amount *= ConductMultiplier
+		amount = amount * (100 + ConductBonus) / 100
 	}
 	if b.meleeBonus > 0 && Distance(caster, target) == 1 {
 		amount = amount * (100 + b.meleeBonus) / 100

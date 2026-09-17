@@ -7,6 +7,9 @@ import { calculateImpactedCells } from "../../../utils/spellUtils";
 /** Which spells are drawn as themselves rather than as their element. */
 const signatureOf = (spell: Spell): Signature | undefined => {
   if (spell.special === "leap") return "leap";
+  if (spell.special === "pillar") return "pillar";
+  if (spell.element === "Water" && spell.push > 0) return "cannon";
+  if (spell.element === "Earth" && spell.range === 1) return "hammer";
   if (spell.special === "relay") return "relay";
   if (spell.special === "quake") return "quake";
   if (spell.special === "crater") return "meteor";
