@@ -11,20 +11,27 @@ have a whole match to yourself. The server sleeps after 15 minutes on the free
 tier, so the first connection can take a minute to come back — the board loads
 instantly either way.
 
-![Naming a fighter, picking a starting cell in the green block while the opponent's is marked off in red, and a Fireball landing for 18](docs/assets/demo.gif)
+![Picking a starting cell in the green block, a wall of fire laid across the board, and the bot answering with a Meteor that leaves a crater](docs/assets/demo.gif)
 
 <table>
 <tr>
-<td width="50%"><img src="docs/assets/01-landing.png" alt="Naming a fighter, who stands on a few cells of the board"></td>
-<td width="50%"><img src="docs/assets/02-lobby.png" alt="Lobby: open games and a solo match against the computer"></td>
+<td width="50%"><img src="docs/assets/01-landing.png" alt="Naming a fighter and picking a class, whose passive and five spells read underneath"></td>
+<td width="50%"><img src="docs/assets/02-lobby.png" alt="Lobby: the class's own opponent to challenge, open games, and a game to create"></td>
 </tr>
 <tr>
 <td width="50%"><img src="docs/assets/03-placement.png" alt="Placement: three adjacent cells to start on, in green; the opponent's block is marked off in red"></td>
-<td width="50%"><img src="docs/assets/04-combat.png" alt="Combat: cast range outlined, area of effect marked, estimated damage above the target"></td>
+<td width="50%"><img src="docs/assets/04-combat.png" alt="Combat: a wall of fire and a crater left on the board, burn counters over both fighters, and the spell bar naming each spell's role"></td>
 </tr>
 </table>
 
-<img src="docs/assets/05-phone.png" alt="The same fight on a phone held sideways" width="100%">
+<table>
+<tr>
+<td width="50%"><img src="docs/assets/06-phone-home.png" alt="The phone's home screen: the fighter on a stand, its class and passive, one Play button"></td>
+<td width="50%"><img src="docs/assets/05-phone.png" alt="The same fight on a phone held sideways: the spells in an arc under the thumb, and a card explaining the fire a cell is carrying"></td>
+</tr>
+</table>
+
+![The same fight on a phone: a wall of fire, the bot's Meteor, and the spells in an arc under the thumb](docs/assets/demo-phone.gif)
 
 On a phone, hold it sideways. The lobby becomes a home screen: your fighter in
 the middle, arrows (or a swipe) to slide through the classes with the others
@@ -319,6 +326,10 @@ cd frontend && npm test               # isometric geometry, spell text, terrain,
 cd frontend && npm test -- --coverage # the same, failing if the phone HUD's logic loses coverage
 cd frontend && npm run lint && npm run build
 ```
+
+The README's screenshots and GIFs are shot by a script, against a real server,
+so they cannot drift from the game: see `frontend/scripts/shoot-readme.mjs`
+for the two commands.
 
 The phone layout's decisions — the spell arc's slots and folding, the class
 line-up, what the confirm bubble offers and where it opens, the board's tile
