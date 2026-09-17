@@ -61,7 +61,7 @@ export type Spell = {
   APCost: number;
   range: number;
   damage: number;
-  areaOfEffect: "none" | "circle" | "cross" | "line";
+  areaOfEffect: "none" | "circle" | "cross" | "line" | "wall";
   element: string;
   description: string;
   needsLineOfSight: boolean;

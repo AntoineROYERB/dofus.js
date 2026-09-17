@@ -17,6 +17,7 @@ var knownElements = map[string]bool{"Fire": true, "Air": true, "Water": true, "E
 
 var knownAreas = map[string]bool{
 	types.AoENone: true, types.AoECircle: true, types.AoELine: true, types.AoECross: true,
+	types.AoEWall: true,
 }
 
 var knownEffects = map[string]bool{

@@ -87,6 +87,16 @@ describe("areaPattern", () => {
   });
 });
 
+describe("wall", () => {
+  it("lies straight across the cast, even on a slant", () => {
+    const spell = makeSpell({ areaOfEffect: "wall" });
+    const across = calculateImpactedCells(spell, { x: 0, y: 3 }, { x: 0, y: 0 });
+    expect(across.map((c) => c.y)).toEqual([3, 3, 3, 3, 3]);
+    const slant = calculateImpactedCells(spell, { x: 3, y: 1 }, { x: 0, y: 0 });
+    expect(slant.map((c) => c.x)).toEqual([3, 3, 3, 3, 3]);
+  });
+});
+
 describe("castOrigin", () => {
   const caster = { x: -4, y: 0 };
 

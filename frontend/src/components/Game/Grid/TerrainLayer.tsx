@@ -131,23 +131,32 @@ export const TerrainLayer: React.FC<TerrainLayerProps> = ({
         const mine = cell.owner === s.userId;
         switch (cell.kind) {
           case "fire": {
+            // Warm and bright, never dark: the flames have to read on paper,
+            // and next to a crater, which is already the darkest thing here.
             diamond(g, cell.position, 0.92);
-            g.fillStyle = "rgba(120,40,10,.26)";
+            g.fillStyle = "rgba(255,150,60,.22)";
             g.fill();
-            for (let i = 0; i < 3; i++) {
-              const fx = c.x + (i - 1) * tw * 0.16;
+            g.strokeStyle = "rgba(226,82,29,.55)";
+            g.lineWidth = 1.2;
+            g.stroke();
+            for (let i = 0; i < 4; i++) {
+              const fx = c.x + (i - 1.5) * tw * 0.13;
               const flick = Math.sin(time * 9 + x * 3 + y * 5 + i * 2);
-              const fh = th * (0.55 + 0.18 * flick + 0.1 * hash(x, y, i));
-              const fw = tw * 0.07;
-              g.fillStyle = i === 1 ? EMBER_HOT : EMBER;
-              g.globalAlpha = 0.9;
-              g.beginPath();
-              g.moveTo(fx - fw, c.y + th * 0.08);
-              g.quadraticCurveTo(fx - fw * 0.6, c.y - fh * 0.6, fx + flick * fw * 0.3, c.y - fh);
-              g.quadraticCurveTo(fx + fw * 0.6, c.y - fh * 0.5, fx + fw, c.y + th * 0.08);
-              g.fill();
+              const fh = th * (0.75 + 0.22 * flick + 0.15 * hash(x, y, i));
+              const fw = tw * 0.065;
+              const base = c.y + th * 0.1 - Math.abs(i - 1.5) * th * 0.06;
+              const flame = (height: number, width: number, color: string) => {
+                g.fillStyle = color;
+                g.beginPath();
+                g.moveTo(fx - width, base);
+                g.quadraticCurveTo(fx - width * 0.7, base - height * 0.6, fx + flick * width * 0.4, base - height);
+                g.quadraticCurveTo(fx + width * 0.7, base - height * 0.5, fx + width, base);
+                g.fill();
+              };
+              flame(fh, fw, EMBER);
+              flame(fh * 0.7, fw * 0.62, EMBER_HOT);
+              flame(fh * 0.35, fw * 0.3, "#fff3c4");
             }
-            g.globalAlpha = 1;
             break;
           }
           case "water": {

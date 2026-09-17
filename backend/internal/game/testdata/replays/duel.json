@@ -5,7 +5,7 @@
     "seed": 3,
     "startedAt": 1700000000000,
     "turnDurationMs": 3000,
-    "rules": "4856c0cc11717158daf769521acd2b60d54a9e9e1285da32f71cd6184375a133",
+    "rules": "49d70d84f7663365d3d002e61c04ac3709db58758245041a0567a93f1401a859",
     "commands": [
       {
         "seq": 1,
@@ -373,8 +373,8 @@
         "kind": "move",
         "payload": {
           "position": {
-            "x": -1,
-            "y": -3
+            "x": -2,
+            "y": -2
           }
         }
       },
@@ -418,8 +418,8 @@
         "payload": {
           "spellId": 1,
           "target": {
-            "x": -1,
-            "y": -3
+            "x": -2,
+            "y": -2
           }
         }
       },
@@ -1033,16 +1033,16 @@
         "APCost": 3,
         "range": 5,
         "damage": 5,
-        "areaOfEffect": "line",
+        "areaOfEffect": "wall",
         "element": "Fire",
-        "description": "5 damage in a line of three cells, which stay on fire for good. Anyone who walks in, or starts a turn there, catches a burn.",
+        "description": "5 damage and a wall of fire five cells wide, straight across the cast, that stays for good. Anyone who walks in, or starts a turn there, catches a burn.",
         "needsLineOfSight": true,
         "maxCastsPerTurn": 1,
         "cooldown": 1,
         "criticalChance": 10,
         "criticalDamage": 7,
         "effect": null,
-        "role": "Terrain",
+        "role": "Firewall",
         "ultimate": false,
         "targeting": "any",
         "push": 0,
@@ -1339,8 +1339,8 @@
         "damage": 6,
         "spellId": 1,
         "origin": {
-          "x": -1,
-          "y": -3
+          "x": -2,
+          "y": -2
         },
         "target": {
           "x": 1,
@@ -1393,8 +1393,8 @@
           "y": 2
         },
         "target": {
-          "x": -1,
-          "y": -3
+          "x": -2,
+          "y": -2
         }
       },
       {
@@ -1421,8 +1421,8 @@
         "damage": 30,
         "spellId": 3,
         "origin": {
-          "x": -1,
-          "y": -3
+          "x": -2,
+          "y": -2
         },
         "target": {
           "x": 1,
@@ -1666,6 +1666,22 @@
     "terrain": [
       {
         "position": {
+          "x": -4,
+          "y": -3
+        },
+        "kind": "fire",
+        "owner": "alice"
+      },
+      {
+        "position": {
+          "x": -3,
+          "y": -3
+        },
+        "kind": "fire",
+        "owner": "alice"
+      },
+      {
+        "position": {
           "x": -3,
           "y": 1
         },
@@ -1676,22 +1692,6 @@
         "position": {
           "x": -2,
           "y": -3
-        },
-        "kind": "fire",
-        "owner": "alice"
-      },
-      {
-        "position": {
-          "x": -2,
-          "y": -2
-        },
-        "kind": "fire",
-        "owner": "alice"
-      },
-      {
-        "position": {
-          "x": -2,
-          "y": -1
         },
         "kind": "fire",
         "owner": "alice"
@@ -1711,6 +1711,14 @@
         },
         "kind": "fire",
         "owner": "bob"
+      },
+      {
+        "position": {
+          "x": -1,
+          "y": -3
+        },
+        "kind": "fire",
+        "owner": "alice"
       },
       {
         "position": {
@@ -1743,6 +1751,14 @@
         },
         "kind": "fire",
         "owner": "bob"
+      },
+      {
+        "position": {
+          "x": 0,
+          "y": -3
+        },
+        "kind": "fire",
+        "owner": "alice"
       },
       {
         "position": {

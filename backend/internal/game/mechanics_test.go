@@ -187,10 +187,10 @@ func TestCombustionCashesInTheBurns(t *testing.T) {
 
 func TestScorchedEarthStaysAndBurnsWhoeverWalksIn(t *testing.T) {
 	g := duel(t, types.Position{}, types.Position{Y: 3})
-	cast(t, g, "a", spellScorched, types.Position{Y: 2})
-	for _, cell := range []types.Position{{Y: 2}, {Y: 3}, {Y: 4}} {
+	cast(t, g, "a", spellScorched, types.Position{Y: 3})
+	for _, cell := range []types.Position{{X: -2, Y: 3}, {X: -1, Y: 3}, {Y: 3}, {X: 1, Y: 3}, {X: 2, Y: 3}} {
 		if kind := terrainAt(g, cell); kind != types.TerrainFire {
-			t.Errorf("terrain at %+v = %q, want fire", cell, kind)
+			t.Errorf("terrain at %+v = %q, want a wall of fire", cell, kind)
 		}
 	}
 
@@ -198,9 +198,9 @@ func TestScorchedEarthStaysAndBurnsWhoeverWalksIn(t *testing.T) {
 	if stacks, _ := burnOf(character(g, "b")); stacks != 1 {
 		t.Errorf("b started its turn in fire with %d burns, want 1", stacks)
 	}
+	move(t, g, "b", types.Position{Y: 4})
+	move(t, g, "b", types.Position{X: 1, Y: 4})
 	move(t, g, "b", types.Position{X: 1, Y: 3})
-	move(t, g, "b", types.Position{X: 1, Y: 2})
-	move(t, g, "b", types.Position{Y: 2})
 	if stacks, _ := burnOf(character(g, "b")); stacks != 2 {
 		t.Errorf("b walked back into the fire and has %d burns, want 2", stacks)
 	}
@@ -209,7 +209,7 @@ func TestScorchedEarthStaysAndBurnsWhoeverWalksIn(t *testing.T) {
 	for i := 0; i < 8; i++ {
 		mustEndTurn(t, g)
 	}
-	if kind := terrainAt(g, types.Position{Y: 4}); kind != types.TerrainFire {
+	if kind := terrainAt(g, types.Position{X: 2, Y: 3}); kind != types.TerrainFire {
 		t.Errorf("fire did not stay: terrain = %q", kind)
 	}
 }

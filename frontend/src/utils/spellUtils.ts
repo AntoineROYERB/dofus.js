@@ -19,11 +19,16 @@ const rotate = (pos: Position, direction: Direction | null): Position => {
   }
 };
 
-// Orientation from one cell to another, for the four axis-aligned cases.
-const getDirection = (from: Position, to: Position): Direction | null => {
+// The way a directional area faces: the cast's own direction along a row or
+// a column, otherwise the longer of its two axes, so an area aimed on a slant
+// still lies straight on the grid. Mirrors facing() on the server.
+const getDirection = (from: Position, to: Position): Direction => {
   if (from.x === to.x) return from.y > to.y ? "down" : "up";
   if (from.y === to.y) return from.x > to.x ? "left" : "right";
-  return null;
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  if (Math.abs(dx) >= Math.abs(dy)) return dx < 0 ? "left" : "right";
+  return dy < 0 ? "down" : "up";
 };
 
 /**
@@ -61,6 +66,18 @@ export const areaPattern = (
           { x: 0, y: 0 },
           { x: 0, y: 1 },
           { x: 0, y: 2 },
+        ],
+        rotates: true,
+      };
+    case "wall":
+      // Across the cast, centred on the target.
+      return {
+        pattern: [
+          { x: -2, y: 0 },
+          { x: -1, y: 0 },
+          { x: 0, y: 0 },
+          { x: 1, y: 0 },
+          { x: 2, y: 0 },
         ],
         rotates: true,
       };
@@ -140,6 +157,7 @@ const shapes: Record<Spell["areaOfEffect"], string | null> = {
   circle: "circle",
   cross: "cross",
   line: "line",
+  wall: "wall",
 };
 
 /** The one line that says what the selected spell costs and reaches. */

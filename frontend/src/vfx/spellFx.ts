@@ -526,6 +526,9 @@ export class SpellFx {
       case "self":
         return this.playSelfBuff(event);
     }
+    if (event.element === "Fire" && event.terrain === "fire" && !event.signature) {
+      return this.playFirewall(event);
+    }
     if (event.terrain) this.spread(event);
     switch (event.element) {
       case "Fire":
@@ -588,7 +591,9 @@ export class SpellFx {
     if (event.signature === "meteor") {
       return {
         scars: [
-          { kind: "scorch", gx: target.x, gy: target.y, rTiles: 0.95, verts: makeBlob(22, 0.55) },
+          // Only the point of impact is charred: the crater and the fire
+          // around it are drawn by the terrain, and need the light.
+          { kind: "scorch", gx: target.x, gy: target.y, rTiles: 0.42, verts: makeBlob(18, 0.4) },
         ],
       };
     }
@@ -1095,6 +1100,57 @@ export class SpellFx {
               break;
           }
         }
+      });
+    });
+  }
+
+  /**
+   * A wall of fire going up cell by cell from where it lands, outwards. No
+   * scorch mark: the wall itself stays, and is drawn by the terrain.
+   */
+  private playFirewall(event: CastEvent) {
+    const a = this.screen(event.origin);
+    const b = this.screen(event.target);
+    const tw = this.geometry.tileSize.width;
+    const travel = this.reduced ? 120 : 320;
+    this.spawn({
+      x: a.x,
+      y: a.y - 9,
+      vx: 0,
+      vy: 0,
+      life: travel,
+      size: 4,
+      type: "ember",
+      color: RIM,
+      trail: true,
+      path: { x: b.x, y: b.y - 8, fromX: a.x, fromY: a.y - 9, arc: tw * 0.5 },
+    });
+    const cells = [...(event.area ?? [event.target])].sort(
+      (p, q) =>
+        Math.abs(p.x - event.target.x) + Math.abs(p.y - event.target.y) -
+        (Math.abs(q.x - event.target.x) + Math.abs(q.y - event.target.y))
+    );
+    this.at(travel, () => this.shake(this.reduced ? 0 : 5, 300));
+    cells.forEach((cell, i) => {
+      this.at(travel + Math.ceil(i / 2) * 90, () => {
+        const c = this.screen(cell);
+        const k = this.reduced ? 0.3 : 1;
+        // A column of flame shooting up, then settling into the wall.
+        for (let j = 0; j < 22 * k; j++) {
+          this.spawn({
+            x: c.x + rand(-tw * 0.22, tw * 0.22),
+            y: c.y + rand(-3, 3),
+            vx: rand(-14, 14),
+            vy: rand(-240, -110),
+            g: 90,
+            drag: 0.98,
+            life: rand(380, 720),
+            size: rand(1.6, 3.4),
+            type: "ember",
+            color: Math.random() < 0.5 ? EMBER_HOT : EMBER,
+          });
+        }
+        this.ring(c.x, c.y, { r0: 2, rMax: tw * 0.45, dur: 320, color: EMBER_HOT, width: 2 });
       });
     });
   }

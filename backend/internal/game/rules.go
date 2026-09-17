@@ -64,6 +64,27 @@ func Direction(from, to types.Position) string {
 	return ""
 }
 
+// facing is the direction a directional area faces: the cast's own when it
+// runs along a row or a column, otherwise the longer of its two axes, so a
+// line or a wall aimed on a slant still lies straight on the grid. Ties go
+// along X.
+func facing(from, to types.Position) string {
+	if d := Direction(from, to); d != "" {
+		return d
+	}
+	dx, dy := to.X-from.X, to.Y-from.Y
+	if abs(dx) >= abs(dy) {
+		if dx < 0 {
+			return "left"
+		}
+		return "right"
+	}
+	if dy < 0 {
+		return "down"
+	}
+	return "up"
+}
+
 // Rotate turns a pattern offset to face the given direction.
 func Rotate(p types.Position, direction string) types.Position {
 	switch direction {
@@ -96,6 +117,11 @@ func AreaPattern(areaOfEffect string) (pattern []types.Position, rotates bool) {
 		}, false
 	case types.AoELine:
 		return []types.Position{{X: 0, Y: 0}, {X: 0, Y: 1}, {X: 0, Y: 2}}, true
+	case types.AoEWall:
+		// Across the cast: facing "up" (+Y) the wall runs along X.
+		return []types.Position{
+			{X: -2, Y: 0}, {X: -1, Y: 0}, {X: 0, Y: 0}, {X: 1, Y: 0}, {X: 2, Y: 0},
+		}, true
 	case types.AoECross:
 		return []types.Position{
 			{X: 0, Y: 0}, {X: 0, Y: 1}, {X: 1, Y: 0}, {X: -1, Y: 0}, {X: 0, Y: -1},
@@ -112,7 +138,7 @@ func AffectedPositions(spell types.Spell, target, caster types.Position) []types
 
 	direction := ""
 	if rotates {
-		direction = Direction(caster, target)
+		direction = facing(caster, target)
 	}
 
 	affected := make([]types.Position, 0, len(pattern))

@@ -355,4 +355,7 @@ const (
 	AoECircle = "circle"
 	AoELine   = "line"
 	AoECross  = "cross"
+	// AoEWall is five cells in a straight line across the cast, centred on
+	// the target.
+	AoEWall = "wall"
 )
