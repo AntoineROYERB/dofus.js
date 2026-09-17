@@ -59,6 +59,18 @@ func DecideBotAction(state types.GameState, botID string) BotAction {
 		return false
 	}
 
+	// The orb outweighs any single hit, and grabbing it first makes the hits
+	// that follow harder, so a bot that can reach it this turn goes for it.
+	// It never walks off to chase one further away: bot-versus-bot, whoever
+	// won that race won the match, and the class balance measured in
+	// balance_test.go became a measure of movement points.
+	if orb := state.PowerOrb; orb != nil {
+		walkable := func(pos types.Position) bool { return pos != from && blocked(pos) }
+		if _, ok := Reachable(from, me.Character.MovementPoints, walkable)[*orb]; ok {
+			return BotAction{Kind: BotMove, Target: *orb}
+		}
+	}
+
 	// Best spell the bot can actually cast right now, strongest first. It has
 	// to respect cooldowns, per-turn limits and line of sight like anyone else,
 	// or it would spend its turn on casts the server refuses.

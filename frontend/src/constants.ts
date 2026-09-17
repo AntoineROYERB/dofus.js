@@ -42,6 +42,12 @@ export const BOARD = {
    * marks a cell you must keep off, never one your click is about to act on.
    */
   foe: "#a3231b",
+  /** The power orb: amber, the palette's colour for "worth noticing". */
+  orb: {
+    core: "#f2c14e",
+    rim: "#b5790a",
+    glow: "#b5790a",
+  },
   /** The drawn boundary of the area you may act in this turn. */
   zoneEdge: "#3d3f3d",
   /*

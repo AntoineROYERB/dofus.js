@@ -89,12 +89,19 @@ export default {
           "0%": { backgroundColor: "rgba(209, 70, 47, 0.10)" },
           "100%": { backgroundColor: "rgba(209, 70, 47, 0)" },
         },
+        // The power orb bobbing over its cell: the one thing on the board
+        // nobody put there, and the one worth walking out of your way for.
+        "orb-float": {
+          "0%, 100%": { transform: "translateY(0)" },
+          "50%": { transform: "translateY(-12%)" },
+        },
       },
       animation: {
         placeable: "placeable 1.9s ease-in-out infinite",
         beckon: "beckon 1.6s ease-out infinite",
         hint: "hint 1.8s ease-in-out infinite",
         "log-settle": "log-settle 2.4s ease-out 1",
+        "orb-float": "orb-float 2.2s ease-in-out infinite",
       },
     },
   },

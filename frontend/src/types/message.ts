@@ -81,7 +81,7 @@ export type SpellEffect = {
   onSelf: boolean;
 };
 
-export type EffectKind = "poison" | "regen" | "ap" | "mp" | "shield";
+export type EffectKind = "poison" | "regen" | "ap" | "mp" | "shield" | "power";
 
 /** A status effect riding on a character. */
 export type Effect = {
@@ -107,7 +107,8 @@ export type LogEntry = {
   seq: number;
   turn: number;
   actor: string;
-  kind: "cast" | "death" | "turn" | "end" | "effect";
+  /** "orb" is the power orb appearing (target = its cell) or being claimed. */
+  kind: "cast" | "death" | "turn" | "end" | "effect" | "orb";
   text: string;
   damage?: number;
   crit?: boolean;
@@ -164,6 +165,8 @@ export interface GameState {
   log: LogEntry[] | null;
   /** Cells nobody can stand on and nothing can be seen through. */
   obstacles: Position[] | null;
+  /** The power orb's cell; null before it appears and once it is claimed. */
+  powerOrb?: Position | null;
 }
 
 export interface GameStateMessage {

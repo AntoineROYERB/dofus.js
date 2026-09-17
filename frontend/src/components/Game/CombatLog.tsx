@@ -13,6 +13,7 @@ const tone: Record<LogEntry["kind"], string> = {
   turn: "text-muted",
   end: "text-ink font-medium",
   effect: "text-graphite",
+  orb: "text-amber font-medium",
 };
 
 /**
@@ -53,7 +54,7 @@ export const CombatLog: React.FC<CombatLogProps> = ({ entries, spellBook }) => {
               T{entry.turn}
             </span>
             <p className={`flex-1 ${tone[entry.kind]}`}>
-              {entry.kind === "cast" || entry.kind === "death" ? (
+              {entry.kind === "cast" || entry.kind === "death" || entry.kind === "orb" ? (
                 <b className="font-semibold text-ink">{entry.actor}</b>
               ) : (
                 entry.actor

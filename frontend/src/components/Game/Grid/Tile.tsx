@@ -53,6 +53,8 @@ interface TileProps {
   isPathCell: boolean;
   /** Cover: nobody stands here and nothing is seen through it. */
   isObstacle: boolean;
+  /** The power orb is waiting on this cell for someone to end a move on it. */
+  hasPowerOrb?: boolean;
   /**
    * For a cell inside the area you may act in: which of its four edges face
    * out of that area, up-left, up-right, down-right, down-left. Undefined for
@@ -104,6 +106,7 @@ const TileView: React.FC<TileProps> = ({
   maxMovementCost,
   isPathCell,
   isObstacle,
+  hasPowerOrb,
   zoneEdges,
 }) => {
   const { width: w, height: h } = tileSize;
@@ -212,8 +215,10 @@ const TileView: React.FC<TileProps> = ({
         pointerEvents: interactive ? "auto" : "none",
         cursor: interactive ? "pointer" : "default",
         // Clipping to the diamond keeps clicks off the corners of the box, but
-        // it would also cut off the raised faces of cover.
-        clipPath: isObstacle ? undefined : "polygon(50% 0, 100% 50%, 50% 100%, 0 50%)",
+        // it would also cut off the raised faces of cover, and the orb floating
+        // above its cell.
+        clipPath:
+          isObstacle || hasPowerOrb ? undefined : "polygon(50% 0, 100% 50%, 50% 100%, 0 50%)",
       }}
       onClick={interactive ? () => onCellClick?.({ x, y }) : undefined}
       onKeyDown={
@@ -307,6 +312,45 @@ const TileView: React.FC<TileProps> = ({
           </>
         )}
       </svg>
+      {hasPowerOrb && (
+        <svg
+          className="absolute inset-0 animate-orb-float"
+          width={w}
+          height={h}
+          viewBox={`0 0 ${w} ${h}`}
+          style={{ pointerEvents: "none", overflow: "visible" }}
+          aria-label="Power orb"
+          role="img"
+        >
+          <title>Power orb: end a move here for a huge buff</title>
+          <ellipse
+            cx={w / 2}
+            cy={h / 2}
+            rx={w * 0.2}
+            ry={h * 0.2}
+            fill={BOARD.orb.glow}
+            opacity={0.18}
+          />
+          <circle
+            cx={w / 2}
+            cy={h / 2 - h * 0.2}
+            r={Math.min(w, h * 2) * 0.13}
+            fill={BOARD.orb.core}
+            stroke={BOARD.orb.rim}
+            strokeWidth={1.6}
+          />
+          <text
+            x={w / 2}
+            y={h / 2 - h * 0.2}
+            textAnchor="middle"
+            dominantBaseline="central"
+            fontSize={Math.min(w, h * 2) * 0.14}
+            fill={BOARD.orb.rim}
+          >
+            ✦
+          </text>
+        </svg>
+      )}
     </div>
   );
 };
