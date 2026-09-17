@@ -21,6 +21,7 @@ import { useGridInteraction } from "../../../hooks/useGridInteraction";
 import { useTileSize } from "../../../hooks/useTileSize";
 import { usePinchZoom } from "../../../hooks/usePinchZoom";
 import { GameState } from "../../../types/message";
+import { bubblePlacement, confirmActionFor } from "../../../utils/touchConfirm";
 
 interface GridProps {
   gridSize: number;
@@ -127,7 +128,7 @@ export const Grid: React.FC<GridProps> = ({
     );
   }, [characterPosition, movementPoints, blocked]);
 
-  const tileSize = useTileSize(containerRef, gridSize);
+  const { tile: tileSize, size: boardSize } = useTileSize(containerRef, gridSize);
   const { scale, pan, isPinching, reset: resetZoom } = usePinchZoom(containerRef);
 
   const characterRenderState = useCharacterAnimations(
@@ -139,7 +140,14 @@ export const Grid: React.FC<GridProps> = ({
   // Who just lost health, PA or PM, and how much. Empty for most of a turn.
   const stats = useHitFeedback(latestGameState ?? null);
 
-  const { hoveredPosition, pathCells, impactedCells, confirmsTap } =
+  const {
+    hoveredPosition,
+    pathCells,
+    impactedCells,
+    confirmsTap,
+    touchMode,
+    clearPreview,
+  } =
     useGridInteraction({
     containerRef,
     gridSize,
@@ -155,12 +163,8 @@ export const Grid: React.FC<GridProps> = ({
     zoom: { scale, pan },
   });
 
-  const centerX = containerRef.current
-    ? containerRef.current.clientWidth / 2
-    : 0;
-  const centerY = containerRef.current
-    ? containerRef.current.clientHeight / 2
-    : 0;
+  const centerX = boardSize.width / 2;
+  const centerY = boardSize.height / 2;
 
   // Only worth showing where the spell can actually land: out of range, or
   // behind cover, the estimate would be a lie.
@@ -233,9 +237,24 @@ export const Grid: React.FC<GridProps> = ({
   };
 
   // Sort coordinates for rendering order (back to front)
-  const sortedCoordinates = sortCoordinates(
-    generateIsometricCoordinates(gridSize)
+  const sortedCoordinates = React.useMemo(
+    () => sortCoordinates(generateIsometricCoordinates(gridSize)),
+    [gridSize]
   );
+
+  /*
+   * One click handler for every cell, stable across renders, reading the
+   * latest props through a ref. A fresh closure per cell per render would
+   * defeat the tiles' memo on every animation frame.
+   */
+  const latestClick = useRef({ confirmsTap, onCellClick, isPositioningPhase });
+  latestClick.current = { confirmsTap, onCellClick, isPositioningPhase };
+  const handleTileClick = React.useCallback((cell: Position) => {
+    // On a touch screen the first tap only previews the cell — except while
+    // picking a starting cell, where the Fight button is the confirmation.
+    const { confirmsTap, onCellClick, isPositioningPhase } = latestClick.current;
+    if (confirmsTap(cell) || isPositioningPhase) onCellClick(cell);
+  }, []);
 
   // Cells the selected spell can actually reach: in range, and seen from where
   // the caster stands. A cell it cannot reach must not look targetable — cover
@@ -254,8 +273,7 @@ export const Grid: React.FC<GridProps> = ({
       inRange.add(`${x},${y}`);
     });
     return inRange;
-    // sortedCoordinates is derived from gridSize alone and is stable enough.
-  }, [characterPosition, selectedSpell, blocked, gridSize]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [characterPosition, selectedSpell, blocked, sortedCoordinates]);
 
   /*
    * Only the centre a spell lands on needs a clear line to the caster — the
@@ -286,6 +304,26 @@ export const Grid: React.FC<GridProps> = ({
         ? new Set(walkable.keys())
         : new Set<string>()
     : new Set<string>();
+
+  /*
+   * On a touch screen the first tap only previews a cell. Rather than asking
+   * for a second tap on the same small diamond, the preview carries a large
+   * bubble that says what confirming will do, and what it costs.
+   */
+  const confirmAction = confirmActionFor({
+    touchMode,
+    previewed: hoveredPosition,
+    isPositioningPhase,
+    isMyTurn: !!currentPlayer?.isCurrentTurn,
+    selectedSpell,
+    castable,
+    walkable,
+    characterPosition,
+    standing: hoveredPosition
+      ? findPlayerOnCell(hoveredPosition.x, hoveredPosition.y)
+      : undefined,
+    userId,
+  });
 
   /** Which of a cell's four edges face out of the zone. */
   const zoneEdges = (x: number, y: number): boolean[] | undefined => {
@@ -361,8 +399,7 @@ export const Grid: React.FC<GridProps> = ({
               maxMovementCost={movementPoints ?? 0}
               isPathCell={isPathCell}
               zoneEdges={zoneEdges(x, y)}
-              // On a touch screen the first tap only previews the cell.
-              onClick={() => confirmsTap({ x, y }) && onCellClick({ x, y })}
+              onCellClick={handleTileClick}
             />
           );
         })}
@@ -425,6 +462,7 @@ export const Grid: React.FC<GridProps> = ({
           hitbox of its own, so it never steals a click meant for the tile.
         */}
         {!isPositioningPhase &&
+          !confirmAction &&
           hoveredCharacterEntry &&
           characterRenderState[hoveredCharacterEntry[0]] && (
             <CharacterTooltip
@@ -490,7 +528,7 @@ export const Grid: React.FC<GridProps> = ({
           catalogue's base damage: a critical or a shield will move it, which is
           why it is shown as an estimate and not as a result.
         */}
-        {damagePreview && (
+        {damagePreview && !confirmAction && (
           <div
             className="absolute pointer-events-none font-display font-bold tabular-nums text-vermilion"
             style={{
@@ -505,6 +543,64 @@ export const Grid: React.FC<GridProps> = ({
             &minus;{damagePreview.damage}
           </div>
         )}
+
+        {confirmAction && hoveredPosition && (() => {
+          const at = isoToScreen(
+            hoveredPosition.x,
+            hoveredPosition.y,
+            tileSize,
+            centerX,
+            centerY
+          );
+          const cell = hoveredPosition;
+          const { toLeft, left, top } = bubblePlacement(at, tileSize, boardSize);
+          return (
+            <div
+              data-board-ui
+              className={`absolute z-30 flex items-center gap-1.5 ${
+                toLeft ? "flex-row-reverse" : ""
+              }`}
+              style={{
+                left: `${left}px`,
+                top: `${top}px`,
+                transform: `translate(${toLeft ? "-100%" : "0"}, -50%)`,
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => {
+                  clearPreview();
+                  onCellClick(cell);
+                }}
+                className={`flex min-h-10 flex-col items-start justify-center rounded-2xl py-1.5 pl-4 pr-3 text-left text-white shadow-[0_4px_14px_rgba(23,24,26,0.18)] transition-transform active:scale-95 ${
+                  confirmAction.kind === "cast" ? "bg-vermilion" : "bg-pm"
+                }`}
+              >
+                <span className="flex items-center gap-2 font-display text-[15px] font-bold leading-tight">
+                  {confirmAction.label}
+                  <span className="rounded-full bg-white/20 px-2 py-0.5 font-mono text-[11px] font-medium tabular-nums">
+                    {confirmAction.detail}
+                  </span>
+                </span>
+                {confirmAction.target && (
+                  <span className="mt-0.5 whitespace-nowrap font-mono text-[10px] tabular-nums text-white/85">
+                    {confirmAction.target}
+                  </span>
+                )}
+              </button>
+              <button
+                type="button"
+                aria-label="Cancel"
+                onClick={clearPreview}
+                className="grid h-8 w-8 place-items-center rounded-full border border-rule bg-panel text-graphite transition-transform active:scale-95"
+              >
+                <svg aria-hidden viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
+                  <path d="M6 6l12 12M18 6L6 18" />
+                </svg>
+              </button>
+            </div>
+          );
+        })()}
 
         {isPositioningPhase && selectedPosition && (
           <Character
@@ -528,7 +624,7 @@ export const Grid: React.FC<GridProps> = ({
         <button
           type="button"
           onClick={resetZoom}
-          className="absolute bottom-3 right-3 z-10 border border-ink bg-paper px-3 py-1.5 font-mono text-[11px] uppercase tracking-label text-ink shadow-sm"
+          className="absolute bottom-3 left-1/2 z-10 -translate-x-1/2 border border-ink bg-paper px-3 py-1.5 font-mono text-[11px] uppercase tracking-label text-ink shadow-sm"
         >
           Reset zoom
         </button>

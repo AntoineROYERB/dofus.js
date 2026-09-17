@@ -26,10 +26,20 @@ instantly either way.
 
 <img src="docs/assets/05-phone.png" alt="The same fight on a phone held sideways" width="100%">
 
-On a phone, hold it sideways: the board is twice as wide as it is tall, and the
-bar folds down to the figures, the spells and the button. There is no hovering
-on a touch screen, so a tap previews a cell — its walk, its area of effect, the
-damage it would do — and a second tap on the same cell commits it.
+On a phone, hold it sideways. The lobby becomes a home screen: your fighter in
+the middle, arrows (or a swipe) to slide through the classes with the others
+waiting faded on either side, a tap on your name to rename, and one big Play
+button under the right thumb. In a fight the board takes the whole screen and
+the controls float over its corners — turn order top left, your HP, AP and MP
+bottom left, and your spells in an arc around the End turn button bottom
+right, folded down to three until you need the rest.
+
+There is no hovering on a touch screen, so a tap previews a cell — its walk,
+its area of effect, who it would hit and what they would be left with — and a
+bubble beside it confirms (*Move · 3 MP*, *Cast −7*). Holding a spell opens a
+card that plays the spell out on a few cells: its range, the shot, the area
+it lands on, the damage. Held upright, in a browser, the spells get a row of
+their own under the board instead.
 
 ## Run it yourself
 
@@ -106,11 +116,12 @@ wins more than 65% of a matchup or fights stop lasting four to eight turns.
 back-to-front draw order, the screen-to-grid hit test and the sprite-sheet
 animation loop are all in the client, and the geometry is unit-tested.
 
-**One layout, three shapes.** The board keeps the screen and is never covered:
-the log sits beside it on a wide screen, behind a button on a narrow one, and
-the bar folds from three roomy zones to three tight ones. A phone held sideways
-is the shape the board actually wants, so the HUD has a compact form for short
-viewports rather than a separate mobile design.
+**One board, two layouts.** On a wide screen the board is never covered: the
+log sits beside it, and the bar under it folds from three roomy zones to three
+tight ones as the width shrinks. A phone held sideways — the shape the board
+actually wants — gets its own layout instead, chosen by viewport height: the
+board fills the screen, the HUD floats over the diamond's empty corners, and
+every action sits under a thumb.
 
 **The screen has one rule.** Paper, ink, graphite and a single vermilion: three
 weights of rule and the size of the figures do the separating, and the only
@@ -134,12 +145,16 @@ backend/
   internal/types/      wire format shared by every layer
 frontend/src/
   pages/               landing, lobby, board
-  components/Game/     board, tiles, characters, spell bar, turn order, log
+  components/Game/     board, tiles, characters, spell bar, turn order, log,
+                       the phone HUD (spell arc, fighter status) and spell cards
+  components/Lobby/    the phone home screen: class line-up, rename dialog
   components/Chat/     the rail's chat section
   hooks/               animation loop, grid interaction, tile sizing
+  lib/native.ts        what the iOS app does that a browser cannot (haptics)
   utils/               isometric maths, pathing, spell areas
   constants.ts         board palette and stroke widths
   tailwind.config.js   the screen's colours and three typefaces
+frontend/ios/          the Capacitor Xcode project for the iOS app
 ```
 
 ## Configuration
@@ -236,16 +251,93 @@ fly secrets set ALLOWED_ORIGINS=https://your-app.fly.dev
 `docker-compose.yml` keeps the nginx + backend split instead, which is closer
 to a classic production layout and is what local development uses.
 
+## iOS app
+
+The same client ships as a native iOS app through
+[Capacitor](https://capacitorjs.com): Vite builds the page, and the Xcode
+project in `frontend/ios` serves it from the app bundle. Only the game server
+is remote. On the device the app buzzes when your turn comes round and when a
+fight ends; in a browser those calls do nothing.
+
+It needs a full Xcode (not only the command-line tools), Node 22+ for the
+Capacitor CLI, and, once:
+
+```bash
+sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+sudo xcodebuild -license accept
+```
+
+**Day to day: live reload.** Run the backend and `npm run dev` as usual, and
+point the app at the Vite dev server. Edits show up without rebuilding. In the
+simulator `localhost` is the Mac; on a phone, use the Mac's LAN address.
+
+```bash
+cd frontend && npm run build && CAP_SERVER_URL=http://localhost:5173 npm run ios:dev
+```
+
+```bash
+cd frontend && npm run build && CAP_SERVER_URL=http://192.168.1.20:5173 npm run ios:dev
+```
+
+**Checking how it feels.** Live reload runs React's development build, which
+is several times slower; judge smoothness on a production build instead,
+served from the Mac and rebuilt after each change:
+
+```bash
+cd frontend && VITE_WS_URL=ws://192.168.1.20:8080 npm run build && npx vite preview --host --port 4173
+```
+
+```bash
+cd frontend && CAP_SERVER_URL=http://192.168.1.20:4173 npm run ios:dev
+```
+
+The app is locked to landscape; the portrait layout is for the browser.
+
+**A bundled build.** The page inside the app has no server behind it, so
+`ios:sync` refuses to run without `VITE_WS_URL`. Bake the address in, and let
+the app's origin through on the server:
+
+```bash
+cd frontend && VITE_WS_URL=wss://dofusjs.onrender.com npm run ios:sync && npm run ios:open
+```
+
+```bash
+ALLOWED_ORIGINS=https://dofusjs.onrender.com,capacitor://localhost
+```
+
+**On your own iPhone, for free.** A free Apple ID is enough: add it under
+Xcode → Settings → Accounts, plug the phone in, turn on *Settings → Privacy &
+Security → Developer Mode*, pick your *Personal Team* under *Signing &
+Capabilities* and press Run. The first launch asks you to trust your developer
+profile under *Settings → General → VPN & Device Management*. A free install
+stops opening after seven days; running it again from Xcode renews it. The
+live-reload and preview builds above bake in the Mac's LAN address, so a new
+address means a new install.
+
+**TestFlight and the App Store.** TestFlight and
+the store need the paid Apple Developer Program: register the bundle id from
+`frontend/capacitor.config.ts` (`com.antoineroyerb.dofusjs`), pick the team
+under *Signing & Capabilities*, then *Product → Archive → Distribute App*.
+Google Sign-In does not work inside the app: Google refuses OAuth in embedded
+web views, so the app plays anonymously.
+
 ## Tests
 
 ```bash
 cd backend && go test -race ./...     # rules, lobby, turn cycle, bot, content, balance
-cd frontend && npm test               # isometric geometry, spell bar, solo arc
+cd frontend && npm test               # isometric geometry, spell bar, solo arc, phone HUD
+cd frontend && npm test -- --coverage # the same, failing if the phone HUD's logic loses coverage
 cd frontend && npm run lint && npm run build
 ```
 
-CI runs all of it on every push, plus `gofmt`, `go vet` and a full
-`docker compose build`.
+The phone layout's decisions — the spell arc's slots and folding, the class
+line-up, what the confirm bubble offers and where it opens, the board's tile
+fit, the native helpers — live in plain modules, so they are tested without
+a DOM.
+
+CI runs all of it on every push, plus `gofmt`, `go vet`, a full
+`docker compose build`, and, on macOS, the iOS app: the web bundle synced into
+the Xcode project and compiled for the simulator, unsigned.
 
 ## Performance
 

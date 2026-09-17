@@ -63,6 +63,18 @@ input,
   }
 }
 
+/* A spell card popping open under a held finger. */
+@keyframes card-pop {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -46%) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

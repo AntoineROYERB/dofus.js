@@ -1,8 +1,7 @@
-import React, { useEffect, useState, useRef, useLayoutEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import SpriteAnimation from "../components/Game/SpriteAnimation";
+import React, { useEffect, useState } from "react";
+import { Navigate, useNavigate } from "react-router-dom";
 import { CharacterCreationForm } from "../components/Game/CharacterCreationForm";
-import { CharacterStand, STAND } from "../components/Game/CharacterStand";
+import { CharacterShowcase } from "../components/Game/CharacterShowcase";
 import { AboutDialog } from "../components/AboutDialog";
 import { HowToPlayDialog } from "../components/HowToPlayDialog";
 import { readCharacter, saveCharacter } from "../utils/characterStorage";
@@ -11,14 +10,7 @@ import { useContent } from "../hooks/useContent";
 import { PLAYER_COLORS } from "../constants";
 import { fetchSession, googleLoginUrl } from "../lib/api";
 import { SessionInfo } from "../types/auth";
-
-const idle = {
-  spriteSheet: "/animation/Idle.png",
-  framesPerDirection: 23,
-  frameWidth: 256,
-  frameHeight: 256,
-  directionMap: { NW: 0, W: 1, SW: 2, S: 3, SE: 4, E: 5, NE: 6, N: 7 },
-} as const;
+import { isNativeApp } from "../lib/native";
 
 /**
  * One column, in the same order at every size: what the game is called, the
@@ -27,9 +19,13 @@ const idle = {
  * this?", because none of it is needed to start playing.
  */
 const LandingPage: React.FC = () => {
-  const [selectedColor, setSelectedColor] = useState(PLAYER_COLORS[0]);
-  const [characterName, setCharacterName] = useState("");
-  const [isNameValid, setIsNameValid] = useState(false);
+  // Coming back to change a character starts from the one already saved.
+  const [saved] = useState(readCharacter);
+  const [selectedColor, setSelectedColor] = useState(
+    saved?.color ?? PLAYER_COLORS[0]
+  );
+  const [characterName, setCharacterName] = useState(saved?.name ?? "");
+  const [isNameValid, setIsNameValid] = useState(!!saved);
   const [aboutOpen, setAboutOpen] = useState(false);
   const [howToPlayOpen, setHowToPlayOpen] = useState(false);
   const [session, setSession] = useState<SessionInfo | null>(null);
@@ -60,63 +56,64 @@ const LandingPage: React.FC = () => {
     navigate("/lobby");
   };
 
-  const stageRef = useRef<HTMLDivElement>(null);
-  const [scale, setScale] = useState(0.5);
+  const infoLinks = (
+    <>
+      <button
+        type="button"
+        onClick={() => setHowToPlayOpen(true)}
+        className="font-mono text-[9.5px] uppercase tracking-label text-ink underline decoration-rule underline-offset-4 transition-colors hover:text-vermilion"
+      >
+        How to play
+      </button>
+      <button
+        type="button"
+        onClick={() => setAboutOpen(true)}
+        className="font-mono text-[9.5px] uppercase tracking-label text-ink underline decoration-rule underline-offset-4 transition-colors hover:text-vermilion"
+      >
+        What is this?
+      </button>
+      {session ? (
+        <button
+          type="button"
+          onClick={() => navigate("/profile")}
+          className="font-mono text-[9.5px] uppercase tracking-label text-ink underline decoration-rule underline-offset-4 transition-colors hover:text-vermilion"
+        >
+          {session.displayName}
+        </button>
+      ) : (
+        <a
+          href={googleLoginUrl()}
+          className="font-mono text-[9.5px] uppercase tracking-label text-ink underline decoration-rule underline-offset-4 transition-colors hover:text-vermilion"
+        >
+          Sign in with Google
+        </a>
+      )}
+    </>
+  );
 
-  useLayoutEffect(() => {
-    const stage = stageRef.current;
-    if (!stage) return;
-
-    const update = () => {
-      const tile = (STAND.tileWidth * stage.offsetWidth) / STAND.viewBox.width;
-      if (tile > 0) setScale((tile / 256) * 1.7);
-    };
-
-    update();
-    const observer = new ResizeObserver(update);
-    observer.observe(stage);
-    return () => observer.disconnect();
-  }, []);
+  // The app opens on its home screen, the way a phone game does: the form is
+  // for making a fighter, and one already exists — the home screen renames it
+  // and changes its class in place.
+  if (isNativeApp && saved) {
+    return <Navigate to="/lobby" replace />;
+  }
 
   return (
-    <div className="flex min-h-[100dvh] flex-col bg-paper text-ink">
-      <header className="flex flex-none items-baseline justify-between gap-4 border-b-2 border-ink px-5 pb-1.5 pt-4 sm:px-6 sm:pt-5">
-        <span className="truncate font-mono text-[9.5px] uppercase tracking-label text-muted">
-          Turn-based arena<span className="hidden sm:inline"> · in the browser</span>
-        </span>
-        <div className="flex flex-none items-baseline gap-4">
-          <button
-            type="button"
-            onClick={() => setHowToPlayOpen(true)}
-            className="font-mono text-[9.5px] uppercase tracking-label text-ink underline decoration-rule underline-offset-4 transition-colors hover:text-vermilion"
-          >
-            How to play
-          </button>
-          <button
-            type="button"
-            onClick={() => setAboutOpen(true)}
-            className="font-mono text-[9.5px] uppercase tracking-label text-ink underline decoration-rule underline-offset-4 transition-colors hover:text-vermilion"
-          >
-            What is this?
-          </button>
-          {session ? (
-            <button
-              type="button"
-              onClick={() => navigate("/profile")}
-              className="font-mono text-[9.5px] uppercase tracking-label text-ink underline decoration-rule underline-offset-4 transition-colors hover:text-vermilion"
-            >
-              {session.displayName}
-            </button>
-          ) : (
-            <a
-              href={googleLoginUrl()}
-              className="font-mono text-[9.5px] uppercase tracking-label text-ink underline decoration-rule underline-offset-4 transition-colors hover:text-vermilion"
-            >
-              Sign in with Google
-            </a>
-          )}
-        </div>
-      </header>
+    <div className="flex min-h-[100dvh] flex-col bg-paper pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] pt-[env(safe-area-inset-top)] text-ink">
+      {/*
+        The strip says where you are — a game, in a browser. Inside the iOS
+        app neither needs saying, and on a phone held sideways its row is
+        what pushed the button off the screen; the two links it carries move
+        under the title instead.
+      */}
+      {!isNativeApp && (
+        <header className="flex flex-none items-baseline justify-between gap-4 border-b-2 border-ink px-5 pb-1.5 pt-4 sm:px-6 sm:pt-5">
+          <span className="truncate font-mono text-[9.5px] uppercase tracking-label text-muted">
+            Turn-based arena<span className="hidden sm:inline"> · in the browser</span>
+          </span>
+          <div className="flex flex-none items-baseline gap-4">{infoLinks}</div>
+        </header>
+      )}
 
       {/*
         One column at every size — except on a screen too short for it, a phone
@@ -129,28 +126,13 @@ const LandingPage: React.FC = () => {
             Dofus.js
           </h1>
 
-          <div
-            ref={stageRef}
-            className="relative w-full max-w-[270px] sm:max-w-[330px] short:max-w-[230px]"
-          >
-            <CharacterStand className="block w-full" />
-            <div
-              className="pointer-events-none absolute"
-              style={{
-                // Feet on the middle tile, by the board's own arithmetic.
-                left: `${STAND.origin.x * 100}%`,
-                top: `${STAND.origin.y * 100}%`,
-                transform: `translate(-50%, -${STAND.feet * 100}%)`,
-              }}
-            >
-              <SpriteAnimation
-                {...idle}
-                direction="S"
-                scale={scale}
-                color={selectedColor}
-              />
-            </div>
-          </div>
+          <CharacterShowcase
+            color={selectedColor}
+            className="w-full max-w-[270px] sm:max-w-[330px] short:max-w-[230px]"
+          />
+          {isNativeApp && (
+            <div className="flex items-baseline gap-4">{infoLinks}</div>
+          )}
         </div>
 
         <div className="w-full max-w-[380px]">
@@ -175,7 +157,7 @@ const LandingPage: React.FC = () => {
             type="button"
             onClick={handleJoinMatch}
             disabled={!isNameValid}
-            className="mt-5 w-full bg-vermilion px-2 py-4 font-display text-[17px] font-bold text-white transition-colors hover:bg-[#b93a25] disabled:cursor-not-allowed disabled:bg-hairline disabled:text-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+            className="mt-5 w-full bg-vermilion px-2 py-4 short:mt-3 short:py-3 font-display text-[17px] font-bold text-white transition-colors hover:bg-[#b93a25] disabled:cursor-not-allowed disabled:bg-hairline disabled:text-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
           >
             Find a game
           </button>

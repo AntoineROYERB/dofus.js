@@ -2,6 +2,9 @@ import { CharacterAppearance } from "../types/game";
 
 const KEY = "dofusjs.character";
 
+/** What the server accepts as a fighter's name. */
+export const NAME_RULE = /^[a-zA-Z0-9 ]{3,20}$/;
+
 /**
  * The character a player picked on the landing page. It is kept in storage
  * rather than in router state so it survives a reload — which matters now that

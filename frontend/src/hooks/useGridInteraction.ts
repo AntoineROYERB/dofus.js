@@ -49,6 +49,8 @@ export const useGridInteraction = ({
    * be handled found already previewed.
    */
   const usingTouch = useRef(false);
+  // The same, as state, for what the board draws only for a finger.
+  const [touchMode, setTouchMode] = useState(false);
   const previewed = useRef<Position | null>(null);
   const armed = useRef(false);
 
@@ -130,6 +132,8 @@ export const useGridInteraction = ({
 
     const handlePointerDown = (e: PointerEvent) => {
       if (e.pointerType !== "touch" && e.pointerType !== "pen") return;
+      // Controls drawn over the board (the confirm bubble) are not cells.
+      if ((e.target as Element | null)?.closest?.("[data-board-ui]")) return;
 
       if (e.pointerType === "touch") {
         activeTouchPointers.current.add(e.pointerId);
@@ -144,6 +148,7 @@ export const useGridInteraction = ({
       if (suppressTap.current) return;
 
       usingTouch.current = true;
+      setTouchMode(true);
       const tile = findTileUnderMouse(e.clientX, e.clientY);
       const before = previewed.current;
       armed.current =
@@ -224,5 +229,21 @@ export const useGridInteraction = ({
     return ready;
   }, []);
 
-  return { hoveredPosition, pathCells, impactedCells, confirmsTap };
+  /** Drops the tapped preview, once its action has been confirmed. */
+  const clearPreview = useCallback(() => {
+    previewed.current = null;
+    armed.current = false;
+    setHoveredPosition(null);
+    setPathCells([]);
+    setImpactedCells([]);
+  }, []);
+
+  return {
+    hoveredPosition,
+    pathCells,
+    impactedCells,
+    confirmsTap,
+    touchMode,
+    clearPreview,
+  };
 };
