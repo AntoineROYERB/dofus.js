@@ -9,6 +9,7 @@ import { readCharacter, saveCharacter } from "../utils/characterStorage";
 import { ClassPicker } from "../components/Game/ClassPicker";
 import { useContent } from "../hooks/useContent";
 import { PLAYER_COLORS } from "../constants";
+import { isNativeApp } from "../lib/native";
 
 const idle = {
   spriteSheet: "/animation/Idle.png",
@@ -67,29 +68,41 @@ const LandingPage: React.FC = () => {
     return () => observer.disconnect();
   }, []);
 
+  const infoLinks = (
+    <>
+      <button
+        type="button"
+        onClick={() => setHowToPlayOpen(true)}
+        className="font-mono text-[9.5px] uppercase tracking-label text-ink underline decoration-rule underline-offset-4 transition-colors hover:text-vermilion"
+      >
+        How to play
+      </button>
+      <button
+        type="button"
+        onClick={() => setAboutOpen(true)}
+        className="font-mono text-[9.5px] uppercase tracking-label text-ink underline decoration-rule underline-offset-4 transition-colors hover:text-vermilion"
+      >
+        What is this?
+      </button>
+    </>
+  );
+
   return (
-    <div className="flex min-h-[100dvh] flex-col bg-paper text-ink">
-      <header className="flex flex-none items-baseline justify-between gap-4 border-b-2 border-ink px-5 pb-1.5 pt-4 sm:px-6 sm:pt-5">
-        <span className="truncate font-mono text-[9.5px] uppercase tracking-label text-muted">
-          Turn-based arena<span className="hidden sm:inline"> · in the browser</span>
-        </span>
-        <div className="flex flex-none items-baseline gap-4">
-          <button
-            type="button"
-            onClick={() => setHowToPlayOpen(true)}
-            className="font-mono text-[9.5px] uppercase tracking-label text-ink underline decoration-rule underline-offset-4 transition-colors hover:text-vermilion"
-          >
-            How to play
-          </button>
-          <button
-            type="button"
-            onClick={() => setAboutOpen(true)}
-            className="font-mono text-[9.5px] uppercase tracking-label text-ink underline decoration-rule underline-offset-4 transition-colors hover:text-vermilion"
-          >
-            What is this?
-          </button>
-        </div>
-      </header>
+    <div className="flex min-h-[100dvh] flex-col bg-paper pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] pt-[env(safe-area-inset-top)] text-ink">
+      {/*
+        The strip says where you are — a game, in a browser. Inside the iOS
+        app neither needs saying, and on a phone held sideways its row is
+        what pushed the button off the screen; the two links it carries move
+        under the title instead.
+      */}
+      {!isNativeApp && (
+        <header className="flex flex-none items-baseline justify-between gap-4 border-b-2 border-ink px-5 pb-1.5 pt-4 sm:px-6 sm:pt-5">
+          <span className="truncate font-mono text-[9.5px] uppercase tracking-label text-muted">
+            Turn-based arena<span className="hidden sm:inline"> · in the browser</span>
+          </span>
+          <div className="flex flex-none items-baseline gap-4">{infoLinks}</div>
+        </header>
+      )}
 
       {/*
         One column at every size — except on a screen too short for it, a phone
@@ -124,6 +137,9 @@ const LandingPage: React.FC = () => {
               />
             </div>
           </div>
+          {isNativeApp && (
+            <div className="flex items-baseline gap-4">{infoLinks}</div>
+          )}
         </div>
 
         <div className="w-full max-w-[380px]">
@@ -148,7 +164,7 @@ const LandingPage: React.FC = () => {
             type="button"
             onClick={handleJoinMatch}
             disabled={!isNameValid}
-            className="mt-5 w-full bg-vermilion px-2 py-4 font-display text-[17px] font-bold text-white transition-colors hover:bg-[#b93a25] disabled:cursor-not-allowed disabled:bg-hairline disabled:text-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+            className="mt-5 w-full bg-vermilion px-2 py-4 short:mt-3 short:py-3 font-display text-[17px] font-bold text-white transition-colors hover:bg-[#b93a25] disabled:cursor-not-allowed disabled:bg-hairline disabled:text-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
           >
             Find a game
           </button>

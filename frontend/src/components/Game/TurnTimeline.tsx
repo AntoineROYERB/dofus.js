@@ -11,6 +11,11 @@ interface TurnTimelineProps {
   userId: string;
   /** Opens the log sheet, on the screens too narrow to keep the rail. */
   onOpenRail?: () => void;
+  /**
+   * Leaves the room. The rail carries its own Leave button, but below lg the
+   * rail is a sheet, and a way out hidden behind "Log" is one nobody finds.
+   */
+  onLeave?: () => void;
 }
 
 /**
@@ -23,6 +28,7 @@ export const TurnTimeline: React.FC<TurnTimelineProps> = ({
   latestGameState,
   userId,
   onOpenRail,
+  onLeave,
 }) => {
   const { content } = useContent();
   const players = latestGameState?.players ?? {};
@@ -49,6 +55,15 @@ export const TurnTimeline: React.FC<TurnTimelineProps> = ({
               {latestGameState?.turnNumber ?? 0}
             </b>
           </span>
+          {onLeave && (
+            <button
+              type="button"
+              onClick={onLeave}
+              className="font-mono text-[10px] uppercase tracking-label text-muted transition-colors hover:text-vermilion lg:hidden"
+            >
+              Leave
+            </button>
+          )}
           {onOpenRail && (
             <button
               type="button"

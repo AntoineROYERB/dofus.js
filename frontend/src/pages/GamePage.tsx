@@ -16,6 +16,7 @@ import { RotateHint } from "../components/Game/RotateHint";
 import { SideRail } from "../components/Game/SideRail";
 import { useRejectionBanner } from "../hooks/useRejectionBanner";
 import { GameTutorial } from "../components/Game/GameTutorial";
+import { LeaveDialog } from "../components/Game/LeaveDialog";
 import { hasSeenTutorial, markTutorialSeen } from "../utils/tutorialStorage";
 import { barSpells, unlockedBy } from "../utils/classUtils";
 import { markDefeated, readDefeated } from "../utils/progressStorage";
@@ -247,8 +248,23 @@ function GamePage() {
   };
 
   const handleLeave = () => {
+    setLeaveAsked(false);
     const { messageId, timestamp } = generateMessageId();
     act({ type: "leave_room", messageId, timestamp });
+  };
+
+  // Walking out before anyone has fought costs nothing; once the fight is on,
+  // it is a forfeit, so the button asks first.
+  const [leaveAsked, setLeaveAsked] = useState(false);
+  const requestLeave = () => {
+    if (
+      gameStatus === GAME_STATUS.PLAYING ||
+      gameStatus === GAME_STATUS.POSITION_CHARACTERS
+    ) {
+      setLeaveAsked(true);
+    } else {
+      handleLeave();
+    }
   };
 
   const handleCellClick = (position: Position) => {
@@ -319,6 +335,7 @@ function GamePage() {
               latestGameState={gameState}
               userId={userId}
               onOpenRail={() => setRailOpen(true)}
+              onLeave={requestLeave}
             />
           </div>
           <RotateHint />
@@ -339,7 +356,7 @@ function GamePage() {
           <SideRail
             roomName={roomName}
             latestGameState={gameState}
-            onLeave={handleLeave}
+            onLeave={requestLeave}
             onReplayTutorial={() => setTutorialActive(true)}
           />
         </aside>
@@ -420,7 +437,10 @@ function GamePage() {
             <SideRail
               roomName={roomName}
               latestGameState={gameState}
-              onLeave={handleLeave}
+              onLeave={() => {
+                setRailOpen(false);
+                requestLeave();
+              }}
               onReplayTutorial={() => setTutorialActive(true)}
               onClose={() => setRailOpen(false)}
             />
@@ -435,6 +455,13 @@ function GamePage() {
           onExit={handleLeave}
           farewell={soloResult?.farewell}
           unlocked={soloResult?.unlocked}
+        />
+      )}
+
+      {leaveAsked && !winner && (
+        <LeaveDialog
+          onConfirm={handleLeave}
+          onCancel={() => setLeaveAsked(false)}
         />
       )}
 
