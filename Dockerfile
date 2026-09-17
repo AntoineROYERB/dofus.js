@@ -2,7 +2,7 @@
 # frontend, so a deployment is one container. docker-compose.yml keeps the
 # nginx + backend split for local work.
 
-FROM node:20-alpine AS web
+FROM node:22-alpine AS web
 WORKDIR /app
 COPY frontend/package*.json ./
 RUN npm ci

@@ -1,5 +1,6 @@
 import React from "react";
 import { PLAYER_COLORS } from "../../constants";
+import { NAME_RULE } from "../../utils/characterStorage";
 
 interface CharacterCreationFormProps {
   characterName: string;
@@ -12,7 +13,6 @@ interface CharacterCreationFormProps {
   onSubmit: () => void;
 }
 
-const NAME_RULE = /^[a-zA-Z0-9 ]{3,20}$/;
 
 export const CharacterCreationForm: React.FC<CharacterCreationFormProps> = ({
   characterName,
@@ -55,7 +55,7 @@ export const CharacterCreationForm: React.FC<CharacterCreationFormProps> = ({
         onBlur={() => setIsFocused(false)}
         placeholder="Your name"
         aria-invalid={showError}
-        className={`mt-1 w-full border-b bg-transparent pb-1.5 font-display text-[29px] font-bold tracking-tight text-ink placeholder:font-sans placeholder:text-[18px] placeholder:font-normal placeholder:tracking-normal placeholder:text-muted focus:outline-none ${
+        className={`mt-1 w-full border-b bg-transparent pb-1.5 font-display text-[29px] short:pb-1 short:text-[22px] font-bold tracking-tight text-ink placeholder:font-sans placeholder:text-[18px] placeholder:font-normal placeholder:tracking-normal placeholder:text-muted focus:outline-none ${
           showError
             ? "border-vermilion"
             : hints

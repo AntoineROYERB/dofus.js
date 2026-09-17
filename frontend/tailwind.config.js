@@ -11,11 +11,23 @@ export default {
     extend: {
       screens: {
         /*
+         * A phone held upright. Tailwind turns its own max-* variants off as
+         * soon as a raw screen exists, so this stands in for max-sm. It comes
+         * before short so that, on a screen both narrow and short, short wins.
+         */
+        narrow: { max: "639px" },
+        /*
          * A phone held sideways is the shape this board wants — wide and
          * shallow — but it leaves barely 300px of height once the browser's
          * own chrome is out. Everything in the HUD has a compact form here.
          */
         short: { raw: "(max-height: 560px)" },
+        /*
+         * A finger rather than a cursor: no hover to reveal a tooltip, and no
+         * keyboard to press a number key on. Copy that talks about either is
+         * swapped for copy that talks about tapping.
+         */
+        touch: { raw: "(hover: none) and (pointer: coarse)" },
       },
       colors: {
         paper: "#f2f2f0",

@@ -28,9 +28,9 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
           go-version-file: backend/go.mod
           cache-dependency-path: backend/go.sum
@@ -65,11 +65,12 @@ jobs:
       run:
         working-directory: frontend
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      # Node 20 is end-of-life, and the Capacitor CLI needs 22 or later.
+      - uses: actions/setup-node@v7
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
@@ -80,16 +81,52 @@ jobs:
         run: npm run lint
 
       - name: Test
-        run: npm test
+        run: npm test -- --coverage
 
       - name: Build (tsc -b + vite build)
         run: npm run build
+
+  ios:
+    name: iOS app (Capacitor)
+    # The iOS project only builds on macOS. Free on a public repository.
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+
+      # The Capacitor CLI needs Node 22 or later.
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Build the web bundle and sync it into the Xcode project
+        # Any address will do: the app is compiled, not run.
+        run: npm run ios:sync
+        env:
+          VITE_WS_URL: wss://ci.invalid
+
+      - name: Compile for the simulator (unsigned)
+        run: >
+          xcodebuild
+          -project ios/App/App.xcodeproj
+          -scheme App
+          -configuration Debug
+          -destination 'generic/platform=iOS Simulator'
+          CODE_SIGNING_ALLOWED=NO
+          build
 
   docker:
     name: Images Docker
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Build de la stack (nginx + backend)
         run: docker compose build
