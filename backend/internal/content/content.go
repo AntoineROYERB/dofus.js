@@ -166,6 +166,16 @@ type spellEntry struct {
 	CriticalChance   int                `json:"criticalChance"`
 	CriticalDamage   int                `json:"criticalDamage"`
 	Effect           *types.SpellEffect `json:"effect"`
+	Role             string             `json:"role"`
+	Ultimate         bool               `json:"ultimate"`
+	Targeting        string             `json:"targeting"`
+	Push             int                `json:"push"`
+	Terrain          string             `json:"terrain"`
+	Zone             *types.SpellZone   `json:"zone"`
+	GrantMP          int                `json:"grantMP"`
+	Special          string             `json:"special"`
+	Relayed          bool               `json:"relayed"`
+	Conducts         bool               `json:"conducts"`
 }
 
 type classesFile struct {
@@ -182,6 +192,9 @@ type classEntry struct {
 	Symbol         string              `json:"symbol"`
 	Palette        types.ClassPalette  `json:"palette"`
 	Lore           string              `json:"lore"`
+	Passive        string              `json:"passive"`
+	MeleeBonus     int                 `json:"meleeBonus"`
+	PushResist     int                 `json:"pushResist"`
 	Health         *int                `json:"health"`
 	ActionPoints   *int                `json:"actionPoints"`
 	MovementPoints *int                `json:"movementPoints"`

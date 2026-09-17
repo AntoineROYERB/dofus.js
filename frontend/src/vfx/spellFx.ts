@@ -20,6 +20,22 @@ import { isoToScreen } from "../utils/isoUtils";
 
 export type Element = "Fire" | "Air" | "Water" | "Earth";
 
+/**
+ * Spells that are drawn as themselves rather than as their element: the
+ * ultimates, and the ones that move or buff instead of hitting.
+ */
+export type Signature =
+  | "meteor"
+  | "tempest"
+  | "maelstrom"
+  | "quake"
+  | "leap"
+  | "relay"
+  | "self"
+  | "cannon"
+  | "hammer"
+  | "pillar";
+
 /** What a cast needs to be drawn, independent of where the log came from. */
 export type CastEvent = {
   seq: number;
@@ -28,6 +44,15 @@ export type CastEvent = {
   target: Position;
   crit: boolean;
   damage: number;
+  /** Drawn as itself when set; otherwise as its element. */
+  signature?: Signature;
+  /** The relay an air spell went out from. */
+  via?: Position;
+  /** Every cell the spell covered, and what it left there. */
+  area?: Position[];
+  terrain?: "fire" | "smoke" | "water" | "ice" | "trap" | "";
+  /** Already waited for the wind to reach the relay. */
+  arrived?: boolean;
 };
 
 export type Geometry = {
@@ -124,6 +149,15 @@ type Writing = {
 
 type Timer = { due: number; run: () => void };
 
+/** An ink whirlpool turning on the ground. */
+type Swirl = { x: number; y: number; r: number; born: number; dur: number };
+
+/** A jet of water between two points, held for a moment. */
+type Beam = { ax: number; ay: number; bx: number; by: number; born: number; dur: number; width: number };
+
+/** A stone hammer swinging down onto a point. */
+type Hammer = { x: number; y: number; size: number; born: number; dur: number };
+
 /** A lightning bolt, falling from off the top of the board. Never a scar — it's gone before it can mark anything. */
 type Bolt = {
   pts: Position[];
@@ -204,6 +238,9 @@ export class SpellFx {
   private burns: Burn[] = [];
   private writings: Writing[] = [];
   private bolts: Bolt[] = [];
+  private swirls: Swirl[] = [];
+  private beams: Beam[] = [];
+  private hammers: Hammer[] = [];
   private timers: Timer[] = [];
 
   private shakeMag = 0;
@@ -425,6 +462,9 @@ export class SpellFx {
       this.burns.length > 0 ||
       this.writings.length > 0 ||
       this.bolts.length > 0 ||
+      this.swirls.length > 0 ||
+      this.beams.length > 0 ||
+      this.hammers.length > 0 ||
       this.timers.length > 0 ||
       this.flash !== null ||
       performance.now() < this.shakeEnd
@@ -444,6 +484,9 @@ export class SpellFx {
     this.burns = [];
     this.writings = [];
     this.bolts = [];
+    this.swirls = [];
+    this.beams = [];
+    this.hammers = [];
     this.timers = [];
     this.flash = null;
     this.renderScars();
@@ -459,6 +502,34 @@ export class SpellFx {
 
   play(event: CastEvent) {
     const plans = this.plan(event);
+    if (event.via) this.playRelayStream(event.origin, event.via);
+    switch (event.signature) {
+      case "cannon":
+        return this.playCannon(event, plans);
+      case "hammer":
+        return this.playHammer(event, plans);
+      case "pillar":
+        return this.playPillar(event);
+      case "meteor":
+        return this.playMeteor(event, plans);
+      case "tempest":
+        return this.playTempest(event, plans);
+      case "maelstrom":
+        this.playMaelstrom(event);
+        break;
+      case "quake":
+        return this.playQuake(event, plans);
+      case "leap":
+        return this.playLeap(event);
+      case "relay":
+        return this.playRelayPulse(event.target, true);
+      case "self":
+        return this.playSelfBuff(event);
+    }
+    if (event.element === "Fire" && event.terrain === "fire" && !event.signature) {
+      return this.playFirewall(event);
+    }
+    if (event.terrain) this.spread(event);
     switch (event.element) {
       case "Fire":
         this.playFire(event, plans);
@@ -481,6 +552,51 @@ export class SpellFx {
    */
   private plan(event: CastEvent): { scars: Scar[] } {
     const { element, target, origin, crit } = event;
+    // What moves or buffs leaves no mark of its own; the terrain layer draws
+    // whatever it did leave.
+    if (
+      event.signature === "leap" ||
+      event.signature === "relay" ||
+      event.signature === "self" ||
+      event.signature === "pillar"
+    ) {
+      return { scars: [] };
+    }
+    if (event.signature === "hammer") {
+      const scars: Scar[] = [];
+      for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * TAU + rand(-0.25, 0.25);
+        const len = rand(0.5, 1.1) * (crit ? 1.4 : 1);
+        scars.push({
+          kind: "fracture",
+          pts: jagged(target, { x: target.x + Math.cos(a) * len, y: target.y + Math.sin(a) * len }, 5, 0.12),
+          width: rand(1.2, 2.6),
+        });
+      }
+      return { scars };
+    }
+    if (event.signature === "quake") {
+      const scars: Scar[] = [];
+      for (let i = 0; i < 12; i++) {
+        const a = (i / 12) * TAU + rand(-0.2, 0.2);
+        const len = rand(1.6, 2.6);
+        scars.push({
+          kind: "fracture",
+          pts: jagged(origin, { x: origin.x + Math.cos(a) * len, y: origin.y + Math.sin(a) * len }, 8, 0.16),
+          width: rand(1.4, 2.6),
+        });
+      }
+      return { scars };
+    }
+    if (event.signature === "meteor") {
+      return {
+        scars: [
+          // Only the point of impact is charred: the crater and the fire
+          // around it are drawn by the terrain, and need the light.
+          { kind: "scorch", gx: target.x, gy: target.y, rTiles: 0.42, verts: makeBlob(18, 0.4) },
+        ],
+      };
+    }
     switch (element) {
       case "Fire":
         return {
@@ -743,6 +859,10 @@ export class SpellFx {
   }
 
   private playAir(event: CastEvent, plans: { scars: Scar[] }) {
+    if (event.via && !event.arrived) {
+      this.at(220, () => this.playAir({ ...event, arrived: true }, plans));
+      return;
+    }
     const b = this.screen(event.target);
     const k = this.reduced ? 0.35 : event.crit ? 1.7 : 1;
     const tw = this.geometry.tileSize.width;
@@ -751,8 +871,10 @@ export class SpellFx {
     // travel from the caster the way the other elements do.
     const boltDur = this.reduced ? 70 : event.crit ? 200 : 150;
     const topY = -Math.max(70, tw * 1.6);
+    // Through a relay, the bolt comes off the relay rather than out of the sky.
+    const relay = event.via ? this.screen(event.via) : null;
     const main = jagged(
-      { x: b.x, y: topY },
+      relay ? { x: relay.x, y: relay.y - tw * 0.9 } : { x: b.x, y: topY },
       { x: b.x, y: b.y - 6 },
       8,
       tw * (event.crit ? 0.34 : 0.24)
@@ -907,6 +1029,662 @@ export class SpellFx {
     });
   }
 
+  /** The ground an area spell lays down, flaring up cell by cell. */
+  private spread(event: CastEvent) {
+    const cells = event.area ?? [];
+    const tw = this.geometry.tileSize.width;
+    const k = this.reduced ? 0.3 : 1;
+    cells.forEach((cell, i) => {
+      this.at(120 + i * 35, () => {
+        const c = this.screen(cell);
+        const n = Math.round(6 * k);
+        for (let j = 0; j < n; j++) {
+          switch (event.terrain) {
+            case "fire":
+              this.spawn({
+                x: c.x + rand(-tw * 0.25, tw * 0.25),
+                y: c.y + rand(-4, 4),
+                vx: rand(-12, 12),
+                vy: rand(-90, -40),
+                g: -10,
+                life: rand(400, 800),
+                size: rand(1.4, 2.8),
+                type: "ember",
+                color: Math.random() < 0.4 ? EMBER_HOT : EMBER,
+              });
+              break;
+            case "water":
+              this.spawn({
+                x: c.x + rand(-tw * 0.3, tw * 0.3),
+                y: c.y - rand(30, 80),
+                vx: -8,
+                vy: rand(160, 240),
+                life: rand(220, 380),
+                size: 1.4,
+                type: "spark",
+                color: "#3f74c9",
+              });
+              break;
+            case "ice":
+              if (j < 2) {
+                this.spawn({
+                  x: c.x + rand(-tw * 0.2, tw * 0.2),
+                  y: c.y + rand(-3, 3),
+                  vx: 0,
+                  vy: 0,
+                  life: rand(700, 1100),
+                  size: rand(4, 7),
+                  rot: rand(-0.3, 0.3),
+                  type: "crystal",
+                  color: FROST,
+                });
+              }
+              break;
+            case "smoke":
+              this.spawn({
+                x: c.x + rand(-10, 10),
+                y: c.y - rand(0, 10),
+                vx: rand(-14, 14),
+                vy: rand(-26, -8),
+                g: -6,
+                life: rand(900, 1500),
+                size: rand(8, 14),
+                type: "smoke",
+                color: "#4e4943",
+              });
+              break;
+            case "trap":
+              if (j < 2) {
+                this.ring(c.x, c.y, { r0: 2, rMax: tw * 0.3, dur: 420, color: INK, width: 2 });
+              }
+              break;
+          }
+        }
+      });
+    });
+  }
+
+  /**
+   * A wall of fire going up cell by cell from where it lands, outwards. No
+   * scorch mark: the wall itself stays, and is drawn by the terrain.
+   */
+  private playFirewall(event: CastEvent) {
+    const a = this.screen(event.origin);
+    const b = this.screen(event.target);
+    const tw = this.geometry.tileSize.width;
+    const travel = this.reduced ? 120 : 320;
+    this.spawn({
+      x: a.x,
+      y: a.y - 9,
+      vx: 0,
+      vy: 0,
+      life: travel,
+      size: 4,
+      type: "ember",
+      color: RIM,
+      trail: true,
+      path: { x: b.x, y: b.y - 8, fromX: a.x, fromY: a.y - 9, arc: tw * 0.5 },
+    });
+    const cells = [...(event.area ?? [event.target])].sort(
+      (p, q) =>
+        Math.abs(p.x - event.target.x) + Math.abs(p.y - event.target.y) -
+        (Math.abs(q.x - event.target.x) + Math.abs(q.y - event.target.y))
+    );
+    this.at(travel, () => this.shake(this.reduced ? 0 : 5, 300));
+    cells.forEach((cell, i) => {
+      this.at(travel + Math.ceil(i / 2) * 90, () => {
+        const c = this.screen(cell);
+        const k = this.reduced ? 0.3 : 1;
+        // A column of flame shooting up, then settling into the wall.
+        for (let j = 0; j < 22 * k; j++) {
+          this.spawn({
+            x: c.x + rand(-tw * 0.22, tw * 0.22),
+            y: c.y + rand(-3, 3),
+            vx: rand(-14, 14),
+            vy: rand(-240, -110),
+            g: 90,
+            drag: 0.98,
+            life: rand(380, 720),
+            size: rand(1.6, 3.4),
+            type: "ember",
+            color: Math.random() < 0.5 ? EMBER_HOT : EMBER,
+          });
+        }
+        this.ring(c.x, c.y, { r0: 2, rMax: tw * 0.45, dur: 320, color: EMBER_HOT, width: 2 });
+      });
+    });
+  }
+
+  /** The wind running from the caster to its relay before the spell goes out. */
+  private playRelayStream(from: Position, via: Position) {
+    const a = this.screen(from);
+    const b = this.screen(via);
+    const tw = this.geometry.tileSize.width;
+    const n = this.reduced ? 4 : 18;
+    for (let i = 0; i < n; i++) {
+      this.at((i * 180) / n, () => {
+        this.spawn({
+          x: a.x,
+          y: a.y - tw * 0.5,
+          vx: 0,
+          vy: 0,
+          life: 260,
+          size: rand(1.2, 2.2),
+          type: "dot",
+          color: "#2e9e6a",
+          path: { x: b.x, y: b.y - tw * 0.5, fromX: a.x, fromY: a.y - tw * 0.5, arc: tw * rand(0.6, 1.2) },
+        });
+      });
+    }
+    this.at(200, () => this.playRelayPulse(via, true));
+  }
+
+  /** A gust going up where an air relay stands. */
+  private playRelayPulse(at: Position, placed = false) {
+    const c = this.screen(at);
+    const tw = this.geometry.tileSize.width;
+    this.ring(c.x, c.y, { r0: 3, rMax: tw * (placed ? 1 : 0.6), dur: 420, color: "#2e9e6a", width: 2.5 });
+    for (let i = 0; i < (this.reduced ? 5 : 16); i++) {
+      this.spawn({
+        x: c.x + rand(-tw * 0.25, tw * 0.25),
+        y: c.y - rand(0, 10),
+        vx: rand(-10, 10),
+        vy: rand(-220, -120),
+        drag: 0.97,
+        life: rand(300, 600),
+        size: rand(1, 1.8),
+        type: "spark",
+        color: "#2e9e6a",
+      });
+    }
+  }
+
+  /** Wind wrapping round a caster who has just taken it. */
+  private playSelfBuff(event: CastEvent) {
+    const c = this.screen(event.origin);
+    const tw = this.geometry.tileSize.width;
+    this.ring(c.x, c.y, { r0: tw * 0.5, rMax: tw * 0.15, dur: 380, color: "#2e9e6a", width: 2 });
+    for (let i = 0; i < (this.reduced ? 6 : 20); i++) {
+      const a = rand(0, TAU);
+      this.spawn({
+        x: c.x + Math.cos(a) * tw * 0.6,
+        y: c.y - 20 + Math.sin(a) * tw * 0.3,
+        vx: -Math.sin(a) * 160,
+        vy: Math.cos(a) * 60,
+        drag: 0.94,
+        life: rand(260, 460),
+        size: rand(1, 1.8),
+        type: "spark",
+        color: "#6fcf97",
+      });
+    }
+  }
+
+  /** A jet of water hard enough to throw whoever it hits. */
+  private playCannon(event: CastEvent, plans: { scars: Scar[] }) {
+    const a = this.screen(event.origin);
+    const b = this.screen(event.target);
+    const tw = this.geometry.tileSize.width;
+    const dur = this.reduced ? 200 : 700;
+    const lift = tw * 0.35;
+    this.beams.push({
+      ax: a.x,
+      ay: a.y - lift,
+      bx: b.x,
+      by: b.y - lift * 0.8,
+      born: performance.now(),
+      dur,
+      width: tw * (event.crit ? 0.3 : 0.24),
+    });
+    // The kick of it going out.
+    this.ring(a.x, a.y, { r0: 4, rMax: tw * 0.7, dur: 300, color: INK, width: 3 });
+    this.shake(this.reduced ? 0 : 5, dur);
+    this.at(120, () => {
+      this.shake(this.reduced ? 0 : event.crit ? 13 : 9, 420);
+      this.ring(b.x, b.y, { r0: 4, rMax: tw * 1.4, dur: 520, color: INK, width: 3.5 });
+      this.commit(plans.scars[0]);
+    });
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const len = Math.hypot(dx, dy) || 1;
+    const k = this.reduced ? 0.3 : 1;
+    // Spray thrown on past the target, the way the water is going.
+    for (let t = 0; t < 8; t++) {
+      this.at(120 + t * 70, () => {
+        for (let i = 0; i < 9 * k; i++) {
+          const sp = rand(90, 260);
+          const spread = rand(-0.7, 0.7);
+          this.spawn({
+            x: b.x + rand(-6, 6),
+            y: b.y - lift * 0.8 + rand(-6, 6),
+            vx: (dx / len) * sp + (-dy / len) * sp * spread,
+            vy: (dy / len) * sp + (dx / len) * sp * spread - rand(40, 140),
+            g: 420,
+            drag: 0.99,
+            life: rand(350, 700),
+            size: rand(1.4, 3.2),
+            type: "dot",
+            color: Math.random() < 0.4 ? "#d8ecff" : "#3f74c9",
+          });
+        }
+      });
+    }
+  }
+
+  /** A stone hammer brought down from above the target. */
+  private playHammer(event: CastEvent, plans: { scars: Scar[] }) {
+    const b = this.screen(event.target);
+    const tw = this.geometry.tileSize.width;
+    const fall = this.reduced ? 120 : 380;
+    this.hammers.push({ x: b.x, y: b.y, size: tw * (event.crit ? 0.9 : 0.75), born: performance.now(), dur: fall + 380 });
+    this.at(fall, () => {
+      this.shake(this.reduced ? 0 : event.crit ? 20 : 14, 520);
+      this.flash = { color: "#2a1d10", alpha: event.crit ? 0.18 : 0.1, born: performance.now(), dur: 160 };
+      this.ring(b.x, b.y, { r0: 4, rMax: tw * 1.6, dur: 520, color: "#a3722c", width: 4.5 });
+      for (const scar of plans.scars) this.commit(scar);
+      const k = this.reduced ? 0.3 : 1;
+      for (let j = 0; j < 16 * k; j++) {
+        this.spawn({
+          x: b.x + rand(-12, 12),
+          y: b.y + rand(-6, 6),
+          vx: rand(-140, 140),
+          vy: -rand(160, 320),
+          g: 680,
+          drag: 0.998,
+          life: rand(600, 1000),
+          size: rand(3, 8),
+          rot: rand(0, TAU),
+          vrot: rand(-8, 8),
+          type: "chunk",
+          color: "#f4f4f2",
+        });
+      }
+      for (let m = 0; m < 14 * k; m++) {
+        this.spawn({
+          x: b.x + rand(-18, 18),
+          y: b.y + rand(-8, 8),
+          vx: rand(-60, 60),
+          vy: rand(-40, -10),
+          g: 20,
+          life: rand(800, 1400),
+          size: rand(7, 13),
+          type: "smoke",
+          color: DUST,
+        });
+      }
+    });
+  }
+
+  /** Rock shoved up out of the ground; the tile draws the pillar itself. */
+  private playPillar(event: CastEvent) {
+    const b = this.screen(event.target);
+    const tw = this.geometry.tileSize.width;
+    this.shake(this.reduced ? 0 : 8, 500);
+    this.ring(b.x, b.y, { r0: tw * 0.3, rMax: tw * 1.2, dur: 500, color: "#a3722c", width: 3 });
+    for (let j = 0; j < (this.reduced ? 4 : 14); j++) {
+      this.spawn({
+        x: b.x + rand(-tw * 0.3, tw * 0.3),
+        y: b.y + rand(-4, 4),
+        vx: rand(-90, 90),
+        vy: -rand(120, 260),
+        g: 640,
+        life: rand(500, 900),
+        size: rand(2.5, 6),
+        rot: rand(0, TAU),
+        vrot: rand(-6, 6),
+        type: "chunk",
+        color: "#c9a56a",
+      });
+    }
+    for (let m = 0; m < (this.reduced ? 3 : 10); m++) {
+      this.spawn({
+        x: b.x + rand(-20, 20),
+        y: b.y + rand(-6, 6),
+        vx: rand(-50, 50),
+        vy: rand(-30, -8),
+        g: 15,
+        life: rand(700, 1200),
+        size: rand(6, 11),
+        type: "smoke",
+        color: DUST,
+      });
+    }
+  }
+
+  private drawBeams(ctx: CanvasRenderingContext2D, now: number) {
+    for (let i = this.beams.length - 1; i >= 0; i--) {
+      const beam = this.beams[i];
+      const p = (now - beam.born) / beam.dur;
+      if (p >= 1) {
+        this.beams.splice(i, 1);
+        continue;
+      }
+      // It shoots out, holds, and thins away.
+      const reach = ease(clamp01(p / 0.18));
+      const thin = p < 0.7 ? 1 : 1 - (p - 0.7) / 0.3;
+      const ex = beam.ax + (beam.bx - beam.ax) * reach;
+      const ey = beam.ay + (beam.by - beam.ay) * reach;
+      const dx = ex - beam.ax;
+      const dy = ey - beam.ay;
+      const len = Math.hypot(dx, dy) || 1;
+      const nx = -dy / len;
+      const ny = dx / len;
+      const layers: [string, number][] = [
+        ["rgba(22,52,111,.55)", 1.25],
+        ["#3f74c9", 1],
+        ["#8fb4ea", 0.55],
+        ["#eef6ff", 0.22],
+      ];
+      ctx.save();
+      ctx.lineCap = "round";
+      for (const [color, share] of layers) {
+        ctx.strokeStyle = color;
+        ctx.lineWidth = Math.max(1, beam.width * share * thin);
+        ctx.beginPath();
+        const steps = 16;
+        for (let s = 0; s <= steps; s++) {
+          const t = s / steps;
+          const wob = Math.sin(t * 14 - now / 30) * beam.width * 0.12 * t;
+          const x = beam.ax + dx * t + nx * wob;
+          const y = beam.ay + dy * t + ny * wob;
+          if (s === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      }
+      ctx.restore();
+      if (!this.reduced && Math.random() < 0.8) {
+        this.spawn({
+          x: beam.ax + dx * Math.random(),
+          y: beam.ay + dy * Math.random(),
+          vx: nx * rand(-60, 60),
+          vy: ny * rand(-60, 60) + 20,
+          g: 300,
+          life: rand(200, 400),
+          size: rand(1, 2),
+          type: "dot",
+          color: "#8fb4ea",
+        });
+      }
+    }
+  }
+
+  private drawHammers(ctx: CanvasRenderingContext2D, now: number) {
+    for (let i = this.hammers.length - 1; i >= 0; i--) {
+      const h = this.hammers[i];
+      const age = now - h.born;
+      if (age >= h.dur) {
+        this.hammers.splice(i, 1);
+        continue;
+      }
+      const fall = h.dur - 380;
+      const p = clamp01(age / fall);
+      // Raised high and tilted back, then brought down all at once.
+      const drop = p * p * p;
+      const angle = -1.4 * (1 - drop);
+      const y = h.y - h.size * 1.9 * (1 - drop);
+      const alpha = age > fall ? 1 - (age - fall) / 380 : 1;
+      const s = h.size;
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, alpha);
+      ctx.translate(h.x + s * 0.55, y - s * 0.1);
+      ctx.rotate(angle);
+      // Handle.
+      ctx.fillStyle = "#5a4428";
+      ctx.fillRect(-s * 0.05, -s * 1.15, s * 0.1, s * 0.95);
+      // Head, a block of stone with a dark face.
+      ctx.translate(-s * 0.55, -s * 0.25);
+      ctx.fillStyle = "#8a6a3a";
+      ctx.fillRect(-s * 0.1, -s * 0.12, s * 1.3, s * 0.42);
+      ctx.fillStyle = "#c9a56a";
+      ctx.fillRect(-s * 0.1, -s * 0.12, s * 1.3, s * 0.12);
+      ctx.strokeStyle = "#2a1d10";
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(-s * 0.1, -s * 0.12, s * 1.3, s * 0.42);
+      ctx.restore();
+    }
+  }
+
+  /** The Stonewarden taking off and coming down hard. */
+  private playLeap(event: CastEvent) {
+    const a = this.screen(event.origin);
+    const b = this.screen(event.target);
+    const tw = this.geometry.tileSize.width;
+    for (let i = 0; i < 10; i++) {
+      this.spawn({
+        x: a.x + rand(-10, 10),
+        y: a.y,
+        vx: rand(-60, 60),
+        vy: rand(-120, -40),
+        g: 500,
+        life: rand(400, 700),
+        size: rand(2, 4),
+        rot: rand(0, TAU),
+        vrot: rand(-6, 6),
+        type: "chunk",
+        color: "#e9e1d0",
+      });
+    }
+    this.spawn({
+      x: a.x,
+      y: a.y - 20,
+      vx: 0,
+      vy: 0,
+      life: 300,
+      size: 4,
+      type: "dot",
+      color: SOIL,
+      path: { x: b.x, y: b.y - 20, fromX: a.x, fromY: a.y - 20, arc: tw * 1.2 },
+    });
+    this.at(300, () => {
+      this.shake(this.reduced ? 0 : 12, 380);
+      this.ring(b.x, b.y, { r0: 4, rMax: tw * 1.3, dur: 500, color: "#a3722c", width: 4 });
+      for (let m = 0; m < (this.reduced ? 6 : 18); m++) {
+        this.spawn({
+          x: b.x + rand(-20, 20),
+          y: b.y + rand(-6, 6),
+          vx: rand(-70, 70),
+          vy: rand(-50, -10),
+          g: 30,
+          life: rand(700, 1300),
+          size: rand(6, 12),
+          type: "smoke",
+          color: DUST,
+        });
+      }
+    });
+  }
+
+  /** A burning rock out of the top corner of the sky, and what it does to the sheet. */
+  private playMeteor(event: CastEvent, plans: { scars: Scar[] }) {
+    const b = this.screen(event.target);
+    const tw = this.geometry.tileSize.width;
+    const fall = this.reduced ? 250 : 780;
+    const fromX = b.x + this.width * 0.6;
+    const fromY = -tw * 2;
+    this.flash = { color: "#2a1d10", alpha: 0.18, born: performance.now(), dur: fall + 300 };
+    // The warning: a ring pulsing where it will land.
+    for (let i = 0; i < 3; i++) {
+      this.at((i * fall) / 3, () =>
+        this.ring(b.x, b.y, { r0: tw * 1.6, rMax: tw * 0.3, dur: fall / 3, color: EMBER, width: 2 })
+      );
+    }
+    this.spawn({
+      x: fromX,
+      y: fromY,
+      vx: 0,
+      vy: 0,
+      life: fall,
+      size: tw * 0.22,
+      type: "ember",
+      color: EMBER_HOT,
+      trail: true,
+      path: { x: b.x, y: b.y - 6, fromX, fromY, arc: 0 },
+    });
+    this.at(fall, () => {
+      this.flash = { color: "#fff4dc", alpha: this.reduced ? 0.2 : 0.75, born: performance.now(), dur: 420 };
+      this.shake(this.reduced ? 0 : 24, 900);
+      this.ring(b.x, b.y, { r0: 6, rMax: tw * 3.2, dur: 700, color: EMBER_HOT, width: 6 });
+      this.at(120, () => this.ring(b.x, b.y, { r0: 6, rMax: tw * 4.4, dur: 900, color: EMBER, width: 4 }));
+      const scorch = plans.scars[0] as Scar & { kind: "scorch" };
+      this.burns.push({
+        x: b.x,
+        y: b.y,
+        gx: scorch.gx,
+        gy: scorch.gy,
+        rMax: scorch.rTiles * tw,
+        rTiles: scorch.rTiles,
+        born: performance.now(),
+        dur: 900,
+        verts: scorch.verts,
+      });
+      const k = this.reduced ? 0.3 : 1;
+      for (let i = 0; i < 110 * k; i++) {
+        const ang = rand(Math.PI, TAU);
+        const sp = rand(80, 380);
+        this.spawn({
+          x: b.x,
+          y: b.y - 4,
+          vx: Math.cos(ang) * sp,
+          vy: Math.sin(ang) * sp * 0.8 - rand(40, 160),
+          g: 320,
+          drag: 0.99,
+          life: rand(600, 1400),
+          size: rand(1.4, 3.6),
+          type: Math.random() < 0.3 ? "spark" : "ember",
+          color: Math.random() < 0.45 ? EMBER_HOT : EMBER,
+        });
+      }
+      for (let j = 0; j < 22 * k; j++) {
+        this.spawn({
+          x: b.x + rand(-20, 20),
+          y: b.y + rand(-8, 8),
+          vx: rand(-120, 120),
+          vy: -rand(160, 360),
+          g: 620,
+          drag: 0.998,
+          life: rand(800, 1400),
+          size: rand(4, 11),
+          rot: rand(0, TAU),
+          vrot: rand(-6, 6),
+          type: "chunk",
+          color: "#f4f4f2",
+        });
+      }
+      for (let m = 0; m < 30 * k; m++) {
+        this.spawn({
+          x: b.x + rand(-30, 30),
+          y: b.y + rand(-10, 10),
+          vx: rand(-30, 30),
+          vy: rand(-70, -20),
+          g: -10,
+          life: rand(1400, 2400),
+          size: rand(10, 20),
+          type: "smoke",
+          color: "#3b322b",
+        });
+      }
+      if (event.terrain) this.spread(event);
+    });
+  }
+
+  /** Lightning all over the area, then once more, hard, on the target. */
+  private playTempest(event: CastEvent, plans: { scars: Scar[] }) {
+    const cells = [...(event.area ?? [event.target])].sort(() => Math.random() - 0.5).slice(0, 8);
+    this.flash = { color: "#101828", alpha: 0.22, born: performance.now(), dur: 1400 };
+    cells.forEach((cell, i) => {
+      this.at(80 + i * 110, () => {
+        const b = this.screen(cell);
+        const tw = this.geometry.tileSize.width;
+        const pts = jagged({ x: b.x + rand(-30, 30), y: -tw * 1.6 }, { x: b.x, y: b.y - 4 }, 8, tw * 0.22);
+        this.bolts.push({ pts, forks: [], born: performance.now(), dur: 140 });
+        this.ring(b.x, b.y, { r0: 2, rMax: tw * 0.7, dur: 300, color: BOLT_BLUE, width: 2 });
+      });
+    });
+    this.at(80 + cells.length * 110, () => this.playAir({ ...event, crit: true }, plans));
+  }
+
+  /** The water turning under the target before it closes on it. */
+  private playMaelstrom(event: CastEvent) {
+    const b = this.screen(event.target);
+    const tw = this.geometry.tileSize.width;
+    this.swirls.push({ x: b.x, y: b.y, r: tw * 1.3, born: performance.now(), dur: this.reduced ? 400 : 1300 });
+    this.shake(this.reduced ? 0 : 6, 900);
+  }
+
+  /** The ground giving way all around the caster. */
+  private playQuake(event: CastEvent, plans: { scars: Scar[] }) {
+    const a = this.screen(event.origin);
+    const tw = this.geometry.tileSize.width;
+    this.shake(this.reduced ? 0 : 18, 1300);
+    for (let i = 0; i < 3; i++) {
+      this.at(i * 180, () => this.ring(a.x, a.y, { r0: 6, rMax: tw * 2.8, dur: 700, color: "#a3722c", width: 4 }));
+    }
+    for (const scar of plans.scars) {
+      this.writings.push({ scar: scar as Scar & { kind: "fracture" }, born: performance.now(), perSegment: 40, emitted: 0 });
+    }
+    const cells = event.area ?? [];
+    cells.forEach((cell, i) => {
+      this.at(100 + i * 40, () => {
+        const c = this.screen(cell);
+        for (let j = 0; j < (this.reduced ? 1 : 3); j++) {
+          this.spawn({
+            x: c.x + rand(-8, 8),
+            y: c.y,
+            vx: rand(-40, 40),
+            vy: -rand(140, 280),
+            g: 640,
+            life: rand(600, 1000),
+            size: rand(3, 8),
+            rot: rand(0, TAU),
+            vrot: rand(-6, 6),
+            type: "chunk",
+            color: "#f4f4f2",
+          });
+        }
+        this.spawn({
+          x: c.x,
+          y: c.y,
+          vx: rand(-20, 20),
+          vy: rand(-30, -10),
+          g: 10,
+          life: rand(900, 1500),
+          size: rand(8, 14),
+          type: "smoke",
+          color: DUST,
+        });
+      });
+    });
+  }
+
+  private drawSwirls(ctx: CanvasRenderingContext2D, now: number) {
+    for (let i = this.swirls.length - 1; i >= 0; i--) {
+      const s = this.swirls[i];
+      const p = (now - s.born) / s.dur;
+      if (p >= 1) {
+        this.swirls.splice(i, 1);
+        continue;
+      }
+      const reach = s.r * (0.4 + 0.6 * ease(clamp01(p * 2)));
+      ctx.save();
+      ctx.globalAlpha = 1 - clamp01((p - 0.7) / 0.3);
+      for (let arm = 0; arm < 6; arm++) {
+        ctx.strokeStyle = arm % 2 ? "#8fb4ea" : INK;
+        ctx.lineWidth = 2.4;
+        ctx.beginPath();
+        for (let r = reach; r > 3; r -= 3) {
+          const ang = (arm / 6) * TAU + r * (6 / Math.max(1, s.r)) - p * 14;
+          const x = s.x + Math.cos(ang) * r;
+          const y = s.y + Math.sin(ang) * r * this.squash;
+          if (r === reach) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+  }
+
   frame(now: number) {
     const ctx = this.ctx;
 
@@ -928,6 +1706,7 @@ export class SpellFx {
 
     this.advanceWritings(now);
     this.drawBurns(ctx, now);
+    this.drawSwirls(ctx, now);
 
     for (let i = this.rings.length - 1; i >= 0; i--) {
       const r = this.rings[i];
@@ -948,6 +1727,8 @@ export class SpellFx {
     }
 
     this.drawBolts(air, now);
+    this.drawBeams(air, now);
+    this.drawHammers(air, now);
     this.drawParticles(air, now);
 
     if (this.flash) {

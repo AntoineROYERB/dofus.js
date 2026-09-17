@@ -11,20 +11,27 @@ have a whole match to yourself. The server sleeps after 15 minutes on the free
 tier, so the first connection can take a minute to come back — the board loads
 instantly either way.
 
-![Naming a fighter, picking a starting cell in the green block while the opponent's is marked off in red, and a Fireball landing for 18](docs/assets/demo.gif)
+![Picking a starting cell in the green block, a wall of fire laid across the board, and the bot answering with a Meteor that leaves a crater](docs/assets/demo.gif)
 
 <table>
 <tr>
-<td width="50%"><img src="docs/assets/01-landing.png" alt="Naming a fighter, who stands on a few cells of the board"></td>
-<td width="50%"><img src="docs/assets/02-lobby.png" alt="Lobby: open games and a solo match against the computer"></td>
+<td width="50%"><img src="docs/assets/01-landing.png" alt="Naming a fighter and picking a class, whose passive and five spells read underneath"></td>
+<td width="50%"><img src="docs/assets/02-lobby.png" alt="Lobby: the class's own opponent to challenge, open games, and a game to create"></td>
 </tr>
 <tr>
 <td width="50%"><img src="docs/assets/03-placement.png" alt="Placement: three adjacent cells to start on, in green; the opponent's block is marked off in red"></td>
-<td width="50%"><img src="docs/assets/04-combat.png" alt="Combat: cast range outlined, area of effect marked, estimated damage above the target"></td>
+<td width="50%"><img src="docs/assets/04-combat.png" alt="Combat: a wall of fire and a crater left on the board, burn counters over both fighters, and the spell bar naming each spell's role"></td>
 </tr>
 </table>
 
-<img src="docs/assets/05-phone.png" alt="The same fight on a phone held sideways" width="100%">
+<table>
+<tr>
+<td width="50%"><img src="docs/assets/06-phone-home.png" alt="The phone's home screen: the fighter on a stand, its class and passive, one Play button"></td>
+<td width="50%"><img src="docs/assets/05-phone.png" alt="The same fight on a phone held sideways: the spells in an arc under the thumb, and a card explaining the fire a cell is carrying"></td>
+</tr>
+</table>
+
+![The same fight on a phone: a wall of fire, the bot's Meteor, and the spells in an arc under the thumb](docs/assets/demo-phone.gif)
 
 On a phone, hold it sideways. The lobby becomes a home screen: your fighter in
 the middle, arrows (or a swipe) to slide through the classes with the others
@@ -32,7 +39,7 @@ waiting faded on either side, a tap on your name to rename, and one big Play
 button under the right thumb. In a fight the board takes the whole screen and
 the controls float over its corners — turn order top left, your HP, AP and MP
 bottom left, and your spells in an arc around the End turn button bottom
-right, folded down to three until you need the rest.
+right, all five of them on one ring.
 
 There is no hovering on a touch screen, so a tap previews a cell — its walk,
 its area of effect, who it would hit and what they would be left with — and a
@@ -51,16 +58,23 @@ Then open <http://localhost>. Pick a name, a colour and a class, and either
 **challenge the computer** or open a game and wait for someone to join. Two
 browser tabs are enough for a real 1v1.
 
-There are four classes, one per element: the **Pyromancer** (raw damage), the
-**Windwalker** (poison and movement), the **Tidecaller** (control and sustain)
-and the **Stonewarden** (defence, and reach through cover). Each carries two
-signature spells on top of a shared pool. In solo play each class is a named
-opponent, and beating one unlocks the next.
+There are four classes, one per element: the **Pyromancer** (burns that stack
+and then go off at once), the **Windwalker** (reach, through a relay it sets
+across the board, and displacement), the **Tidecaller** (control: traps, ice
+and water) and the **Stonewarden** (a brawler that leaps into reach and walls
+off the way out). Each carries five spells of its own element, every one with
+its own job, and one **ultimate** — cast once a fight, from turn 2. In solo
+play each class is a named opponent, and beating one unlocks the next.
 
-Number keys `1`–`8` pick a spell, `Escape` drops the selection, and on a touch
+Spells change the board and what they leave stays for the rest of the fight:
+fire that burns whoever walks in, smoke nothing is seen through, water that
+slows enemies and puts fire out, ice you slide across, bubble traps, pillars,
+craters and fissures nobody walks through. Hover a changed cell to read what
+it does.
+
+Number keys `1`–`5` pick a spell, `Escape` drops the selection, and on a touch
 screen a first tap previews a cell while a second one acts on it. Cover blocks
-both movement and line of sight; Earth spells are the ones that reach through
-it.
+both movement and line of sight; smoke blocks sight alone.
 
 <details>
 <summary>Without Docker</summary>
@@ -110,7 +124,8 @@ stops the server with the file, the field and the problem, instead of shipping
 a fight that breaks on the first cast. Adding a class is a `classes.json` edit.
 Balance is a test rather than an opinion: every class is played against every
 class by the server's own bot over seeded matches, and CI fails if any class
-wins more than 65% of a matchup or fights stop lasting four to eight turns.
+wins more than 65% of a matchup or fights stop lasting four to eight turns. The
+shipped kits sit between 40% and 60%, over fights of five turns.
 
 **Rendering is hand-written.** No game engine: the isometric projection, the
 back-to-front draw order, the screen-to-grid hit test and the sprite-sheet
@@ -168,8 +183,8 @@ Copy `.env.example` to `.env`. Everything has a working default.
 | `TURN_SECONDS` | `45` | How long a player gets before their turn passes on |
 | `STATIC_DIR` | unset | When set, the Go binary also serves the built frontend |
 | `BALANCE_FILE` | `config/balance.json` | Default health, action points and movement points, for every class that does not set its own. Edit `backend/config/balance.json` to retune every fight at once. A missing file falls back to built-in defaults. |
-| `SPELLS_FILE` | `config/spells.json` | Every spell, keyed by id, and one colour per element. Validated at startup: the server refuses to start on a bad file. |
-| `CLASSES_FILE` | `config/classes.json` | Every class, in picker order: name, element, symbol, palette, lore, optional health/AP/MP overrides, spell bar (1 to 8 ids), the named solo opponent with its two lines, and which class unlocks it. Validated at startup like `SPELLS_FILE`. |
+| `SPELLS_FILE` | `config/spells.json` | Every spell, keyed by id, and one colour per element. Beyond cost, range, damage and area, a spell says what it is for (`role`), whether it is an `ultimate`, what it may be aimed at (`targeting`), how far it pushes or pulls (`push`), what `terrain` or `zone` it leaves, and which `special` it runs. Validated at startup: the server refuses to start on a bad file. |
+| `CLASSES_FILE` | `config/classes.json` | Every class, in picker order: name, element, symbol, palette, lore, the passive line the picker shows, optional health/AP/MP overrides, the melee bonus and push resistance it fights with, its spell bar (1 to 8 ids; the shipped classes carry five), the named solo opponent with its two lines, and which class unlocks it. Validated at startup like `SPELLS_FILE`. |
 | `LOG_FORMAT` | `json` | Server log format: `json` for an aggregator, `text` for a terminal |
 | `LOG_LEVEL` | `info` | Minimum log level: `debug`, `info`, `warn` or `error` |
 | `METRICS_ADDR` | `127.0.0.1:9090` | Listen address for `/metrics` (Prometheus), served on its own loopback-only listener — see [Performance](#performance). Empty disables it. |
@@ -307,10 +322,14 @@ web views, so the app plays anonymously.
 
 ```bash
 cd backend && go test -race ./...     # rules, lobby, turn cycle, bot, content, balance
-cd frontend && npm test               # isometric geometry, spell bar, solo arc, phone HUD
+cd frontend && npm test               # isometric geometry, spell text, terrain, solo arc, phone HUD
 cd frontend && npm test -- --coverage # the same, failing if the phone HUD's logic loses coverage
 cd frontend && npm run lint && npm run build
 ```
+
+The README's screenshots and GIFs are shot by a script, against a real server,
+so they cannot drift from the game: see `frontend/scripts/shoot-readme.mjs`
+for the two commands.
 
 The phone layout's decisions — the spell arc's slots and folding, the class
 line-up, what the confirm bubble offers and where it opens, the board's tile

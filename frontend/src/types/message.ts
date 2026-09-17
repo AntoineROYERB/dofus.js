@@ -61,7 +61,7 @@ export type Spell = {
   APCost: number;
   range: number;
   damage: number;
-  areaOfEffect: "none" | "circle" | "cross" | "line";
+  areaOfEffect: "none" | "circle" | "cross" | "line" | "wall";
   element: string;
   description: string;
   needsLineOfSight: boolean;
@@ -71,6 +71,63 @@ export type Spell = {
   criticalDamage: number;
   /** Status effect left behind on top of the damage, when the spell has one. */
   effect: SpellEffect | null;
+  /** The one word the bar shows for what this spell is for. */
+  role: string;
+  /** Cast once a fight, and not before turn 2. */
+  ultimate: boolean;
+  /** Any cell in range, the caster's own, or a cell with nothing on it. */
+  targeting: "any" | "self" | "empty";
+  /** Cells everyone hit is thrown back; negative drags them in. */
+  push: number;
+  /** Terrain left on the covered cells for the rest of the fight. */
+  terrain: SpreadTerrain | "";
+  /** Weather the spell leaves over the covered cells for a few turns. */
+  zone: { kind: ZoneKind; duration: number } | null;
+  /** Movement points the caster gains on the spot. */
+  grantMP: number;
+  special: SpellSpecial | "";
+  /** May be cast from the caster's relay. */
+  relayed: boolean;
+  /** Double damage on a target standing in water. */
+  conducts: boolean;
+};
+
+export type SpellSpecial =
+  | "detonate"
+  | "leap"
+  | "relay"
+  | "pillar"
+  | "crater"
+  | "quake";
+
+/** Terrain a spell spreads over its area. */
+export type SpreadTerrain = "fire" | "smoke" | "water" | "ice" | "trap";
+
+/** Everything that can be lying on a cell. */
+export type TerrainKind =
+  | SpreadTerrain
+  | "relay"
+  | "crater"
+  | "fissure"
+  /** A raised pillar: the obstacle itself is in `obstacles`. */
+  | "pillar";
+
+export type TerrainCell = {
+  position: Position;
+  kind: TerrainKind;
+  /** Who made it: water heals only its owner, traps never catch theirs. */
+  owner: string;
+};
+
+export type ZoneKind = "storm" | "maelstrom";
+
+export type Zone = {
+  kind: ZoneKind;
+  owner: string;
+  center: Position;
+  cells: Position[];
+  /** Counts down at the start of each of its owner's turns. */
+  turnsLeft: number;
 };
 
 export type SpellEffect = {
@@ -81,7 +138,14 @@ export type SpellEffect = {
   onSelf: boolean;
 };
 
-export type EffectKind = "poison" | "regen" | "ap" | "mp" | "shield";
+export type EffectKind =
+  | "poison"
+  | "regen"
+  | "ap"
+  | "mp"
+  | "shield"
+  | "burn"
+  | "root";
 
 /** A status effect riding on a character. */
 export type Effect = {
@@ -95,6 +159,8 @@ export type Effect = {
 export type SpellState = {
   castsThisTurn: number;
   cooldownLeft: number;
+  /** An ultimate already cast this fight. */
+  spent?: boolean;
 };
 
 /** One line of the combat log. */
@@ -119,6 +185,8 @@ export type LogEntry = {
   spellId?: number;
   origin?: Position;
   target?: Position;
+  /** The relay an air spell went out from, when it did. */
+  via?: Position;
 };
 
 export type SpellBook = { [spellId: string]: Spell };
@@ -135,6 +203,12 @@ export type CharacterClass = {
   symbol: string;
   palette: { primary: string; secondary: string };
   lore: string;
+  /** The class's standing rule, one sentence. */
+  passive: string;
+  /** Extra damage, in percent, against a target standing next to it. */
+  meleeBonus?: number;
+  /** How many cells shorter every push against the class is. */
+  pushResist?: number;
   health: number;
   actionPoints: number;
   movementPoints: number;
@@ -164,6 +238,10 @@ export interface GameState {
   log: LogEntry[] | null;
   /** Cells nobody can stand on and nothing can be seen through. */
   obstacles: Position[] | null;
+  /** What spells have left on the board, for the rest of the fight. */
+  terrain?: TerrainCell[] | null;
+  /** Areas ultimates keep acting on for a few turns. */
+  zones?: Zone[] | null;
 }
 
 export interface GameStateMessage {

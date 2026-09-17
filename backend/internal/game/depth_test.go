@@ -267,14 +267,14 @@ func TestShieldSoaksDamage(t *testing.T) {
 	g.players["b"] = p
 	g.mu.Unlock()
 
-	// Frost Nova deals 10; six of it is soaked. Force a normal hit.
+	// Frozen Ground deals 10; six of it is soaked. Force a normal hit.
 	g.mu.Lock()
-	spell := g.spells["5"]
+	spell := g.spells["14"]
 	spell.CriticalChance = 0
-	g.spells["5"] = spell
+	g.spells["14"] = spell
 	g.mu.Unlock()
 
-	if err := g.CastSpell("a", 5, types.Position{X: 0, Y: 3}); err != nil {
+	if err := g.CastSpell("a", 14, types.Position{X: 0, Y: 3}); err != nil {
 		t.Fatalf("CastSpell: %v", err)
 	}
 	if hp := g.Snapshot().Players["b"].Character.Health; hp != StartingHealth-4 {
@@ -357,7 +357,7 @@ func TestRegenIsCappedAtFullHealth(t *testing.T) {
 func TestSpellsCanCarryAnEffect(t *testing.T) {
 	g := twoPlayerGame(t)
 
-	// Ember carries no effect of its own, so the one under test is the only one.
+	// Kindle's own burn is swapped for the effect under test.
 	g.mu.Lock()
 	spell := g.spells["1"]
 	spell.Effect = &types.SpellEffect{Kind: types.EffectPoison, Value: 4, Duration: 2}
@@ -372,7 +372,7 @@ func TestSpellsCanCarryAnEffect(t *testing.T) {
 	if len(fx) != 1 || fx[0].Kind != types.EffectPoison || fx[0].Value != 4 {
 		t.Fatalf("effects on the target = %+v, want one poison of 4", fx)
 	}
-	if fx[0].Source != "Ember" {
+	if fx[0].Source != "Kindle" {
 		t.Errorf("source = %q, want the spell's name", fx[0].Source)
 	}
 }

@@ -1,25 +1,9 @@
 import { barSpells, isUnlocked, nextChallenge, unlockedBy } from "./classUtils";
 import { Player } from "../types/game";
 import { CharacterClass, Spell, SpellBook } from "../types/message";
+import { makeSpell } from "../test/fixtures";
 
-const spell = (id: number): Spell => ({
-  id,
-  name: `Spell ${id}`,
-  color: "#000000",
-  icon: "*",
-  APCost: 2,
-  range: 3,
-  damage: 5,
-  areaOfEffect: "none",
-  element: "Fire",
-  description: "",
-  needsLineOfSight: true,
-  maxCastsPerTurn: 1,
-  cooldown: 0,
-  criticalChance: 0,
-  criticalDamage: 5,
-  effect: null,
-});
+const spell = (id: number): Spell => makeSpell({ id, name: `Spell ${id}` });
 
 const book: SpellBook = { "1": spell(1), "2": spell(2), "3": spell(3), "10": spell(10) };
 
@@ -33,6 +17,7 @@ const cls = (id: string, unlocked = ""): CharacterClass => ({
   symbol: "*",
   palette: { primary: "#000000", secondary: "#ffffff" },
   lore: "",
+  passive: "",
   health: 100,
   actionPoints: 6,
   movementPoints: 4,

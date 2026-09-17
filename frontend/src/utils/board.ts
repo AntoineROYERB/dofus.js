@@ -1,4 +1,6 @@
 import { Position } from "../types/game";
+import { TerrainCell } from "../types/message";
+import { isSolidTerrain } from "./terrain";
 
 /** Matches GridRadius on the server: the board is a diamond of this radius. */
 export const GRID_RADIUS = 7;
@@ -126,14 +128,40 @@ export const hasLineOfSight = (
   return true;
 };
 
-/** Builds the "this cell is in the way" test from the board's contents. */
+/**
+ * Builds the "a walker cannot go here" test from the board's contents: cover,
+ * craters and fissures, and everyone standing on it.
+ */
 export const blockedBy = (
   obstacles: Position[] | null | undefined,
-  occupied: Position[]
+  occupied: Position[],
+  terrain?: TerrainCell[] | null
 ): ((p: Position) => boolean) => {
   const taken = new Set<string>([
     ...(obstacles ?? []).map(key),
     ...occupied.map(key),
+    ...(terrain ?? [])
+      .filter((cell) => isSolidTerrain(cell.kind))
+      .map((cell) => key(cell.position)),
+  ]);
+  return (p: Position) => taken.has(key(p));
+};
+
+/**
+ * Builds the "nothing is seen past this" test: cover, smoke, and everyone
+ * standing on the board. Craters and fissures are holes, not walls.
+ */
+export const sightBlockedBy = (
+  obstacles: Position[] | null | undefined,
+  occupied: Position[],
+  terrain?: TerrainCell[] | null
+): ((p: Position) => boolean) => {
+  const taken = new Set<string>([
+    ...(obstacles ?? []).map(key),
+    ...occupied.map(key),
+    ...(terrain ?? [])
+      .filter((cell) => cell.kind === "smoke")
+      .map((cell) => key(cell.position)),
   ]);
   return (p: Position) => taken.has(key(p));
 };

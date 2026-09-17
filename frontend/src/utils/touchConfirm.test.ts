@@ -1,25 +1,46 @@
 import { bubblePlacement, confirmActionFor } from "./touchConfirm";
 import { Player } from "../types/game";
 import { Spell } from "../types/message";
+import { makeSpell } from "../test/fixtures";
 
-const spell = (overrides: Partial<Spell> = {}): Spell => ({
-  id: 1,
-  name: "Ember",
-  color: "#d8ae31",
-  icon: "*",
-  APCost: 2,
-  range: 4,
-  damage: 7,
-  areaOfEffect: "none",
-  element: "Fire",
-  description: "",
-  needsLineOfSight: true,
-  maxCastsPerTurn: 2,
-  cooldown: 0,
-  criticalChance: 0,
-  criticalDamage: 0,
-  effect: null,
-  ...overrides,
+const spell = (overrides: Partial<Spell> = {}): Spell =>
+  makeSpell({
+    name: "Ember",
+    color: "#d8ae31",
+    range: 4,
+    damage: 7,
+    maxCastsPerTurn: 2,
+    criticalDamage: 7,
+    ...overrides,
+  });
+
+describe("confirmActionFor with the new spells", () => {
+  const input = {
+    touchMode: true,
+    previewed: { x: 2, y: 0 },
+    isPositioningPhase: false,
+    isMyTurn: true,
+    castable: new Set(["2,0"]),
+    walkable: new Map([["2,0", 2]]),
+    characterPosition: { x: 0, y: 0 },
+    standing: undefined,
+    userId: "me",
+  };
+
+  it("shows the damage the cast will really do, and why", () => {
+    const action = confirmActionFor({
+      ...input,
+      selectedSpell: spell({ damage: 10 }),
+      expectedDamage: 13,
+      damageNote: "via relay",
+    });
+    expect(action?.detail).toBe("−13 via relay");
+  });
+
+  it("says what lies on the cell, for a move and for a cast", () => {
+    expect(confirmActionFor({ ...input, selectedSpell: undefined, ground: "Fire" })?.ground).toBe("Fire");
+    expect(confirmActionFor({ ...input, selectedSpell: spell(), ground: "Ice" })?.ground).toBe("Ice");
+  });
 });
 
 const fighter = (userId: string, name: string, health: number): Player =>

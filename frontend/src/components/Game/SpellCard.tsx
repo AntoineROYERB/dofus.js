@@ -2,7 +2,8 @@ import React from "react";
 import { createPortal } from "react-dom";
 import { Spell } from "../../types/message";
 import { Position } from "../../types/game";
-import { calculateImpactedCells } from "../../utils/spellUtils";
+import { calculateImpactedCells, spellMechanics } from "../../utils/spellUtils";
+import { RULES } from "../../utils/terrain";
 import { effectLook } from "./EffectBadges";
 import { SpellGlyph } from "./SpellGlyph";
 
@@ -49,7 +50,7 @@ const Fighter: React.FC<{ at: Position; color: string }> = ({ at, color }) => {
  */
 const SpellDemo: React.FC<{ spell: Spell }> = ({ spell }) => {
   const caster: Position = { x: 0, y: 0 };
-  const selfCast = spell.range === 0;
+  const selfCast = spell.targeting === "self";
   const target: Position = selfCast
     ? caster
     : { x: Math.min(Math.max(spell.range, 2), 4), y: 0 };
@@ -237,7 +238,10 @@ export const SpellCard: React.FC<SpellCardProps> = ({ spell, blocked }) => {
                 {spell.name}
               </p>
               <p className="font-mono text-[9px] uppercase tracking-label text-muted">
-                {spell.element} · {spell.APCost} AP
+                {spell.element} · {spell.APCost} AP ·{" "}
+                <span style={{ color: spell.ultimate ? "#8a6a10" : spell.color }}>
+                  {spell.role}
+                </span>
               </p>
             </div>
           </div>
@@ -253,7 +257,13 @@ export const SpellCard: React.FC<SpellCardProps> = ({ spell, blocked }) => {
           )}
           <Fact
             label="Range"
-            value={spell.range === 0 ? "self" : `${spell.range} cells`}
+            value={
+              spell.targeting === "self"
+                ? "self"
+                : spell.targeting === "empty"
+                  ? `a free cell within ${spell.range}`
+                  : `${spell.range} cells`
+            }
           />
           <Fact label="Area" value={area} />
           {spell.damage > 0 && (
@@ -269,24 +279,35 @@ export const SpellCard: React.FC<SpellCardProps> = ({ spell, blocked }) => {
           {effect && (
             <Fact
               label="Effect"
-              value={`${effectLook[effect.kind]?.icon ?? ""} ${
-                effect.value > 0 && effect.kind !== "poison" ? "+" : ""
-              }${effect.value} ${effectLook[effect.kind]?.label ?? effect.kind} · ${
-                effect.duration
-              }t · ${effect.onSelf ? "self" : "target"}`}
+              value={
+                effect.kind === "burn"
+                  ? `${effectLook.burn.icon} +${effect.value} burn · ${RULES.burnDamagePerStack}/turn each`
+                  : effect.kind === "root"
+                    ? `${effectLook.root.icon} cannot move · ${effect.onSelf ? "self" : "target"}`
+                    : `${effectLook[effect.kind]?.icon ?? ""} ${
+                        effect.value > 0 && effect.kind !== "poison" ? "+" : ""
+                      }${effect.value} ${effectLook[effect.kind]?.label ?? effect.kind} · ${
+                        effect.duration
+                      }t · ${effect.onSelf ? "self" : "target"}`
+              }
             />
+          )}
+          {spellMechanics(spell).length > 0 && (
+            <Fact label="Also" value={spellMechanics(spell).join(" · ")} />
           )}
           <Fact
             label="Use"
             value={
-              spell.cooldown > 0
+              spell.ultimate
+                ? `ultimate · once a fight, from turn ${RULES.ultimateFromTurn}`
+                : spell.cooldown > 0
                 ? `${spell.cooldown}-turn cooldown`
                 : spell.maxCastsPerTurn > 0
                   ? `${spell.maxCastsPerTurn}× a turn`
                   : "no limit"
             }
           />
-          {spell.range > 0 && (
+          {spell.range > 0 && spell.targeting !== "empty" && (
             <Fact
               label="Line of sight"
               value={spell.needsLineOfSight ? "needed" : "ignored"}

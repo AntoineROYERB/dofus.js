@@ -5,7 +5,7 @@
     "seed": 3,
     "startedAt": 1700000000000,
     "turnDurationMs": 3000,
-    "rules": "8bfc0ab85841dbbbbb18fd4c2033f5e9b02f4ec0eef5e659f99ba701ad1941cc",
+    "rules": "fbe92e4727a59625f381482080c207fe920ba774e2fb5e0607b3d86705519251",
     "commands": [
       {
         "seq": 1,
@@ -79,7 +79,7 @@
         "userId": "alice",
         "kind": "cast",
         "payload": {
-          "spellId": 9,
+          "spellId": 1,
           "target": {
             "x": -3,
             "y": -2
@@ -98,7 +98,7 @@
         "userId": "bob",
         "kind": "cast",
         "payload": {
-          "spellId": 9,
+          "spellId": 1,
           "target": {
             "x": 0,
             "y": 2
@@ -118,11 +118,12 @@
         "seq": 10,
         "at": 6609,
         "userId": "bob",
-        "kind": "move",
+        "kind": "cast",
         "payload": {
-          "position": {
-            "x": -2,
-            "y": -1
+          "spellId": 1,
+          "target": {
+            "x": 0,
+            "y": 2
           }
         }
       },
@@ -130,12 +131,11 @@
         "seq": 11,
         "at": 7151,
         "userId": "bob",
-        "kind": "cast",
+        "kind": "move",
         "payload": {
-          "spellId": 1,
-          "target": {
-            "x": 0,
-            "y": 2
+          "position": {
+            "x": -2,
+            "y": 1
           }
         }
       },
@@ -157,7 +157,7 @@
         "userId": "bob",
         "kind": "cast",
         "payload": {
-          "spellId": 2,
+          "spellId": 4,
           "target": {
             "x": 0,
             "y": 2
@@ -168,12 +168,11 @@
         "seq": 15,
         "at": 10831,
         "userId": "bob",
-        "kind": "cast",
+        "kind": "move",
         "payload": {
-          "spellId": 1,
-          "target": {
-            "x": 0,
-            "y": 2
+          "position": {
+            "x": -2,
+            "y": 0
           }
         }
       },
@@ -181,10 +180,11 @@
         "seq": 16,
         "at": 11750,
         "userId": "bob",
-        "kind": "move",
+        "kind": "cast",
         "payload": {
-          "position": {
-            "x": -1,
+          "spellId": 1,
+          "target": {
+            "x": 0,
             "y": 2
           }
         }
@@ -201,10 +201,10 @@
         "userId": "alice",
         "kind": "cast",
         "payload": {
-          "spellId": 2,
+          "spellId": 5,
           "target": {
-            "x": -1,
-            "y": 2
+            "x": -2,
+            "y": 0
           }
         }
       },
@@ -212,12 +212,11 @@
         "seq": 19,
         "at": 16219,
         "userId": "alice",
-        "kind": "cast",
+        "kind": "move",
         "payload": {
-          "spellId": 1,
-          "target": {
-            "x": -1,
-            "y": 2
+          "position": {
+            "x": -2,
+            "y": 3
           }
         }
       },
@@ -235,8 +234,8 @@
         "payload": {
           "spellId": 1,
           "target": {
-            "x": 0,
-            "y": 2
+            "x": -2,
+            "y": 3
           }
         }
       },
@@ -246,10 +245,10 @@
         "userId": "bob",
         "kind": "cast",
         "payload": {
-          "spellId": 9,
+          "spellId": 1,
           "target": {
-            "x": 0,
-            "y": 2
+            "x": -2,
+            "y": 3
           }
         }
       },
@@ -265,10 +264,10 @@
         "userId": "alice",
         "kind": "cast",
         "payload": {
-          "spellId": 9,
+          "spellId": 3,
           "target": {
-            "x": -1,
-            "y": 2
+            "x": -2,
+            "y": 0
           }
         }
       },
@@ -276,242 +275,78 @@
         "seq": 25,
         "at": 22809,
         "userId": "alice",
-        "kind": "cast",
-        "payload": {
-          "spellId": 1,
-          "target": {
-            "x": -1,
-            "y": 2
-          }
-        }
+        "kind": "end_turn"
       },
       {
         "seq": 26,
         "at": 24284,
-        "userId": "alice",
-        "kind": "timeout"
+        "userId": "bob",
+        "kind": "end_turn"
       },
       {
         "seq": 27,
-        "at": 24945,
-        "userId": "bob",
-        "kind": "cast",
-        "payload": {
-          "spellId": 2,
-          "target": {
-            "x": 0,
-            "y": 2
-          }
-        }
-      },
-      {
-        "seq": 28,
-        "at": 25716,
-        "userId": "bob",
-        "kind": "cast",
-        "payload": {
-          "spellId": 1,
-          "target": {
-            "x": 0,
-            "y": 2
-          }
-        }
-      },
-      {
-        "seq": 29,
-        "at": 26464,
-        "userId": "bob",
-        "kind": "end_turn"
-      },
-      {
-        "seq": 30,
-        "at": 27048,
-        "userId": "alice",
-        "kind": "cast",
-        "payload": {
-          "spellId": 2,
-          "target": {
-            "x": -1,
-            "y": 2
-          }
-        }
-      },
-      {
-        "seq": 31,
-        "at": 28320,
+        "at": 25055,
         "userId": "alice",
         "kind": "cast",
         "payload": {
           "spellId": 1,
           "target": {
-            "x": -1,
-            "y": 2
-          }
-        }
-      },
-      {
-        "seq": 32,
-        "at": 28669,
-        "userId": "alice",
-        "kind": "restart"
-      },
-      {
-        "seq": 33,
-        "at": 29716,
-        "userId": "alice",
-        "kind": "position",
-        "payload": {
-          "position": {
-            "x": 4,
-            "y": 2
-          }
-        }
-      },
-      {
-        "seq": 34,
-        "at": 30847,
-        "userId": "bob",
-        "kind": "position",
-        "payload": {
-          "position": {
-            "x": -4,
-            "y": -2
-          }
-        }
-      },
-      {
-        "seq": 35,
-        "at": 32432,
-        "userId": "alice",
-        "kind": "end_turn"
-      },
-      {
-        "seq": 36,
-        "at": 33599,
-        "userId": "bob",
-        "kind": "end_turn"
-      },
-      {
-        "seq": 37,
-        "at": 34181,
-        "userId": "alice",
-        "kind": "cast",
-        "payload": {
-          "spellId": 2,
-          "target": {
-            "x": 4,
-            "y": 2
-          }
-        }
-      },
-      {
-        "seq": 38,
-        "at": 34685,
-        "userId": "alice",
-        "kind": "move",
-        "payload": {
-          "position": {
-            "x": 2,
-            "y": 0
-          }
-        }
-      },
-      {
-        "seq": 39,
-        "at": 35078,
-        "userId": "alice",
-        "kind": "end_turn"
-      },
-      {
-        "seq": 40,
-        "at": 36677,
-        "userId": "bob",
-        "kind": "move",
-        "payload": {
-          "position": {
-            "x": -4,
-            "y": -1
-          }
-        }
-      },
-      {
-        "seq": 41,
-        "at": 37430,
-        "userId": "bob",
-        "kind": "cast",
-        "payload": {
-          "spellId": 9,
-          "target": {
-            "x": 2,
-            "y": 0
-          }
-        }
-      },
-      {
-        "seq": 42,
-        "at": 39035,
-        "userId": "bob",
-        "kind": "timeout"
-      },
-      {
-        "seq": 43,
-        "at": 40134,
-        "userId": "alice",
-        "kind": "cast",
-        "payload": {
-          "spellId": 9,
-          "target": {
-            "x": -4,
-            "y": -1
-          }
-        }
-      },
-      {
-        "seq": 44,
-        "at": 40934,
-        "userId": "alice",
-        "kind": "move",
-        "payload": {
-          "position": {
-            "x": 0,
-            "y": 0
-          }
-        }
-      },
-      {
-        "seq": 45,
-        "at": 41164,
-        "userId": "alice",
-        "kind": "cast",
-        "payload": {
-          "spellId": 1,
-          "target": {
-            "x": -4,
-            "y": -1
-          }
-        }
-      },
-      {
-        "seq": 46,
-        "at": 41612,
-        "userId": "alice",
-        "kind": "move",
-        "payload": {
-          "position": {
             "x": -2,
             "y": 0
           }
         }
       },
       {
-        "seq": 47,
-        "at": 42453,
+        "seq": 28,
+        "at": 25803,
         "userId": "alice",
-        "kind": "timeout"
+        "kind": "restart"
       },
       {
-        "seq": 48,
-        "at": 42815,
+        "seq": 29,
+        "at": 27058,
+        "userId": "alice",
+        "kind": "position",
+        "payload": {
+          "position": {
+            "x": -2,
+            "y": -3
+          }
+        }
+      },
+      {
+        "seq": 30,
+        "at": 27642,
+        "userId": "bob",
+        "kind": "position",
+        "payload": {
+          "position": {
+            "x": 4,
+            "y": 3
+          }
+        }
+      },
+      {
+        "seq": 31,
+        "at": 28962,
+        "userId": "bob",
+        "kind": "move",
+        "payload": {
+          "position": {
+            "x": 1,
+            "y": 2
+          }
+        }
+      },
+      {
+        "seq": 32,
+        "at": 30231,
+        "userId": "bob",
+        "kind": "end_turn"
+      },
+      {
+        "seq": 33,
+        "at": 31732,
         "userId": "alice",
         "kind": "connect",
         "payload": {
@@ -519,142 +354,179 @@
         }
       },
       {
-        "seq": 49,
-        "at": 43898,
-        "userId": "bob",
+        "seq": 34,
+        "at": 32314,
+        "userId": "alice",
         "kind": "cast",
         "payload": {
           "spellId": 2,
           "target": {
             "x": -2,
-            "y": 0
+            "y": -3
           }
         }
       },
       {
-        "seq": 50,
-        "at": 46856,
-        "userId": "bob",
-        "kind": "timeout"
-      },
-      {
-        "seq": 51,
-        "at": 48077,
-        "userId": "alice",
-        "kind": "cast",
-        "payload": {
-          "spellId": 2,
-          "target": {
-            "x": -4,
-            "y": -1
-          }
-        }
-      },
-      {
-        "seq": 52,
-        "at": 48458,
-        "userId": "alice",
-        "kind": "cast",
-        "payload": {
-          "spellId": 1,
-          "target": {
-            "x": -4,
-            "y": -1
-          }
-        }
-      },
-      {
-        "seq": 53,
-        "at": 49778,
+        "seq": 35,
+        "at": 32818,
         "userId": "alice",
         "kind": "move",
         "payload": {
           "position": {
-            "x": -5,
-            "y": -1
+            "x": -2,
+            "y": -2
           }
         }
       },
       {
-        "seq": 54,
-        "at": 51216,
-        "userId": "alice",
-        "kind": "timeout"
-      },
-      {
-        "seq": 55,
-        "at": 52555,
-        "userId": "bob",
-        "kind": "cast",
-        "payload": {
-          "spellId": 3,
-          "target": {
-            "x": -5,
-            "y": -1
-          }
-        }
-      },
-      {
-        "seq": 56,
-        "at": 53783,
-        "userId": "bob",
-        "kind": "cast",
-        "payload": {
-          "spellId": 9,
-          "target": {
-            "x": -5,
-            "y": -1
-          }
-        }
-      },
-      {
-        "seq": 57,
-        "at": 55199,
-        "userId": "bob",
-        "kind": "timeout"
-      },
-      {
-        "seq": 58,
-        "at": 56695,
-        "userId": "alice",
-        "kind": "cast",
-        "payload": {
-          "spellId": 9,
-          "target": {
-            "x": -4,
-            "y": -1
-          }
-        }
-      },
-      {
-        "seq": 59,
-        "at": 57696,
+        "seq": 36,
+        "at": 33211,
         "userId": "alice",
         "kind": "cast",
         "payload": {
           "spellId": 1,
           "target": {
-            "x": -4,
-            "y": -1
+            "x": 1,
+            "y": 2
           }
         }
       },
       {
-        "seq": 60,
-        "at": 58413,
+        "seq": 37,
+        "at": 34810,
         "userId": "alice",
         "kind": "timeout"
       },
       {
-        "seq": 61,
-        "at": 59290,
+        "seq": 38,
+        "at": 36058,
         "userId": "bob",
         "kind": "cast",
         "payload": {
-          "spellId": 2,
+          "spellId": 1,
           "target": {
-            "x": -5,
-            "y": -1
+            "x": 1,
+            "y": 2
+          }
+        }
+      },
+      {
+        "seq": 39,
+        "at": 37663,
+        "userId": "bob",
+        "kind": "cast",
+        "payload": {
+          "spellId": 1,
+          "target": {
+            "x": -2,
+            "y": -2
+          }
+        }
+      },
+      {
+        "seq": 40,
+        "at": 37900,
+        "userId": "bob",
+        "kind": "timeout"
+      },
+      {
+        "seq": 41,
+        "at": 38700,
+        "userId": "alice",
+        "kind": "cast",
+        "payload": {
+          "spellId": 3,
+          "target": {
+            "x": 1,
+            "y": 2
+          }
+        }
+      },
+      {
+        "seq": 42,
+        "at": 38930,
+        "userId": "alice",
+        "kind": "move",
+        "payload": {
+          "position": {
+            "x": -1,
+            "y": 1
+          }
+        }
+      },
+      {
+        "seq": 43,
+        "at": 39378,
+        "userId": "alice",
+        "kind": "cast",
+        "payload": {
+          "spellId": 4,
+          "target": {
+            "x": 1,
+            "y": 2
+          }
+        }
+      },
+      {
+        "seq": 44,
+        "at": 40219,
+        "userId": "alice",
+        "kind": "end_turn"
+      },
+      {
+        "seq": 45,
+        "at": 41704,
+        "userId": "bob",
+        "kind": "end_turn"
+      },
+      {
+        "seq": 46,
+        "at": 42401,
+        "userId": "alice",
+        "kind": "cast",
+        "payload": {
+          "spellId": 5,
+          "target": {
+            "x": 1,
+            "y": 2
+          }
+        }
+      },
+      {
+        "seq": 47,
+        "at": 43946,
+        "userId": "alice",
+        "kind": "end_turn"
+      },
+      {
+        "seq": 48,
+        "at": 44579,
+        "userId": "bob",
+        "kind": "cast",
+        "payload": {
+          "spellId": 5,
+          "target": {
+            "x": -1,
+            "y": 1
+          }
+        }
+      },
+      {
+        "seq": 49,
+        "at": 47077,
+        "userId": "bob",
+        "kind": "timeout"
+      },
+      {
+        "seq": 50,
+        "at": 48311,
+        "userId": "alice",
+        "kind": "cast",
+        "payload": {
+          "spellId": 3,
+          "target": {
+            "x": 2,
+            "y": 2
           }
         }
       }
@@ -672,37 +544,37 @@
           "symbol": "A",
           "class": "pyromancer",
           "position": {
-            "x": -5,
-            "y": -1
+            "x": -2,
+            "y": 1
           },
-          "actionPoints": 0,
+          "actionPoints": 2,
           "movementPoints": 4,
           "maxActionPoints": 6,
           "maxMovementPoints": 4,
           "isCurrentTurn": false,
           "initialPositions": [
             {
-              "x": 5,
-              "y": 2
+              "x": -3,
+              "y": -3
             },
             {
-              "x": 4,
-              "y": 2
+              "x": -2,
+              "y": -3
             },
             {
-              "x": 5,
-              "y": 1
+              "x": -4,
+              "y": -3
             }
           ],
-          "health": 0,
-          "maxHealth": 95,
-          "isAlive": false,
+          "health": 34,
+          "maxHealth": 90,
+          "isAlive": true,
           "effects": [
             {
-              "kind": "poison",
-              "value": 5,
+              "kind": "burn",
+              "value": 3,
               "turnsLeft": 2,
-              "source": "Venom"
+              "source": "Burn"
             }
           ]
         },
@@ -712,47 +584,37 @@
         "isBot": false,
         "spells": {
           "1": {
-            "castsThisTurn": 1,
-            "cooldownLeft": 0
-          },
-          "10": {
             "castsThisTurn": 0,
-            "cooldownLeft": 0
+            "cooldownLeft": 0,
+            "spent": false
           },
           "2": {
             "castsThisTurn": 0,
-            "cooldownLeft": 1
+            "cooldownLeft": 0,
+            "spent": false
           },
           "3": {
-            "castsThisTurn": 0,
-            "cooldownLeft": 0
+            "castsThisTurn": 1,
+            "cooldownLeft": 0,
+            "spent": false
           },
           "4": {
             "castsThisTurn": 0,
-            "cooldownLeft": 0
+            "cooldownLeft": 0,
+            "spent": false
           },
           "5": {
             "castsThisTurn": 0,
-            "cooldownLeft": 0
-          },
-          "7": {
-            "castsThisTurn": 0,
-            "cooldownLeft": 0
-          },
-          "9": {
-            "castsThisTurn": 1,
-            "cooldownLeft": 1
+            "cooldownLeft": 0,
+            "spent": true
           }
         },
         "spellBar": [
           "1",
           "2",
-          "9",
-          "10",
           "3",
-          "5",
-          "7",
-          "4"
+          "4",
+          "5"
         ]
       },
       "bob": {
@@ -764,31 +626,31 @@
           "symbol": "B",
           "class": "pyromancer",
           "position": {
-            "x": -4,
-            "y": -1
+            "x": 2,
+            "y": 2
           },
-          "actionPoints": 2,
+          "actionPoints": 0,
           "movementPoints": 4,
           "maxActionPoints": 6,
           "maxMovementPoints": 4,
           "isCurrentTurn": false,
           "initialPositions": [
             {
-              "x": -5,
-              "y": -2
+              "x": 3,
+              "y": 3
             },
             {
-              "x": -4,
-              "y": -2
+              "x": 4,
+              "y": 3
             },
             {
-              "x": -5,
-              "y": -1
+              "x": 2,
+              "y": 3
             }
           ],
-          "health": 32,
-          "maxHealth": 95,
-          "isAlive": true,
+          "health": 0,
+          "maxHealth": 90,
+          "isAlive": false,
           "effects": null
         },
         "isCurrentTurn": false,
@@ -798,730 +660,995 @@
         "spells": {
           "1": {
             "castsThisTurn": 0,
-            "cooldownLeft": 0
-          },
-          "10": {
-            "castsThisTurn": 0,
-            "cooldownLeft": 0
+            "cooldownLeft": 0,
+            "spent": false
           },
           "2": {
-            "castsThisTurn": 1,
-            "cooldownLeft": 2
+            "castsThisTurn": 0,
+            "cooldownLeft": 0,
+            "spent": false
           },
           "3": {
             "castsThisTurn": 0,
-            "cooldownLeft": 0
+            "cooldownLeft": 0,
+            "spent": false
           },
           "4": {
             "castsThisTurn": 0,
-            "cooldownLeft": 0
+            "cooldownLeft": 0,
+            "spent": false
           },
           "5": {
-            "castsThisTurn": 0,
-            "cooldownLeft": 0
-          },
-          "7": {
-            "castsThisTurn": 0,
-            "cooldownLeft": 0
-          },
-          "9": {
-            "castsThisTurn": 0,
-            "cooldownLeft": 0
+            "castsThisTurn": 1,
+            "cooldownLeft": 0,
+            "spent": true
           }
         },
         "spellBar": [
           "1",
           "2",
-          "9",
-          "10",
           "3",
-          "5",
-          "7",
-          "4"
+          "4",
+          "5"
         ]
       }
     },
-    "turnNumber": 5,
+    "turnNumber": 4,
     "status": "game_over",
     "spells": {
       "1": {
         "id": 1,
-        "name": "Ember",
+        "name": "Kindle",
         "color": "#dc2626",
         "icon": "🔥",
-        "APCost": 2,
-        "range": 5,
-        "damage": 7,
+        "APCost": 3,
+        "range": 7,
+        "damage": 6,
         "areaOfEffect": "none",
         "element": "Fire",
-        "description": "Fire · 7 damage · 2 AP · range 5 · three times a turn",
-        "needsLineOfSight": true,
-        "maxCastsPerTurn": 3,
-        "cooldown": 0,
-        "criticalChance": 20,
-        "criticalDamage": 11,
-        "effect": null
-      },
-      "10": {
-        "id": 10,
-        "name": "Cinders",
-        "color": "#dc2626",
-        "icon": "♨️",
-        "APCost": 3,
-        "range": 3,
-        "damage": 9,
-        "areaOfEffect": "cross",
-        "element": "Fire",
-        "description": "Fire · 9 damage · 3 AP · range 3 · cross · 1 turn cooldown",
-        "needsLineOfSight": true,
-        "maxCastsPerTurn": 1,
-        "cooldown": 1,
-        "criticalChance": 15,
-        "criticalDamage": 14,
-        "effect": null
-      },
-      "11": {
-        "id": 11,
-        "name": "Miasma",
-        "color": "#16a34a",
-        "icon": "🌫️",
-        "APCost": 4,
-        "range": 5,
-        "damage": 3,
-        "areaOfEffect": "circle",
-        "element": "Air",
-        "description": "Air · 3 damage then 4 a turn for 3 turns · 4 AP · range 5 · circle · 2 turn cooldown",
-        "needsLineOfSight": true,
-        "maxCastsPerTurn": 1,
-        "cooldown": 2,
-        "criticalChance": 15,
-        "criticalDamage": 5,
-        "effect": {
-          "kind": "poison",
-          "value": 4,
-          "duration": 3,
-          "onSelf": false
-        }
-      },
-      "12": {
-        "id": 12,
-        "name": "Crosswind",
-        "color": "#16a34a",
-        "icon": "🍃",
-        "APCost": 3,
-        "range": 5,
-        "damage": 7,
-        "areaOfEffect": "line",
-        "element": "Air",
-        "description": "Air · 7 damage and −1 movement for 2 turns · 3 AP · range 5 · line · twice a turn",
+        "description": "Sets the target alight: 6 damage and one more burn.",
         "needsLineOfSight": true,
         "maxCastsPerTurn": 2,
         "cooldown": 0,
         "criticalChance": 15,
-        "criticalDamage": 11,
+        "criticalDamage": 9,
         "effect": {
-          "kind": "mp",
-          "value": -1,
-          "duration": 2,
+          "kind": "burn",
+          "value": 1,
+          "duration": 3,
           "onSelf": false
-        }
+        },
+        "role": "Burn",
+        "ultimate": false,
+        "targeting": "any",
+        "push": 0,
+        "terrain": "",
+        "zone": null,
+        "grantMP": 0,
+        "special": "",
+        "relayed": false,
+        "conducts": false
       },
-      "13": {
-        "id": 13,
-        "name": "Undertow",
+      "10": {
+        "id": 10,
+        "name": "Tempest",
+        "color": "#16a34a",
+        "icon": "🌩️",
+        "APCost": 6,
+        "range": 8,
+        "damage": 12,
+        "areaOfEffect": "circle",
+        "element": "Air",
+        "description": "12 damage in a wide area, then a storm that strikes every enemy inside for 3 turns. 30% more through your relay.",
+        "needsLineOfSight": false,
+        "maxCastsPerTurn": 1,
+        "cooldown": 0,
+        "criticalChance": 10,
+        "criticalDamage": 16,
+        "effect": null,
+        "role": "Ultimate",
+        "ultimate": true,
+        "targeting": "any",
+        "push": 0,
+        "terrain": "",
+        "zone": {
+          "kind": "storm",
+          "duration": 3
+        },
+        "grantMP": 0,
+        "special": "",
+        "relayed": true,
+        "conducts": false
+      },
+      "11": {
+        "id": 11,
+        "name": "Hydro Cannon",
         "color": "#2563eb",
         "icon": "🌊",
-        "APCost": 4,
+        "APCost": 3,
         "range": 5,
-        "damage": 9,
+        "damage": 12,
         "areaOfEffect": "none",
         "element": "Water",
-        "description": "Water · 9 damage and −2 action points for 2 turns · 4 AP · range 5 · 2 turn cooldown",
+        "description": "A huge jet of water: 12 damage, throws the target 3 cells back, and leaves water where it stood.",
         "needsLineOfSight": true,
         "maxCastsPerTurn": 1,
-        "cooldown": 2,
+        "cooldown": 3,
         "criticalChance": 15,
-        "criticalDamage": 14,
-        "effect": {
-          "kind": "ap",
-          "value": -2,
-          "duration": 2,
-          "onSelf": false
-        }
+        "criticalDamage": 17,
+        "effect": null,
+        "role": "Knockback",
+        "ultimate": false,
+        "targeting": "any",
+        "push": 3,
+        "terrain": "water",
+        "zone": null,
+        "grantMP": 0,
+        "special": "",
+        "relayed": false,
+        "conducts": false
       },
-      "14": {
-        "id": 14,
-        "name": "Tide Pool",
+      "12": {
+        "id": 12,
+        "name": "Bubble Trap",
         "color": "#2563eb",
         "icon": "🫧",
         "APCost": 2,
-        "range": 0,
+        "range": 6,
         "damage": 0,
-        "areaOfEffect": "none",
-        "element": "Water",
-        "description": "Water · heals you 5 a turn for 3 turns · 2 AP · cast on yourself · 3 turn cooldown",
-        "needsLineOfSight": false,
-        "maxCastsPerTurn": 1,
-        "cooldown": 3,
-        "criticalChance": 0,
-        "criticalDamage": 0,
-        "effect": {
-          "kind": "regen",
-          "value": 5,
-          "duration": 3,
-          "onSelf": true
-        }
-      },
-      "15": {
-        "id": 15,
-        "name": "Rockfall",
-        "color": "#b45309",
-        "icon": "🪨",
-        "APCost": 4,
-        "range": 6,
-        "damage": 11,
-        "areaOfEffect": "circle",
-        "element": "Earth",
-        "description": "Earth · 11 damage · 4 AP · range 6 · circle · ignores line of sight · 2 turn cooldown",
-        "needsLineOfSight": false,
-        "maxCastsPerTurn": 1,
-        "cooldown": 2,
-        "criticalChance": 15,
-        "criticalDamage": 16,
-        "effect": null
-      },
-      "16": {
-        "id": 16,
-        "name": "Quake",
-        "color": "#b45309",
-        "icon": "🌋",
-        "APCost": 3,
-        "range": 2,
-        "damage": 9,
         "areaOfEffect": "cross",
-        "element": "Earth",
-        "description": "Earth · 9 damage and −2 movement for 2 turns · 3 AP · range 2 · cross · ignores line of sight",
-        "needsLineOfSight": false,
-        "maxCastsPerTurn": 1,
-        "cooldown": 1,
-        "criticalChance": 10,
-        "criticalDamage": 13,
-        "effect": {
-          "kind": "mp",
-          "value": -2,
-          "duration": 2,
-          "onSelf": false
-        }
-      },
-      "2": {
-        "id": 2,
-        "name": "Fireball",
-        "color": "#dc2626",
-        "icon": "☄️",
-        "APCost": 4,
-        "range": 6,
-        "damage": 18,
-        "areaOfEffect": "circle",
-        "element": "Fire",
-        "description": "Fire · 18 damage · 4 AP · range 6 · circle blast · 2 turn cooldown",
+        "element": "Water",
+        "description": "Sets bubbles on the free cells of a cross. The first enemy to step on one takes 10 damage and cannot move again this turn.",
         "needsLineOfSight": true,
         "maxCastsPerTurn": 1,
         "cooldown": 2,
-        "criticalChance": 15,
-        "criticalDamage": 27,
-        "effect": null
+        "criticalChance": 0,
+        "criticalDamage": 0,
+        "effect": null,
+        "role": "Trap",
+        "ultimate": false,
+        "targeting": "any",
+        "push": 0,
+        "terrain": "trap",
+        "zone": null,
+        "grantMP": 0,
+        "special": "",
+        "relayed": false,
+        "conducts": false
       },
-      "3": {
-        "id": 3,
-        "name": "Venom",
-        "color": "#16a34a",
-        "icon": "☠️",
+      "13": {
+        "id": 13,
+        "name": "Downpour",
+        "color": "#2563eb",
+        "icon": "🌧️",
+        "APCost": 3,
+        "range": 7,
+        "damage": 3,
+        "areaOfEffect": "circle",
+        "element": "Water",
+        "description": "3 damage and a wide area of water for good: enemies starting a turn in it lose 1 MP, you heal 5.",
+        "needsLineOfSight": false,
+        "maxCastsPerTurn": 1,
+        "cooldown": 2,
+        "criticalChance": 0,
+        "criticalDamage": 3,
+        "effect": null,
+        "role": "Sustain",
+        "ultimate": false,
+        "targeting": "any",
+        "push": 0,
+        "terrain": "water",
+        "zone": null,
+        "grantMP": 0,
+        "special": "",
+        "relayed": false,
+        "conducts": false
+      },
+      "14": {
+        "id": 14,
+        "name": "Frozen Ground",
+        "color": "#2563eb",
+        "icon": "🧊",
+        "APCost": 3,
+        "range": 6,
+        "damage": 10,
+        "areaOfEffect": "cross",
+        "element": "Water",
+        "description": "10 damage and a cross of ice for good: whoever steps on it slides to the far side.",
+        "needsLineOfSight": true,
+        "maxCastsPerTurn": 2,
+        "cooldown": 0,
+        "criticalChance": 15,
+        "criticalDamage": 13,
+        "effect": null,
+        "role": "Slide",
+        "ultimate": false,
+        "targeting": "any",
+        "push": 0,
+        "terrain": "ice",
+        "zone": null,
+        "grantMP": 0,
+        "special": "",
+        "relayed": false,
+        "conducts": false
+      },
+      "15": {
+        "id": 15,
+        "name": "Maelstrom",
+        "color": "#2563eb",
+        "icon": "🌀",
+        "APCost": 6,
+        "range": 7,
+        "damage": 12,
+        "areaOfEffect": "cross",
+        "element": "Water",
+        "description": "12 damage in a cross, strips every buff, and holds the enemies in place for a turn. For 3 turns it drags them back to its centre.",
+        "needsLineOfSight": false,
+        "maxCastsPerTurn": 1,
+        "cooldown": 0,
+        "criticalChance": 10,
+        "criticalDamage": 16,
+        "effect": {
+          "kind": "root",
+          "value": 1,
+          "duration": 1,
+          "onSelf": false
+        },
+        "role": "Ultimate",
+        "ultimate": true,
+        "targeting": "any",
+        "push": 0,
+        "terrain": "",
+        "zone": {
+          "kind": "maelstrom",
+          "duration": 3
+        },
+        "grantMP": 0,
+        "special": "",
+        "relayed": false,
+        "conducts": false
+      },
+      "16": {
+        "id": 16,
+        "name": "Earthleap",
+        "color": "#b45309",
+        "icon": "🦘",
         "APCost": 2,
         "range": 5,
         "damage": 4,
         "areaOfEffect": "none",
+        "element": "Earth",
+        "description": "Leap onto a free cell up to 5 away. The landing does 4 damage to everyone next to it.",
+        "needsLineOfSight": false,
+        "maxCastsPerTurn": 1,
+        "cooldown": 2,
+        "criticalChance": 0,
+        "criticalDamage": 4,
+        "effect": null,
+        "role": "Mobility",
+        "ultimate": false,
+        "targeting": "empty",
+        "push": 0,
+        "terrain": "",
+        "zone": null,
+        "grantMP": 0,
+        "special": "leap",
+        "relayed": false,
+        "conducts": false
+      },
+      "17": {
+        "id": 17,
+        "name": "Hammer",
+        "color": "#b45309",
+        "icon": "🔨",
+        "APCost": 4,
+        "range": 1,
+        "damage": 12,
+        "areaOfEffect": "none",
+        "element": "Earth",
+        "description": "12 damage to a target next to you, and 2 MP off its next turn so it cannot get away.",
+        "needsLineOfSight": true,
+        "maxCastsPerTurn": 1,
+        "cooldown": 0,
+        "criticalChance": 15,
+        "criticalDamage": 17,
+        "effect": {
+          "kind": "mp",
+          "value": -2,
+          "duration": 1,
+          "onSelf": false
+        },
+        "role": "Melee",
+        "ultimate": false,
+        "targeting": "any",
+        "push": 0,
+        "terrain": "",
+        "zone": null,
+        "grantMP": 0,
+        "special": "",
+        "relayed": false,
+        "conducts": false
+      },
+      "18": {
+        "id": 18,
+        "name": "Stone Grapple",
+        "color": "#b45309",
+        "icon": "⛓️",
+        "APCost": 3,
+        "range": 6,
+        "damage": 6,
+        "areaOfEffect": "none",
+        "element": "Earth",
+        "description": "6 damage and drags the target 2 cells towards you.",
+        "needsLineOfSight": true,
+        "maxCastsPerTurn": 1,
+        "cooldown": 0,
+        "criticalChance": 10,
+        "criticalDamage": 9,
+        "effect": null,
+        "role": "Pull",
+        "ultimate": false,
+        "targeting": "any",
+        "push": -2,
+        "terrain": "",
+        "zone": null,
+        "grantMP": 0,
+        "special": "",
+        "relayed": false,
+        "conducts": false
+      },
+      "19": {
+        "id": 19,
+        "name": "Pillar",
+        "color": "#b45309",
+        "icon": "🧱",
+        "APCost": 2,
+        "range": 6,
+        "damage": 0,
+        "areaOfEffect": "none",
+        "element": "Earth",
+        "description": "Raises a pillar of rock on a free cell, for good. Nothing walks through it or sees past it.",
+        "needsLineOfSight": true,
+        "maxCastsPerTurn": 1,
+        "cooldown": 2,
+        "criticalChance": 0,
+        "criticalDamage": 0,
+        "effect": null,
+        "role": "Wall",
+        "ultimate": false,
+        "targeting": "empty",
+        "push": 0,
+        "terrain": "",
+        "zone": null,
+        "grantMP": 0,
+        "special": "pillar",
+        "relayed": false,
+        "conducts": false
+      },
+      "2": {
+        "id": 2,
+        "name": "Scorched Earth",
+        "color": "#dc2626",
+        "icon": "🟧",
+        "APCost": 3,
+        "range": 5,
+        "damage": 5,
+        "areaOfEffect": "wall",
+        "element": "Fire",
+        "description": "5 damage and a wall of fire five cells wide, straight across the cast, that stays for good. Anyone who walks in, or starts a turn there, catches a burn.",
+        "needsLineOfSight": true,
+        "maxCastsPerTurn": 1,
+        "cooldown": 1,
+        "criticalChance": 10,
+        "criticalDamage": 7,
+        "effect": null,
+        "role": "Firewall",
+        "ultimate": false,
+        "targeting": "any",
+        "push": 0,
+        "terrain": "fire",
+        "zone": null,
+        "grantMP": 0,
+        "special": "",
+        "relayed": false,
+        "conducts": false
+      },
+      "20": {
+        "id": 20,
+        "name": "Earthquake",
+        "color": "#b45309",
+        "icon": "🌋",
+        "APCost": 6,
+        "range": 0,
+        "damage": 14,
+        "areaOfEffect": "circle",
+        "element": "Earth",
+        "description": "14 damage to every enemy within 2 cells and 2 MP off their next turn. Opens fissures around you for good.",
+        "needsLineOfSight": false,
+        "maxCastsPerTurn": 1,
+        "cooldown": 0,
+        "criticalChance": 10,
+        "criticalDamage": 20,
+        "effect": {
+          "kind": "mp",
+          "value": -2,
+          "duration": 1,
+          "onSelf": false
+        },
+        "role": "Ultimate",
+        "ultimate": true,
+        "targeting": "self",
+        "push": 0,
+        "terrain": "",
+        "zone": null,
+        "grantMP": 0,
+        "special": "quake",
+        "relayed": false,
+        "conducts": false
+      },
+      "3": {
+        "id": 3,
+        "name": "Combustion",
+        "color": "#dc2626",
+        "icon": "💥",
+        "APCost": 4,
+        "range": 7,
+        "damage": 6,
+        "areaOfEffect": "none",
+        "element": "Fire",
+        "description": "Makes the target's burns go off at once: 6 damage, plus everything they had left to burn.",
+        "needsLineOfSight": true,
+        "maxCastsPerTurn": 1,
+        "cooldown": 0,
+        "criticalChance": 10,
+        "criticalDamage": 9,
+        "effect": null,
+        "role": "Detonate",
+        "ultimate": false,
+        "targeting": "any",
+        "push": 0,
+        "terrain": "",
+        "zone": null,
+        "grantMP": 0,
+        "special": "detonate",
+        "relayed": false,
+        "conducts": false
+      },
+      "4": {
+        "id": 4,
+        "name": "Smokescreen",
+        "color": "#dc2626",
+        "icon": "🌫️",
+        "APCost": 2,
+        "range": 6,
+        "damage": 0,
+        "areaOfEffect": "cross",
+        "element": "Fire",
+        "description": "Fills a cross of cells with smoke that nothing can be seen through, for good.",
+        "needsLineOfSight": false,
+        "maxCastsPerTurn": 1,
+        "cooldown": 2,
+        "criticalChance": 0,
+        "criticalDamage": 0,
+        "effect": null,
+        "role": "Cover",
+        "ultimate": false,
+        "targeting": "any",
+        "push": 0,
+        "terrain": "smoke",
+        "zone": null,
+        "grantMP": 0,
+        "special": "",
+        "relayed": false,
+        "conducts": false
+      },
+      "5": {
+        "id": 5,
+        "name": "Meteor",
+        "color": "#dc2626",
+        "icon": "☄️",
+        "APCost": 6,
+        "range": 14,
+        "damage": 22,
+        "areaOfEffect": "circle",
+        "element": "Fire",
+        "description": "Anywhere on the board: 22 damage and two burns in a wide blast that throws everyone out of it. Digs a crater and leaves the ground around it on fire.",
+        "needsLineOfSight": false,
+        "maxCastsPerTurn": 1,
+        "cooldown": 0,
+        "criticalChance": 10,
+        "criticalDamage": 30,
+        "effect": {
+          "kind": "burn",
+          "value": 2,
+          "duration": 3,
+          "onSelf": false
+        },
+        "role": "Ultimate",
+        "ultimate": true,
+        "targeting": "any",
+        "push": 1,
+        "terrain": "fire",
+        "zone": null,
+        "grantMP": 0,
+        "special": "crater",
+        "relayed": false,
+        "conducts": false
+      },
+      "6": {
+        "id": 6,
+        "name": "Updraft",
+        "color": "#16a34a",
+        "icon": "🌬️",
+        "APCost": 2,
+        "range": 5,
+        "damage": 0,
+        "areaOfEffect": "none",
         "element": "Air",
-        "description": "Air · 4 damage then 5 a turn for 3 turns · 2 AP · range 5",
+        "description": "Sets your relay on a free cell. Your air spells go out from it whenever it reaches, and hit 30% harder from there.",
+        "needsLineOfSight": false,
+        "maxCastsPerTurn": 1,
+        "cooldown": 0,
+        "criticalChance": 0,
+        "criticalDamage": 0,
+        "effect": null,
+        "role": "Reach",
+        "ultimate": false,
+        "targeting": "empty",
+        "push": 0,
+        "terrain": "",
+        "zone": null,
+        "grantMP": 0,
+        "special": "relay",
+        "relayed": false,
+        "conducts": false
+      },
+      "7": {
+        "id": 7,
+        "name": "Lightning",
+        "color": "#16a34a",
+        "icon": "⚡",
+        "APCost": 3,
+        "range": 5,
+        "damage": 9,
+        "areaOfEffect": "none",
+        "element": "Air",
+        "description": "9 damage and 1 MP off the target’s next turn. 50% more on a target standing in water, and 30% more through your relay.",
         "needsLineOfSight": true,
         "maxCastsPerTurn": 2,
         "cooldown": 0,
         "criticalChance": 15,
-        "criticalDamage": 6,
+        "criticalDamage": 13,
         "effect": {
-          "kind": "poison",
-          "value": 5,
-          "duration": 3,
+          "kind": "mp",
+          "value": -1,
+          "duration": 1,
           "onSelf": false
-        }
+        },
+        "role": "Shock",
+        "ultimate": false,
+        "targeting": "any",
+        "push": 0,
+        "terrain": "",
+        "zone": null,
+        "grantMP": 0,
+        "special": "",
+        "relayed": true,
+        "conducts": true
       },
-      "4": {
-        "id": 4,
-        "name": "Gust",
+      "8": {
+        "id": 8,
+        "name": "Gale",
         "color": "#16a34a",
-        "icon": "🌀",
+        "icon": "🍃",
+        "APCost": 3,
+        "range": 3,
+        "damage": 7,
+        "areaOfEffect": "none",
+        "element": "Air",
+        "description": "7 damage and throws the target 3 cells back; running into something hurts. 30% more through your relay.",
+        "needsLineOfSight": true,
+        "maxCastsPerTurn": 1,
+        "cooldown": 0,
+        "criticalChance": 10,
+        "criticalDamage": 10,
+        "effect": null,
+        "role": "Push",
+        "ultimate": false,
+        "targeting": "any",
+        "push": 3,
+        "terrain": "",
+        "zone": null,
+        "grantMP": 0,
+        "special": "",
+        "relayed": true,
+        "conducts": false
+      },
+      "9": {
+        "id": 9,
+        "name": "Tailwind",
+        "color": "#16a34a",
+        "icon": "💨",
         "APCost": 1,
         "range": 0,
         "damage": 0,
         "areaOfEffect": "none",
         "element": "Air",
-        "description": "Air · +3 movement points this turn · 1 AP · cast on yourself",
+        "description": "3 more movement points, right now.",
         "needsLineOfSight": false,
         "maxCastsPerTurn": 1,
         "cooldown": 1,
         "criticalChance": 0,
         "criticalDamage": 0,
-        "effect": {
-          "kind": "mp",
-          "value": 3,
-          "duration": 1,
-          "onSelf": true
-        }
-      },
-      "5": {
-        "id": 5,
-        "name": "Frost Nova",
-        "color": "#2563eb",
-        "icon": "❄️",
-        "APCost": 3,
-        "range": 4,
-        "damage": 10,
-        "areaOfEffect": "cross",
-        "element": "Water",
-        "description": "Water · 10 damage and −2 movement for 2 turns · 3 AP · range 4 · cross",
-        "needsLineOfSight": true,
-        "maxCastsPerTurn": 1,
-        "cooldown": 1,
-        "criticalChance": 15,
-        "criticalDamage": 15,
-        "effect": {
-          "kind": "mp",
-          "value": -2,
-          "duration": 2,
-          "onSelf": false
-        }
-      },
-      "6": {
-        "id": 6,
-        "name": "Drain",
-        "color": "#2563eb",
-        "icon": "💧",
-        "APCost": 3,
-        "range": 3,
-        "damage": 10,
-        "areaOfEffect": "none",
-        "element": "Water",
-        "description": "Water · 10 damage, heals you 5 a turn for 2 turns · 3 AP · range 3",
-        "needsLineOfSight": true,
-        "maxCastsPerTurn": 1,
-        "cooldown": 2,
-        "criticalChance": 15,
-        "criticalDamage": 15,
-        "effect": {
-          "kind": "regen",
-          "value": 5,
-          "duration": 2,
-          "onSelf": true
-        }
-      },
-      "7": {
-        "id": 7,
-        "name": "Stone Shell",
-        "color": "#b45309",
-        "icon": "🛡️",
-        "APCost": 2,
-        "range": 0,
-        "damage": 0,
-        "areaOfEffect": "none",
-        "element": "Earth",
-        "description": "Earth · soaks 10 damage per hit for 2 turns · 2 AP · cast on yourself",
-        "needsLineOfSight": false,
-        "maxCastsPerTurn": 1,
-        "cooldown": 2,
-        "criticalChance": 0,
-        "criticalDamage": 0,
-        "effect": {
-          "kind": "shield",
-          "value": 10,
-          "duration": 2,
-          "onSelf": true
-        }
-      },
-      "8": {
-        "id": 8,
-        "name": "Gwendo na Gwendo",
-        "color": "#b45309",
-        "icon": "🐸",
-        "APCost": 5,
-        "range": 3,
-        "damage": 16,
-        "areaOfEffect": "cross",
-        "element": "Earth",
-        "description": "Earth · 16 damage · 5 AP · range 3 · cross · ignores line of sight",
-        "needsLineOfSight": false,
-        "maxCastsPerTurn": 1,
-        "cooldown": 2,
-        "criticalChance": 15,
-        "criticalDamage": 24,
-        "effect": null
-      },
-      "9": {
-        "id": 9,
-        "name": "Flame Lance",
-        "color": "#dc2626",
-        "icon": "🔱",
-        "APCost": 4,
-        "range": 7,
-        "damage": 12,
-        "areaOfEffect": "line",
-        "element": "Fire",
-        "description": "Fire · 12 damage · 4 AP · range 7 · line · 1 turn cooldown",
-        "needsLineOfSight": true,
-        "maxCastsPerTurn": 1,
-        "cooldown": 1,
-        "criticalChance": 20,
-        "criticalDamage": 18,
-        "effect": null
+        "effect": null,
+        "role": "Mobility",
+        "ultimate": false,
+        "targeting": "self",
+        "push": 0,
+        "terrain": "",
+        "zone": null,
+        "grantMP": 3,
+        "special": "",
+        "relayed": false,
+        "conducts": false
       }
     },
     "turnOrder": [
-      "alice",
-      "bob"
+      "bob",
+      "alice"
     ],
     "turnEndsAt": 0,
     "log": [
       {
-        "seq": 27,
-        "turn": 1,
-        "actor": "Alice",
-        "kind": "turn",
-        "text": "starts their turn"
-      },
-      {
-        "seq": 28,
-        "turn": 1,
-        "actor": "Bob",
-        "kind": "turn",
-        "text": "starts their turn"
-      },
-      {
-        "seq": 29,
-        "turn": 2,
-        "actor": "Alice",
-        "kind": "turn",
-        "text": "starts their turn"
-      },
-      {
-        "seq": 30,
-        "turn": 2,
-        "actor": "Alice",
-        "kind": "cast",
-        "text": "cast Fireball — critical!",
-        "damage": 27,
-        "crit": true,
-        "spellId": 2,
-        "origin": {
-          "x": 4,
-          "y": 2
-        },
-        "target": {
-          "x": 4,
-          "y": 2
-        }
-      },
-      {
         "seq": 31,
-        "turn": 2,
+        "turn": 1,
         "actor": "Bob",
         "kind": "turn",
         "text": "starts their turn"
       },
       {
         "seq": 32,
-        "turn": 2,
-        "actor": "Bob",
-        "kind": "cast",
-        "text": "cast Flame Lance",
-        "damage": 12,
-        "spellId": 9,
-        "origin": {
-          "x": -4,
-          "y": -1
-        },
-        "target": {
-          "x": 2,
-          "y": 0
-        }
-      },
-      {
-        "seq": 33,
-        "turn": 3,
+        "turn": 1,
         "actor": "Alice",
         "kind": "turn",
         "text": "starts their turn"
       },
       {
-        "seq": 34,
-        "turn": 3,
+        "seq": 33,
+        "turn": 1,
         "actor": "Alice",
         "kind": "cast",
-        "text": "cast Flame Lance",
-        "damage": 12,
-        "spellId": 9,
+        "text": "cast Scorched Earth",
+        "damage": 5,
+        "spellId": 2,
         "origin": {
-          "x": 2,
-          "y": 0
+          "x": -2,
+          "y": -3
         },
         "target": {
-          "x": -4,
-          "y": -1
+          "x": -2,
+          "y": -3
+        }
+      },
+      {
+        "seq": 34,
+        "turn": 1,
+        "actor": "Alice",
+        "kind": "cast",
+        "text": "cast Kindle",
+        "damage": 6,
+        "spellId": 1,
+        "origin": {
+          "x": -2,
+          "y": -2
+        },
+        "target": {
+          "x": 1,
+          "y": 2
         }
       },
       {
         "seq": 35,
-        "turn": 3,
-        "actor": "Alice",
-        "kind": "cast",
-        "text": "cast Ember",
-        "damage": 7,
-        "spellId": 1,
-        "origin": {
-          "x": 0,
-          "y": 0
-        },
-        "target": {
-          "x": -4,
-          "y": -1
-        }
+        "turn": 2,
+        "actor": "Bob",
+        "kind": "effect",
+        "text": "suffers from its wounds",
+        "damage": 4
       },
       {
         "seq": 36,
-        "turn": 3,
+        "turn": 2,
         "actor": "Bob",
         "kind": "turn",
         "text": "starts their turn"
       },
       {
         "seq": 37,
-        "turn": 3,
+        "turn": 2,
         "actor": "Bob",
         "kind": "cast",
-        "text": "cast Fireball — critical!",
-        "damage": 27,
-        "crit": true,
-        "spellId": 2,
+        "text": "cast Kindle",
+        "damage": 6,
+        "spellId": 1,
         "origin": {
-          "x": -4,
-          "y": -1
+          "x": 1,
+          "y": 2
         },
         "target": {
-          "x": -2,
-          "y": 0
+          "x": 1,
+          "y": 2
         }
       },
       {
         "seq": 38,
-        "turn": 4,
-        "actor": "Alice",
-        "kind": "turn",
-        "text": "starts their turn"
+        "turn": 2,
+        "actor": "Bob",
+        "kind": "cast",
+        "text": "cast Kindle — critical!",
+        "damage": 9,
+        "crit": true,
+        "spellId": 1,
+        "origin": {
+          "x": 1,
+          "y": 2
+        },
+        "target": {
+          "x": -2,
+          "y": -2
+        }
       },
       {
         "seq": 39,
-        "turn": 4,
+        "turn": 2,
         "actor": "Alice",
-        "kind": "cast",
-        "text": "cast Fireball",
-        "damage": 18,
-        "spellId": 2,
-        "origin": {
-          "x": -2,
-          "y": 0
-        },
-        "target": {
-          "x": -4,
-          "y": -1
-        }
+        "kind": "effect",
+        "text": "suffers from its wounds",
+        "damage": 4
       },
       {
         "seq": 40,
-        "turn": 4,
+        "turn": 2,
         "actor": "Alice",
-        "kind": "cast",
-        "text": "cast Ember",
-        "damage": 7,
-        "spellId": 1,
-        "origin": {
-          "x": -2,
-          "y": 0
-        },
-        "target": {
-          "x": -4,
-          "y": -1
-        }
-      },
-      {
-        "seq": 41,
-        "turn": 4,
-        "actor": "Bob",
         "kind": "turn",
         "text": "starts their turn"
       },
       {
-        "seq": 42,
-        "turn": 4,
-        "actor": "Bob",
+        "seq": 41,
+        "turn": 2,
+        "actor": "Alice",
         "kind": "cast",
-        "text": "cast Venom",
-        "damage": 4,
+        "text": "cast Combustion",
+        "damage": 30,
         "spellId": 3,
         "origin": {
-          "x": -4,
-          "y": -1
+          "x": -2,
+          "y": -2
         },
         "target": {
-          "x": -5,
-          "y": -1
+          "x": 1,
+          "y": 2
+        }
+      },
+      {
+        "seq": 42,
+        "turn": 2,
+        "actor": "Alice",
+        "kind": "cast",
+        "text": "cast Smokescreen",
+        "spellId": 4,
+        "origin": {
+          "x": -1,
+          "y": 1
+        },
+        "target": {
+          "x": 1,
+          "y": 2
         }
       },
       {
         "seq": 43,
-        "turn": 4,
+        "turn": 3,
         "actor": "Bob",
-        "kind": "cast",
-        "text": "cast Flame Lance — critical!",
-        "damage": 18,
-        "crit": true,
-        "spellId": 9,
-        "origin": {
-          "x": -4,
-          "y": -1
-        },
-        "target": {
-          "x": -5,
-          "y": -1
-        }
+        "kind": "turn",
+        "text": "starts their turn"
       },
       {
         "seq": 44,
-        "turn": 5,
+        "turn": 3,
         "actor": "Alice",
         "kind": "effect",
         "text": "suffers from its wounds",
-        "damage": 5
+        "damage": 4
       },
       {
         "seq": 45,
-        "turn": 5,
+        "turn": 3,
         "actor": "Alice",
         "kind": "turn",
         "text": "starts their turn"
       },
       {
         "seq": 46,
-        "turn": 5,
+        "turn": 3,
         "actor": "Alice",
         "kind": "cast",
-        "text": "cast Flame Lance",
-        "damage": 12,
-        "spellId": 9,
+        "text": "cast Meteor",
+        "damage": 22,
+        "spellId": 5,
         "origin": {
-          "x": -5,
-          "y": -1
+          "x": -1,
+          "y": 1
         },
         "target": {
-          "x": -4,
-          "y": -1
+          "x": 1,
+          "y": 2
         }
       },
       {
         "seq": 47,
-        "turn": 5,
-        "actor": "Alice",
-        "kind": "cast",
-        "text": "cast Ember",
-        "damage": 7,
-        "spellId": 1,
-        "origin": {
-          "x": -5,
-          "y": -1
-        },
-        "target": {
-          "x": -4,
-          "y": -1
-        }
+        "turn": 3,
+        "actor": "Bob",
+        "kind": "effect",
+        "text": "catches fire"
       },
       {
         "seq": 48,
-        "turn": 5,
+        "turn": 3,
+        "actor": "Bob",
+        "kind": "effect",
+        "text": "is thrown back"
+      },
+      {
+        "seq": 49,
+        "turn": 4,
+        "actor": "Bob",
+        "kind": "effect",
+        "text": "is standing in fire"
+      },
+      {
+        "seq": 50,
+        "turn": 4,
+        "actor": "Bob",
+        "kind": "effect",
+        "text": "suffers from its wounds",
+        "damage": 12
+      },
+      {
+        "seq": 51,
+        "turn": 4,
         "actor": "Bob",
         "kind": "turn",
         "text": "starts their turn"
       },
       {
-        "seq": 49,
-        "turn": 5,
+        "seq": 52,
+        "turn": 4,
         "actor": "Bob",
         "kind": "cast",
-        "text": "cast Fireball — critical!",
-        "damage": 27,
-        "crit": true,
-        "spellId": 2,
+        "text": "cast Meteor",
+        "damage": 22,
+        "spellId": 5,
         "origin": {
-          "x": -4,
-          "y": -1
+          "x": 2,
+          "y": 2
         },
         "target": {
-          "x": -5,
-          "y": -1
+          "x": -1,
+          "y": 1
         }
       },
       {
-        "seq": 50,
-        "turn": 5,
+        "seq": 53,
+        "turn": 4,
         "actor": "Alice",
+        "kind": "effect",
+        "text": "catches fire"
+      },
+      {
+        "seq": 54,
+        "turn": 4,
+        "actor": "Alice",
+        "kind": "effect",
+        "text": "is thrown back"
+      },
+      {
+        "seq": 55,
+        "turn": 4,
+        "actor": "Alice",
+        "kind": "effect",
+        "text": "is standing in fire"
+      },
+      {
+        "seq": 56,
+        "turn": 4,
+        "actor": "Alice",
+        "kind": "effect",
+        "text": "suffers from its wounds",
+        "damage": 12
+      },
+      {
+        "seq": 57,
+        "turn": 4,
+        "actor": "Alice",
+        "kind": "turn",
+        "text": "starts their turn"
+      },
+      {
+        "seq": 58,
+        "turn": 4,
+        "actor": "Alice",
+        "kind": "cast",
+        "text": "cast Combustion",
+        "damage": 30,
+        "spellId": 3,
+        "origin": {
+          "x": -2,
+          "y": 1
+        },
+        "target": {
+          "x": 2,
+          "y": 2
+        }
+      },
+      {
+        "seq": 59,
+        "turn": 4,
+        "actor": "Bob",
         "kind": "death",
         "text": "is out of the fight"
       },
       {
-        "seq": 51,
-        "turn": 5,
-        "actor": "Bob",
+        "seq": 60,
+        "turn": 4,
+        "actor": "Alice",
         "kind": "end",
         "text": "wins the fight"
       }
     ],
     "obstacles": [
       {
-        "x": -3,
-        "y": -3
+        "x": -4,
+        "y": -1
+      },
+      {
+        "x": -4,
+        "y": 1
       },
       {
         "x": -2,
-        "y": 3
-      },
-      {
-        "x": -1,
-        "y": -3
-      },
-      {
-        "x": -1,
-        "y": 6
-      },
-      {
-        "x": 0,
-        "y": -7
-      },
-      {
-        "x": 1,
         "y": 2
       },
       {
-        "x": 1,
+        "x": -1,
+        "y": -4
+      },
+      {
+        "x": -1,
+        "y": 2
+      },
+      {
+        "x": 0,
+        "y": -4
+      },
+      {
+        "x": 0,
         "y": 3
       },
       {
+        "x": 0,
+        "y": 4
+      },
+      {
+        "x": 1,
+        "y": 6
+      },
+      {
         "x": 2,
-        "y": -1
+        "y": -4
+      },
+      {
+        "x": 2,
+        "y": -2
       },
       {
         "x": 2,
@@ -1529,24 +1656,199 @@
       },
       {
         "x": 2,
-        "y": 4
+        "y": 5
       },
       {
         "x": 4,
-        "y": -3
-      },
-      {
-        "x": 4,
-        "y": -1
-      },
-      {
-        "x": 4,
-        "y": 0
-      },
-      {
-        "x": 7,
-        "y": 0
+        "y": -2
       }
-    ]
+    ],
+    "terrain": [
+      {
+        "position": {
+          "x": -4,
+          "y": -3
+        },
+        "kind": "fire",
+        "owner": "alice"
+      },
+      {
+        "position": {
+          "x": -3,
+          "y": -3
+        },
+        "kind": "fire",
+        "owner": "alice"
+      },
+      {
+        "position": {
+          "x": -3,
+          "y": 1
+        },
+        "kind": "fire",
+        "owner": "bob"
+      },
+      {
+        "position": {
+          "x": -2,
+          "y": -3
+        },
+        "kind": "fire",
+        "owner": "alice"
+      },
+      {
+        "position": {
+          "x": -2,
+          "y": 0
+        },
+        "kind": "fire",
+        "owner": "bob"
+      },
+      {
+        "position": {
+          "x": -2,
+          "y": 1
+        },
+        "kind": "fire",
+        "owner": "bob"
+      },
+      {
+        "position": {
+          "x": -1,
+          "y": -3
+        },
+        "kind": "fire",
+        "owner": "alice"
+      },
+      {
+        "position": {
+          "x": -1,
+          "y": -1
+        },
+        "kind": "fire",
+        "owner": "bob"
+      },
+      {
+        "position": {
+          "x": -1,
+          "y": 0
+        },
+        "kind": "fire",
+        "owner": "bob"
+      },
+      {
+        "position": {
+          "x": -1,
+          "y": 1
+        },
+        "kind": "crater",
+        "owner": "bob"
+      },
+      {
+        "position": {
+          "x": -1,
+          "y": 3
+        },
+        "kind": "fire",
+        "owner": "bob"
+      },
+      {
+        "position": {
+          "x": 0,
+          "y": -3
+        },
+        "kind": "fire",
+        "owner": "alice"
+      },
+      {
+        "position": {
+          "x": 0,
+          "y": 0
+        },
+        "kind": "fire",
+        "owner": "bob"
+      },
+      {
+        "position": {
+          "x": 0,
+          "y": 1
+        },
+        "kind": "fire",
+        "owner": "bob"
+      },
+      {
+        "position": {
+          "x": 0,
+          "y": 2
+        },
+        "kind": "fire",
+        "owner": "bob"
+      },
+      {
+        "position": {
+          "x": 1,
+          "y": 0
+        },
+        "kind": "fire",
+        "owner": "alice"
+      },
+      {
+        "position": {
+          "x": 1,
+          "y": 1
+        },
+        "kind": "fire",
+        "owner": "bob"
+      },
+      {
+        "position": {
+          "x": 1,
+          "y": 2
+        },
+        "kind": "crater",
+        "owner": "alice"
+      },
+      {
+        "position": {
+          "x": 1,
+          "y": 3
+        },
+        "kind": "fire",
+        "owner": "alice"
+      },
+      {
+        "position": {
+          "x": 1,
+          "y": 4
+        },
+        "kind": "fire",
+        "owner": "alice"
+      },
+      {
+        "position": {
+          "x": 2,
+          "y": 2
+        },
+        "kind": "fire",
+        "owner": "alice"
+      },
+      {
+        "position": {
+          "x": 2,
+          "y": 3
+        },
+        "kind": "fire",
+        "owner": "alice"
+      },
+      {
+        "position": {
+          "x": 3,
+          "y": 2
+        },
+        "kind": "fire",
+        "owner": "alice"
+      }
+    ],
+    "zones": []
   }
 }

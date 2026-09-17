@@ -2,10 +2,14 @@ import React, { useEffect, useRef, useState } from "react";
 import { GameStatus, GAME_STATUS, Player } from "../../types/game";
 import { GameState, Spell, SpellBook } from "../../types/message";
 import { barSpells } from "../../utils/classUtils";
-import { unavailableReason } from "../../utils/spellUtils";
-import { FOLDED_COUNT, ringLayout, slotOffset } from "../../utils/spellArc";
+import { spellSummary, unavailableReason } from "../../utils/spellUtils";
+import { FOLDED_COUNT, needsFolding, ringLayout, slotOffset } from "../../utils/spellArc";
 import { effectTotal } from "../../utils/effectUtils";
 import { SpellGlyph } from "./SpellGlyph";
+import { RULES } from "../../utils/terrain";
+import { BOARD } from "../../constants";
+
+const ULTIMATE = "#c99a1a";
 import { SpellCard } from "./SpellCard";
 import { TurnClock } from "./TurnClock";
 
@@ -157,7 +161,13 @@ const SpellButton: React.FC<{
   style: React.CSSProperties;
   /** Folded away behind the main button. */
   hidden: boolean;
-}> = ({ spell, blocked, cooldown, selected, onSelect, onPeek, style, hidden }) => {
+  /** An ultimate still waiting for its turn. */
+  locked: boolean;
+  /** An ultimate already cast this fight. */
+  spent: boolean;
+  /** Goes out through the player's relay, harder. */
+  throughRelay: boolean;
+}> = ({ spell, blocked, cooldown, selected, onSelect, onPeek, style, hidden, locked, spent, throughRelay }) => {
   const timer = useRef<number>();
   const peeked = useRef(false);
 
@@ -200,11 +210,20 @@ const SpellButton: React.FC<{
       className={`absolute grid place-items-center rounded-full bg-board transition-[right,bottom,opacity,transform,box-shadow] duration-300 ease-[cubic-bezier(.2,.8,.2,1)] active:scale-90 [-webkit-touch-callout:none] ${
         selected
           ? "shadow-[0_0_0_3px_#d1462f,0_2px_8px_rgba(23,24,26,0.18)]"
-          : "shadow-[0_0_0_1px_#cfd0cd,0_2px_8px_rgba(23,24,26,0.14)]"
-      } ${hidden ? "pointer-events-none scale-50 opacity-0" : blocked ? "opacity-40" : ""}`}
+          : spell.ultimate
+            ? "shadow-[0_0_0_2px_#c99a1a,0_2px_8px_rgba(23,24,26,0.14)]"
+            : throughRelay
+              ? "shadow-[0_0_0_2px_#2e9e6a,0_2px_8px_rgba(23,24,26,0.14)]"
+              : "shadow-[0_0_0_1px_#cfd0cd,0_2px_8px_rgba(23,24,26,0.14)]"
+      } ${hidden ? "pointer-events-none scale-50 opacity-0" : blocked && !locked ? "opacity-40" : ""} ${
+        spell.ultimate ? "!bg-[#fff6dc]" : ""
+      }`}
       style={{ width: SLOT, height: SLOT, ...style }}
     >
-      <span style={{ color: selected ? spell.color : undefined }}>
+      <span
+        className={locked ? "opacity-40" : undefined}
+        style={{ color: selected ? spell.color : spell.ultimate ? "#8a6a10" : undefined }}
+      >
         <SpellGlyph spellId={spell.id} fallback={spell.icon} className="h-6 w-6" />
       </span>
       <span className="absolute -bottom-1 -right-1 grid h-[18px] min-w-[18px] place-items-center rounded-full bg-pa px-1 font-mono text-[10px] font-semibold text-white">
@@ -213,6 +232,27 @@ const SpellButton: React.FC<{
       {cooldown > 0 && (
         <span className="absolute inset-0 grid place-items-center rounded-full bg-paper/85 font-mono text-[17px] font-semibold tabular-nums">
           {cooldown}
+        </span>
+      )}
+      {locked && (
+        <span
+          className="absolute -left-1 -top-1 grid h-[18px] min-w-[18px] place-items-center rounded-full px-1 font-mono text-[9.5px] font-semibold text-white"
+          style={{ backgroundColor: ULTIMATE }}
+        >
+          T{RULES.ultimateFromTurn}
+        </span>
+      )}
+      {throughRelay && !locked && !spent && (
+        <span
+          className="absolute -left-1 -top-1 grid h-[18px] place-items-center rounded-full px-1 font-mono text-[9px] font-semibold text-white"
+          style={{ backgroundColor: BOARD.relay }}
+        >
+          ↺
+        </span>
+      )}
+      {spent && (
+        <span className="absolute inset-0 grid place-items-center rounded-full bg-paper/80 font-mono text-[8.5px] uppercase tracking-label text-muted">
+          used
         </span>
       )}
     </button>
@@ -233,6 +273,10 @@ interface SpellArcProps {
   } | null;
   isMyTurn: boolean;
   turnEndsAt: number;
+  /** The fight's turn, which is what unlocks an ultimate. */
+  turnNumber: number;
+  /** Whether the player has a relay out. */
+  hasRelay?: boolean;
   status: GameStatus;
 }
 
@@ -285,6 +329,8 @@ export const SpellArc: React.FC<SpellArcProps> = ({
   main,
   isMyTurn,
   turnEndsAt,
+  turnNumber,
+  hasRelay = false,
   status,
 }) => {
   const catalogue = barSpells(player, spells);
@@ -299,7 +345,9 @@ export const SpellArc: React.FC<SpellArcProps> = ({
     if (wasSelected.current && !hasSelection) setOpened(false);
     wasSelected.current = hasSelection;
   }, [hasSelection]);
-  const extra = Math.max(0, catalogue.length - FOLDED_COUNT);
+  const extra = needsFolding(catalogue.length)
+    ? catalogue.length - FOLDED_COUNT
+    : 0;
   const folded = extra > 0 && !opened && !hasSelection;
   const layout = ringLayout(catalogue.length, folded);
   const actionPoints = player?.character?.actionPoints ?? 0;
@@ -309,10 +357,22 @@ export const SpellArc: React.FC<SpellArcProps> = ({
     <div className="pointer-events-none absolute inset-0">
       {selected && (
         <div
-          className={`absolute rounded-full px-3 py-1 font-mono text-[10px] uppercase tracking-label text-ink ${HAIRLINE}`}
+          className={`absolute max-w-[300px] rounded-2xl px-3 py-1.5 text-right ${HAIRLINE}`}
           style={{ right: 16, bottom: CENTRE.bottom + 222 }}
         >
-          <b className="font-semibold">{selected.name}</b> · pick a target
+          <p className="font-mono text-[10px] uppercase tracking-label text-ink">
+            <b className="font-semibold">{selected.name}</b>
+            <span
+              className="ml-1.5"
+              style={{ color: selected.ultimate ? "#8a6a10" : selected.color }}
+            >
+              {selected.role}
+            </span>
+            <span className="text-muted"> · pick a target</span>
+          </p>
+          <p className="mt-0.5 font-mono text-[10.5px] tabular-nums text-graphite">
+            {spellSummary(selected)}
+          </p>
         </div>
       )}
 
@@ -324,7 +384,10 @@ export const SpellArc: React.FC<SpellArcProps> = ({
             <SpellButton
               key={spell.id}
               spell={spell}
-              blocked={unavailableReason(spell, state, actionPoints)}
+              blocked={unavailableReason(spell, state, actionPoints, turnNumber)}
+              locked={spell.ultimate && !state?.spent && turnNumber < RULES.ultimateFromTurn}
+              spent={spell.ultimate && !!state?.spent}
+              throughRelay={spell.relayed && hasRelay}
               cooldown={state?.cooldownLeft ?? 0}
               selected={spell.id === selectedSpellId}
               onSelect={() => onSelectSpell(spell.id)}
@@ -391,7 +454,8 @@ export const SpellArc: React.FC<SpellArcProps> = ({
           blocked={unavailableReason(
             peek,
             player?.spells?.[String(peek.id)],
-            actionPoints
+            actionPoints,
+            turnNumber
           )}
         />
       )}

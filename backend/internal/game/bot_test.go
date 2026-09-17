@@ -10,14 +10,17 @@ import (
 
 func TestBotCastsTheStrongestSpellItCanAfford(t *testing.T) {
 	g := twoPlayerGame(t)
+	// Ranged spells only, so a leap into melee is not an option.
+	setBar(g, "a", "1", "7", "11", "14")
 
-	// "a" stands at (0,0), "b" at (0,3): within Fireball's range of 6.
+	// "a" stands at (0,0), "b" at (0,3): within Geyser's range of 6, and
+	// nothing else in reach hits as hard.
 	action := DecideBotAction(g.Snapshot(), "a")
 	if action.Kind != BotCast {
 		t.Fatalf("action = %+v, want a cast", action)
 	}
-	if action.SpellID != 2 {
-		t.Errorf("spell = %d, want 2 (Fireball, the most damaging affordable one)", action.SpellID)
+	if action.SpellID != 11 {
+		t.Errorf("spell = %d, want 11 (Geyser, the most damaging affordable one)", action.SpellID)
 	}
 	if action.Target != (types.Position{X: 0, Y: 3}) {
 		t.Errorf("target = %+v, want the enemy's cell", action.Target)
@@ -29,6 +32,9 @@ func TestBotClosesTheDistanceWhenNothingIsInRange(t *testing.T) {
 		"a": {X: -7, Y: 0},
 		"b": {X: 7, Y: 0},
 	}, "a", "b")
+	// Only a plain spell on the bar: nothing to leap, relay or speed up with,
+	// so walking is the only way to get anywhere.
+	setBar(g, "a", "1")
 
 	action := DecideBotAction(g.Snapshot(), "a")
 	if action.Kind != BotMove {
@@ -79,6 +85,7 @@ func TestBotIgnoresDeadOpponents(t *testing.T) {
 	p.Character.IsAlive = false
 	g.players["b"] = p
 	g.mu.Unlock()
+	setBar(g, "a", "1", "7", "11", "14")
 
 	action := DecideBotAction(g.Snapshot(), "a")
 	if action.Kind != BotCast {

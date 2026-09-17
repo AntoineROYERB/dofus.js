@@ -136,6 +136,7 @@ func rulesFingerprint(cat content.Catalogue) string {
 		GridRadius             int                    `json:"gridRadius"`
 		InitialPositionChoices int                    `json:"initialPositionChoices"`
 		ObstacleCount          int                    `json:"obstacleCount"`
+		Terrain                map[string]int         `json:"terrain"`
 		Spells                 map[string]types.Spell `json:"spells"`
 		Classes                []types.Class          `json:"classes"`
 	}{
@@ -145,8 +146,22 @@ func rulesFingerprint(cat content.Catalogue) string {
 		GridRadius:             GridRadius,
 		InitialPositionChoices: InitialPositionChoices,
 		ObstacleCount:          ObstacleCount,
-		Spells:                 cat.Spells,
-		Classes:                cat.Classes,
+		// The numbers behind terrain, burns and ultimates are rules too.
+		Terrain: map[string]int{
+			"burnDamagePerStack": BurnDamagePerStack,
+			"maxBurnStacks":      MaxBurnStacks,
+			"burnDuration":       BurnDuration,
+			"ultimateFromTurn":   UltimateFromTurn,
+			"trapDamage":         TrapDamage,
+			"collisionDamage":    CollisionDamage,
+			"stormDamage":        StormDamage,
+			"waterHealing":       WaterHealing,
+			"waterSlow":          WaterSlow,
+			"conductBonus":       ConductBonus,
+			"relayBonus":         RelayBonus,
+		},
+		Spells:  cat.Spells,
+		Classes: cat.Classes,
 	}
 	// encoding/json sorts map keys, so the same catalogue always hashes the
 	// same way whatever order it was built in.

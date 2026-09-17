@@ -143,6 +143,10 @@ export const ClassCarousel: React.FC<ClassCarouselProps> = ({
           {cls.health} hp · {cls.actionPoints} ap · {cls.movementPoints} mp
         </span>
       </p>
+      {/* Always two lines tall, so the screen does not jump between classes. */}
+      <p className="mt-0.5 line-clamp-2 min-h-[2lh] max-w-[40ch] text-center text-[11px] leading-snug text-graphite">
+        {cls.passive}
+      </p>
     </div>
   );
 };

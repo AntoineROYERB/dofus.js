@@ -72,6 +72,21 @@ func TestLineAreaFollowsTheCastDirection(t *testing.T) {
 	assertSameCells(t, got, want)
 }
 
+func TestWallLiesAcrossTheCastAndStaysStraight(t *testing.T) {
+	spell := types.Spell{AreaOfEffect: types.AoEWall, Range: 6}
+	caster := types.Position{}
+
+	// Cast north along the column: the wall runs across it, along X.
+	got := AffectedPositions(spell, types.Position{Y: 3}, caster)
+	want := []types.Position{{X: -2, Y: 3}, {X: -1, Y: 3}, {X: 0, Y: 3}, {X: 1, Y: 3}, {X: 2, Y: 3}}
+	assertSameCells(t, got, want)
+
+	// Cast on a slant that is mostly along X: the wall runs along Y.
+	got = AffectedPositions(spell, types.Position{X: 3, Y: 1}, caster)
+	want = []types.Position{{X: 3, Y: -1}, {X: 3, Y: 0}, {X: 3, Y: 1}, {X: 3, Y: 2}, {X: 3, Y: 3}}
+	assertSameCells(t, got, want)
+}
+
 func TestAffectedPositionsDropsCellsOffTheBoard(t *testing.T) {
 	spell := types.Spell{AreaOfEffect: types.AoECircle, Range: 10}
 	// Targeting the far edge pushes half the blast outside the diamond.

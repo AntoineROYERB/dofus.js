@@ -72,6 +72,16 @@ func playingGame(t *testing.T, placement map[string]types.Position, order ...str
 	return g
 }
 
+// setBar replaces a seated player's spells with just the ones given.
+func setBar(g *Game, id string, spells ...string) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	p := g.players[id]
+	p.Spells = freshSpellState(spells)
+	p.SpellBar = append([]string(nil), spells...)
+	g.players[id] = p
+}
+
 func twoPlayerGame(t *testing.T) *Game {
 	t.Helper()
 	return playingGame(t, map[string]types.Position{
@@ -277,26 +287,19 @@ func TestMoveIsRejectedWhenItBreaksTheRules(t *testing.T) {
 // Spells
 // ---------------------------------------------------------------------------
 
-// Fireball is a circle, and the circle used to have a hole where the target
-// stood: aiming straight at an enemy dealt no damage at all.
-func TestFireballDamagesTheTargetedCharacter(t *testing.T) {
+// A circle used to have a hole where the target stood: aiming straight at an
+// enemy dealt no damage at all. Downpour is a circle.
+func TestCircleDamagesTheTargetedCharacter(t *testing.T) {
 	g := twoPlayerGame(t)
 
-	// Criticals off, so the assertion is about the blast rather than a roll.
-	g.mu.Lock()
-	spell := g.spells["2"]
-	spell.CriticalChance = 0
-	g.spells["2"] = spell
-	g.mu.Unlock()
-
-	if err := g.CastSpell("a", 2, types.Position{X: 0, Y: 3}); err != nil {
+	if err := g.CastSpell("a", 13, types.Position{X: 0, Y: 3}); err != nil {
 		t.Fatalf("CastSpell: %v", err)
 	}
-	if hp := health(t, g, "b"); hp != StartingHealth-18 {
-		t.Errorf("target health = %d, want %d", hp, StartingHealth-18)
+	if hp := health(t, g, "b"); hp != StartingHealth-3 {
+		t.Errorf("target health = %d, want %d", hp, StartingHealth-3)
 	}
-	if ap := g.Snapshot().Players["a"].Character.ActionPoints; ap != StartingActionPoints-4 {
-		t.Errorf("caster AP = %d, want %d", ap, StartingActionPoints-4)
+	if ap := g.Snapshot().Players["a"].Character.ActionPoints; ap != StartingActionPoints-3 {
+		t.Errorf("caster AP = %d, want %d", ap, StartingActionPoints-3)
 	}
 }
 
@@ -330,24 +333,24 @@ func TestCastIsRejectedWhenItBreaksTheRules(t *testing.T) {
 func TestCastIsRejectedWithoutEnoughActionPoints(t *testing.T) {
 	g := twoPlayerGame(t)
 
-	// Ember costs 2 AP; three casts spend all six and leave no room for a
-	// fourth. Criticals off so the damage assertion is exact.
+	// Kindle costs 3 AP; two casts spend all six and leave no room for a
+	// third. Criticals off so the damage assertion is exact.
 	g.mu.Lock()
 	spell := g.spells["1"]
 	spell.CriticalChance = 0
 	g.spells["1"] = spell
 	g.mu.Unlock()
 
-	for i := 0; i < 3; i++ {
+	for i := 0; i < 2; i++ {
 		if err := g.CastSpell("a", 1, types.Position{X: 0, Y: 3}); err != nil {
 			t.Fatalf("cast %d: %v", i, err)
 		}
 	}
 	if err := g.CastSpell("a", 1, types.Position{X: 0, Y: 3}); !errors.Is(err, ErrNotEnoughAP) {
-		t.Errorf("fourth cast = %v, want ErrNotEnoughAP", err)
+		t.Errorf("third cast = %v, want ErrNotEnoughAP", err)
 	}
-	if hp := health(t, g, "b"); hp != StartingHealth-21 {
-		t.Errorf("target health = %d, want %d after exactly three embers", hp, StartingHealth-21)
+	if hp := health(t, g, "b"); hp != StartingHealth-12 {
+		t.Errorf("target health = %d, want %d after exactly two kindles", hp, StartingHealth-12)
 	}
 }
 

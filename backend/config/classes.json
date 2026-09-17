@@ -5,10 +5,19 @@
       "name": "Pyromancer",
       "element": "Fire",
       "symbol": "🔥",
-      "palette": { "primary": "#d8ae31", "secondary": "#faf3dd" },
-      "lore": "Burns first and asks nothing. The most damage a turn of any class, and the least to show for it once the fire is out.",
-      "health": 95,
-      "spells": ["1", "2", "9", "10", "3", "5", "7", "4"],
+      "palette": {
+        "primary": "#d8ae31",
+        "secondary": "#faf3dd"
+      },
+      "lore": "Sets things alight and lets them burn. Piles burns onto a target, then sets them all off at once, and leaves the ground on fire behind it.",
+      "passive": "Burns stack up to 3 times. Each one does 4 damage at the start of its victim's turn.",
+      "spells": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ],
       "opponent": {
         "name": "Ashka the Kindled",
         "lines": [
@@ -16,17 +25,28 @@
           "Embers go out. Mine just took longer than most."
         ]
       },
-      "unlockedBy": ""
+      "unlockedBy": "",
+      "health": 90
     },
     {
       "id": "windwalker",
       "name": "Windwalker",
       "element": "Air",
       "symbol": "🌀",
-      "palette": { "primary": "#5bd831", "secondary": "#e7f9e0" },
-      "lore": "Never where you aimed. Trades the hit landing now for the poison that finishes it later, and the legs to wait it out.",
+      "palette": {
+        "primary": "#5bd831",
+        "secondary": "#e7f9e0"
+      },
+      "lore": "Never where you aimed. Strikes from a relay far across the board, throws enemies around, and leaves a storm where they stood.",
+      "passive": "Relay: your air spells go out from your relay whenever it reaches, and hit 30% harder from there.",
       "movementPoints": 5,
-      "spells": ["3", "11", "12", "4", "1", "6", "7", "8"],
+      "spells": [
+        "6",
+        "7",
+        "8",
+        "9",
+        "10"
+      ],
       "opponent": {
         "name": "Sef of the Long Grass",
         "lines": [
@@ -41,9 +61,19 @@
       "name": "Tidecaller",
       "element": "Water",
       "symbol": "🌊",
-      "palette": { "primary": "#315bd8", "secondary": "#e0e7f9" },
-      "lore": "Slows the fight to a pace only one side can keep. Takes your movement, takes your action points, and heals while you are short of both.",
-      "spells": ["5", "6", "13", "14", "1", "3", "7", "8"],
+      "palette": {
+        "primary": "#315bd8",
+        "secondary": "#e0e7f9"
+      },
+      "lore": "Slows the fight to a pace only one side can keep. Traps, ice and water decide where the enemy can stand, and its own water heals it.",
+      "passive": "Your water slows enemies by 1 MP and heals you 5 when you start a turn in it. Water puts fire out.",
+      "spells": [
+        "11",
+        "12",
+        "13",
+        "14",
+        "15"
+      ],
       "opponent": {
         "name": "Mother Brine",
         "lines": [
@@ -51,17 +81,30 @@
           "The tide turns. Even for me, it seems."
         ]
       },
-      "unlockedBy": "windwalker"
+      "unlockedBy": "windwalker",
+      "health": 105
     },
     {
       "id": "stonewarden",
       "name": "Stonewarden",
       "element": "Earth",
       "symbol": "🪨",
-      "palette": { "primary": "#31d8ae", "secondary": "#dcf8f1" },
-      "lore": "Slow, heavy and very hard to move. Shrugs off the first blows, and reaches whoever thought the cover would save them.",
-      "movementPoints": 3,
-      "spells": ["7", "8", "15", "16", "1", "2", "5", "6"],
+      "palette": {
+        "primary": "#31d8ae",
+        "secondary": "#dcf8f1"
+      },
+      "lore": "Slow to start and terrible up close. Leaps into reach, drags enemies in, and walls off their way out.",
+      "passive": "+50% damage against a target right next to you. Hard to move: pushes carry you 2 cells less.",
+      "meleeBonus": 50,
+      "pushResist": 2,
+      "movementPoints": 4,
+      "spells": [
+        "16",
+        "17",
+        "18",
+        "19",
+        "20"
+      ],
       "opponent": {
         "name": "Old Grund",
         "lines": [

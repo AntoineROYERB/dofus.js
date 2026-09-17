@@ -1,0 +1,32 @@
+import { Spell } from "../types/message";
+
+/** A plain single-target spell, with whatever the test cares about changed. */
+export const makeSpell = (overrides: Partial<Spell> = {}): Spell => ({
+  id: 1,
+  name: "Spell 1",
+  color: "#000000",
+  icon: "*",
+  APCost: 2,
+  range: 3,
+  damage: 5,
+  areaOfEffect: "none",
+  element: "Fire",
+  description: "",
+  needsLineOfSight: true,
+  maxCastsPerTurn: 1,
+  cooldown: 0,
+  criticalChance: 0,
+  criticalDamage: 5,
+  effect: null,
+  role: "Hit",
+  ultimate: false,
+  targeting: "any",
+  push: 0,
+  terrain: "",
+  zone: null,
+  grantMP: 0,
+  special: "",
+  relayed: false,
+  conducts: false,
+  ...overrides,
+});

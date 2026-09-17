@@ -3,6 +3,7 @@ package content
 import (
 	"encoding/json"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -50,10 +51,15 @@ func TestEmbeddedContentMatchesTheFilesOnDisk(t *testing.T) {
 	}
 }
 
-func TestEveryShippedClassFillsTheBar(t *testing.T) {
+// shippedBarSize is how many spells a shipped class carries. Eight was too
+// many to learn in a first fight; five, each doing something the others do
+// not, is the design.
+const shippedBarSize = 5
+
+func TestEveryShippedClassCarriesFiveSpells(t *testing.T) {
 	for _, class := range shippedCatalogue(t).Classes {
-		if len(class.Spells) != BarSlots {
-			t.Errorf("%s has %d spells, every class in the picker should fill all %d slots", class.ID, len(class.Spells), BarSlots)
+		if len(class.Spells) != shippedBarSize {
+			t.Errorf("%s has %d spells, every class should carry %d", class.ID, len(class.Spells), shippedBarSize)
 		}
 	}
 }
@@ -97,12 +103,19 @@ func TestShippedSpellsRespectTheRules(t *testing.T) {
 		if !hexColour.MatchString(spell.Color) {
 			t.Errorf("spell %s colour %q is not hex", id, spell.Color)
 		}
+		// The description is what a player reads; it has to agree with the
+		// number the server actually deals.
+		if spell.Damage > 0 && !strings.Contains(spell.Description, strconv.Itoa(spell.Damage)+" damage") {
+			t.Errorf("spell %s (%s) deals %d but its description says %q", id, spell.Name, spell.Damage, spell.Description)
+		}
 	}
 }
 
-// The elemental identities are the design, so they are checked as such: each
-// class carries two signature spells nobody else has, drawn from its own
-// element, and the rest of its bar comes from the pool the classes share.
+// The elemental identities are the design, so they are checked as such:
+// every spell belongs to exactly one class and is of that class's element,
+// every class has one ultimate, and no two spells on a bar play the same
+// role — a spell that only repeats another is one more thing to learn for
+// nothing.
 func TestShippedClassesKeepTheirElementalIdentity(t *testing.T) {
 	cat := shippedCatalogue(t)
 	holders := map[string]int{}
@@ -119,24 +132,44 @@ func TestShippedClassesKeepTheirElementalIdentity(t *testing.T) {
 		}
 		elements[class.Element] = true
 
-		signatures, ownElement := 0, 0
+		ultimates := 0
+		roles := map[string]string{}
 		for _, id := range class.Spells {
 			spell := cat.Spells[id]
-			if spell.Element == class.Element {
-				ownElement++
+			if holders[id] != 1 {
+				t.Errorf("%s shares %s with another class; every spell is one class's own", class.ID, spell.Name)
 			}
-			if holders[id] == 1 {
-				signatures++
-				if spell.Element != class.Element {
-					t.Errorf("%s's signature spell %s is %s, not %s", class.ID, spell.Name, spell.Element, class.Element)
-				}
+			if spell.Element != class.Element {
+				t.Errorf("%s carries %s, a %s spell, not %s", class.ID, spell.Name, spell.Element, class.Element)
 			}
+			if spell.Ultimate {
+				ultimates++
+			}
+			if other, dup := roles[spell.Role]; dup {
+				t.Errorf("%s: %s and %s both play the %q role", class.ID, other, spell.Name, spell.Role)
+			}
+			roles[spell.Role] = spell.Name
 		}
-		if signatures != 2 {
-			t.Errorf("%s has %d signature spells, want 2", class.ID, signatures)
+		if ultimates != 1 {
+			t.Errorf("%s has %d ultimates, want 1", class.ID, ultimates)
 		}
-		if ownElement < 4 {
-			t.Errorf("%s carries only %d %s spells; its own element should be the core of its bar", class.ID, ownElement, class.Element)
+	}
+
+	for id := range cat.Spells {
+		if holders[id] == 0 {
+			t.Errorf("spell %s (%s) is on no class's bar", id, cat.Spells[id].Name)
+		}
+	}
+}
+
+// Every spell has to do something besides damage: change the target, the
+// caster, or the board. Two spells that only hit for different numbers are
+// the same spell.
+func TestEveryShippedSpellDoesMoreThanDamage(t *testing.T) {
+	for id, spell := range shippedCatalogue(t).Spells {
+		if spell.Effect == nil && spell.Terrain == "" && spell.Zone == nil && spell.Push == 0 &&
+			spell.GrantMP == 0 && spell.Special == "" && !spell.Relayed && !spell.Conducts {
+			t.Errorf("spell %s (%s) only deals damage", id, spell.Name)
 		}
 	}
 }
@@ -207,6 +240,23 @@ func TestMalformedSpellsAreRefused(t *testing.T) {
 			spells := s["spells"].(map[string]any)
 			spells["fire"] = spells["1"]
 		}, `spells["fire"]`, "positive integer"},
+		{"no role", func(s map[string]any) { spell(s, "1")["role"] = "" }, `spells["1"].role`, "must not be empty"},
+		{"unknown targeting", func(s map[string]any) { spell(s, "1")["targeting"] = "ally" }, `spells["1"].targeting`, `unknown targeting "ally"`},
+		{"self spell with a range", func(s map[string]any) { spell(s, "9")["range"] = 3 }, `spells["9"].range`, "must be 0"},
+		{"unknown terrain", func(s map[string]any) { spell(s, "2")["terrain"] = "lava" }, `spells["2"].terrain`, `unknown terrain "lava"`},
+		{"unknown special", func(s map[string]any) { spell(s, "3")["special"] = "teleport" }, `spells["3"].special`, `unknown special "teleport"`},
+		{"leap aimed at any cell", func(s map[string]any) { spell(s, "16")["targeting"] = "any" }, `spells["16"].targeting`, "must be \"empty\""},
+		{"quake not on its caster", func(s map[string]any) {
+			spell(s, "20")["targeting"] = "any"
+			spell(s, "20")["range"] = 3
+		}, `spells["20"].targeting`, "must be \"self\""},
+		{"unknown zone", func(s map[string]any) {
+			spell(s, "10")["zone"] = map[string]any{"kind": "fog", "duration": 2}
+		}, `spells["10"].zone.kind`, `unknown zone "fog"`},
+		{"ultimate with a cooldown", func(s map[string]any) { spell(s, "5")["cooldown"] = 3 }, `spells["5"].cooldown`, "on an ultimate"},
+		{"spell that does nothing", func(s map[string]any) {
+			delete(spell(s, "4"), "terrain")
+		}, `spells["4"]`, "does nothing"},
 		{"colour that is not hex", func(s map[string]any) {
 			s["elements"].(map[string]any)["Fire"] = "red"
 		}, "elements.Fire", "#rrggbb"},
@@ -234,7 +284,10 @@ func TestMalformedClassesAreRefused(t *testing.T) {
 			c["spells"] = []any{"1", "2", "3", "4", "5", "6", "7", "8", "9"}
 		}, "classes[0].spells", "holds 1 to 8"},
 		{"empty bar", func(c map[string]any) { c["spells"] = []any{} }, "classes[0].spells", "holds 1 to 8"},
-		{"spell costing more than the class has", func(c map[string]any) { c["actionPoints"] = 3 }, "classes[0].spells[1]", "more than the class's 3"},
+		{"spell costing more than the class has", func(c map[string]any) { c["actionPoints"] = 3 }, "classes[0].spells[2]", "more than the class's 3"},
+		{"no passive", func(c map[string]any) { c["passive"] = " " }, "classes[0].passive", "must not be empty"},
+		{"melee bonus out of range", func(c map[string]any) { c["meleeBonus"] = -5 }, "classes[0].meleeBonus", "between 0 and 200"},
+		{"two ultimates", func(c map[string]any) { c["spells"] = []any{"5", "10"} }, "classes[0].spells", "at most one"},
 		{"unknown element", func(c map[string]any) { c["element"] = "Void" }, "classes[0].element", `unknown element "Void"`},
 		{"palette not hex", func(c map[string]any) {
 			c["palette"] = map[string]any{"primary": "bg-red-500", "secondary": "#ffffff"}

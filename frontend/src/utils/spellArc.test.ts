@@ -1,4 +1,10 @@
-import { FOLDED_COUNT, ringLayout, slotOffset } from "./spellArc";
+import {
+  FOLDED_COUNT,
+  needsFolding,
+  ringLayout,
+  SINGLE_RING_RADIUS,
+  slotOffset,
+} from "./spellArc";
 
 describe("ringLayout", () => {
   it("puts three spells on the inner ring and the rest on the outer one", () => {
@@ -37,7 +43,29 @@ describe("ringLayout", () => {
 
   it("handles a bar with fewer spells than slots", () => {
     expect(ringLayout(2, false)).toHaveLength(2);
+    expect(ringLayout(1, false)[0].angle).toBe(225);
     expect(ringLayout(0, true)).toEqual([]);
+  });
+});
+
+describe("ringLayout for a five-spell bar", () => {
+  it("puts every spell on one ring, all out, even when asked to fold", () => {
+    for (const folded of [false, true]) {
+      const slots = ringLayout(5, folded);
+      expect(slots.every((s) => s.shown && s.radius === SINGLE_RING_RADIUS)).toBe(true);
+      expect(slots[0].angle).toBe(180);
+      expect(slots[4].angle).toBe(270);
+    }
+    expect(needsFolding(5)).toBe(false);
+    expect(needsFolding(6)).toBe(true);
+  });
+
+  it("leaves room between neighbours for a 46px spell", () => {
+    const slots = ringLayout(5, false).map(slotOffset);
+    for (let i = 1; i < slots.length; i++) {
+      const gap = Math.hypot(slots[i].dx - slots[i - 1].dx, slots[i].dy - slots[i - 1].dy);
+      expect(gap).toBeGreaterThan(46);
+    }
   });
 });
 

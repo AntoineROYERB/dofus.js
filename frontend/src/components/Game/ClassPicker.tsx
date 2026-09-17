@@ -64,18 +64,42 @@ export const ClassPicker: React.FC<ClassPickerProps> = ({
         })}
       </div>
 
-      {current && (
-        <div className="mt-2.5 min-h-[64px] text-[12.5px] leading-snug text-graphite short:min-h-0">
-          <p className="font-mono text-[9.5px] uppercase tracking-label text-ink">
-            {current.element} · {current.health} hp · {current.actionPoints} ap ·{" "}
-            {current.movementPoints} mp
-          </p>
-          <p className="mt-1 short:hidden">{current.lore}</p>
-          <p className="mt-1 truncate text-[11.5px] text-muted" title={spellNames(current, spells)}>
-            {spellNames(current, spells)}
-          </p>
-        </div>
-      )}
+      {/*
+        Every class's description is laid out in the same cell, and only the
+        picked one is shown: the block is always as tall as the longest, so
+        picking a class never nudges the button under it.
+      */}
+      <div className="mt-2.5 grid text-[12.5px] leading-snug text-graphite">
+        {classes.map((cls) => {
+          const shown = cls.id === current?.id;
+          return (
+            <div
+              key={cls.id}
+              aria-hidden={!shown}
+              className={`[grid-area:1/1] transition-opacity duration-150 ${
+                shown ? "opacity-100" : "invisible opacity-0"
+              }`}
+            >
+              <p className="font-mono text-[9.5px] uppercase tracking-label text-ink">
+                {cls.element} · {cls.health} hp · {cls.actionPoints} ap ·{" "}
+                {cls.movementPoints} mp
+              </p>
+              <p className="mt-1 short:hidden">{cls.lore}</p>
+              {cls.passive && (
+                <p className="mt-1 text-[11.5px] text-ink">
+                  <span className="font-mono text-[9.5px] uppercase tracking-label text-muted">
+                    Passive{" "}
+                  </span>
+                  {cls.passive}
+                </p>
+              )}
+              <p className="mt-1 truncate text-[11.5px] text-muted" title={spellNames(cls, spells)}>
+                {spellNames(cls, spells)}
+              </p>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 };

@@ -84,8 +84,8 @@ func TestSpellWithoutLineOfSightRequirementIgnoresScreens(t *testing.T) {
 		"c": {X: 0, Y: 2},
 	}, "a", "b", "c")
 
-	// Gwendo na Gwendo (id 8) has needsLineOfSight false.
-	if err := g.CastSpell("a", 8, types.Position{X: 0, Y: 2}); err != nil {
+	// Downpour (id 13) falls from the sky and needs no line of sight.
+	if err := g.CastSpell("a", 13, types.Position{X: 0, Y: 2}); err != nil {
 		t.Fatalf("CastSpell that ignores sight: %v", err)
 	}
 }
@@ -94,7 +94,7 @@ func TestSpellRespectsItsCastsPerTurn(t *testing.T) {
 	g := twoPlayerGame(t)
 	target := types.Position{X: 0, Y: 3}
 
-	// Ember: three casts a turn and no cooldown, so the per-turn limit is the
+	// Kindle: two casts a turn and no cooldown, so the per-turn limit is the
 	// only thing that can stop it. Action points are lifted out of the way so
 	// the limit is what is actually under test.
 	g.mu.Lock()
@@ -103,13 +103,13 @@ func TestSpellRespectsItsCastsPerTurn(t *testing.T) {
 	g.players["a"] = p
 	g.mu.Unlock()
 
-	for i := 1; i <= 3; i++ {
+	for i := 1; i <= 2; i++ {
 		if err := g.CastSpell("a", 1, target); err != nil {
 			t.Fatalf("cast %d: %v", i, err)
 		}
 	}
 	if err := g.CastSpell("a", 1, target); !errors.Is(err, ErrTooManyCasts) {
-		t.Errorf("fourth cast = %v, want ErrTooManyCasts", err)
+		t.Errorf("third cast = %v, want ErrTooManyCasts", err)
 	}
 }
 
@@ -117,21 +117,21 @@ func TestCooldownBlocksTheNextTurnAndThenClears(t *testing.T) {
 	g := twoPlayerGame(t)
 	target := types.Position{X: 0, Y: 3}
 
-	// Frost Nova has a one-turn cooldown.
-	if err := g.CastSpell("a", 5, target); err != nil {
+	// Scorched Earth has a one-turn cooldown.
+	if err := g.CastSpell("a", 2, target); err != nil {
 		t.Fatalf("first cast: %v", err)
 	}
-	if got := g.Snapshot().Players["a"].Spells["5"].CooldownLeft; got != 1 {
+	if got := g.Snapshot().Players["a"].Spells["2"].CooldownLeft; got != 1 {
 		t.Fatalf("cooldown after casting = %d, want 1", got)
 	}
 
 	mustEndTurn(t, g) // a -> b
 	mustEndTurn(t, g) // b -> a, one tick off the cooldown
 
-	if got := g.Snapshot().Players["a"].Spells["5"].CooldownLeft; got != 0 {
+	if got := g.Snapshot().Players["a"].Spells["2"].CooldownLeft; got != 0 {
 		t.Fatalf("cooldown after a full round = %d, want 0", got)
 	}
-	if err := g.CastSpell("a", 5, target); err != nil {
+	if err := g.CastSpell("a", 2, target); err != nil {
 		t.Errorf("cast once the cooldown expired: %v", err)
 	}
 }
@@ -140,14 +140,14 @@ func TestCastsPerTurnResetAtTheStartOfATurn(t *testing.T) {
 	g := twoPlayerGame(t)
 	target := types.Position{X: 0, Y: 3}
 
-	// Ember: 2 AP, three casts a turn, no cooldown.
-	for i := 0; i < 3; i++ {
+	// Kindle: 3 AP, two casts a turn, no cooldown.
+	for i := 0; i < 2; i++ {
 		if err := g.CastSpell("a", 1, target); err != nil {
 			t.Fatalf("cast %d: %v", i, err)
 		}
 	}
-	if got := g.Snapshot().Players["a"].Spells["1"].CastsThisTurn; got != 3 {
-		t.Fatalf("casts this turn = %d, want 3", got)
+	if got := g.Snapshot().Players["a"].Spells["1"].CastsThisTurn; got != 2 {
+		t.Fatalf("casts this turn = %d, want 2", got)
 	}
 
 	mustEndTurn(t, g)
@@ -163,7 +163,7 @@ func TestCastsPerTurnResetAtTheStartOfATurn(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestCriticalHitsReplaceTheDamage(t *testing.T) {
-	// Ember: 7 damage, 11 on a critical, 20% chance. Over many casts both
+	// Kindle: 6 damage, 9 on a critical, 15% chance. Over many casts both
 	// outcomes have to show up, and only those two.
 	seen := map[int]int{}
 	for seed := 0; seed < 60; seed++ {
@@ -182,11 +182,11 @@ func TestCriticalHitsReplaceTheDamage(t *testing.T) {
 	}
 
 	for dmg := range seen {
-		if dmg != 7 && dmg != 11 {
-			t.Errorf("saw %d damage, want only 7 (normal) or 11 (critical)", dmg)
+		if dmg != 6 && dmg != 9 {
+			t.Errorf("saw %d damage, want only 6 (normal) or 9 (critical)", dmg)
 		}
 	}
-	if seen[7] == 0 || seen[11] == 0 {
+	if seen[6] == 0 || seen[9] == 0 {
 		t.Errorf("over 60 casts the outcomes were %v, want both a normal and a critical", seen)
 	}
 }
@@ -213,8 +213,8 @@ func TestCriticalIsRecordedInTheLog(t *testing.T) {
 	if last.Kind != types.LogCast || !last.Crit {
 		t.Fatalf("last log entry = %+v, want a critical cast", last)
 	}
-	if last.Damage != 11 {
-		t.Errorf("logged damage = %d, want 11", last.Damage)
+	if last.Damage != 9 {
+		t.Errorf("logged damage = %d, want 9", last.Damage)
 	}
 }
 

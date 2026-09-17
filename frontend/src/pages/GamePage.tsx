@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { generateMessageId } from "../utils/messageUtils";
 import { GameBoard } from "../components/Game/GameBoard";
 import SpellBar from "../components/Game/Spellbar";
+import { relayOf } from "../utils/terrain";
 import { GameAction, Position, GameStatus, GAME_STATUS } from "../types/game";
 import { FighterPanel } from "../components/Game/FighterPanel";
 import { TurnTimeline } from "../components/Game/TurnTimeline";
@@ -285,12 +286,18 @@ function GamePage() {
 
     if (selectedSpellId !== null) {
       const { messageId, timestamp } = generateMessageId();
+      // A spell cast on yourself lands on yourself, whichever cell was clicked.
+      const onSelf =
+        gameState?.spells?.[String(selectedSpellId)]?.targeting === "self";
       act({
         type: "cast_spell",
         messageId,
         timestamp,
         spellId: selectedSpellId,
-        targetPosition: position,
+        targetPosition:
+          onSelf && currentCharacter?.position
+            ? currentCharacter.position
+            : position,
       });
       setSelectedSpellId(null);
       return;
@@ -306,7 +313,7 @@ function GamePage() {
     const path = findPath(
       from,
       position,
-      blockedBy(gameState?.obstacles, occupied)
+      blockedBy(gameState?.obstacles, occupied, gameState?.terrain)
     );
     if (path && path.length > 0 && path.length <= currentCharacter.movementPoints) {
       const { messageId, timestamp } = generateMessageId();
@@ -443,6 +450,8 @@ function GamePage() {
             main={main}
             isMyTurn={!!isMyTurn}
             turnEndsAt={gameState?.turnEndsAt ?? 0}
+            turnNumber={gameState?.turnNumber ?? 0}
+            hasRelay={!!relayOf(gameState?.terrain, userId)}
             status={gameStatus}
           />
         </div>
@@ -513,6 +522,8 @@ function GamePage() {
             selectedSpellId={selectedSpellId}
             currentPlayer={currentPlayer}
             spells={gameState?.spells ?? null}
+            turnNumber={gameState?.turnNumber ?? 0}
+            hasRelay={!!relayOf(gameState?.terrain, userId)}
           />
         </div>
 
