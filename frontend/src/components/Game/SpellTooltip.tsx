@@ -4,28 +4,8 @@ import { Spell } from "../../types/message";
 import { Position } from "../../types/game";
 import { areaPattern } from "../../utils/spellUtils";
 import { effectLook } from "./EffectBadges";
-import { RULES, TERRAIN_INFO, ZONE_INFO } from "../../utils/terrain";
-
-/** What a spell does besides damage, one short phrase each. */
-const mechanics = (spell: Spell): string[] => {
-  const out: string[] = [];
-  if (spell.push > 0) out.push(`throws back ${spell.push}`);
-  if (spell.push < 0) out.push(`drags in ${-spell.push}`);
-  if (spell.terrain) out.push(`leaves ${TERRAIN_INFO[spell.terrain].name.toLowerCase()}`);
-  if (spell.special === "crater") out.push("digs a crater");
-  if (spell.special === "quake") out.push("opens fissures");
-  if (spell.special === "pillar") out.push("raises a pillar");
-  if (spell.special === "relay") out.push("sets your relay");
-  if (spell.special === "leap") out.push("leap");
-  if (spell.special === "detonate") out.push("sets burns off");
-  if (spell.zone) {
-    out.push(`${ZONE_INFO[spell.zone.kind].name.toLowerCase()} · ${spell.zone.duration} turns`);
-  }
-  if (spell.grantMP > 0) out.push(`+${spell.grantMP} MP now`);
-  if (spell.relayed) out.push(`+${RULES.relayBonus}% through your relay`);
-  if (spell.conducts) out.push(`+${RULES.conductBonus}% in water`);
-  return out;
-};
+import { RULES } from "../../utils/terrain";
+import { spellMechanics } from "../../utils/spellUtils";
 
 const ELEMENT_ICON: Record<string, string> = {
   Fire: "🔥",
@@ -140,7 +120,7 @@ export const SpellTooltip: React.FC<SpellTooltipProps> = ({
     : anchorRect.top - gap;
 
   const effect = spell.effect;
-  const extras = mechanics(spell);
+  const extras = spellMechanics(spell);
 
   return createPortal(
     <div

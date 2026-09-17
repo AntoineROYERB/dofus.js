@@ -435,6 +435,9 @@ export const Grid: React.FC<GridProps> = ({
       ? findPlayerOnCell(hoveredPosition.x, hoveredPosition.y)
       : undefined,
     userId,
+    expectedDamage: damagePreview?.damage,
+    damageNote: damagePreview?.throughRelay ? `via relay` : undefined,
+    ground: hoveredTerrain?.lines.map((line) => line.title).join(" · "),
   });
 
   /** Which of a cell's four edges face out of the zone. */
@@ -745,6 +748,11 @@ export const Grid: React.FC<GridProps> = ({
                 {confirmAction.target && (
                   <span className="mt-0.5 whitespace-nowrap font-mono text-[10px] tabular-nums text-white/85">
                     {confirmAction.target}
+                  </span>
+                )}
+                {confirmAction.ground && (
+                  <span className="mt-0.5 whitespace-nowrap font-mono text-[10px] text-white/85">
+                    on {confirmAction.ground.toLowerCase()}
                   </span>
                 )}
               </button>

@@ -451,6 +451,7 @@ function GamePage() {
             isMyTurn={!!isMyTurn}
             turnEndsAt={gameState?.turnEndsAt ?? 0}
             turnNumber={gameState?.turnNumber ?? 0}
+            hasRelay={!!relayOf(gameState?.terrain, userId)}
             status={gameStatus}
           />
         </div>

@@ -143,6 +143,11 @@ export const ClassCarousel: React.FC<ClassCarouselProps> = ({
           {cls.health} hp · {cls.actionPoints} ap · {cls.movementPoints} mp
         </span>
       </p>
+      {cls.passive && (
+        <p className="mt-0.5 max-w-[34ch] text-center text-[11px] leading-snug text-graphite">
+          {cls.passive}
+        </p>
+      )}
     </div>
   );
 };

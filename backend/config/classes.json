@@ -38,7 +38,7 @@
         "secondary": "#e7f9e0"
       },
       "lore": "Never where you aimed. Strikes from a relay far across the board, throws enemies around, and leaves a storm where they stood.",
-      "passive": "Relay: an air spell that cannot reach from where you stand can be cast from your relay.",
+      "passive": "Relay: your air spells go out from your relay whenever it reaches, and hit 30% harder from there.",
       "movementPoints": 5,
       "spells": [
         "6",
