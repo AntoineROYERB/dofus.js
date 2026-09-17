@@ -1,6 +1,17 @@
 /** How many spells stay out when the spell arc is folded. */
 export const FOLDED_COUNT = 3;
 
+/**
+ * Up to this many spells sit on a single ring and are always all out: a
+ * five-spell bar has nothing worth folding away.
+ */
+export const SINGLE_RING_MAX = 5;
+/** The single ring's radius: wide enough that five 46px spells never touch. */
+export const SINGLE_RING_RADIUS = 128;
+
+/** Whether a bar is long enough that the arc folds part of it away. */
+export const needsFolding = (count: number): boolean => count > SINGLE_RING_MAX;
+
 export type ArcSlot = { angle: number; radius: number; shown: boolean };
 
 /**
@@ -10,6 +21,15 @@ export type ArcSlot = { angle: number; radius: number; shown: boolean };
  * folded, only the first three stay out and the others tuck in behind it.
  */
 export const ringLayout = (count: number, folded: boolean): ArcSlot[] => {
+  if (!needsFolding(count)) {
+    // One ring, spread evenly from due left to straight up.
+    const span = 90;
+    return Array.from({ length: count }, (_, i) => ({
+      angle: 180 + (count > 1 ? (span * i) / (count - 1) : span / 2),
+      radius: SINGLE_RING_RADIUS,
+      shown: true,
+    }));
+  }
   if (folded) {
     return Array.from({ length: count }, (_, i) =>
       i < FOLDED_COUNT

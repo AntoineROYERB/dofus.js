@@ -6,7 +6,7 @@ import { SpellTooltip } from "./SpellTooltip";
 import { barSpells } from "../../utils/classUtils";
 import { RULES } from "../../utils/terrain";
 import { BOARD } from "../../constants";
-import { spec, unavailableReason } from "../../utils/spellUtils";
+import { spec, spellSummary, unavailableReason } from "../../utils/spellUtils";
 
 /** The ultimate's own colour: gold, the one thing on the bar that is rare. */
 const ULTIMATE = "#c99a1a";
@@ -42,11 +42,11 @@ const SpellSlot: React.FC<{
   const [showTooltip, setShowTooltip] = React.useState(false);
 
   return (
-    <div className="flex flex-none flex-col items-center">
+    <div className="flex flex-none flex-col items-center lg:min-w-0 lg:max-w-[190px] lg:flex-1 short:!max-w-none">
     <button
       ref={buttonRef}
       type="button"
-      className={`relative h-12 w-12 flex-none text-ink transition-colors narrow:h-12 narrow:w-full sm:h-14 sm:w-14 lg:h-16 lg:w-16 short:h-11 short:w-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-vermilion ${
+      className={`relative h-12 w-12 flex-none text-ink transition-colors narrow:h-12 narrow:w-full sm:h-14 sm:w-14 lg:h-[72px] lg:w-full short:h-11 short:w-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-vermilion ${
         spell.ultimate ? "bg-[#fff6dc]" : "bg-board"
       } ${
         isSelected
@@ -91,7 +91,7 @@ const SpellSlot: React.FC<{
         />
       )}
       <span
-        className={`flex h-full items-center justify-center ${locked ? "opacity-40" : ""}`}
+        className={`flex h-full items-center justify-center lg:justify-start lg:pl-3 lg:pr-5 short:!justify-center short:!px-0 ${locked ? "opacity-40" : ""}`}
         style={spell.ultimate ? { color: "#8a6a10" } : undefined}
       >
         <SpellGlyph
@@ -99,6 +99,21 @@ const SpellSlot: React.FC<{
           fallback={spell.icon}
           className="h-6 w-6 sm:h-7 sm:w-7"
         />
+        {/* On a desk there is room to say what the spell is and does. */}
+        <span className="ml-2.5 hidden min-w-0 flex-1 text-left lg:block short:!hidden">
+          <span className="block truncate font-display text-[13px] font-bold leading-tight text-ink">
+            {spell.name}
+          </span>
+          <span
+            className="block truncate font-mono text-[9px] uppercase tracking-label"
+            style={{ color: spell.ultimate ? "#8a6a10" : spell.color }}
+          >
+            {spell.role}
+          </span>
+          <span className="mt-0.5 block truncate font-mono text-[10px] tabular-nums text-graphite">
+            {spellSummary(spell)}
+          </span>
+        </span>
       </span>
       <span className="absolute bottom-0.5 right-1.5 font-mono text-[10px] tabular-nums text-muted">
         {spell.APCost}
@@ -142,7 +157,7 @@ const SpellSlot: React.FC<{
     </button>
       {/* What the spell is for, in one word, under every slot. */}
       <span
-        className="mt-0.5 hidden max-w-[64px] truncate font-mono text-[9px] uppercase tracking-label short:hidden sm:block"
+        className="mt-0.5 hidden max-w-[64px] truncate font-mono text-[9px] uppercase tracking-label short:hidden sm:block lg:!hidden"
         style={{ color: spell.ultimate ? ULTIMATE : undefined }}
       >
         {spell.role}
@@ -190,6 +205,10 @@ const SpellBar: React.FC<SpellBarProps> = ({
             <span className="ml-2.5 hidden font-sans text-xs font-normal text-muted sm:inline short:mt-1 short:block short:ml-0 short:truncate short:text-[11px]">
               {spec(selected)}
             </span>
+            {/* The whole sentence, where there is room for it. */}
+            <span className="ml-2.5 hidden font-sans text-xs font-normal text-graphite xl:inline short:!hidden">
+              — {selected.description}
+            </span>
           </>
         ) : (
           <span className="font-sans text-[11.5px] font-normal text-muted sm:text-xs short:text-[11px]">
@@ -208,7 +227,7 @@ const SpellBar: React.FC<SpellBarProps> = ({
         board, or sideways in the right-hand column. Eight spells in a
         scrolling strip meant most of them were off screen.
       */}
-      <div className="-mx-1 mt-auto flex gap-[6px] overflow-x-auto px-1 pb-0.5 narrow:grid narrow:grid-cols-4 narrow:overflow-visible sm:gap-[7px] short:mt-0 short:grid short:grid-cols-4 short:gap-1.5 short:overflow-visible">
+      <div className="-mx-1 mt-auto flex gap-[6px] overflow-x-auto px-1 pb-0.5 lg:overflow-visible narrow:grid narrow:grid-cols-5 narrow:overflow-visible sm:gap-[7px] short:mt-0 short:grid short:grid-cols-5 short:gap-1.5 short:overflow-visible">
         {catalogue.map((spell, index) => (
           <SpellSlot
             key={spell.id}

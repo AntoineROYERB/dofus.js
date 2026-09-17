@@ -16,6 +16,8 @@ interface BurnMarkerProps {
 const EMBER = "#e2521d";
 const EMBER_HOT = "#ffb03a";
 const MAX_STACKS = 3;
+/** Room the badge needs above it, the phone's turn bar included. */
+const BADGE_ROOM = 64;
 
 const Flame: React.FC<{ size: number; delay?: number }> = ({ size, delay = 0 }) => (
   <svg
@@ -49,6 +51,10 @@ export const BurnMarker: React.FC<BurnMarkerProps> = ({
   const tw = tileSize.width;
   const headY = screenPosition.y - (SPRITE.feet - SPRITE.headTop) * tw;
   const flame = Math.max(12, tw * 0.16);
+  // Over the head, unless that would push it off the top of the board —
+  // on a phone the board runs to the screen's edge — then under the feet.
+  const aboveTop = headY - tileSize.height * 0.55;
+  const flip = aboveTop < BADGE_ROOM;
 
   return (
     <>
@@ -57,8 +63,8 @@ export const BurnMarker: React.FC<BurnMarkerProps> = ({
         className="pointer-events-none absolute z-20 flex items-center gap-0.5 border-2 bg-paper px-1 py-0.5 shadow-sm"
         style={{
           left: `${screenPosition.x}px`,
-          top: `${headY - tileSize.height * 0.55}px`,
-          transform: "translate(-50%, -100%)",
+          top: `${flip ? screenPosition.y + tileSize.height * 0.45 : aboveTop}px`,
+          transform: flip ? "translate(-50%, 0)" : "translate(-50%, -100%)",
           borderColor: EMBER,
         }}
         title={`Burning ×${stacks}: ${stacks * RULES.burnDamagePerStack} damage at the start of each turn, ${turnsLeft} turn${turnsLeft > 1 ? "s" : ""} left`}

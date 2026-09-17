@@ -232,3 +232,48 @@ export const spellMechanics = (spell: Spell): string[] => {
   return out;
 };
 
+
+/**
+ * What a spell does, in as few words as fit under its name: the damage, then
+ * what it leaves on the target, the caster or the board.
+ */
+export const spellSummary = (spell: Spell): string => {
+  const out: string[] = [];
+  if (spell.damage > 0) out.push(`${spell.damage} dmg`);
+  const e = spell.effect;
+  if (e) {
+    if (e.kind === "burn") out.push(`+${e.value} burn`);
+    else if (e.kind === "root") out.push("roots");
+    else if (e.kind === "ap" || e.kind === "mp") {
+      out.push(`${e.value > 0 ? "+" : "−"}${Math.abs(e.value)} ${e.kind.toUpperCase()}`);
+    } else if (e.kind === "shield") out.push(`shield ${e.value}`);
+    else if (e.kind === "regen") out.push(`heal ${e.value}/t`);
+    else if (e.kind === "poison") out.push(`poison ${e.value}/t`);
+  }
+  if (spell.push > 0) out.push(`push ${spell.push}`);
+  if (spell.push < 0) out.push(`pull ${-spell.push}`);
+  if (spell.grantMP > 0) out.push(`+${spell.grantMP} MP`);
+  switch (spell.special) {
+    case "detonate":
+      out.push("sets burns off");
+      break;
+    case "leap":
+      out.push("leap");
+      break;
+    case "relay":
+      out.push("sets relay");
+      break;
+    case "pillar":
+      out.push("wall");
+      break;
+    case "crater":
+      out.push("crater");
+      break;
+    case "quake":
+      out.push("fissures");
+      break;
+  }
+  if (spell.terrain) out.push(TERRAIN_INFO[spell.terrain].name.toLowerCase());
+  if (spell.zone) out.push(`${ZONE_INFO[spell.zone.kind].name.toLowerCase()} ${spell.zone.duration}t`);
+  return out.join(" · ");
+};

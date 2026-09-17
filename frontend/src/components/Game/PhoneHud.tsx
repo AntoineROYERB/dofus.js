@@ -2,8 +2,8 @@ import React, { useEffect, useRef, useState } from "react";
 import { GameStatus, GAME_STATUS, Player } from "../../types/game";
 import { GameState, Spell, SpellBook } from "../../types/message";
 import { barSpells } from "../../utils/classUtils";
-import { unavailableReason } from "../../utils/spellUtils";
-import { FOLDED_COUNT, ringLayout, slotOffset } from "../../utils/spellArc";
+import { spellSummary, unavailableReason } from "../../utils/spellUtils";
+import { FOLDED_COUNT, needsFolding, ringLayout, slotOffset } from "../../utils/spellArc";
 import { effectTotal } from "../../utils/effectUtils";
 import { SpellGlyph } from "./SpellGlyph";
 import { RULES } from "../../utils/terrain";
@@ -345,7 +345,9 @@ export const SpellArc: React.FC<SpellArcProps> = ({
     if (wasSelected.current && !hasSelection) setOpened(false);
     wasSelected.current = hasSelection;
   }, [hasSelection]);
-  const extra = Math.max(0, catalogue.length - FOLDED_COUNT);
+  const extra = needsFolding(catalogue.length)
+    ? catalogue.length - FOLDED_COUNT
+    : 0;
   const folded = extra > 0 && !opened && !hasSelection;
   const layout = ringLayout(catalogue.length, folded);
   const actionPoints = player?.character?.actionPoints ?? 0;
@@ -355,10 +357,22 @@ export const SpellArc: React.FC<SpellArcProps> = ({
     <div className="pointer-events-none absolute inset-0">
       {selected && (
         <div
-          className={`absolute rounded-full px-3 py-1 font-mono text-[10px] uppercase tracking-label text-ink ${HAIRLINE}`}
+          className={`absolute max-w-[300px] rounded-2xl px-3 py-1.5 text-right ${HAIRLINE}`}
           style={{ right: 16, bottom: CENTRE.bottom + 222 }}
         >
-          <b className="font-semibold">{selected.name}</b> · pick a target
+          <p className="font-mono text-[10px] uppercase tracking-label text-ink">
+            <b className="font-semibold">{selected.name}</b>
+            <span
+              className="ml-1.5"
+              style={{ color: selected.ultimate ? "#8a6a10" : selected.color }}
+            >
+              {selected.role}
+            </span>
+            <span className="text-muted"> · pick a target</span>
+          </p>
+          <p className="mt-0.5 font-mono text-[10.5px] tabular-nums text-graphite">
+            {spellSummary(selected)}
+          </p>
         </div>
       )}
 

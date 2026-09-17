@@ -3,6 +3,7 @@ import {
   calculateImpactedCells,
   castOrigin,
   spec,
+  spellSummary,
   unavailableReason,
 } from "./spellUtils";
 import { Spell } from "../types/message";
@@ -94,6 +95,25 @@ describe("wall", () => {
     expect(across.map((c) => c.y)).toEqual([3, 3, 3, 3, 3]);
     const slant = calculateImpactedCells(spell, { x: 3, y: 1 }, { x: 0, y: 0 });
     expect(slant.map((c) => c.x)).toEqual([3, 3, 3, 3, 3]);
+  });
+});
+
+describe("spellSummary", () => {
+  it("says what a spell does in a few words", () => {
+    expect(
+      spellSummary(
+        makeSpell({
+          damage: 9,
+          effect: { kind: "mp", value: -1, duration: 1, onSelf: false },
+        })
+      )
+    ).toBe("9 dmg · −1 MP");
+    expect(
+      spellSummary(makeSpell({ damage: 0, targeting: "empty", special: "relay" }))
+    ).toBe("sets relay");
+    expect(spellSummary(makeSpell({ damage: 5, areaOfEffect: "wall", terrain: "fire" }))).toBe(
+      "5 dmg · fire"
+    );
   });
 });
 
