@@ -4,6 +4,7 @@ import {
   CharacterShowcase,
   ShowcaseFigure,
 } from "../Game/CharacterShowcase";
+import { lineUpSlot, mod, shownPosition } from "../../utils/lineUp";
 
 interface ClassCarouselProps {
   classes: CharacterClass[];
@@ -11,20 +12,13 @@ interface ClassCarouselProps {
   onSelect: (cls: CharacterClass) => void;
 }
 
-const mod = (n: number, m: number) => ((n % m) + m) % m;
-
-/**
- * Where a fighter stands in the line-up, relative to the one on the stand.
- * Neighbours wait to either side, smaller, paler and a little further back;
- * the two beyond them are invisible, ready to slide in.
- */
+/** A line-up slot as a style, sliding between places. */
 const place = (offset: number): React.CSSProperties => {
-  const distance = Math.abs(offset);
-  const side = distance === 0 ? 1 : 0.6;
+  const { x, y, scale, opacity } = lineUpSlot(offset);
   return {
-    transform: `translate(${offset * 105}%, ${distance === 0 ? 0 : -14}%) scale(${side})`,
+    transform: `translate(${x}%, ${y}%) scale(${scale})`,
     transformOrigin: "50% 70%",
-    opacity: distance === 0 ? 1 : distance === 1 ? 0.3 : 0,
+    opacity,
     transition:
       "transform 380ms cubic-bezier(.2,.8,.2,1), opacity 380ms cubic-bezier(.2,.8,.2,1)",
   };
@@ -80,10 +74,7 @@ export const ClassCarousel: React.FC<ClassCarouselProps> = ({
   );
   const [position, setPosition] = useState(selectedIndex);
   // A class picked elsewhere moves the line to it without a slide.
-  const shown =
-    mod(position, count) === selectedIndex
-      ? position
-      : position - mod(position, count) + selectedIndex;
+  const shown = shownPosition(position, selectedIndex, count);
   const cls = classes[mod(shown, count)];
 
   const turn = (dir: -1 | 1) => {

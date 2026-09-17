@@ -307,12 +307,19 @@ web views, so the app plays anonymously.
 
 ```bash
 cd backend && go test -race ./...     # rules, lobby, turn cycle, bot, content, balance
-cd frontend && npm test               # isometric geometry, spell bar, solo arc
+cd frontend && npm test               # isometric geometry, spell bar, solo arc, phone HUD
+cd frontend && npm test -- --coverage # the same, failing if the phone HUD's logic loses coverage
 cd frontend && npm run lint && npm run build
 ```
 
-CI runs all of it on every push, plus `gofmt`, `go vet` and a full
-`docker compose build`.
+The phone layout's decisions — the spell arc's slots and folding, the class
+line-up, what the confirm bubble offers and where it opens, the board's tile
+fit, the native helpers — live in plain modules, so they are tested without
+a DOM.
+
+CI runs all of it on every push, plus `gofmt`, `go vet`, a full
+`docker compose build`, and, on macOS, the iOS app: the web bundle synced into
+the Xcode project and compiled for the simulator, unsigned.
 
 ## Performance
 

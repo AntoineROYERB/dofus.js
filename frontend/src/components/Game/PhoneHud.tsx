@@ -3,6 +3,7 @@ import { GameStatus, GAME_STATUS, Player } from "../../types/game";
 import { GameState, Spell, SpellBook } from "../../types/message";
 import { barSpells } from "../../utils/classUtils";
 import { unavailableReason } from "../../utils/spellUtils";
+import { FOLDED_COUNT, ringLayout, slotOffset } from "../../utils/spellArc";
 import { effectTotal } from "../../utils/effectUtils";
 import { SpellGlyph } from "./SpellGlyph";
 import { SpellCard } from "./SpellCard";
@@ -145,32 +146,6 @@ const CENTRE = { right: 64, bottom: 60 };
 const MAIN_R = 44;
 const SLOT = 46;
 const LONG_PRESS_MS = 380;
-
-/** How many spells stay out when the arc is folded. */
-const FOLDED_COUNT = 3;
-
-/** Angles in degrees: 180 is due left of the centre, 270 straight up. */
-const ringLayout = (count: number, folded: boolean) => {
-  if (folded) {
-    return Array.from({ length: count }, (_, i) =>
-      i < FOLDED_COUNT
-        ? { angle: [200, 232, 264][i], radius: 86, shown: true }
-        : // Tucked behind the main button, ready to fan back out.
-          { angle: 225, radius: 20, shown: false }
-    );
-  }
-  const inner = [200, 232, 264];
-  const outer = [184, 205, 226, 247, 268];
-  const slots: { angle: number; radius: number; shown: boolean }[] = [];
-  for (let i = 0; i < count; i++) {
-    slots.push(
-      i < inner.length
-        ? { angle: inner[i], radius: 104, shown: true }
-        : { angle: outer[i - inner.length] ?? 268, radius: 166, shown: true }
-    );
-  }
-  return slots;
-};
 
 const SpellButton: React.FC<{
   spell: Spell;
@@ -343,11 +318,7 @@ export const SpellArc: React.FC<SpellArcProps> = ({
 
       <div id="tutorial-spellbar" className="pointer-events-auto">
         {catalogue.map((spell, i) => {
-          const { angle, radius } = layout[i];
-          const rad = (angle * Math.PI) / 180;
-          // Offsets from the centre, in screen terms (y grows downwards).
-          const dx = Math.cos(rad) * radius;
-          const dy = Math.sin(rad) * radius;
+          const { dx, dy } = slotOffset(layout[i]);
           const state = player?.spells?.[String(spell.id)];
           return (
             <SpellButton

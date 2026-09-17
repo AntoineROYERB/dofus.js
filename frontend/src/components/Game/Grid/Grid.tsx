@@ -21,6 +21,7 @@ import { useGridInteraction } from "../../../hooks/useGridInteraction";
 import { useTileSize } from "../../../hooks/useTileSize";
 import { usePinchZoom } from "../../../hooks/usePinchZoom";
 import { GameState } from "../../../types/message";
+import { bubblePlacement, confirmActionFor } from "../../../utils/touchConfirm";
 
 interface GridProps {
   gridSize: number;
@@ -309,52 +310,20 @@ export const Grid: React.FC<GridProps> = ({
    * for a second tap on the same small diamond, the preview carries a large
    * bubble that says what confirming will do, and what it costs.
    */
-  const confirmAction = (() => {
-    if (!touchMode || !hoveredPosition || isPositioningPhase) return null;
-    if (!currentPlayer?.isCurrentTurn) return null;
-    const key = `${hoveredPosition.x},${hoveredPosition.y}`;
-    if (selectedSpell) {
-      if (!castable.has(key)) return null;
-      // Who stands there, and what the hit would leave them with: the card
-      // that would otherwise float over their head is folded into the bubble.
-      const standing = findPlayerOnCell(hoveredPosition.x, hoveredPosition.y);
-      const fighter = standing?.character;
-      const target = !fighter
-        ? undefined
-        : standing.userId === userId
-          ? "on yourself"
-          : selectedSpell.damage > 0
-            ? `${fighter.name} · ${fighter.health} → ${Math.max(
-                0,
-                fighter.health - selectedSpell.damage
-              )} hp`
-            : fighter.name;
-      return {
-        kind: "cast" as const,
-        label: "Cast",
-        detail:
-          selectedSpell.damage > 0
-            ? `−${selectedSpell.damage}`
-            : `${selectedSpell.APCost} AP`,
-        target,
-      };
-    }
-    if (
-      characterPosition &&
-      characterPosition.x === hoveredPosition.x &&
-      characterPosition.y === hoveredPosition.y
-    ) {
-      return null;
-    }
-    const cost = walkable.get(key);
-    if (cost === undefined || cost === 0) return null;
-    return {
-      kind: "move" as const,
-      label: "Move",
-      detail: `${cost} MP`,
-      target: undefined,
-    };
-  })();
+  const confirmAction = confirmActionFor({
+    touchMode,
+    previewed: hoveredPosition,
+    isPositioningPhase,
+    isMyTurn: !!currentPlayer?.isCurrentTurn,
+    selectedSpell,
+    castable,
+    walkable,
+    characterPosition,
+    standing: hoveredPosition
+      ? findPlayerOnCell(hoveredPosition.x, hoveredPosition.y)
+      : undefined,
+    userId,
+  });
 
   /** Which of a cell's four edges face out of the zone. */
   const zoneEdges = (x: number, y: number): boolean[] | undefined => {
@@ -584,20 +553,7 @@ export const Grid: React.FC<GridProps> = ({
             centerY
           );
           const cell = hoveredPosition;
-          /*
-           * Beside the cell, never over it: whoever stands there, the path's
-           * end and the area stay in view. It opens away from the spell arc
-           * (bottom right) unless there is no room on that side.
-           */
-          const reach = 220;
-          const offset = tileSize.width * 0.5 + 10;
-          let toLeft = at.x > boardSize.width * 0.5;
-          if (toLeft && at.x - offset - reach < 8) toLeft = false;
-          if (!toLeft && at.x + offset + reach > boardSize.width - 8) toLeft = true;
-          const top = Math.min(
-            Math.max(at.y - tileSize.height * 0.9, 34),
-            boardSize.height - 34
-          );
+          const { toLeft, left, top } = bubblePlacement(at, tileSize, boardSize);
           return (
             <div
               data-board-ui
@@ -605,7 +561,7 @@ export const Grid: React.FC<GridProps> = ({
                 toLeft ? "flex-row-reverse" : ""
               }`}
               style={{
-                left: `${toLeft ? at.x - offset : at.x + offset}px`,
+                left: `${left}px`,
                 top: `${top}px`,
                 transform: `translate(${toLeft ? "-100%" : "0"}, -50%)`,
               }}

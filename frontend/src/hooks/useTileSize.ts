@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { fitTile } from "../utils/boardFit";
 
 /**
  * The board is a diamond of cells rendered in isometric projection: with a
@@ -39,12 +40,7 @@ export const useTileSize = (
         return;
       }
 
-      const span = Math.floor(gridSize / 2) + 1;
-      // Sprites stand a good deal taller than their cell, so the board keeps a
-      // margin at the top rather than running its far row under the timeline.
-      const byWidth = width / span;
-      const byHeight = (height * 2) / (span + 1.4);
-      const tile = Math.max(12, Math.min(byWidth, byHeight));
+      const tile = fitTile(width, height, gridSize);
 
       setLayout((prev) =>
         prev.tile.width === tile &&
