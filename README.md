@@ -26,12 +26,20 @@ instantly either way.
 
 <img src="docs/assets/05-phone.png" alt="The same fight on a phone held sideways" width="100%">
 
-On a phone, hold it sideways: the board is twice as wide as it is tall, and the
-bar stands up as a column on the right — figures, a 4×2 block of spells, the
-button — so the board keeps the full height. Held upright, the spells get a row
-of their own under the board. There is no hovering
-on a touch screen, so a tap previews a cell — its walk, its area of effect, the
-damage it would do — and a second tap on the same cell commits it.
+On a phone, hold it sideways. The lobby becomes a home screen: your fighter in
+the middle, arrows (or a swipe) to slide through the classes with the others
+waiting faded on either side, a tap on your name to rename, and one big Play
+button under the right thumb. In a fight the board takes the whole screen and
+the controls float over its corners — turn order top left, your HP, AP and MP
+bottom left, and your spells in an arc around the End turn button bottom
+right, folded down to three until you need the rest.
+
+There is no hovering on a touch screen, so a tap previews a cell — its walk,
+its area of effect, who it would hit and what they would be left with — and a
+bubble beside it confirms (*Move · 3 MP*, *Cast −7*). Holding a spell opens a
+card that plays the spell out on a few cells: its range, the shot, the area
+it lands on, the damage. Held upright, in a browser, the spells get a row of
+their own under the board instead.
 
 ## Run it yourself
 
@@ -108,11 +116,12 @@ wins more than 65% of a matchup or fights stop lasting four to eight turns.
 back-to-front draw order, the screen-to-grid hit test and the sprite-sheet
 animation loop are all in the client, and the geometry is unit-tested.
 
-**One layout, three shapes.** The board keeps the screen and is never covered:
-the log sits beside it on a wide screen, behind a button on a narrow one, and
-the bar folds from three roomy zones to three tight ones. A phone held sideways
-is the shape the board actually wants, so the HUD has a compact form for short
-viewports rather than a separate mobile design.
+**One board, two layouts.** On a wide screen the board is never covered: the
+log sits beside it, and the bar under it folds from three roomy zones to three
+tight ones as the width shrinks. A phone held sideways — the shape the board
+actually wants — gets its own layout instead, chosen by viewport height: the
+board fills the screen, the HUD floats over the diamond's empty corners, and
+every action sits under a thumb.
 
 **The screen has one rule.** Paper, ink, graphite and a single vermilion: three
 weights of rule and the size of the figures do the separating, and the only
@@ -136,12 +145,16 @@ backend/
   internal/types/      wire format shared by every layer
 frontend/src/
   pages/               landing, lobby, board
-  components/Game/     board, tiles, characters, spell bar, turn order, log
+  components/Game/     board, tiles, characters, spell bar, turn order, log,
+                       the phone HUD (spell arc, fighter status) and spell cards
+  components/Lobby/    the phone home screen: class line-up, rename dialog
   components/Chat/     the rail's chat section
   hooks/               animation loop, grid interaction, tile sizing
+  lib/native.ts        what the iOS app does that a browser cannot (haptics)
   utils/               isometric maths, pathing, spell areas
   constants.ts         board palette and stroke widths
   tailwind.config.js   the screen's colours and three typefaces
+frontend/ios/          the Capacitor Xcode project for the iOS app
 ```
 
 ## Configuration
@@ -274,8 +287,16 @@ cd frontend && VITE_WS_URL=wss://dofusjs.onrender.com npm run ios:sync && npm ru
 ALLOWED_ORIGINS=https://dofusjs.onrender.com,capacitor://localhost
 ```
 
-**TestFlight and the App Store.** Running on your own phone from Xcode works
-with a free Apple ID (the install expires after seven days). TestFlight and
+**On your own iPhone, for free.** A free Apple ID is enough: add it under
+Xcode → Settings → Accounts, plug the phone in, turn on *Settings → Privacy &
+Security → Developer Mode*, pick your *Personal Team* under *Signing &
+Capabilities* and press Run. The first launch asks you to trust your developer
+profile under *Settings → General → VPN & Device Management*. A free install
+stops opening after seven days; running it again from Xcode renews it. The
+live-reload and preview builds above bake in the Mac's LAN address, so a new
+address means a new install.
+
+**TestFlight and the App Store.** TestFlight and
 the store need the paid Apple Developer Program: register the bundle id from
 `frontend/capacitor.config.ts` (`com.antoineroyerb.dofusjs`), pick the team
 under *Signing & Capabilities*, then *Product → Archive → Distribute App*.

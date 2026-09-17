@@ -17,6 +17,13 @@ import { SideRail } from "../components/Game/SideRail";
 import { useRejectionBanner } from "../hooks/useRejectionBanner";
 import { GameTutorial } from "../components/Game/GameTutorial";
 import { LeaveDialog } from "../components/Game/LeaveDialog";
+import {
+  CornerButton,
+  FighterStatus,
+  SpellArc,
+  TurnBar,
+} from "../components/Game/PhoneHud";
+import { useMediaQuery } from "../hooks/useMediaQuery";
 import { hasSeenTutorial, markTutorialSeen } from "../utils/tutorialStorage";
 import { barSpells, unlockedBy } from "../utils/classUtils";
 import { markDefeated, readDefeated } from "../utils/progressStorage";
@@ -57,6 +64,7 @@ function GamePage() {
   const visibleRejection = useRejectionBanner(rejection);
   // Below lg the rail is a sheet: the board keeps the screen until asked.
   const [railOpen, setRailOpen] = useState(false);
+  const compact = useMediaQuery("(max-height: 560px)");
 
   // Runs once for a new player, and again any time "Replay tutorial" is
   // pressed from the room panel.
@@ -306,31 +314,157 @@ function GamePage() {
     }
   };
 
-  return (
-    <div className="relative flex h-[100dvh] max-h-[100dvh] flex-col overflow-hidden bg-paper text-ink short:flex-row">
-      {visibleRejection && (
-        <div
-          role="status"
-          className="absolute left-1/2 top-3 z-40 max-w-[92vw] -translate-x-1/2 border border-vermilion bg-vermilion px-4 py-2 text-center text-[13px] text-white"
-        >
-          {visibleRejection}
+  // Everything laid over either layout: notices, the log sheet, the result,
+  // the leave confirmation and the tutorial.
+  const overlays = (
+    <>
+        {visibleRejection && (
+          <div
+            role="status"
+            className="absolute left-1/2 top-3 z-40 max-w-[92vw] -translate-x-1/2 border border-vermilion bg-vermilion px-4 py-2 text-center text-[13px] text-white"
+          >
+            {visibleRejection}
+          </div>
+        )}
+
+        {railOpen && (
+          <div className="fixed inset-0 z-40">
+            <button
+              type="button"
+              aria-label="Close the log"
+              onClick={() => setRailOpen(false)}
+              className="absolute inset-0 bg-ink/40"
+            />
+            <aside className="absolute bottom-0 right-0 top-0 flex w-[min(340px,88vw)] flex-col border-l-2 border-ink bg-paper pl-5 pr-[calc(1.25rem+env(safe-area-inset-right))] pt-4">
+              <SideRail
+                roomName={roomName}
+                latestGameState={gameState}
+                onLeave={() => {
+                  setRailOpen(false);
+                  requestLeave();
+                }}
+                onReplayTutorial={() => setTutorialActive(true)}
+                onClose={() => setRailOpen(false)}
+              />
+            </aside>
+          </div>
+        )}
+
+        {winner && (
+          <GameOverModal
+            winner={winner}
+            onPlayAgain={handlePlayAgain}
+            onExit={handleLeave}
+            farewell={soloResult?.farewell}
+            unlocked={soloResult?.unlocked}
+          />
+        )}
+
+        {leaveAsked && !winner && (
+          <LeaveDialog
+            onConfirm={handleLeave}
+            onCancel={() => setLeaveAsked(false)}
+          />
+        )}
+
+        <GameTutorial active={tutorialActive} onFinish={finishTutorial} />
+    </>
+  );
+
+  /*
+   * A phone held sideways: the board fills the screen and the controls sit
+   * over its corners, spells in an arc under the right thumb. A tap on a cell
+   * previews it and a bubble confirms it; holding a spell shows what it does.
+   */
+  if (compact) {
+    const main =
+      gameStatus === GAME_STATUS.POSITION_CHARACTERS
+        ? {
+            label: isPlayerPositioned ? "Waiting…" : "Fight",
+            disabled: !connected || !selectedPosition || !!isPlayerPositioned,
+            onClick: handleFightClick,
+            beckon: connected && !!selectedPosition && !isPlayerPositioned,
+          }
+        : gameStatus === GAME_STATUS.PLAYING
+          ? {
+              label: "End turn",
+              disabled: !isMyTurn,
+              onClick: handleEndTurnClick,
+            }
+          : gameStatus === GAME_STATUS.GAME_OVER
+            ? null
+            : {
+                label: connected ? "Waiting…" : "Offline",
+                disabled: true,
+                onClick: () => {},
+              };
+
+    return (
+      <div className="fixed inset-0 select-none overflow-hidden bg-paper text-ink">
+        {/* A little lower than the top edge, so the far row clears the turn bar. */}
+        <div id="tutorial-board" className="absolute inset-x-0 bottom-0 top-5">
+          <GameBoard
+            gridSize={15}
+            handleSelectedPosition={handleSelectedPosition}
+            selectedPosition={selectedPosition}
+            selectedSpellId={selectedSpellId}
+            handleCellClick={handleCellClick}
+            latestGameState={gameState}
+            userId={userId}
+          />
         </div>
-      )}
+
+        <div className="pointer-events-none absolute inset-0 pb-[max(8px,env(safe-area-inset-bottom))] pl-[max(12px,env(safe-area-inset-left))] pr-[max(12px,env(safe-area-inset-right))] pt-[max(8px,env(safe-area-inset-top))]">
+          <div className="pointer-events-auto absolute left-[max(12px,env(safe-area-inset-left))] top-[max(8px,env(safe-area-inset-top))]">
+            <TurnBar
+              gameState={gameState}
+              userId={userId}
+              phase={phaseLabel(gameStatus, isMyTurn)}
+            />
+          </div>
+          <div className="pointer-events-auto absolute right-[max(12px,env(safe-area-inset-right))] top-[max(8px,env(safe-area-inset-top))] flex gap-2">
+            <CornerButton label="Log" onClick={() => setRailOpen(true)} />
+            <CornerButton label="Leave" onClick={requestLeave} />
+          </div>
+          <div
+            id="tutorial-fighter-panel"
+            className="pointer-events-auto absolute bottom-[max(8px,env(safe-area-inset-bottom))] left-[max(12px,env(safe-area-inset-left))]"
+          >
+            <FighterStatus player={currentPlayer} />
+          </div>
+        </div>
+
+        <div className="pointer-events-none absolute inset-0 mb-[env(safe-area-inset-bottom)] mr-[env(safe-area-inset-right)]">
+          <SpellArc
+            player={currentPlayer}
+            spells={gameState?.spells ?? null}
+            selectedSpellId={selectedSpellId}
+            onSelectSpell={handleSpellClick}
+            main={main}
+            isMyTurn={!!isMyTurn}
+            turnEndsAt={gameState?.turnEndsAt ?? 0}
+            status={gameStatus}
+          />
+        </div>
+
+        {overlays}
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative flex h-[100dvh] max-h-[100dvh] flex-col overflow-hidden bg-paper text-ink">
 
       {/*
         The board keeps the whole left side to itself. Nothing is ever laid on
         top of it: the rail is beside it and the bar is under it, which is the
         point of the whole layout. On a narrow screen the rail becomes a sheet
-        rather than taking the board's room.
-
-        A phone held sideways has width to spare and no height at all, so
-        there the bar stands up as a column on the right instead of eating
-        the board's rows — the board roughly doubles in size. Held upright,
-        it is the other way round, and the spells get a row of their own.
+        rather than taking the board's room. Held upright, the spells get a
+        row of their own; held sideways, the phone layout above takes over.
       */}
       <div className="flex min-h-0 min-w-0 flex-1">
         <div className="flex min-h-0 flex-1 flex-col pl-[env(safe-area-inset-left)]">
-          <div className="flex-none px-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:px-6 sm:pt-4 short:px-4 short:pt-2">
+          <div className="flex-none px-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:px-6 sm:pt-4">
             <TurnTimeline
               latestGameState={gameState}
               userId={userId}
@@ -362,17 +496,17 @@ function GamePage() {
         </aside>
       </div>
 
-      <div className="flex h-[168px] flex-none overflow-hidden border-t-2 border-ink bg-panel pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] narrow:h-auto narrow:flex-wrap short:h-auto short:w-[228px] short:flex-col short:border-l-2 short:border-t-0 short:pl-0 short:pt-[env(safe-area-inset-top)]">
+      <div className="flex h-[168px] flex-none overflow-hidden border-t-2 border-ink bg-panel pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] narrow:h-auto narrow:flex-wrap">
         <div
           id="tutorial-fighter-panel"
-          className="w-[142px] flex-none px-3 py-2 narrow:min-w-0 narrow:flex-1 sm:w-[230px] sm:px-5 sm:py-3 lg:w-[336px] short:w-full short:px-3 short:py-2"
+          className="w-[142px] flex-none px-3 py-2 narrow:min-w-0 narrow:flex-1 sm:w-[230px] sm:px-5 sm:py-3 lg:w-[336px]"
         >
           <FighterPanel currentPlayer={currentPlayer} connected={connected} />
         </div>
 
         <div
           id="tutorial-spellbar"
-          className="min-w-0 flex-1 border-l border-ink px-3 py-2 narrow:order-last narrow:basis-full narrow:border-l-0 narrow:border-t narrow:pb-3 sm:px-5 sm:py-3 short:min-h-0 short:w-full short:border-l-0 short:border-t short:px-3 short:py-2"
+          className="min-w-0 flex-1 border-l border-ink px-3 py-2 narrow:order-last narrow:basis-full narrow:border-l-0 narrow:border-t narrow:pb-3 sm:px-5 sm:py-3"
         >
           <SpellBar
             handleSpellClick={handleSpellClick}
@@ -384,7 +518,7 @@ function GamePage() {
 
         <div
           id="tutorial-mainbutton"
-          className="flex w-[124px] flex-none flex-col border-l border-ink px-3 py-2 sm:w-[176px] sm:px-5 sm:py-3 lg:w-[248px] short:w-full short:border-l-0 short:border-t short:px-3 short:py-2"
+          className="flex w-[124px] flex-none flex-col border-l border-ink px-3 py-2 sm:w-[176px] sm:px-5 sm:py-3 lg:w-[248px]"
         >
           <div className="flex items-baseline justify-between gap-2">
             <span className="font-mono text-[9.5px] uppercase tracking-label text-muted">
@@ -404,14 +538,14 @@ function GamePage() {
           <div className="mt-1 truncate font-mono text-[9.5px] uppercase tracking-label text-ink sm:hidden">
             {phaseLabel(gameStatus, isMyTurn)}
           </div>
-          <div className="mt-2 hidden sm:block short:hidden">
+          <div className="mt-2 hidden sm:block">
             <TurnClock
               turnEndsAt={gameState?.turnEndsAt ?? 0}
               isMyTurn={!!isMyTurn}
               variant="display"
             />
           </div>
-          <div className="mt-auto narrow:pt-2 short:pt-1.5">
+          <div className="mt-auto narrow:pt-2">
             <MainButton
               gameStatus={gameStatus}
               connected={connected}
@@ -425,47 +559,7 @@ function GamePage() {
         </div>
       </div>
 
-      {railOpen && (
-        <div className="fixed inset-0 z-40 lg:hidden">
-          <button
-            type="button"
-            aria-label="Close the log"
-            onClick={() => setRailOpen(false)}
-            className="absolute inset-0 bg-ink/40"
-          />
-          <aside className="absolute bottom-0 right-0 top-0 flex w-[min(340px,88vw)] flex-col border-l-2 border-ink bg-paper pl-5 pr-[calc(1.25rem+env(safe-area-inset-right))] pt-4">
-            <SideRail
-              roomName={roomName}
-              latestGameState={gameState}
-              onLeave={() => {
-                setRailOpen(false);
-                requestLeave();
-              }}
-              onReplayTutorial={() => setTutorialActive(true)}
-              onClose={() => setRailOpen(false)}
-            />
-          </aside>
-        </div>
-      )}
-
-      {winner && (
-        <GameOverModal
-          winner={winner}
-          onPlayAgain={handlePlayAgain}
-          onExit={handleLeave}
-          farewell={soloResult?.farewell}
-          unlocked={soloResult?.unlocked}
-        />
-      )}
-
-      {leaveAsked && !winner && (
-        <LeaveDialog
-          onConfirm={handleLeave}
-          onCancel={() => setLeaveAsked(false)}
-        />
-      )}
-
-      <GameTutorial active={tutorialActive} onFinish={finishTutorial} />
+      {overlays}
     </div>
   );
 }

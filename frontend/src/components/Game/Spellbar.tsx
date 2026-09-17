@@ -4,6 +4,7 @@ import { Spell, SpellBook, SpellState } from "../../types/message";
 import { SpellGlyph } from "./SpellGlyph";
 import { SpellTooltip } from "./SpellTooltip";
 import { barSpells } from "../../utils/classUtils";
+import { spec, unavailableReason } from "../../utils/spellUtils";
 
 interface SpellBarProps {
   handleSpellClick: (spellId: number) => void;
@@ -12,53 +13,6 @@ interface SpellBarProps {
   /** The catalogue broadcast by the server; the client keeps no copy. */
   spells: SpellBook | null;
 }
-
-const shapes: Record<Spell["areaOfEffect"], string | null> = {
-  none: null,
-  circle: "circle",
-  cross: "cross",
-  line: "line",
-};
-
-/** The one line that says what the selected spell actually does. */
-const spec = (spell: Spell): string => {
-  const parts = [`${spell.APCost} AP`];
-  parts.push(spell.range === 0 ? "on yourself" : `range ${spell.range}`);
-  const shape = shapes[spell.areaOfEffect];
-  if (shape) parts.push(shape);
-  if (spell.cooldown > 0) {
-    parts.push(`${spell.cooldown} turn cooldown`);
-  } else if (spell.maxCastsPerTurn > 0) {
-    parts.push(
-      spell.maxCastsPerTurn === 1
-        ? "once a turn"
-        : `${spell.maxCastsPerTurn}× a turn`
-    );
-  }
-  return parts.join(" · ");
-};
-
-/** Why a spell cannot be cast right now, or null when it can. */
-const unavailableReason = (
-  spell: Spell,
-  state: SpellState | undefined,
-  actionPoints: number
-): string | null => {
-  if (state && state.cooldownLeft > 0) {
-    return `recharging — ${state.cooldownLeft} turn${
-      state.cooldownLeft > 1 ? "s" : ""
-    } left`;
-  }
-  if (
-    spell.maxCastsPerTurn > 0 &&
-    state &&
-    state.castsThisTurn >= spell.maxCastsPerTurn
-  ) {
-    return "no casts left this turn";
-  }
-  if (actionPoints < spell.APCost) return "not enough action points";
-  return null;
-};
 
 const SpellSlot: React.FC<{
   spell: Spell;

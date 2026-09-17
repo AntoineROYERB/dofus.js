@@ -1,5 +1,6 @@
 import React from "react";
 import { PLAYER_COLORS } from "../../constants";
+import { NAME_RULE } from "../../utils/characterStorage";
 
 interface CharacterCreationFormProps {
   characterName: string;
@@ -12,7 +13,6 @@ interface CharacterCreationFormProps {
   onSubmit: () => void;
 }
 
-const NAME_RULE = /^[a-zA-Z0-9 ]{3,20}$/;
 
 export const CharacterCreationForm: React.FC<CharacterCreationFormProps> = ({
   characterName,
