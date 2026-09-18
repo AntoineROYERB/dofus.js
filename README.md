@@ -266,9 +266,15 @@ sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
 sudo xcodebuild -license accept
 ```
 
-**Day to day: live reload.** Run the backend and `npm run dev` as usual, and
-point the app at the Vite dev server. Edits show up without rebuilding. In the
-simulator `localhost` is the Mac; on a phone, use the Mac's LAN address.
+**Day to day: live reload.** Run the backend as usual and point the app at the
+Vite dev server; edits then show up without rebuilding. In the simulator
+`localhost` is the Mac. A phone needs the Mac's LAN address — and Vite binds to
+localhost unless told otherwise, so it has to be started with `--host` or the
+phone will not reach it at all.
+
+```bash
+cd frontend && npm run dev -- --host
+```
 
 ```bash
 cd frontend && npm run build && CAP_SERVER_URL=http://localhost:5173 npm run ios:dev
@@ -277,6 +283,54 @@ cd frontend && npm run build && CAP_SERVER_URL=http://localhost:5173 npm run ios
 ```bash
 cd frontend && npm run build && CAP_SERVER_URL=http://192.168.1.20:5173 npm run ios:dev
 ```
+
+**On a real phone, the first time.** Connect it by USB, unlock it, and accept
+"Trust This Computer" — the prompt only appears on an unlocked screen. From
+iOS 16 the phone also needs Settings → Privacy & Security → Developer Mode,
+which shows up in that menu only after a Mac has tried to install something on
+it. Signing needs a team set in Xcode under Signing & Capabilities, and the
+first launch is refused until the certificate is approved on the phone, under
+Settings → General → VPN & Device Management.
+
+**`cap run ios` only lists devices on USB.** It enumerates through `xctrace`,
+which calls a phone connected over Wi-Fi offline however well it answers
+otherwise. Such a phone shows as `connected` to the modern tool and never
+appears in Capacitor's menu, which offers simulators only and looks as though
+the device were missing. Run it from Xcode instead — Xcode uses CoreDevice and
+sees it — or plug the cable in.
+
+```bash
+xcrun devicectl list devices | grep physical
+```
+
+**Xcode does not sync.** Copying `dist/` into `ios/App/App/public`, and
+writing `ios/App/App/capacitor.config.json` from `capacitor.config.ts` and
+`CAP_SERVER_URL`, is what `cap sync` does — `cap run` does it on the way past.
+Pressing Run in Xcode ships whatever is already on disk. So after switching
+between live reload and a bundled build, sync first, or the app silently keeps
+the previous arrangement.
+
+```bash
+cd frontend && CAP_SERVER_URL=http://192.168.1.20:5173 npx cap sync ios
+```
+
+```bash
+cd frontend && npx cap sync ios
+```
+
+**When the landing page has no classes.** The classes and spells are fetched
+from the server, not shipped in the page, so a class picker that is missing
+while the name and the colours are there means that request failed — and the
+WebSocket is about to fail the same way. The usual cause is an app running the
+bundled `dist` with no `VITE_WS_URL` baked in: its origin is then
+`capacitor://localhost`, and the API address derived from it goes nowhere.
+Check which arrangement the app actually has.
+
+```bash
+cat frontend/ios/App/App/capacitor.config.json
+```
+
+A `server.url` means live reload; no `server` block means the bundle.
 
 **Checking how it feels.** Live reload runs React's development build, which
 is several times slower; judge smoothness on a production build instead,
