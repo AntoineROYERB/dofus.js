@@ -27,8 +27,11 @@ services:
         value: "8080"
       - key: TURN_SECONDS
         value: "45"
-      # The static site's public origin, e.g. https://dofusjs.onrender.com
-      # Locked down so no other origin can open a socket here.
+      # The static site's public origin, plus the iOS app's, comma separated:
+      #   https://dofusjs.onrender.com,capacitor://localhost
+      # Locked down so no other origin can open a socket here. The app serves
+      # its page from the bundle, so capacitor://localhost is the origin its
+      # handshake carries; without it the phone is refused with a 403.
       - key: ALLOWED_ORIGINS
         sync: false
 
