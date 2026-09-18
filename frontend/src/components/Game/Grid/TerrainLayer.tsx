@@ -92,8 +92,6 @@ export const TerrainLayer: React.FC<TerrainLayerProps> = ({
       }
     };
     size();
-    const observer = new ResizeObserver(size);
-    observer.observe(container);
 
     const draw = (now: number) => {
       const s = state.current;
@@ -388,6 +386,20 @@ export const TerrainLayer: React.FC<TerrainLayerProps> = ({
         frame = 0;
       }
     };
+    /*
+     * Resizing a canvas blanks it, and the loop above does not necessarily
+     * come back: with reduced motion, or on a board with nothing on it, it
+     * draws once and idles. A ResizeObserver always delivers an initial
+     * observation, and it arrives after the frame callbacks — so left alone
+     * this wipes the terrain off the board immediately after drawing it, and
+     * nothing puts it back. Ask for one more frame whenever the box changes.
+     */
+    const observer = new ResizeObserver(() => {
+      size();
+      if (!frame) frame = requestAnimationFrame(loop);
+    });
+    observer.observe(container);
+
     frame = requestAnimationFrame(loop);
 
     return () => {
