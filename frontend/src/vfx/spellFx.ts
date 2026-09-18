@@ -81,6 +81,8 @@ const BOLT_WHITE = "#ffffff";
 const BOLT_BLUE = "#4fb8ff";
 const BOLT_YELLOW = "#ffe066";
 const BLAST_CHAR = "#141a2a";
+const GUST = "#2e9e6a";
+const GUST_PALE = "#6fcf97";
 
 /** A blob outline, in grid space, that is clearly not a circle. */
 type Blob = { gx: number; gy: number; rTiles: number; verts: number[] };
@@ -151,6 +153,26 @@ type Timer = { due: number; run: () => void };
 
 /** An ink whirlpool turning on the ground. */
 type Swirl = { x: number; y: number; r: number; born: number; dur: number };
+
+/**
+ * Wind: a few open arcs sweeping round a point, not a closed vortex. It lives
+ * on the layer above the characters, because a gust wraps round whoever is
+ * standing there rather than being painted on the floor under them.
+ */
+type Gust = {
+  x: number;
+  y: number;
+  /** Where the arcs start, and where they have got to by the end. */
+  r: number;
+  rEnd: number;
+  born: number;
+  dur: number;
+  color: string;
+  /** How far off the ground the arcs ride, in pixels. */
+  lift: number;
+  /** `scale` keeps the arcs off each other's radius, so they never stack. */
+  arcs: { at: number; span: number; spin: number; width: number; scale: number }[];
+};
 
 /** A jet of water between two points, held for a moment. */
 type Beam = { ax: number; ay: number; bx: number; by: number; born: number; dur: number; width: number };
@@ -239,6 +261,7 @@ export class SpellFx {
   private writings: Writing[] = [];
   private bolts: Bolt[] = [];
   private swirls: Swirl[] = [];
+  private gusts: Gust[] = [];
   private beams: Beam[] = [];
   private hammers: Hammer[] = [];
   private timers: Timer[] = [];
@@ -439,6 +462,40 @@ export class SpellFx {
     this.shakeEnd = Math.max(this.shakeEnd, performance.now() + dur);
   }
 
+  /** A handful of arcs round a point, spread out so none traces another. */
+  private gust(
+    at: Position,
+    opts: { r: number; rEnd: number; dur: number; color: string; lift: number; spin: number }
+  ) {
+    /*
+     * Three short arcs, not five long ones. Arcs long enough to meet close up
+     * into an ellipse, and a board of concentric ellipses reads as a ripple
+     * rather than as wind — the gaps between the strokes are the effect.
+     */
+    const count = this.reduced ? 2 : 3;
+    const arcs = [];
+    for (let i = 0; i < count; i++) {
+      arcs.push({
+        at: (i / count) * TAU + rand(-0.4, 0.4),
+        span: rand(0.9, 1.6) * Math.sign(opts.spin || 1),
+        spin: opts.spin * rand(0.7, 1.3),
+        width: rand(1.8, 3.2),
+        scale: rand(0.86, 1.14),
+      });
+    }
+    this.gusts.push({
+      x: at.x,
+      y: at.y,
+      r: opts.r,
+      rEnd: opts.rEnd,
+      born: performance.now(),
+      dur: this.reduced ? Math.round(opts.dur * 0.5) : opts.dur,
+      color: opts.color,
+      lift: opts.lift,
+      arcs,
+    });
+  }
+
   private ring(x: number, y: number, r: Omit<Ring, "x" | "y" | "born">) {
     this.rings.push({ ...r, x, y, born: performance.now() });
   }
@@ -463,6 +520,7 @@ export class SpellFx {
       this.writings.length > 0 ||
       this.bolts.length > 0 ||
       this.swirls.length > 0 ||
+      this.gusts.length > 0 ||
       this.beams.length > 0 ||
       this.hammers.length > 0 ||
       this.timers.length > 0 ||
@@ -485,6 +543,7 @@ export class SpellFx {
     this.writings = [];
     this.bolts = [];
     this.swirls = [];
+    this.gusts = [];
     this.beams = [];
     this.hammers = [];
     this.timers = [];
@@ -1179,22 +1238,76 @@ export class SpellFx {
     this.at(200, () => this.playRelayPulse(via, true));
   }
 
-  /** A gust going up where an air relay stands. */
+  /**
+   * A gust going up where an air relay stands. Both this and the self-buff
+   * below used to be a thin ring and a dozen single-pixel sparks, which on a
+   * phone was indistinguishable from the spell doing nothing at all — the
+   * complaint was never that they looked wrong, it was that they looked like
+   * a missed tap. They are drawn at the weight of the spells around them now:
+   * the wind turns, the paper lifts, and the cell is unmistakably marked.
+   */
   private playRelayPulse(at: Position, placed = false) {
     const c = this.screen(at);
     const tw = this.geometry.tileSize.width;
-    this.ring(c.x, c.y, { r0: 3, rMax: tw * (placed ? 1 : 0.6), dur: 420, color: "#2e9e6a", width: 2.5 });
-    for (let i = 0; i < (this.reduced ? 5 : 16); i++) {
+    const k = this.reduced ? 0.35 : 1;
+    const reach = placed ? 1 : 0.7;
+
+    this.gust(c, {
+      r: tw * 0.28 * reach,
+      rEnd: tw * 0.95 * reach,
+      dur: 780,
+      color: GUST,
+      lift: tw * 0.18,
+      spin: 2.1,
+    });
+    this.at(90, () =>
+      this.gust({ x: c.x, y: c.y }, {
+        r: tw * 0.2 * reach,
+        rEnd: tw * 0.7 * reach,
+        dur: 620,
+        color: GUST_PALE,
+        lift: tw * 0.42,
+        spin: 2.6,
+      })
+    );
+    this.ring(c.x, c.y, {
+      r0: 3,
+      rMax: tw * 1.5 * reach,
+      dur: 520,
+      color: GUST,
+      width: 3,
+    });
+
+    for (let i = 0; i < Math.round(30 * k); i++) {
+      const a = rand(0, TAU);
       this.spawn({
-        x: c.x + rand(-tw * 0.25, tw * 0.25),
-        y: c.y - rand(0, 10),
-        vx: rand(-10, 10),
-        vy: rand(-220, -120),
+        x: c.x + Math.cos(a) * rand(0, tw * 0.4),
+        y: c.y - rand(0, 10) + Math.sin(a) * rand(0, tw * 0.2),
+        vx: Math.cos(a) * rand(20, 70),
+        vy: rand(-300, -160),
         drag: 0.97,
-        life: rand(300, 600),
-        size: rand(1, 1.8),
+        life: rand(420, 760),
+        size: rand(1.6, 3.2),
         type: "spark",
-        color: "#2e9e6a",
+        color: i % 3 ? GUST : GUST_PALE,
+      });
+    }
+    // Torn paper caught in the updraft: the board itself being lifted.
+    for (let i = 0; i < Math.round(8 * k); i++) {
+      const a = rand(0, TAU);
+      this.spawn({
+        x: c.x + Math.cos(a) * rand(0, tw * 0.45),
+        y: c.y + Math.sin(a) * rand(0, tw * 0.22),
+        vx: Math.cos(a) * rand(30, 80),
+        vy: -rand(180, 320),
+        g: 220,
+        drag: 0.99,
+        life: rand(700, 1200),
+        size: rand(3, 6),
+        rot: rand(0, TAU),
+        vrot: rand(-9, 9),
+        type: "chunk",
+        color: "#ffffff",
       });
     }
   }
@@ -1203,19 +1316,60 @@ export class SpellFx {
   private playSelfBuff(event: CastEvent) {
     const c = this.screen(event.origin);
     const tw = this.geometry.tileSize.width;
-    this.ring(c.x, c.y, { r0: tw * 0.5, rMax: tw * 0.15, dur: 380, color: "#2e9e6a", width: 2 });
-    for (let i = 0; i < (this.reduced ? 6 : 20); i++) {
+    const k = this.reduced ? 0.35 : 1;
+
+    // Wrapping in, not blowing out: the arcs close on the caster as they turn.
+    this.gust({ x: c.x, y: c.y }, {
+      r: tw * 0.95,
+      rEnd: tw * 0.3,
+      dur: 700,
+      color: GUST,
+      lift: tw * 0.22,
+      spin: -2.4,
+    });
+    this.at(110, () =>
+      this.gust({ x: c.x, y: c.y }, {
+        r: tw * 0.8,
+        rEnd: tw * 0.25,
+        dur: 600,
+        color: GUST_PALE,
+        lift: tw * 0.5,
+        spin: -2.9,
+      })
+    );
+    this.ring(c.x, c.y, { r0: tw * 1.2, rMax: tw * 0.2, dur: 460, color: GUST, width: 3 });
+
+    for (let i = 0; i < Math.round(34 * k); i++) {
+      const a = rand(0, TAU);
+      const r = rand(0.45, 0.85) * tw;
+      this.spawn({
+        x: c.x + Math.cos(a) * r,
+        y: c.y - 20 + Math.sin(a) * r * this.squash,
+        vx: -Math.sin(a) * rand(140, 240),
+        vy: Math.cos(a) * rand(50, 110) * this.squash - rand(20, 70),
+        drag: 0.94,
+        life: rand(360, 620),
+        size: rand(1.8, 3.4),
+        type: "spark",
+        color: i % 3 ? GUST_PALE : GUST,
+      });
+    }
+    // Paper torn up off the caster's own cell and spun round them.
+    for (let i = 0; i < Math.round(9 * k); i++) {
       const a = rand(0, TAU);
       this.spawn({
-        x: c.x + Math.cos(a) * tw * 0.6,
-        y: c.y - 20 + Math.sin(a) * tw * 0.3,
-        vx: -Math.sin(a) * 160,
-        vy: Math.cos(a) * 60,
-        drag: 0.94,
-        life: rand(260, 460),
-        size: rand(1, 1.8),
-        type: "spark",
-        color: "#6fcf97",
+        x: c.x + Math.cos(a) * tw * 0.5,
+        y: c.y + Math.sin(a) * tw * 0.25,
+        vx: -Math.sin(a) * rand(90, 170),
+        vy: Math.cos(a) * rand(30, 70) - rand(120, 220),
+        g: 260,
+        drag: 0.99,
+        life: rand(650, 1050),
+        size: rand(3, 5.5),
+        rot: rand(0, TAU),
+        vrot: rand(-8, 8),
+        type: "chunk",
+        color: "#ffffff",
       });
     }
   }
@@ -1657,6 +1811,53 @@ export class SpellFx {
     });
   }
 
+  /**
+   * Open arcs sweeping round a point, each tapering off as it goes and the
+   * whole thing opening out or closing in over its life. Nothing here closes
+   * into a circle: a gust is read from the direction its strokes run, and a
+   * ring of them would only say "whirlpool" again.
+   */
+  private drawGusts(ctx: CanvasRenderingContext2D, now: number) {
+    for (let i = this.gusts.length - 1; i >= 0; i--) {
+      const g = this.gusts[i];
+      const p = (now - g.born) / g.dur;
+      if (p >= 1) {
+        this.gusts.splice(i, 1);
+        continue;
+      }
+      const e = ease(clamp01(p));
+      const radius = g.r + (g.rEnd - g.r) * e;
+      // In for the first third, then away: a gust arrives before it leaves.
+      const alpha = Math.min(1, p * 4) * (1 - clamp01((p - 0.45) / 0.55));
+      ctx.save();
+      ctx.lineCap = "round";
+      ctx.strokeStyle = g.color;
+      for (const arc of g.arcs) {
+        const from = arc.at + arc.spin * e;
+        const reach = radius * arc.scale;
+        const steps = 12;
+        // Stroked segment by segment so the arc can thin out along its length.
+        for (let k = 0; k < steps; k++) {
+          const t0 = k / steps;
+          const t1 = (k + 1) / steps;
+          const a0 = from + arc.span * t0;
+          const a1 = from + arc.span * t1;
+          // Each segment sits a little further out than the last, so the arc
+          // spirals rather than tracing the same circle back onto itself.
+          const r0 = reach * (1 - 0.18 * t0);
+          const r1 = reach * (1 - 0.18 * t1);
+          ctx.globalAlpha = alpha * (1 - t0) * 0.95;
+          ctx.lineWidth = arc.width * (1 - t0 * 0.8);
+          ctx.beginPath();
+          ctx.moveTo(g.x + Math.cos(a0) * r0, g.y - g.lift + Math.sin(a0) * r0 * this.squash);
+          ctx.lineTo(g.x + Math.cos(a1) * r1, g.y - g.lift + Math.sin(a1) * r1 * this.squash);
+          ctx.stroke();
+        }
+      }
+      ctx.restore();
+    }
+  }
+
   private drawSwirls(ctx: CanvasRenderingContext2D, now: number) {
     for (let i = this.swirls.length - 1; i >= 0; i--) {
       const s = this.swirls[i];
@@ -1727,6 +1928,7 @@ export class SpellFx {
     }
 
     this.drawBolts(air, now);
+    this.drawGusts(air, now);
     this.drawBeams(air, now);
     this.drawHammers(air, now);
     this.drawParticles(air, now);
