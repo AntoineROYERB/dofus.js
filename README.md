@@ -13,25 +13,36 @@ instantly either way.
 
 ![Picking a starting cell in the green block, a wall of fire laid across the board, and the bot answering with a Meteor that leaves a crater](docs/assets/demo.gif)
 
-<table>
-<tr>
-<td width="50%"><img src="docs/assets/01-landing.png" alt="Naming a fighter and picking a class, whose passive and five spells read underneath"></td>
-<td width="50%"><img src="docs/assets/02-lobby.png" alt="Lobby: the class's own opponent to challenge, open games, and a game to create"></td>
-</tr>
-<tr>
-<td width="50%"><img src="docs/assets/03-placement.png" alt="Placement: three adjacent cells to start on, in green; the opponent's block is marked off in red"></td>
-<td width="50%"><img src="docs/assets/04-combat.png" alt="Combat: a wall of fire and a crater left on the board, burn counters over both fighters, and the spell bar naming each spell's role"></td>
-</tr>
-</table>
+<p align="center"><sub>One turn of a fight against the computer: a starting cell
+picked out of the green block, a wall of fire laid across the board, and the bot
+answering with a Meteor that leaves a crater behind.</sub></p>
+
+**In the browser.** Four screens, in the order you meet them.
 
 <table>
 <tr>
-<td width="50%"><img src="docs/assets/06-phone-home.png" alt="The phone's home screen: the fighter on a stand, its class and passive, one Play button"></td>
-<td width="50%"><img src="docs/assets/05-phone.png" alt="The same fight on a phone held sideways: the spells in an arc under the thumb, and a card explaining the fire a cell is carrying"></td>
+<td width="50%"><img src="docs/assets/01-landing.png" alt="Naming a fighter and picking a class, whose passive and five spells read underneath"><br><sub><b>1 · Landing.</b> A name, a colour and one of four classes. The class's passive and its five spells read underneath, so the choice is made on what it does.</sub></td>
+<td width="50%"><img src="docs/assets/02-lobby.png" alt="Lobby: the class's own opponent to challenge, open games, and a game to create"><br><sub><b>2 · Lobby.</b> Challenge the opponent that belongs to your class, join a game someone has opened, or open one and wait.</sub></td>
+</tr>
+<tr>
+<td width="50%"><img src="docs/assets/03-placement.png" alt="Placement: three adjacent cells to start on, in green; the opponent's block is marked off in red"><br><sub><b>3 · Placement.</b> Each side starts in its own block — yours in green, the opponent's marked off in red — and the fight begins once both have chosen.</sub></td>
+<td width="50%"><img src="docs/assets/04-combat.png" alt="Combat: a wall of fire and a crater left on the board, burn counters over both fighters, and the spell bar naming each spell's role"><br><sub><b>4 · Combat.</b> What spells leave behind stays: a wall of fire, a crater, burn counters over both fighters. The bar names what each spell is for.</sub></td>
+</tr>
+</table>
+
+**On a phone.** The same game, laid out for two thumbs.
+
+<table>
+<tr>
+<td width="50%"><img src="docs/assets/06-phone-home.png" alt="The phone's home screen: the fighter on a stand, its class and passive, one Play button"><br><sub><b>Home.</b> Your fighter on a stand with the other classes waiting faded on either side, and one Play button under the right thumb.</sub></td>
+<td width="50%"><img src="docs/assets/05-phone.png" alt="The same fight on a phone held sideways: the spells in an arc under the thumb, and a card explaining the fire a cell is carrying"><br><sub><b>Combat.</b> The board takes the whole screen, the controls float over its corners, and the spells sit in an arc where the thumb already is.</sub></td>
 </tr>
 </table>
 
 ![The same fight on a phone: a wall of fire, the bot's Meteor, and the spells in an arc under the thumb](docs/assets/demo-phone.gif)
+
+<p align="center"><sub>The same fight in the iOS app, held sideways: the board
+keeps the screen to itself and every control sits within reach of a thumb.</sub></p>
 
 On a phone, hold it sideways. The lobby becomes a home screen: your fighter in
 the middle, arrows (or a swipe) to slide through the classes with the others

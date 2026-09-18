@@ -20,6 +20,24 @@
  *      [d]setpts=PTS/2,fps=8,scale=640:-1:flags=lanczos,split[s0][s1];\
  *      [s0]palettegen=max_colors=48:stats_mode=diff[p];[s1][p]paletteuse=dither=bayer" \
  *     docs/assets/demo.gif
+ *
+ * The phone GIF is not shot here. Playwright emulates a phone; the iOS app is
+ * one, and the difference shows — so `docs/assets/demo-phone.gif` is recorded
+ * off a simulator running the real app against the dev server. Play a fight,
+ * end a turn and let the bot answer, since its spells supply the motion
+ * without racing the turn clock:
+ *
+ *   xcrun simctl io booted recordVideo --codec h264 --force rec.mp4   # ^C to stop
+ *
+ * The recording is portrait with a -90 rotation tag, which ffmpeg applies on
+ * its own. The crop drops the Dynamic Island, which reads as a black blob
+ * without a device frame around it:
+ *
+ *   ffmpeg -ss <start> -t <len> -i rec.mp4 -filter_complex \
+ *     "[0:v]crop=2470:1206:0:0,setpts=PTS/2,fps=8,scale=640:-1:flags=lanczos,\
+ *      split[s0][s1];[s0]palettegen=max_colors=64:stats_mode=diff[p];\
+ *      [s1][p]paletteuse=dither=bayer" \
+ *     docs/assets/demo-phone.gif
  */
 import { chromium } from "playwright";
 import { mkdirSync } from "fs";
