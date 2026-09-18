@@ -132,6 +132,31 @@ export function castOrigin(
   return null;
 }
 
+/**
+ * A cell the spell is close enough to reach, and that nothing but the line of
+ * sight keeps it out of. Not a legal target — but not nothing either, and the
+ * board draws it as its own thing: a player told only "not in range" cannot
+ * tell a wall from a distance, and so cannot tell whether walking two cells
+ * sideways would fix it.
+ *
+ * A cell that is seen and merely illegal for some other reason — occupied,
+ * when the spell wants an empty one — is not out of sight and never answers
+ * true here.
+ */
+export function outOfSight(
+  spell: Spell | undefined,
+  cell: Position,
+  caster: Position,
+  sightBlocked: (p: Position) => boolean,
+  relay: Position | null
+): boolean {
+  if (!spell || !spell.needsLineOfSight || spell.targeting === "self") return false;
+  const origins = [caster, ...(spell.relayed && relay ? [relay] : [])];
+  const reaching = origins.filter((from) => distance(from, cell) <= spell.range);
+  if (reaching.length === 0) return false;
+  return !reaching.some((from) => hasLineOfSight(from, cell, sightBlocked));
+}
+
 /** The cells a spell would cover if it were cast at `targetPos`. */
 export function calculateImpactedCells(
   spell: Spell | undefined,

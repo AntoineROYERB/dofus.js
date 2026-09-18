@@ -85,7 +85,7 @@ export const HitFeedback: React.FC<HitFeedbackProps> = ({
           height: `${barHeight}px`,
           pointerEvents: "none",
           backgroundColor: BOARD.tile,
-          border: `1px solid ${BOARD.zoneEdge}`,
+          border: `1px solid ${BOARD.edge}`,
           /*
            * It holds, then goes. Under reduced motion nothing fades at all and
            * the bar simply stops existing when the hook drops it, which is the

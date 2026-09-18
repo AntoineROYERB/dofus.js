@@ -28,9 +28,25 @@ export const BOARD = {
   tile: "#ffffff",
   tileAlt: "#f4f4f2",
   stroke: "#cfd0cd",
-  /** Anything reachable or targetable, as a graphite wash. */
-  wash: "#17181a",
   accent: "#d1462f",
+  /**
+   * Two inks, and only two, while a turn is being played: where your legs can
+   * take you, and what your click is about to hit. They used to be the same
+   * graphite at two opacities, which meant a cell in a spell's range and a
+   * cell two movement points away were drawn identically — and opacity was
+   * already spoken for, since it is what says how far a cell is. The green is
+   * the same one movement points are written in, below and in the combat log.
+   */
+  move: "#2f9e44",
+  /**
+   * In range, but not seen: a cell the spell is close enough to reach and the
+   * line of sight refuses. It is drawn, because "too far" and "I cannot see
+   * it" are different answers — but barely. It is the accent bled almost all
+   * the way out to grey: enough to notice if you look for it, never enough to
+   * compete with the cells you can actually act on. A mark that shouts an
+   * impossibility is worse than no mark at all.
+   */
+  blind: "#d1462f",
   /** Where you are allowed to start, during positioning only. */
   place: "#1a7f37",
   /** Action points, wherever a spell's cost or a debuff changes them. */
@@ -40,12 +56,16 @@ export const BOARD = {
   /** Cells an air spell reaches through its caster's relay. */
   relay: "#2e9e6a",
   /**
+   * The hairline around something drawn on top of the board rather than on it
+   * — a health bar over a fighter's head. The area you may act in used to be
+   * outlined in this too; it now borrows the colour of whatever it encloses.
+   */
+  edge: "#3d3f3d",
+  /**
    * Where the opponent may start. Deliberately not the vermilion accent: this
    * marks a cell you must keep off, never one your click is about to act on.
    */
   foe: "#a3231b",
-  /** The drawn boundary of the area you may act in this turn. */
-  zoneEdge: "#3d3f3d",
   /*
    * Cells are clipped to their diamond, so a stroke laid on the edge only
    * shows its inner half. Widths here are doubled on purpose: what you read
@@ -55,6 +75,19 @@ export const BOARD = {
     tile: 1.6,
     marked: 3,
     zone: 3.5,
+  },
+  /**
+   * How a cell's wash comes and goes. It used to snap: the whole reachable
+   * area appeared in one frame the moment the pointer touched the board. It
+   * now grows in, and it grows outward from the fighter's own feet, so the
+   * green reads as something spreading from the character rather than as a
+   * shape being switched on. Both are switched off under reduced motion.
+   */
+  washIn: {
+    /** How long one cell takes to reach its full tint, in ms. */
+    fade: 190,
+    /** How long the green takes to reach the far edge of the range, in ms. */
+    sweep: 170,
   },
   block: {
     top: "#e4e5e2",

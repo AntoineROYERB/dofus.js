@@ -35,6 +35,11 @@ interface TileProps {
   selectedSpellId: number | null;
   isImpactedCell: boolean;
   isInSpellRange: boolean;
+  /**
+   * Close enough for the selected spell, and kept out by the line of sight
+   * alone. Not targetable, and drawn all the same — see BOARD.blind.
+   */
+  isOutOfSight?: boolean;
   /** In range only through the caster's relay: washed in the wind's green. */
   viaRelay?: boolean;
   /**
@@ -76,16 +81,6 @@ type Wash = {
   strokeWidth: number;
 };
 
-/**
- * Near is barely tinted, far is unmistakable — a cell one point away should
- * not read the same as one that spends every point the turn has left.
- */
-const costOpacity = (cost: number | undefined, maxCost: number): number => {
-  if (!cost || maxCost <= 0) return 0.14;
-  const share = Math.min(cost / maxCost, 1);
-  return 0.08 + share * 0.22;
-};
-
 const TileView: React.FC<TileProps> = ({
   x,
   y,
@@ -101,6 +96,7 @@ const TileView: React.FC<TileProps> = ({
   selectedSpellId,
   isImpactedCell,
   isInSpellRange,
+  isOutOfSight = false,
   viaRelay = false,
   canCastAtHovered,
   isInRange,
@@ -126,10 +122,31 @@ const TileView: React.FC<TileProps> = ({
       : undefined;
 
   const wash = (): Wash | null => {
-    const graphite = (opacity: number): Wash => ({
-      fill: BOARD.wash,
+    // Where your legs can take you. Filled, and green — the colour of the
+    // points it spends.
+    const walkable = (opacity: number): Wash => ({
+      fill: BOARD.move,
       opacity,
-      stroke: BOARD.stroke,
+      stroke: `${BOARD.move}73`,
+      strokeWidth: BOARD.strokes.tile,
+    });
+    /*
+     * Where a spell can land. Held well under the cell it would actually hit —
+     * that one is nearly half — but no longer a whisper: a range you have to
+     * hunt for is a range you end up counting by hand.
+     */
+    const reach = (): Wash => ({
+      fill: BOARD.accent,
+      opacity: 0.17,
+      stroke: BOARD.accent,
+      strokeWidth: BOARD.strokes.tile,
+    });
+    // In range, unseen: the faintest breath of the accent, a warm grey at
+    // this strength. It says "there is something here" and nothing more.
+    const blind = (): Wash => ({
+      fill: BOARD.blind,
+      opacity: 0.05,
+      stroke: `${BOARD.blind}33`,
       strokeWidth: BOARD.strokes.tile,
     });
     // Vermilion means one thing only: this is what the click is about to do.
@@ -163,7 +180,7 @@ const TileView: React.FC<TileProps> = ({
     }
 
     if (isCharacterTurn && selectedSpellId) {
-      if (isImpactedCell && canCastAtHovered) return marked(0.3);
+      if (isImpactedCell && canCastAtHovered) return marked(0.46);
       if (isInSpellRange && viaRelay) {
         return {
           fill: BOARD.relay,
@@ -172,21 +189,58 @@ const TileView: React.FC<TileProps> = ({
           strokeWidth: BOARD.strokes.tile,
         };
       }
-      if (isInSpellRange) return graphite(0.14);
+      if (isInSpellRange) return reach();
+      if (isOutOfSight) return blind();
     }
 
     if (!selectedSpellId && isCharacterTurn && isInRange && showMovementWash) {
-      // The walk itself is a consequence of the click, so it is vermilion —
-      // grey on grey made the path indistinguishable from the range around it.
-      if (isHovered) return marked(0.44);
-      if (isPathCell) return marked(0.26);
-      return graphite(costOpacity(movementCost, maxMovementCost));
+      /*
+       * One flat green for everywhere you may go, and a stronger one for the
+       * route you would actually take. The area used to deepen with distance,
+       * which spent the whole range of the ink on a question nobody asks — a
+       * player wants to know where they can go, not how much each cell costs
+       * — and left nothing to say the walk itself with. Distance is still
+       * there, in the order the cells arrive (see washStyle below).
+       */
+      if (isHovered) return walkable(0.5);
+      if (isPathCell) return walkable(0.34);
+      return walkable(0.13);
     }
 
     return null;
   };
 
   const overlay = wash();
+
+  /*
+   * A wash fades in rather than appearing, and it fades in from the fighter
+   * outward: a cell waits in proportion to what it costs to reach, so the far
+   * edge of the range is always the last to arrive and the sweep takes the
+   * same time whether the character has two movement points or six. What the
+   * eye gets is the green spreading from the feet outward, which is the shape
+   * of the thing being said — and it is the only place distance is spoken of
+   * now that the area itself is flat. Only the reachable area is staggered: a
+   * spell's range has no near end, and the cell under the cursor must answer
+   * at once.
+   *
+   * The polygon underneath is always mounted, even with nothing to show, so
+   * there is something to transition from; an element that mounts already
+   * wearing its colour cannot fade.
+   */
+  const lastFill = React.useRef(overlay?.fill ?? BOARD.move);
+  if (overlay) lastFill.current = overlay.fill;
+  const staggered =
+    !!overlay &&
+    !selectedSpellId &&
+    !isHovered &&
+    !isPathCell &&
+    overlay.fill === BOARD.move;
+  const share =
+    maxMovementCost > 0 ? Math.min((movementCost ?? 0) / maxMovementCost, 1) : 0;
+  const washStyle: React.CSSProperties = {
+    transition: `fill ${BOARD.washIn.fade}ms ease-out, fill-opacity ${BOARD.washIn.fade}ms ease-out`,
+    transitionDelay: staggered ? `${Math.round(share * BOARD.washIn.sweep)}ms` : "0ms",
+  };
 
   // A colour alone would not say which side a cell belongs to for anyone who
   // reads red and green the same way, so the opponent's block is crossed out.
@@ -296,15 +350,16 @@ const TileView: React.FC<TileProps> = ({
         ) : (
           <>
             <polygon points={points} fill={base} stroke="none" />
-            {overlay && (
-              <polygon
-                className={breathes ? "animate-placeable" : undefined}
-                points={points}
-                fill={overlay.fill}
-                fillOpacity={overlay.opacity}
-                stroke="none"
-              />
-            )}
+            <polygon
+              className={breathes ? "animate-placeable" : undefined}
+              points={points}
+              fill={overlay ? overlay.fill : lastFill.current}
+              fillOpacity={overlay ? overlay.opacity : 0}
+              stroke="none"
+              // The breathing cell animates this very property; a transition
+              // on top of the keyframes would fight them.
+              style={breathes ? undefined : washStyle}
+            />
             {/* The outline goes on last, so a marked cell keeps a crisp edge. */}
             <polygon
               points={points}
@@ -334,8 +389,15 @@ const TileView: React.FC<TileProps> = ({
               </g>
             )}
             {zoneEdges && (
+              /*
+               * The boundary is drawn in whatever the area inside it is drawn
+               * in — green for where you may walk, vermilion for where a spell
+               * may land. It used to be ink, which read as a third thing laid
+               * on top of the board rather than as the edge of the one thing
+               * it encloses, and fought the colour it was wrapped around.
+               */
               <g
-                stroke={BOARD.zoneEdge}
+                stroke={selectedSpellId ? BOARD.accent : BOARD.move}
                 strokeWidth={BOARD.strokes.zone}
                 strokeLinecap="square"
               >
