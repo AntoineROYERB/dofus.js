@@ -278,6 +278,8 @@ interface SpellArcProps {
   /** Whether the player has a relay out. */
   hasRelay?: boolean;
   status: GameStatus;
+  /** A spell was held long enough to read it — the tutorial counts these. */
+  onPeek?: () => void;
 }
 
 /** A ring around the main button that empties as the turn runs out. */
@@ -332,6 +334,7 @@ export const SpellArc: React.FC<SpellArcProps> = ({
   turnNumber,
   hasRelay = false,
   status,
+  onPeek,
 }) => {
   const catalogue = barSpells(player, spells);
   const [peek, setPeek] = useState<Spell | null>(null);
@@ -391,7 +394,10 @@ export const SpellArc: React.FC<SpellArcProps> = ({
               cooldown={state?.cooldownLeft ?? 0}
               selected={spell.id === selectedSpellId}
               onSelect={() => onSelectSpell(spell.id)}
-              onPeek={(open) => setPeek(open ? spell : null)}
+              onPeek={(open) => {
+                setPeek(open ? spell : null);
+                if (open) onPeek?.();
+              }}
               hidden={!layout[i].shown}
               style={{
                 right: CENTRE.right - dx - SLOT / 2,

@@ -83,6 +83,13 @@ export default {
           "0%, 100%": { borderColor: "#cfd0cd" },
           "50%": { borderColor: "#d1462f" },
         },
+        // The tutorial's arrow, pointing at whatever the card is talking
+        // about. It is the only thing moving on a screen the player is being
+        // asked to read, which is the whole reason it is noticed.
+        nudge: {
+          "0%, 100%": { transform: "translateY(0)" },
+          "50%": { transform: "translateY(-4px)" },
+        },
         // The combat log's newest line, so a player who glanced away for one
         // exchange still finds where the log picked back up.
         "log-settle": {
@@ -109,6 +116,7 @@ export default {
         placeable: "placeable 1.9s ease-in-out infinite",
         beckon: "beckon 1.6s ease-out infinite",
         hint: "hint 1.8s ease-in-out infinite",
+        nudge: "nudge 1.4s ease-in-out infinite",
         "log-settle": "log-settle 2.4s ease-out 1",
         "wind-dash": "wind-dash 0.6s linear infinite",
         flicker: "flicker 0.45s ease-in-out infinite",
