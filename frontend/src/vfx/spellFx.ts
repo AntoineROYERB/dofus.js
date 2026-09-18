@@ -1,5 +1,6 @@
 import { Position } from "../types/game";
 import { isoToScreen } from "../utils/isoUtils";
+import { prefersReducedMotion } from "../utils/motion";
 
 /**
  * The spell effects layer.
@@ -290,10 +291,7 @@ export class SpellFx {
     const dctx = this.decal.getContext("2d");
     if (!dctx) throw new Error("2d canvas context unavailable");
     this.decalCtx = dctx;
-    this.reduced =
-      typeof window !== "undefined" &&
-      !!window.matchMedia &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    this.reduced = prefersReducedMotion();
   }
 
   /**

@@ -2,6 +2,7 @@ import React from "react";
 import { SPRITE } from "../../../constants";
 import { Position } from "../../../types/game";
 import { StatHit } from "../../../hooks/useHitFeedback";
+import { prefersReducedMotion } from "../../../utils/motion";
 
 interface StatFeedbackProps {
   /** The animated position, so the number rides a fighter that is still walking. */
@@ -24,10 +25,6 @@ interface StatFeedbackProps {
 const NUMBER_FLIGHT = 1800;
 const ROW_HEIGHT = 20;
 
-const prefersReducedMotion = () =>
-  typeof window !== "undefined" &&
-  !!window.matchMedia &&
-  window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 /**
  * What a spell took off a stat that has no pool to drain — action points,

@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from "react";
 import { Position } from "../../../types/game";
 import { TerrainCell, Zone } from "../../../types/message";
 import { isoToScreen } from "../../../utils/isoUtils";
+import { prefersReducedMotion } from "../../../utils/motion";
 
 interface TerrainLayerProps {
   terrain: TerrainCell[];
@@ -38,10 +39,7 @@ const hash = (x: number, y: number, salt = 0) => {
   return s - Math.floor(s);
 };
 
-const reduced =
-  typeof window !== "undefined" &&
-  !!window.matchMedia &&
-  window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const reduced = prefersReducedMotion();
 
 /**
  * What spells have left on the board, drawn every frame from the server's
