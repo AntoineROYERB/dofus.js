@@ -179,7 +179,7 @@ Copy `.env.example` to `.env`. Everything has a working default.
 | Variable | Default | What it does |
 |---|---|---|
 | `HTTP_PORT` | `80` | Port the site is served on |
-| `ALLOWED_ORIGINS` | `*` | Origins allowed to open a WebSocket. **Pin this for a public deployment.** |
+| `ALLOWED_ORIGINS` | `*` | Origins allowed to open a WebSocket, comma separated. **Pin this for a public deployment.** An entry naming a scheme (`https://example.com`, `capacitor://localhost`) matches that origin exactly; a bare hostname (`example.com`) matches the host whatever the scheme. |
 | `TURN_SECONDS` | `45` | How long a player gets before their turn passes on |
 | `STATIC_DIR` | unset | When set, the Go binary also serves the built frontend |
 | `BALANCE_FILE` | `config/balance.json` | Default health, action points and movement points, for every class that does not set its own. Edit `backend/config/balance.json` to retune every fight at once. A missing file falls back to built-in defaults. |
@@ -205,7 +205,7 @@ Copy `.env.example` to `.env`. Everything has a working default.
    | Service | Variable | Value |
    |---|---|---|
    | `dofusjs` | `VITE_WS_URL` | `wss://dofusjs-api.onrender.com/ws` |
-   | `dofusjs-api` | `ALLOWED_ORIGINS` | `https://dofusjs.onrender.com` |
+   | `dofusjs-api` | `ALLOWED_ORIGINS` | `https://dofusjs.onrender.com,capacitor://localhost` |
 
    This is exactly how <https://dofusjs.onrender.com> is deployed.
 
@@ -219,8 +219,10 @@ serving the frontend from the Go binary would mean a visitor stares at a blank
 tab for that minute. Split, the page is instant and only the WebSocket waits —
 and the UI already says "Reconnecting…" and backs off while it does.
 
-The blueprint locks `ALLOWED_ORIGINS` to the static site's hostname, so no
-other origin can open a socket against the server.
+The blueprint locks `ALLOWED_ORIGINS` to the static site's origin and the iOS
+app's, so no other origin can open a socket against the server. Leave the
+second one out and the phone gets a 403 at the handshake, with nothing but
+"Reconnecting…" to explain it.
 
 Because the server keeps every game in memory, a sleep wipes the lobby. That is
 the design, not a regression: rooms are transient, and a returning player just
@@ -301,6 +303,11 @@ cd frontend && VITE_WS_URL=wss://dofusjs.onrender.com npm run ios:sync && npm ru
 ```bash
 ALLOWED_ORIGINS=https://dofusjs.onrender.com,capacitor://localhost
 ```
+
+The app's page comes from the bundle, so its origin is `capacitor://localhost`
+— that is what the handshake carries, and it has to be on the list by name.
+The scheme is part of the match: listing it does not also admit
+`http://localhost`, which is any page an attacker serves from the machine.
 
 **On your own iPhone, for free.** A free Apple ID is enough: add it under
 Xcode → Settings → Accounts, plug the phone in, turn on *Settings → Privacy &

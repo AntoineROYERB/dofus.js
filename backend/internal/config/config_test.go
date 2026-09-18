@@ -53,3 +53,53 @@ func TestOriginHostStripsSchemeAndPath(t *testing.T) {
 		}
 	}
 }
+
+// The iOS shell serves its page from the app bundle, so the handshake carries
+// Origin: capacitor://localhost. Production refused it with a 403 until the
+// allow list learned to hold an origin that is not a web address.
+func TestOriginAllowedAdmitsTheMobileShells(t *testing.T) {
+	cfg := Config{AllowedOrigins: []string{
+		"https://dofusjs.onrender.com",
+		"capacitor://localhost",
+		"https://localhost",
+	}}
+
+	for _, origin := range []string{
+		"capacitor://localhost",
+		"CAPACITOR://LocalHost",
+		"https://localhost",
+	} {
+		if !cfg.OriginAllowed(origin) {
+			t.Errorf("OriginAllowed(%q) = false, want true", origin)
+		}
+	}
+
+	// Sharing localhost with the shells must not hand the host to a page an
+	// attacker serves from the victim's own machine.
+	for _, origin := range []string{"http://localhost", "http://localhost:5173"} {
+		if cfg.OriginAllowed(origin) {
+			t.Errorf("OriginAllowed(%q) = true, want false", origin)
+		}
+	}
+}
+
+// A bare hostname stays lenient about the scheme: that is the whole reason it
+// is accepted, since some platforms only expose the host.
+func TestOriginAllowedKeepsBareHostnamesSchemeAgnostic(t *testing.T) {
+	cfg := Config{AllowedOrigins: []string{"dofusjs.onrender.com"}}
+
+	for _, origin := range []string{
+		"https://dofusjs.onrender.com",
+		"http://dofusjs.onrender.com",
+	} {
+		if !cfg.OriginAllowed(origin) {
+			t.Errorf("OriginAllowed(%q) = false, want true", origin)
+		}
+	}
+
+	// An entry that spells out a scheme asks for that scheme.
+	strict := Config{AllowedOrigins: []string{"https://dofusjs.onrender.com"}}
+	if strict.OriginAllowed("http://dofusjs.onrender.com") {
+		t.Error("an https entry admitted a plain http origin")
+	}
+}

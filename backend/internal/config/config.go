@@ -89,10 +89,23 @@ func (c Config) AllowsAnyOrigin() bool {
 // OriginAllowed matches an Origin header against the allow list. A request
 // without an Origin is not a browser request and is let through.
 //
-// Entries may be full origins ("https://example.com") or bare hostnames
-// ("example.com"): hosting platforms hand out one or the other depending on
-// how the value is wired up, and rejecting the wrong shape would only produce
-// a WebSocket that refuses to connect for no visible reason.
+// An entry that names a scheme ("https://example.com", "capacitor://localhost")
+// matches that origin and nothing else. An entry that is a bare hostname
+// ("example.com") matches the host whatever the scheme, because hosting
+// platforms hand out one shape or the other depending on how the value is
+// wired up, and rejecting the wrong shape would only produce a WebSocket that
+// refuses to connect for no visible reason.
+//
+// The scheme has to count, now that the mobile shells are on this list: they
+// are served from the app bundle as capacitor://localhost on iOS and
+// https://localhost on Android. Comparing hosts alone would let either entry
+// admit http://localhost, which is the origin of any page an attacker gets
+// the victim to open from their own machine.
+//
+// None of this authenticates anyone. The check exists so a browser cannot be
+// used to open a socket from a page the player did not visit; a client that
+// is not a browser sends whatever Origin it likes, or none at all. The
+// session token is what identifies a player.
 func (c Config) OriginAllowed(origin string) bool {
 	if origin == "" || c.AllowsAnyOrigin() {
 		return true
@@ -103,11 +116,20 @@ func (c Config) OriginAllowed(origin string) bool {
 		if strings.EqualFold(allowed, origin) {
 			return true
 		}
+		if hasScheme(allowed) {
+			continue
+		}
 		if host != "" && strings.EqualFold(originHost(allowed), host) {
 			return true
 		}
 	}
 	return false
+}
+
+// hasScheme reports whether an allow list entry spells out a scheme, and so
+// asks to be matched exactly rather than by host.
+func hasScheme(value string) bool {
+	return strings.Contains(value, "://")
 }
 
 // originHost reduces an origin or a bare hostname to its host, dropping any
