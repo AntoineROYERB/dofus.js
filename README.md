@@ -297,8 +297,12 @@ The app is locked to landscape; the portrait layout is for the browser.
 the app's origin through on the server:
 
 ```bash
-cd frontend && VITE_WS_URL=wss://dofusjs.onrender.com npm run ios:sync && npm run ios:open
+cd frontend && VITE_WS_URL=wss://dofusjs-api.onrender.com/ws npm run ios:sync && npm run ios:open
 ```
+
+That is the API service, not the site. `dofusjs.onrender.com` is the static
+site: it answers `/ws` with `index.html` and never upgrades, so a bundle built
+against it opens on a lobby that cannot connect.
 
 ```bash
 ALLOWED_ORIGINS=https://dofusjs.onrender.com,capacitor://localhost
