@@ -159,7 +159,11 @@ export const Grid: React.FC<GridProps> = ({
     );
   }, [characterPosition, movementPoints, blocked]);
 
-  const { tile: tileSize, size: boardSize } = useTileSize(containerRef, gridSize);
+  const {
+    tile: tileSize,
+    size: boardSize,
+    measured,
+  } = useTileSize(containerRef, gridSize);
   const { scale, pan, isPinching, reset: resetZoom } = usePinchZoom(containerRef);
 
   const characterRenderState = useCharacterAnimations(
@@ -463,6 +467,13 @@ export const Grid: React.FC<GridProps> = ({
           transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale})`,
           transformOrigin: "center center",
           transition: isPinching ? "none" : "transform 150ms ease-out",
+          /*
+           * The board's centre is the container's, and until the container
+           * has been measured that centre is a guess — one that puts the
+           * whole fight in the top-left corner. Better an empty box for a
+           * frame than a board nowhere near the middle of the screen.
+           */
+          visibility: measured ? undefined : "hidden",
         }}
       >
       <div ref={boardRef} className="absolute inset-0">

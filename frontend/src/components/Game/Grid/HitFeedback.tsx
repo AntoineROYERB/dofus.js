@@ -2,6 +2,7 @@ import React from "react";
 import { BOARD, SPRITE } from "../../../constants";
 import { Position } from "../../../types/game";
 import { Hit, HIT_HOLD, HIT_FADE } from "../../../hooks/useHitFeedback";
+import { prefersReducedMotion } from "../../../utils/motion";
 
 interface HitFeedbackProps {
   /** The animated position, so the bar rides a fighter that is still walking. */
@@ -13,10 +14,6 @@ interface HitFeedbackProps {
 /** How long the figure takes to rise and go, well before the bar does. */
 const NUMBER_FLIGHT = 1800;
 
-const prefersReducedMotion = () =>
-  typeof window !== "undefined" &&
-  !!window.matchMedia &&
-  window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 /**
  * What a spell took off, over the head of whoever it took it off.
