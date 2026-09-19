@@ -14,8 +14,20 @@ export interface TutorialFacts {
   opponentHealth: number;
   /** How many times a spell's own description has been opened. */
   peeks: number;
+  /**
+   * Whether any spell on the bar could be cast at all right now — enough
+   * action points, off cooldown, unlocked, not already spent this fight.
+   */
+  canCast: boolean;
   turnNumber: number;
 }
+
+/**
+ * Every cell the player could click at this moment, as the board marks them.
+ * No card may sit on one of these: whichever step is open, the board under it
+ * is where the answer has to be given.
+ */
+export const LIVE_CELLS = "[data-live-cell]";
 
 export type TutorialStepId =
   | "welcome"
@@ -52,6 +64,19 @@ export interface TutorialStep {
   /** What the card says while `ready` is false. */
   waiting?: string;
   /**
+   * The turn has run out of what the objective needs — no points left to walk
+   * with, no spell left to cast. The objective is not failed and not skipped;
+   * it simply cannot be met until the next turn, and the only useful thing to
+   * say is how to get there.
+   */
+  stalled?: {
+    when: (now: TutorialFacts) => boolean;
+    title: string;
+    body: (touch: boolean) => string;
+    /** Where to point while it holds: the way to the next turn. */
+    targetId: string;
+  };
+  /**
    * Whether the player has done it, judged against the facts as they stood
    * when the step opened. A step with no test waits for its button instead.
    */
@@ -83,8 +108,8 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     title: "Pick your ground",
     body: (touch) =>
       touch
-        ? "Tap one of the pulsing cells to stand there, then press Fight."
-        : "Click one of the pulsing cells to stand there, then press Fight.",
+        ? "Tap one of the green cells to stand there, then press Fight."
+        : "Click one of the green cells to stand there, then press Fight.",
     ready: (now) => now.status === GAME_STATUS.POSITION_CHARACTERS,
     waiting: "Waiting for the board…",
     done: (now) => now.hasPositioned,
@@ -102,6 +127,15 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     done: (now, opened) =>
       now.movementPoints < opened.movementPoints ||
       (myTurn(now) && now.movementPoints < now.maxMovementPoints),
+    stalled: {
+      when: (now) => myTurn(now) && now.movementPoints === 0,
+      title: "Out of movement",
+      body: (touch) =>
+        touch
+          ? "No movement points left to walk with. End your turn — everything refills on your next one."
+          : "No movement points left to walk with. End your turn — the button, or the Tab key. Everything refills on your next one.",
+      targetId: "tutorial-mainbutton",
+    },
   },
   {
     id: "peek",
@@ -125,6 +159,15 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     ready: myTurn,
     waiting: WAIT_FOR_TURN,
     done: (now, opened) => now.opponentHealth < opened.opponentHealth,
+    stalled: {
+      when: (now) => myTurn(now) && !now.canCast,
+      title: "Nothing left to cast",
+      body: (touch) =>
+        touch
+          ? "No spell you can afford right now. End your turn — everything refills on your next one."
+          : "No spell you can afford right now. End your turn — the button, or the Tab key. Everything refills on your next one.",
+      targetId: "tutorial-mainbutton",
+    },
   },
   {
     id: "endTurn",
@@ -147,6 +190,16 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
       "Bring the other one to zero health and you win. This fight carries on from here — it was never a rehearsal.",
   },
 ];
+
+/**
+ * Whether the turn has run dry of what this step needs. The step stays open —
+ * the objective is still ahead — but the card stops asking for something the
+ * turn can no longer give.
+ */
+export const isStepStalled = (
+  step: TutorialStep,
+  now: TutorialFacts
+): boolean => (step.stalled ? step.stalled.when(now) : false);
 
 /** Whether the game is in a state where this step can be acted on. */
 export const isStepReady = (step: TutorialStep, now: TutorialFacts): boolean =>

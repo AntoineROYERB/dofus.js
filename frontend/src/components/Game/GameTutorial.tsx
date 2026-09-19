@@ -3,12 +3,22 @@ import {
   OBJECTIVE_COUNT,
   TUTORIAL_STEPS,
   TutorialFacts,
+  LIVE_CELLS,
   isStepDone,
   isStepReady,
+  isStepStalled,
   objectivesBefore,
   tourIsOver,
 } from "../../utils/tutorialSteps";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
+import {
+  Box,
+  Spot,
+  boxAround,
+  fillsScreen,
+  hasArea,
+  placeCard,
+} from "../../utils/spotlight";
 
 interface GameTutorialProps {
   active: boolean;
@@ -56,10 +66,14 @@ export const GameTutorial: React.FC<GameTutorialProps> = ({
   onFinish,
 }) => {
   const touch = useMediaQuery("(hover: none) and (pointer: coarse)");
-  const [rect, setRect] = useState<DOMRect | null>(null);
-  const [alsoRect, setAlsoRect] = useState<DOMRect | null>(null);
+  const [rect, setRect] = useState<Box | null>(null);
+  const [alsoRect, setAlsoRect] = useState<Box | null>(null);
   const card = useRef<HTMLDivElement>(null);
-  const [cardHeight, setCardHeight] = useState(CARD_HEIGHT_ESTIMATE);
+  const [cardSize, setCardSize] = useState({
+    width: CARD_WIDTH,
+    height: CARD_HEIGHT_ESTIMATE,
+  });
+  const [liveCells, setLiveCells] = useState<Box[]>([]);
   const [stuck, setStuck] = useState(false);
   const step = TUTORIAL_STEPS[stepIndex];
   const isLast = stepIndex === TUTORIAL_STEPS.length - 1;
@@ -76,6 +90,9 @@ export const GameTutorial: React.FC<GameTutorialProps> = ({
 
   const ready = isStepReady(step, facts);
   const done = isStepDone(step, facts, opened.current);
+  // The turn has nothing left for this objective. The step stays open and the
+  // card points at the way to the next turn instead.
+  const stalled = !done && isStepStalled(step, facts);
 
   // Done, and a beat to take it in before the next card.
   useEffect(() => {
@@ -99,24 +116,41 @@ export const GameTutorial: React.FC<GameTutorialProps> = ({
   useLayoutEffect(() => {
     const el = card.current;
     if (!active || !el) return;
-    setCardHeight(el.getBoundingClientRect().height || CARD_HEIGHT_ESTIMATE);
+    const own = el.getBoundingClientRect();
+    setCardSize({
+      width: own.width || CARD_WIDTH,
+      height: own.height || CARD_HEIGHT_ESTIMATE,
+    });
   }, [active, stepIndex, ready, done, stuck, touch]);
 
   useLayoutEffect(() => {
     if (!active) return;
-    if (!step.targetId) {
-      setRect(null);
-      setAlsoRect(null);
-      return;
-    }
 
-    const box = (id: string | undefined) => {
+    const box = (id: string | undefined): Box | null => {
       const el = id ? document.getElementById(id) : null;
-      return el ? el.getBoundingClientRect() : null;
+      if (!el) return null;
+      const own = el.getBoundingClientRect();
+      if (hasArea(own)) return own;
+      // A wrapper whose children are all absolutely positioned has no box of
+      // its own: what it holds is what to light.
+      return boxAround(
+        Array.from(el.children)
+          .map((child) => child.getBoundingClientRect())
+          .filter(hasArea)
+      );
     };
     const measure = () => {
-      setRect(box(step.targetId as string));
-      setAlsoRect(box(step.alsoId));
+      const also = stalled ? null : box(step.alsoId);
+      const target = stalled ? step.stalled?.targetId : step.targetId;
+      setRect(target ? box(target) : null);
+      setAlsoRect(also);
+      // Every cell the player could click right now, whichever step is open:
+      // the board under the card is where the answer has to be given.
+      setLiveCells(
+        Array.from(document.querySelectorAll(LIVE_CELLS))
+          .map((el) => el.getBoundingClientRect())
+          .filter(hasArea)
+      );
     };
 
     measure();
@@ -126,7 +160,7 @@ export const GameTutorial: React.FC<GameTutorialProps> = ({
       window.clearInterval(id);
       window.removeEventListener("resize", measure);
     };
-  }, [active, step.targetId, step.alsoId]);
+  }, [active, step.targetId, step.alsoId, step.stalled?.targetId, stalled]);
 
   if (!active || tourIsOver(facts)) return null;
 
@@ -144,16 +178,16 @@ export const GameTutorial: React.FC<GameTutorialProps> = ({
   // height can end up pushed off-screen entirely for a target as big as the
   // board, so every branch below clamps to an absolute pixel position.
   let arrow: "up" | "down" | null = null;
-  const cardStyle: React.CSSProperties = rect
+  const spot: Spot = rect
     ? (() => {
         const spaceBelow = window.innerHeight - rect.bottom;
         const spaceAbove = rect.top;
         let top: number;
-        if (spaceBelow >= cardHeight + 16) {
+        if (spaceBelow >= cardSize.height + 16) {
           top = rect.bottom + 16;
           arrow = "up";
-        } else if (spaceAbove >= cardHeight + 16) {
-          top = rect.top - 16 - cardHeight;
+        } else if (spaceAbove >= cardSize.height + 16) {
+          top = rect.top - 16 - cardSize.height;
           arrow = "down";
         } else {
           // The target is taller than the screen leaves room beside it — the
@@ -162,8 +196,8 @@ export const GameTutorial: React.FC<GameTutorialProps> = ({
           top = Math.max(
             16,
             Math.min(
-              rect.bottom - cardHeight - 16,
-              window.innerHeight - cardHeight - 16
+              rect.bottom - cardSize.height - 16,
+              window.innerHeight - cardSize.height - 16
             )
           );
         }
@@ -173,27 +207,53 @@ export const GameTutorial: React.FC<GameTutorialProps> = ({
         // and the spell arc live, and the card would cover the very numbers
         // it is talking about. There it goes to the top instead, between the
         // turn bar and the corner buttons.
-        const fillsScreen = rect.height > window.innerHeight * 0.85;
+        const fillsScreen = rect.bottom - rect.top > window.innerHeight * 0.85;
         if (fillsScreen) {
           return {
             top: Math.max(16, rect.top + 44),
-            left: Math.max(16, (window.innerWidth - CARD_WIDTH) / 2),
+            left: Math.max(16, (window.innerWidth - cardSize.width) / 2),
           };
         }
 
         const left = Math.min(
           Math.max(16, rect.left),
-          window.innerWidth - CARD_WIDTH - 16
+          window.innerWidth - cardSize.width - 16
         );
         return { top, left };
       })()
     : {
-        top: "50%",
-        left: "50%",
-        transform: "translate(-50%, -50%)",
+        top: Math.max(16, (window.innerHeight - cardSize.height) / 2),
+        left: Math.max(16, (window.innerWidth - cardSize.width) / 2),
       };
 
-  const lit = [rect, alsoRect].filter((box): box is DOMRect => !!box);
+  /*
+   * Where the card ends up. A step that names something — the green cells to
+   * start on — must not then sit on it, so the spot above is only a
+   * preference: anything it would cover sends the card to the nearest corner
+   * or edge that is clear, and the arrow goes with it, since it no longer
+   * points from where it was drawn.
+   */
+  const lit = [rect, alsoRect].filter((box): box is Box => !!box);
+  // Worth an outline: anything that is not already the whole screen.
+  const worthOutlining = (box: Box) =>
+    !fillsScreen(box, {
+      width: window.innerWidth,
+      height: window.innerHeight,
+    });
+
+  const placed = placeCard(
+    spot,
+    cardSize,
+    { width: window.innerWidth, height: window.innerHeight },
+    // The cells are counted; what the step is lighting is not to be covered at
+    // all — a card over the spell bar while it says "pick a spell" is worse
+    // than a card over a corner of a range.
+    { cells: liveCells, never: lit }
+  );
+  if (placed.top !== spot.top || placed.left !== spot.left) arrow = null;
+
+  const cardStyle: React.CSSProperties = placed;
+
 
   const objective = !!step.done;
   const counter = objective
@@ -227,8 +287,8 @@ export const GameTutorial: React.FC<GameTutorialProps> = ({
                 key={i}
                 x={box.left - PADDING}
                 y={box.top - PADDING}
-                width={box.width + PADDING * 2}
-                height={box.height + PADDING * 2}
+                width={box.right - box.left + PADDING * 2}
+                height={box.bottom - box.top + PADDING * 2}
                 fill="black"
               />
             ))}
@@ -244,16 +304,26 @@ export const GameTutorial: React.FC<GameTutorialProps> = ({
         />
       </svg>
 
-      {lit.map((box, i) => (
+      {/*
+        An outline around each lit element, except one as big as the screen:
+        the board's own outline lies off every edge, so all it ever draws is a
+        pair of red lines with nothing between them — clutter that stays put
+        while the steps move on. The hole in the dim is what lights the board.
+
+        No transition either. An outline that slides from the spell bar to the
+        turn zone reads, for the length of the slide, as a third red box around
+        everything in between.
+      */}
+      {lit.filter(worthOutlining).map((box, i) => (
         <div
           key={i}
           aria-hidden
-          className="pointer-events-none fixed rounded-sm border-2 border-vermilion transition-all duration-200"
+          className="pointer-events-none fixed rounded-sm border-2 border-vermilion"
           style={{
             top: box.top - PADDING,
             left: box.left - PADDING,
-            width: box.width + PADDING * 2,
-            height: box.height + PADDING * 2,
+            width: box.right - box.left + PADDING * 2,
+            height: box.bottom - box.top + PADDING * 2,
           }}
         />
       ))}
@@ -269,7 +339,7 @@ export const GameTutorial: React.FC<GameTutorialProps> = ({
           className="animate-nudge pointer-events-none fixed font-mono text-[15px] leading-none text-vermilion"
           style={{
             top: alsoRect.top - PADDING - 20,
-            left: alsoRect.left + alsoRect.width / 2 - 6,
+            left: (alsoRect.left + alsoRect.right) / 2 - 6,
           }}
         >
           ▼
@@ -307,10 +377,14 @@ export const GameTutorial: React.FC<GameTutorialProps> = ({
         </div>
 
         <h3 className="mt-2 font-display text-[18px] font-bold leading-tight">
-          {step.title}
+          {stalled && step.stalled ? step.stalled.title : step.title}
         </h3>
         <p className="mt-1.5 text-[13px] leading-relaxed text-graphite">
-          {ready ? step.body(touch) : step.waiting}
+          {!ready
+            ? step.waiting
+            : stalled && step.stalled
+              ? step.stalled.body(touch)
+              : step.body(touch)}
         </p>
 
         <div className="mt-3.5 flex items-center justify-between gap-3">
@@ -334,7 +408,7 @@ export const GameTutorial: React.FC<GameTutorialProps> = ({
               </button>
             ) : (
               <span className="font-mono text-[9.5px] uppercase tracking-label text-muted">
-                {ready ? "Your move" : "Waiting"}
+                {!ready ? "Waiting" : stalled ? "Next turn" : "Your move"}
               </span>
             )
           ) : (

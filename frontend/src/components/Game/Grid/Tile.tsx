@@ -252,10 +252,20 @@ const TileView: React.FC<TileProps> = ({
    * both brightens and keeps breathing — reads as a glitch. The cell under the
    * cursor holds still.
    */
-  const breathes =
-    awaitingPlacement &&
-    !!initialPositionOwner?.isCurrentPlayer &&
-    !isHovered;
+  const isMyStartCell =
+    awaitingPlacement && !!initialPositionOwner?.isCurrentPlayer;
+  const breathes = isMyStartCell && !isHovered;
+
+  /*
+   * A cell this player could click right now: one to start on, one a chosen
+   * spell can reach, or one their legs can reach. The tutorial reads these to
+   * keep its card off them — a card sitting on the only cells it is asking
+   * anyone to click teaches nothing. Movement is judged on reach rather than
+   * on the wash, which only appears once the pointer is over the board.
+   */
+  const isLiveCell =
+    isMyStartCell ||
+    (!!isCharacterTurn && (selectedSpellId ? !!isInSpellRange : !!isInRange));
 
   // Playable cells are reachable with the keyboard: they take focus and answer
   // Enter and Space. The board was mouse-only, which left it unusable without
@@ -292,6 +302,7 @@ const TileView: React.FC<TileProps> = ({
       role={interactive ? "button" : undefined}
       tabIndex={interactive ? 0 : undefined}
       aria-label={interactive ? `Cell ${x}, ${y}` : undefined}
+      data-live-cell={isLiveCell || undefined}
       style={{
         left: `${screenPosition.x - w / 2}px`,
         top: `${screenPosition.y - h / 2}px`,

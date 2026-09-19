@@ -5,6 +5,7 @@ import {
   TutorialStepId,
   isStepDone,
   isStepReady,
+  isStepStalled,
   tourIsOver,
 } from "./tutorialSteps";
 
@@ -16,6 +17,7 @@ const facts = (over: Partial<TutorialFacts> = {}): TutorialFacts => ({
   maxMovementPoints: 4,
   opponentHealth: 50,
   peeks: 0,
+  canCast: true,
   turnNumber: 1,
   ...over,
 });
@@ -198,5 +200,44 @@ describe("a finished fight", () => {
     expect(
       tourIsOver(facts({ status: GAME_STATUS.POSITION_CHARACTERS }))
     ).toBe(false);
+  });
+});
+
+describe("a turn with nothing left in it", () => {
+  it("says to end the turn when there is no spell to cast", () => {
+    const flat = facts({ canCast: false });
+    expect(isStepStalled(step("cast"), flat)).toBe(true);
+    expect(step("cast").stalled?.targetId).toBe("tutorial-mainbutton");
+    expect(step("cast").stalled?.body(false).toLowerCase()).toContain(
+      "end your turn"
+    );
+  });
+
+  it("says to end the turn when there is no movement left", () => {
+    expect(isStepStalled(step("walk"), facts({ movementPoints: 0 }))).toBe(true);
+    expect(isStepStalled(step("walk"), facts({ movementPoints: 1 }))).toBe(
+      false
+    );
+  });
+
+  it("keeps quiet while the objective is still possible", () => {
+    expect(isStepStalled(step("cast"), facts({ canCast: true }))).toBe(false);
+    expect(isStepStalled(step("walk"), facts({ movementPoints: 4 }))).toBe(
+      false
+    );
+  });
+
+  it("keeps quiet on the opponent's turn, which has its own line", () => {
+    const theirs = facts({ isMyTurn: false, canCast: false, movementPoints: 0 });
+    expect(isStepStalled(step("cast"), theirs)).toBe(false);
+    expect(isStepStalled(step("walk"), theirs)).toBe(false);
+  });
+
+  it("never tells a finger about the Tab key", () => {
+    for (const s of TUTORIAL_STEPS) {
+      if (!s.stalled) continue;
+      expect(s.stalled.body(true).toLowerCase()).not.toContain("tab key");
+      expect(s.stalled.targetId).toBe("tutorial-mainbutton");
+    }
   });
 });
