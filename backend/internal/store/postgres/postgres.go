@@ -228,6 +228,11 @@ func (s *Store) Reproject(ctx context.Context, id string) error {
 
 func (s *Store) Close() error { return s.db.Close() }
 
+// DB returns the connection pool this store opened, so a sibling store
+// (internal/auth/postgres, for accounts) can share it instead of opening a
+// second one.
+func (s *Store) DB() *sql.DB { return s.db }
+
 type rowScanner interface {
 	Scan(dest ...any) error
 }

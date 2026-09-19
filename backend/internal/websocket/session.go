@@ -21,6 +21,13 @@ type Session struct {
 
 	// RoomID is the room this player belongs to, remembered across a drop.
 	RoomID string
+	// AccountID links this session to a signed-in Google account, set by
+	// internal/auth once a browser holding this token completes sign-in.
+	// nil means anonymous. It is never set from a WebSocket message: only
+	// internal/auth's HTTP handlers, resolving identity from a signed
+	// cookie, ever call SetAccountID. Distinct from UserID, which is the
+	// anonymous per-connection identity and never changes.
+	AccountID *int64
 	// forfeit fires once the grace period expires with no reconnection.
 	forfeit *time.Timer
 }
@@ -67,6 +74,21 @@ func (s *Sessions) Resume(token string) (*Session, bool) {
 	defer s.mu.Unlock()
 	sess, ok := s.byTok[token]
 	return sess, ok
+}
+
+// SetAccountID links (or, given nil, unlinks) the session behind token to a
+// Google account. It reports whether the session was found. Mutating
+// AccountID goes through here rather than the field directly so this
+// package keeps sole responsibility for guarding Session state with mu.
+func (s *Sessions) SetAccountID(token string, accountID *int64) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	sess, ok := s.byTok[token]
+	if !ok {
+		return false
+	}
+	sess.AccountID = accountID
+	return true
 }
 
 func (s *Sessions) Drop(token string) {
