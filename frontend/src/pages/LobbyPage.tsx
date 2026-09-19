@@ -196,9 +196,14 @@ const LobbyPage: React.FC = () => {
     setNewRoomName("");
   };
 
-  // A visitor with no one to play against can still see the whole game. With
-  // no class list to hand the server picks the opponent, as it always did.
-  const playSolo = (botClass?: string) => {
+  /*
+   * A visitor with no one to play against can still see the whole game. With
+   * no class list to hand the server picks the opponent, as it always did.
+   *
+   * The tutorial's opponent stands still until the tour ends: nobody learns
+   * which button is which while being shot at. It wakes up on the way out.
+   */
+  const playSolo = (botClass?: string, still = false) => {
     const opponent = classes.find((c) => c.id === botClass)?.opponent.name;
     const { messageId, timestamp } = generateMessageId();
     sendGameAction({
@@ -208,6 +213,7 @@ const LobbyPage: React.FC = () => {
       name: `${character?.name ?? "Solo"} vs ${opponent ?? "Cpu"}`.slice(0, 24),
       withBot: true,
       ...(botClass ? { botClass } : {}),
+      ...(still ? { botMode: "dummy" as const } : {}),
     });
   };
 
@@ -230,7 +236,7 @@ const LobbyPage: React.FC = () => {
     if (!isTutorialMatchArmed()) return;
     if (!content && !contentFailed) return;
     askedOnThisSocket.current = true;
-    playSolo(picked?.id);
+    playSolo(picked?.id, true);
     // playSolo reads the character and the socket, both stable for this screen.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [connected, roomId, content, contentFailed, picked?.id]);
@@ -238,7 +244,7 @@ const LobbyPage: React.FC = () => {
   const startTutorial = () => {
     armTutorialMatch();
     setHowToPlayOpen(false);
-    playSolo(picked?.id);
+    playSolo(picked?.id, true);
   };
 
   const joinRoom = (id: string) => {

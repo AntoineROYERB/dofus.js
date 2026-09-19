@@ -93,6 +93,9 @@ export const GameTutorial: React.FC<GameTutorialProps> = ({
   // The turn has nothing left for this objective. The step stays open and the
   // card points at the way to the next turn instead.
   const stalled = !done && isStepStalled(step, facts);
+  // The closing card has something else to say when the opponent has been
+  // standing still through the whole tour.
+  const dummy = facts.opponentIsDummy ? step.againstDummy : undefined;
 
   // Done, and a beat to take it in before the next card.
   useEffect(() => {
@@ -377,14 +380,16 @@ export const GameTutorial: React.FC<GameTutorialProps> = ({
         </div>
 
         <h3 className="mt-2 font-display text-[18px] font-bold leading-tight">
-          {stalled && step.stalled ? step.stalled.title : step.title}
+          {stalled && step.stalled
+            ? step.stalled.title
+            : (dummy?.title ?? step.title)}
         </h3>
         <p className="mt-1.5 text-[13px] leading-relaxed text-graphite">
           {!ready
             ? step.waiting
             : stalled && step.stalled
               ? step.stalled.body(touch)
-              : step.body(touch)}
+              : (dummy?.body(touch) ?? step.body(touch))}
         </p>
 
         <div className="mt-3.5 flex items-center justify-between gap-3">
@@ -421,7 +426,7 @@ export const GameTutorial: React.FC<GameTutorialProps> = ({
               onClick={advance}
               className="pointer-events-auto border border-ink bg-ink px-4 py-2 font-mono text-[10px] uppercase tracking-label text-paper transition-colors hover:bg-vermilion hover:border-vermilion"
             >
-              {isLast ? "Back to the fight" : "Show me"}
+              {dummy?.cta ?? (isLast ? "Back to the fight" : "Show me")}
             </button>
           )}
         </div>
