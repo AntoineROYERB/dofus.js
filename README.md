@@ -13,25 +13,36 @@ instantly either way.
 
 ![Picking a starting cell in the green block, a wall of fire laid across the board, and the bot answering with a Meteor that leaves a crater](docs/assets/demo.gif)
 
-<table>
-<tr>
-<td width="50%"><img src="docs/assets/01-landing.png" alt="Naming a fighter and picking a class, whose passive and five spells read underneath"></td>
-<td width="50%"><img src="docs/assets/02-lobby.png" alt="Lobby: the class's own opponent to challenge, open games, and a game to create"></td>
-</tr>
-<tr>
-<td width="50%"><img src="docs/assets/03-placement.png" alt="Placement: three adjacent cells to start on, in green; the opponent's block is marked off in red"></td>
-<td width="50%"><img src="docs/assets/04-combat.png" alt="Combat: a wall of fire and a crater left on the board, burn counters over both fighters, and the spell bar naming each spell's role"></td>
-</tr>
-</table>
+<p align="center"><sub>One turn of a fight against the computer: a starting cell
+picked out of the green block, a wall of fire laid across the board, and the bot
+answering with a Meteor that leaves a crater behind.</sub></p>
+
+**In the browser.** Four screens, in the order you meet them.
 
 <table>
 <tr>
-<td width="50%"><img src="docs/assets/06-phone-home.png" alt="The phone's home screen: the fighter on a stand, its class and passive, one Play button"></td>
-<td width="50%"><img src="docs/assets/05-phone.png" alt="The same fight on a phone held sideways: the spells in an arc under the thumb, and a card explaining the fire a cell is carrying"></td>
+<td width="50%"><img src="docs/assets/01-landing.png" alt="Naming a fighter and picking a class, whose passive and five spells read underneath"><br><sub><b>1 · Landing.</b> A name, a colour and one of four classes. The class's passive and its five spells read underneath, so the choice is made on what it does.</sub></td>
+<td width="50%"><img src="docs/assets/02-lobby.png" alt="Lobby: the class's own opponent to challenge, open games, and a game to create"><br><sub><b>2 · Lobby.</b> Challenge the opponent that belongs to your class, join a game someone has opened, or open one and wait.</sub></td>
+</tr>
+<tr>
+<td width="50%"><img src="docs/assets/03-placement.png" alt="Placement: three adjacent cells to start on, in green; the opponent's block is marked off in red"><br><sub><b>3 · Placement.</b> Each side starts in its own block — yours in green, the opponent's marked off in red — and the fight begins once both have chosen.</sub></td>
+<td width="50%"><img src="docs/assets/04-combat.png" alt="Combat: a wall of fire and a crater left on the board, burn counters over both fighters, and the spell bar naming each spell's role"><br><sub><b>4 · Combat.</b> What spells leave behind stays: a wall of fire, a crater, burn counters over both fighters. The bar names what each spell is for.</sub></td>
+</tr>
+</table>
+
+**On a phone.** The same game, laid out for two thumbs.
+
+<table>
+<tr>
+<td width="50%"><img src="docs/assets/06-phone-home.png" alt="The phone's home screen: the fighter on a stand, its class and passive, one Play button"><br><sub><b>Home.</b> Your fighter on a stand with the other classes waiting faded on either side, and one Play button under the right thumb.</sub></td>
+<td width="50%"><img src="docs/assets/05-phone.png" alt="The same fight on a phone held sideways: the spells in an arc under the thumb, and a card explaining the fire a cell is carrying"><br><sub><b>Combat.</b> The board takes the whole screen, the controls float over its corners, and the spells sit in an arc where the thumb already is.</sub></td>
 </tr>
 </table>
 
 ![The same fight on a phone: a wall of fire, the bot's Meteor, and the spells in an arc under the thumb](docs/assets/demo-phone.gif)
+
+<p align="center"><sub>The same fight in the iOS app, held sideways: the board
+keeps the screen to itself and every control sits within reach of a thumb.</sub></p>
 
 On a phone, hold it sideways. The lobby becomes a home screen: your fighter in
 the middle, arrows (or a swipe) to slide through the classes with the others
@@ -57,6 +68,18 @@ docker compose up --build
 Then open <http://localhost>. Pick a name, a colour and a class, and either
 **challenge the computer** or open a game and wait for someone to join. Two
 browser tabs are enough for a real 1v1.
+
+The first solo fight teaches itself. Rather than a stack of cards read before
+the game starts, the tutorial is the game: the screen dims around the one
+thing each step is about — the cells you may stand on, the spell bar, the End
+turn button — and waits for you to do it. Five things, about a minute: place
+yourself, walk, read a spell, cast it, end your turn. Nothing has a *Next*
+button, because doing it is the button, and *Skip tutorial* is always in the
+corner. The opponent stands still throughout — nobody learns which button is
+which while being shot at — and wakes up to fight back in that same match the
+moment you leave the tour, by finishing it or by skipping it. Walk out halfway
+and it picks back up at the step you were on. **Replay tutorial**, in the log
+rail, opens a fresh tutorial fight from the first step.
 
 There are four classes, one per element: the **Pyromancer** (burns that stack
 and then go off at once), the **Windwalker** (reach, through a relay it sets
@@ -179,7 +202,7 @@ Copy `.env.example` to `.env`. Everything has a working default.
 | Variable | Default | What it does |
 |---|---|---|
 | `HTTP_PORT` | `80` | Port the site is served on |
-| `ALLOWED_ORIGINS` | `*` | Origins allowed to open a WebSocket. **Pin this for a public deployment.** |
+| `ALLOWED_ORIGINS` | `*` | Origins allowed to open a WebSocket, comma separated. **Pin this for a public deployment.** An entry naming a scheme (`https://example.com`, `capacitor://localhost`) matches that origin exactly; a bare hostname (`example.com`) matches the host whatever the scheme. |
 | `TURN_SECONDS` | `45` | How long a player gets before their turn passes on |
 | `STATIC_DIR` | unset | When set, the Go binary also serves the built frontend |
 | `BALANCE_FILE` | `config/balance.json` | Default health, action points and movement points, for every class that does not set its own. Edit `backend/config/balance.json` to retune every fight at once. A missing file falls back to built-in defaults. |
@@ -205,7 +228,7 @@ Copy `.env.example` to `.env`. Everything has a working default.
    | Service | Variable | Value |
    |---|---|---|
    | `dofusjs` | `VITE_WS_URL` | `wss://dofusjs-api.onrender.com/ws` |
-   | `dofusjs-api` | `ALLOWED_ORIGINS` | `https://dofusjs.onrender.com` |
+   | `dofusjs-api` | `ALLOWED_ORIGINS` | `https://dofusjs.onrender.com,capacitor://localhost` |
 
    This is exactly how <https://dofusjs.onrender.com> is deployed.
 
@@ -219,8 +242,10 @@ serving the frontend from the Go binary would mean a visitor stares at a blank
 tab for that minute. Split, the page is instant and only the WebSocket waits —
 and the UI already says "Reconnecting…" and backs off while it does.
 
-The blueprint locks `ALLOWED_ORIGINS` to the static site's hostname, so no
-other origin can open a socket against the server.
+The blueprint locks `ALLOWED_ORIGINS` to the static site's origin and the iOS
+app's, so no other origin can open a socket against the server. Leave the
+second one out and the phone gets a 403 at the handshake, with nothing but
+"Reconnecting…" to explain it.
 
 Because the server keeps every game in memory, a sleep wipes the lobby. That is
 the design, not a regression: rooms are transient, and a returning player just
@@ -264,9 +289,15 @@ sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
 sudo xcodebuild -license accept
 ```
 
-**Day to day: live reload.** Run the backend and `npm run dev` as usual, and
-point the app at the Vite dev server. Edits show up without rebuilding. In the
-simulator `localhost` is the Mac; on a phone, use the Mac's LAN address.
+**Day to day: live reload.** Run the backend as usual and point the app at the
+Vite dev server; edits then show up without rebuilding. In the simulator
+`localhost` is the Mac. A phone needs the Mac's LAN address — and Vite binds to
+localhost unless told otherwise, so it has to be started with `--host` or the
+phone will not reach it at all.
+
+```bash
+cd frontend && npm run dev -- --host
+```
 
 ```bash
 cd frontend && npm run build && CAP_SERVER_URL=http://localhost:5173 npm run ios:dev
@@ -275,6 +306,54 @@ cd frontend && npm run build && CAP_SERVER_URL=http://localhost:5173 npm run ios
 ```bash
 cd frontend && npm run build && CAP_SERVER_URL=http://192.168.1.20:5173 npm run ios:dev
 ```
+
+**On a real phone, the first time.** Connect it by USB, unlock it, and accept
+"Trust This Computer" — the prompt only appears on an unlocked screen. From
+iOS 16 the phone also needs Settings → Privacy & Security → Developer Mode,
+which shows up in that menu only after a Mac has tried to install something on
+it. Signing needs a team set in Xcode under Signing & Capabilities, and the
+first launch is refused until the certificate is approved on the phone, under
+Settings → General → VPN & Device Management.
+
+**`cap run ios` only lists devices on USB.** It enumerates through `xctrace`,
+which calls a phone connected over Wi-Fi offline however well it answers
+otherwise. Such a phone shows as `connected` to the modern tool and never
+appears in Capacitor's menu, which offers simulators only and looks as though
+the device were missing. Run it from Xcode instead — Xcode uses CoreDevice and
+sees it — or plug the cable in.
+
+```bash
+xcrun devicectl list devices | grep physical
+```
+
+**Xcode does not sync.** Copying `dist/` into `ios/App/App/public`, and
+writing `ios/App/App/capacitor.config.json` from `capacitor.config.ts` and
+`CAP_SERVER_URL`, is what `cap sync` does — `cap run` does it on the way past.
+Pressing Run in Xcode ships whatever is already on disk. So after switching
+between live reload and a bundled build, sync first, or the app silently keeps
+the previous arrangement.
+
+```bash
+cd frontend && CAP_SERVER_URL=http://192.168.1.20:5173 npx cap sync ios
+```
+
+```bash
+cd frontend && npx cap sync ios
+```
+
+**When the landing page has no classes.** The classes and spells are fetched
+from the server, not shipped in the page, so a class picker that is missing
+while the name and the colours are there means that request failed — and the
+WebSocket is about to fail the same way. The usual cause is an app running the
+bundled `dist` with no `VITE_WS_URL` baked in: its origin is then
+`capacitor://localhost`, and the API address derived from it goes nowhere.
+Check which arrangement the app actually has.
+
+```bash
+cat frontend/ios/App/App/capacitor.config.json
+```
+
+A `server.url` means live reload; no `server` block means the bundle.
 
 **Checking how it feels.** Live reload runs React's development build, which
 is several times slower; judge smoothness on a production build instead,
@@ -295,12 +374,21 @@ The app is locked to landscape; the portrait layout is for the browser.
 the app's origin through on the server:
 
 ```bash
-cd frontend && VITE_WS_URL=wss://dofusjs.onrender.com npm run ios:sync && npm run ios:open
+cd frontend && VITE_WS_URL=wss://dofusjs-api.onrender.com/ws npm run ios:sync && npm run ios:open
 ```
+
+That is the API service, not the site. `dofusjs.onrender.com` is the static
+site: it answers `/ws` with `index.html` and never upgrades, so a bundle built
+against it opens on a lobby that cannot connect.
 
 ```bash
 ALLOWED_ORIGINS=https://dofusjs.onrender.com,capacitor://localhost
 ```
+
+The app's page comes from the bundle, so its origin is `capacitor://localhost`
+— that is what the handshake carries, and it has to be on the list by name.
+The scheme is part of the match: listing it does not also admit
+`http://localhost`, which is any page an attacker serves from the machine.
 
 **On your own iPhone, for free.** A free Apple ID is enough: add it under
 Xcode → Settings → Accounts, plug the phone in, turn on *Settings → Privacy &
@@ -322,7 +410,7 @@ web views, so the app plays anonymously.
 
 ```bash
 cd backend && go test -race ./...     # rules, lobby, turn cycle, bot, content, balance
-cd frontend && npm test               # isometric geometry, spell text, terrain, solo arc, phone HUD
+cd frontend && npm test               # isometric geometry, spell text, terrain, solo arc, tutorial, phone HUD
 cd frontend && npm test -- --coverage # the same, failing if the phone HUD's logic loses coverage
 cd frontend && npm run lint && npm run build
 ```

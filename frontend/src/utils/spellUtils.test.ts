@@ -2,6 +2,7 @@ import {
   areaPattern,
   calculateImpactedCells,
   castOrigin,
+  outOfSight,
   spec,
   spellSummary,
   unavailableReason,
@@ -205,5 +206,63 @@ describe("spec for the new targeting", () => {
     expect(spec(makeSpell({ targeting: "empty", range: 5 }))).toContain("a free cell within 5");
     expect(spec(makeSpell({ relayed: true }))).toContain("or from your relay");
     expect(spec(makeSpell({ ultimate: true }))).toContain("once a fight, from turn 2");
+  });
+});
+
+describe("outOfSight", () => {
+  const caster = { x: -4, y: 0 };
+  const wall = (p: Position) => p.x === -2 && p.y === 0;
+
+  it("marks a cell the range reaches and the wall hides", () => {
+    expect(outOfSight(makeSpell({ range: 5 }), { x: 0, y: 0 }, caster, wall, null)).toBe(
+      true
+    );
+  });
+
+  it("says nothing about a cell that is simply too far", () => {
+    expect(
+      outOfSight(makeSpell({ range: 2 }), { x: 4, y: 0 }, caster, wall, null)
+    ).toBe(false);
+  });
+
+  it("says nothing about a cell in plain view", () => {
+    expect(outOfSight(makeSpell({ range: 5 }), { x: 0, y: 0 }, caster, open, null)).toBe(
+      false
+    );
+  });
+
+  it("is never true for a spell that does not need a line of sight", () => {
+    expect(
+      outOfSight(
+        makeSpell({ range: 5, needsLineOfSight: false }),
+        { x: 0, y: 0 },
+        caster,
+        wall,
+        null
+      )
+    ).toBe(false);
+  });
+
+  it("clears a cell the relay can see, for a relayed spell", () => {
+    const relay = { x: 0, y: 2 };
+    const target = { x: 0, y: 0 };
+    expect(
+      outOfSight(makeSpell({ range: 5 }), target, caster, wall, relay)
+    ).toBe(true);
+    expect(
+      outOfSight(makeSpell({ range: 5, relayed: true }), target, caster, wall, relay)
+    ).toBe(false);
+  });
+
+  it("leaves a spell cast on yourself alone", () => {
+    expect(
+      outOfSight(
+        makeSpell({ range: 0, targeting: "self" }),
+        { x: 0, y: 0 },
+        caster,
+        wall,
+        null
+      )
+    ).toBe(false);
   });
 });

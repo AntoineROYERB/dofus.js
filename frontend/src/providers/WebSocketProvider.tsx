@@ -9,6 +9,18 @@ type WebSocketProviderProps = {
 
 const TOKEN_KEY = "dofusjs.sessionToken";
 const RECONNECT_BASE_MS = 500;
+// A screen opens with an action or two at most; anything past that is a bug
+// rather than a backlog worth keeping.
+const MAX_PENDING = 8;
+/*
+ * How long an action waits for a socket before it is dropped. Long enough to
+ * cover a socket being replaced — which React's development mode does on
+ * every mount, and a flaky network does for real — and short enough that a
+ * move from a turn that has since passed never lands on a board where it
+ * makes no sense. The server would refuse it anyway; this is about not
+ * surprising the player.
+ */
+const PENDING_TTL_MS = 5000;
 const RECONNECT_MAX_MS = 15000;
 
 /**
@@ -60,6 +72,8 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
   const [userId, setUserId] = useState("");
   const [userName, setUserName] = useState("");
   const [connected, setConnected] = useState(false);
+  /** Actions asked for while there was no open socket to ask on, in order. */
+  const pending = useRef<{ payload: unknown; at: number }[]>([]);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [rooms, setRooms] = useState<RoomSummary[]>([]);
   const [roomId, setRoomId] = useState("");
@@ -129,6 +143,14 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
     ws.onopen = () => {
       attempts.current = 0;
       setConnected(true);
+      // Whatever was asked for while there was nothing to ask on, as long as
+      // it is still worth asking.
+      const waiting = pending.current;
+      pending.current = [];
+      const now = Date.now();
+      for (const { payload, at } of waiting) {
+        if (now - at <= PENDING_TTL_MS) ws.send(JSON.stringify(payload));
+      }
     };
 
     ws.onmessage = (event) => {
@@ -169,11 +191,24 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
     };
   }, [connect]);
 
+  /*
+   * Sending with no open socket used to drop the message on the floor and say
+   * nothing — which is how a screen that acts the moment it mounts ends up
+   * waiting forever for an answer to a question nobody heard. It happens more
+   * than it sounds: a socket being replaced leaves a window where the app
+   * believes it is connected and there is nothing to write to.
+   *
+   * Such an action waits in line and goes out when a socket opens, if it is
+   * still fresh enough to mean anything — see PENDING_TTL_MS.
+   */
   const send = useCallback((payload: unknown) => {
     const ws = wsRef.current;
     if (ws?.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify(payload));
       return true;
+    }
+    if (pending.current.length < MAX_PENDING) {
+      pending.current.push({ payload, at: Date.now() });
     }
     return false;
   }, []);

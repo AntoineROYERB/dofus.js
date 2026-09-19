@@ -4,7 +4,8 @@ import { CharacterCreationForm } from "../components/Game/CharacterCreationForm"
 import { CharacterShowcase } from "../components/Game/CharacterShowcase";
 import { AboutDialog } from "../components/AboutDialog";
 import { HowToPlayDialog } from "../components/HowToPlayDialog";
-import { readCharacter, saveCharacter } from "../utils/characterStorage";
+import { NAME_RULE, readCharacter, saveCharacter } from "../utils/characterStorage";
+import { armTutorialMatch } from "../utils/tutorialStorage";
 import { ClassPicker } from "../components/Game/ClassPicker";
 import { useContent } from "../hooks/useContent";
 import { PLAYER_COLORS } from "../constants";
@@ -42,6 +43,20 @@ const LandingPage: React.FC = () => {
     if (!isNameValid) return;
     // Stored rather than passed through router state so it survives a reload.
     saveCharacter(characterName, selectedColor, chosenClass);
+    navigate("/lobby");
+  };
+
+  // Learning the game should not require naming a fighter first: an unnamed
+  // visitor gets one, and can rename it afterwards from the home screen.
+  const handlePlayTutorial = () => {
+    const typed = characterName.trim();
+    saveCharacter(
+      NAME_RULE.test(typed) ? typed : "Rookie",
+      selectedColor,
+      chosenClass
+    );
+    armTutorialMatch();
+    setHowToPlayOpen(false);
     navigate("/lobby");
   };
 
@@ -141,6 +156,7 @@ const LandingPage: React.FC = () => {
       <HowToPlayDialog
         open={howToPlayOpen}
         onClose={() => setHowToPlayOpen(false)}
+        onPlayTutorial={handlePlayTutorial}
       />
     </div>
   );

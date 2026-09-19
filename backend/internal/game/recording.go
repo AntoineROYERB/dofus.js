@@ -42,6 +42,7 @@ const (
 	CmdEndTurn  = "end_turn"
 	CmdTimeout  = "timeout"
 	CmdRestart  = "restart"
+	CmdWakeBots = "wake_bots"
 )
 
 // Command is one accepted mutation, stamped with its ordinal and the player
@@ -85,6 +86,9 @@ type (
 	}
 	addBotPayload struct {
 		Class string `json:"class"`
+		// Mode is empty on every recording made before opponents could stand
+		// still, which replays as the fighting opponent they were.
+		Mode string `json:"mode,omitempty"`
 	}
 	connectPayload struct {
 		Connected bool `json:"connected"`
@@ -320,12 +324,24 @@ func (g *Game) applyCommand(cmd Command) error {
 				return err
 			}
 		}
-		id, err := g.AddBotOfClass(p.Class)
+		mode, ok := ParseBotMode(p.Mode)
+		if !ok {
+			return fmt.Errorf("recording asks for opponent mode %q", p.Mode)
+		}
+		id, err := g.AddBotOfClass(p.Class, mode)
 		if err != nil {
 			return err
 		}
 		if id != cmd.UserID {
 			return fmt.Errorf("bot was named %s, recording says %s", id, cmd.UserID)
+		}
+		return nil
+
+	case CmdWakeBots:
+		// A recording made when nobody was asleep any more is not a broken
+		// recording: the wake-up simply had nothing left to do.
+		if err := g.WakeBots(cmd.UserID); err != nil && !errors.Is(err, ErrNobodyAsleep) {
+			return err
 		}
 		return nil
 

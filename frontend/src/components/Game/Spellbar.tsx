@@ -21,6 +21,8 @@ interface SpellBarProps {
   turnNumber?: number;
   /** Whether this player has a relay out, which changes how air spells go. */
   hasRelay?: boolean;
+  /** A spell's own card was opened — the tutorial counts these. */
+  onPeek?: () => void;
 }
 
 const SpellSlot: React.FC<{
@@ -32,7 +34,8 @@ const SpellSlot: React.FC<{
   hasRelay: boolean;
   isSelected: boolean;
   onSelect: (spellId: number) => void;
-}> = ({ spell, shortcut, state, actionPoints, turnNumber, hasRelay, isSelected, onSelect }) => {
+  onPeek?: () => void;
+}> = ({ spell, shortcut, state, actionPoints, turnNumber, hasRelay, isSelected, onSelect, onPeek }) => {
   const throughRelay = spell.relayed && hasRelay;
   const blocked = unavailableReason(spell, state, actionPoints, turnNumber);
   const spent = spell.ultimate && !!state?.spent;
@@ -40,6 +43,10 @@ const SpellSlot: React.FC<{
   const cooldown = state?.cooldownLeft ?? 0;
   const buttonRef = React.useRef<HTMLButtonElement>(null);
   const [showTooltip, setShowTooltip] = React.useState(false);
+  const peek = (open: boolean) => {
+    setShowTooltip(open);
+    if (open) onPeek?.();
+  };
 
   return (
     <div className="flex flex-none flex-col items-center lg:min-w-0 lg:max-w-[190px] lg:flex-1 short:!max-w-none">
@@ -72,12 +79,10 @@ const SpellSlot: React.FC<{
       // over the bar until something else took focus. The heading above the
       // slots already says what the tapped spell does, so only a mouse or a
       // keyboard gets the card.
-      onPointerEnter={(e) => e.pointerType === "mouse" && setShowTooltip(true)}
-      onPointerLeave={() => setShowTooltip(false)}
-      onFocus={(e) =>
-        e.currentTarget.matches(":focus-visible") && setShowTooltip(true)
-      }
-      onBlur={() => setShowTooltip(false)}
+      onPointerEnter={(e) => e.pointerType === "mouse" && peek(true)}
+      onPointerLeave={() => peek(false)}
+      onFocus={(e) => e.currentTarget.matches(":focus-visible") && peek(true)}
+      onBlur={() => peek(false)}
     >
       <span className="absolute left-1.5 top-0.5 font-mono text-[9px] text-muted touch:hidden">
         {shortcut}
@@ -178,6 +183,7 @@ const SpellBar: React.FC<SpellBarProps> = ({
   spells,
   turnNumber = 0,
   hasRelay = false,
+  onPeek,
 }) => {
   // The player's own bar, in its own order: the catalogue carries every
   // class's spells, and a class may carry fewer than there are slots.
@@ -240,6 +246,7 @@ const SpellBar: React.FC<SpellBarProps> = ({
             hasRelay={hasRelay}
             isSelected={selectedSpellId === spell.id}
             onSelect={handleSpellClick}
+            onPeek={onPeek}
           />
         ))}
       </div>

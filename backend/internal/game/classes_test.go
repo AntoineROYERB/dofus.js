@@ -60,7 +60,7 @@ func TestUnknownClassIsRefusedAndNotRecorded(t *testing.T) {
 	if g.PlayerCount() != 0 || g.CommandCount() != 0 {
 		t.Errorf("a refused join left %d players and %d commands behind", g.PlayerCount(), g.CommandCount())
 	}
-	if _, err := g.AddBotOfClass("necromancer"); !errors.Is(err, ErrUnknownClass) {
+	if _, err := g.AddBotOfClass("necromancer", BotFights); !errors.Is(err, ErrUnknownClass) {
 		t.Errorf("AddBotOfClass with an unknown class = %v, want ErrUnknownClass", err)
 	}
 }
@@ -100,7 +100,7 @@ func TestSpellsOffTheBarCannotBeCast(t *testing.T) {
 func TestBotPlaysItsClassOpponent(t *testing.T) {
 	class := otherClass(t)
 	g := New()
-	id, err := g.AddBotOfClass(class.ID)
+	id, err := g.AddBotOfClass(class.ID, BotFights)
 	if err != nil {
 		t.Fatalf("AddBotOfClass: %v", err)
 	}
@@ -158,7 +158,7 @@ func TestRematchKeepsTheClass(t *testing.T) {
 func TestClassChoicesReplay(t *testing.T) {
 	class := otherClass(t)
 	g := NewWithOptions(Options{Seed: 11, TurnDuration: time.Minute})
-	if _, err := g.AddBotOfClass(class.ID); err != nil {
+	if _, err := g.AddBotOfClass(class.ID, BotFights); err != nil {
 		t.Fatalf("AddBotOfClass: %v", err)
 	}
 	if err := g.AddPlayer("human", "User-human", lookAs("Alice", class.ID)); err != nil {

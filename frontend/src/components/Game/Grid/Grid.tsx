@@ -7,7 +7,7 @@ import {
 } from "../../../utils/isoUtils";
 import { blockedBy, reachable, sightBlockedBy } from "../../../utils/board";
 import { Tile } from "./Tile";
-import { castOrigin } from "../../../utils/spellUtils";
+import { castOrigin, outOfSight } from "../../../utils/spellUtils";
 import { BurnMarker } from "./BurnMarker";
 import {
   isSolidTerrain,
@@ -159,7 +159,11 @@ export const Grid: React.FC<GridProps> = ({
     );
   }, [characterPosition, movementPoints, blocked]);
 
-  const { tile: tileSize, size: boardSize } = useTileSize(containerRef, gridSize);
+  const {
+    tile: tileSize,
+    size: boardSize,
+    measured,
+  } = useTileSize(containerRef, gridSize);
   const { scale, pan, isPinching, reset: resetZoom } = usePinchZoom(containerRef);
 
   const characterRenderState = useCharacterAnimations(
@@ -384,6 +388,24 @@ export const Grid: React.FC<GridProps> = ({
   }, [characterPosition, selectedSpell, blocked, sightBlocked, relay, terrainAt, sortedCoordinates]);
 
   /*
+   * In range and unseen. Kept apart from `castable` rather than folded into
+   * it: these cells are not targets, they are the answer to "why not?", and
+   * the board owes the player that answer — the wall is the thing to walk
+   * around, and it can only be walked around if it can be seen.
+   */
+  const blind = React.useMemo(() => {
+    const out = new Set<string>();
+    if (!characterPosition || !selectedSpell) return out;
+    sortedCoordinates.forEach(({ x, y }) => {
+      if (castable.has(`${x},${y}`)) return;
+      if (outOfSight(selectedSpell, { x, y }, characterPosition, sightBlocked, relay)) {
+        out.add(`${x},${y}`);
+      }
+    });
+    return out;
+  }, [characterPosition, selectedSpell, castable, sightBlocked, relay, sortedCoordinates]);
+
+  /*
    * Only the centre a spell lands on needs a clear line to the caster — the
    * server checks line of sight once, against the target, and then hits
    * every cell the blast pattern covers regardless of what each of those
@@ -463,6 +485,13 @@ export const Grid: React.FC<GridProps> = ({
           transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale})`,
           transformOrigin: "center center",
           transition: isPinching ? "none" : "transform 150ms ease-out",
+          /*
+           * The board's centre is the container's, and until the container
+           * has been measured that centre is a guess — one that puts the
+           * whole fight in the top-left corner. Better an empty box for a
+           * frame than a board nowhere near the middle of the screen.
+           */
+          visibility: measured ? undefined : "hidden",
         }}
       >
       <div ref={boardRef} className="absolute inset-0">
@@ -515,6 +544,7 @@ export const Grid: React.FC<GridProps> = ({
               selectedSpellId={selectedSpellId}
               isImpactedCell={isImpactedCell}
               isInSpellRange={isInCastRange}
+              isOutOfSight={blind.has(`${x},${y}`)}
               viaRelay={reachedViaRelay}
               canCastAtHovered={hoveredCastable}
               isObstacle={isObstacle}

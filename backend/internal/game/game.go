@@ -39,6 +39,8 @@ var (
 	ErrBlocked             = errors.New("that cell is blocked")
 	ErrNoRoute             = errors.New("there is no way through to that cell")
 	ErrUnknownClass        = errors.New("unknown class")
+	ErrUnknownBotMode      = errors.New("unknown opponent mode")
+	ErrNobodyAsleep        = errors.New("no opponent is standing still")
 	ErrSpellNotOnBar       = errors.New("that spell is not one of yours")
 )
 

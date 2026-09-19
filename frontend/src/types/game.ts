@@ -39,6 +39,11 @@ export interface Player {
   connected: boolean;
   /** An opponent the server plays itself. */
   isBot: boolean;
+  /**
+   * A bot that will not fight back: it takes hits, never moves, never casts.
+   * The tutorial opens against one, and wakes it when the tour ends.
+   */
+  isDummy?: boolean;
   /** Per-spell availability, keyed like the catalogue. */
   spells: { [spellId: string]: SpellState } | null;
   /** This player's spell ids in bar order, which number keys follow. */
@@ -98,6 +103,12 @@ export interface CreateRoomAction extends ActionEnvelope {
   withBot?: boolean;
   /** Which class's opponent the computer plays. */
   botClass?: string;
+  /** How it behaves: "fight", the default, or "dummy", which stands still. */
+  botMode?: "fight" | "dummy";
+}
+
+export interface WakeOpponentAction extends ActionEnvelope {
+  type: "wake_opponent";
 }
 
 export interface JoinRoomAction extends ActionEnvelope {
@@ -122,6 +133,7 @@ export type GameAction =
   | CreateCharacterAction
   | EndTurnAction
   | MoveAction
+  | WakeOpponentAction
   | CharacterPositionedAction;
 
 export const GAME_STATUS = {

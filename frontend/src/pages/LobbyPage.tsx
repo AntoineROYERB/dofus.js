@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useWebSocket } from "../context/WebSocketContext";
 import { generateMessageId } from "../utils/messageUtils";
@@ -13,6 +13,11 @@ import { CharacterClass } from "../types/message";
 import { LobbyHome } from "../components/Lobby/LobbyHome";
 import { RenameDialog } from "../components/Lobby/RenameDialog";
 import { useMediaQuery } from "../hooks/useMediaQuery";
+import {
+  armTutorialMatch,
+  hasSeenTutorial,
+  isTutorialMatchArmed,
+} from "../utils/tutorialStorage";
 
 /**
  * One rung of the solo arc: an opponent, and whether it can be fought yet.
@@ -151,7 +156,7 @@ const LobbyPage: React.FC = () => {
   const notice = useRejectionBanner(rejection);
 
   const character = readCharacter();
-  const { content } = useContent();
+  const { content, failed: contentFailed } = useContent();
   const classes = content?.classes ?? [];
   // Read on every render: coming back from a won match has to show the rung
   // it opened without a reload.
@@ -192,10 +197,23 @@ const LobbyPage: React.FC = () => {
     setNewRoomName("");
   };
 
-  // A visitor with no one to play against can still see the whole game. With
-  // no class list to hand the server picks the opponent, as it always did.
-  const playSolo = (botClass?: string) => {
+  /*
+   * A visitor with no one to play against can still see the whole game. With
+   * no class list to hand the server picks the opponent, as it always did.
+   *
+   * The tutorial's opponent stands still until the tour ends: nobody learns
+   * which button is which while being shot at. It wakes up on the way out.
+   */
+  const playSolo = (botClass?: string, asked = false) => {
     const opponent = classes.find((c) => c.id === botClass)?.opponent.name;
+    /*
+     * Any solo match a player opens before they have seen the tour is a
+     * tutorial match, whichever button opened it: the game screen shows the
+     * tour to anyone who has not seen it, and showing it over an opponent
+     * that fights back is the thing this was meant to stop. Asked for by
+     * name, or first time out — same still opponent either way.
+     */
+    const still = asked || !hasSeenTutorial();
     const { messageId, timestamp } = generateMessageId();
     sendGameAction({
       type: "create_room",
@@ -204,7 +222,38 @@ const LobbyPage: React.FC = () => {
       name: `${character?.name ?? "Solo"} vs ${opponent ?? "Cpu"}`.slice(0, 24),
       withBot: true,
       ...(botClass ? { botClass } : {}),
+      ...(still ? { botMode: "dummy" as const } : {}),
     });
+  };
+
+  // "Play the tutorial" was pressed on the landing page, which has no socket
+  // to open a match on. This is where that request is answered — once the
+  // opponent list has arrived, so the tour starts against the arc's next
+  // rival rather than against whoever the server happens to deal.
+  // Once per connection, not once per lifetime: a request sent on a socket
+  // that is closing goes nowhere and says nothing, and the player is left in
+  // the lobby wondering what became of the button they pressed. Asking again
+  // on the next connection cannot open a second room, since a room of our own
+  // stops it.
+  const askedOnThisSocket = useRef(false);
+  useEffect(() => {
+    if (!connected) {
+      askedOnThisSocket.current = false;
+      return;
+    }
+    if (roomId || askedOnThisSocket.current) return;
+    if (!isTutorialMatchArmed()) return;
+    if (!content && !contentFailed) return;
+    askedOnThisSocket.current = true;
+    playSolo(picked?.id, true);
+    // playSolo reads the character and the socket, both stable for this screen.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [connected, roomId, content, contentFailed, picked?.id]);
+
+  const startTutorial = () => {
+    armTutorialMatch();
+    setHowToPlayOpen(false);
+    playSolo(picked?.id, true);
   };
 
   const joinRoom = (id: string) => {
@@ -284,6 +333,7 @@ const LobbyPage: React.FC = () => {
     <HowToPlayDialog
       open={howToPlayOpen}
       onClose={() => setHowToPlayOpen(false)}
+      onPlayTutorial={connected ? startTutorial : undefined}
     />
   );
 

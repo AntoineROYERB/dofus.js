@@ -25,11 +25,28 @@ import {
   TurnBar,
 } from "../components/Game/PhoneHud";
 import { useMediaQuery } from "../hooks/useMediaQuery";
-import { hasSeenTutorial, markTutorialSeen } from "../utils/tutorialStorage";
+import {
+  armTutorialMatch,
+  disarmTutorialMatch,
+  forgetTutorialStep,
+  isTutorialMatchArmed,
+  markTutorialSeen,
+  readTutorialProgress,
+  rememberTutorialStep,
+} from "../utils/tutorialStorage";
+import {
+  TUTORIAL_STEPS,
+  TutorialFacts,
+  resumeIndex,
+} from "../utils/tutorialSteps";
 import { barSpells, unlockedBy } from "../utils/classUtils";
+import { unavailableReason } from "../utils/spellUtils";
 import { markDefeated, readDefeated } from "../utils/progressStorage";
 import { useContent } from "../hooks/useContent";
 import { hapticGameOver, hapticTurnStart } from "../lib/native";
+
+/** Why the match is being left: back to the list, or into a fresh tutorial. */
+type LeaveIntent = "lobby" | "tutorial";
 
 /** What the turn zone says above the countdown. */
 const phaseLabel = (status: GameStatus, isMyTurn: boolean | undefined) => {
@@ -67,17 +84,6 @@ function GamePage() {
   const [railOpen, setRailOpen] = useState(false);
   const compact = useMediaQuery("(max-height: 560px)");
 
-  // Runs once for a new player, and again any time "Replay tutorial" is
-  // pressed from the room panel.
-  const [tutorialActive, setTutorialActive] = useState(false);
-  useEffect(() => {
-    if (!hasSeenTutorial()) setTutorialActive(true);
-  }, []);
-  const finishTutorial = () => {
-    setTutorialActive(false);
-    markTutorialSeen();
-  };
-
   // The character request must go out exactly once, and only once the socket
   // is open: an early attempt used to be dropped with no retry, leaving the
   // player on the board with no character at all.
@@ -101,8 +107,99 @@ function GamePage() {
     unlocked: string[];
   } | null>(null);
   const bot = Object.values(gameState?.players ?? {}).find((p) => p.isBot);
+  const opponent = Object.values(gameState?.players ?? {}).find(
+    (p) => p.userId !== userId
+  );
+
+  /*
+   * The guided first match. It only ever runs against a computer opponent:
+   * over a human it would be a modal laid on someone else's turn clock. It
+   * opens by itself for a player who has never seen it, and on request for
+   * anyone who pressed "Play the tutorial" on the way in.
+   */
+  const [tutorialActive, setTutorialActive] = useState(false);
+  const [tutorialStep, setTutorialStep] = useState(0);
+  const tutorialSettled = useRef(false);
+  const [peeks, setPeeks] = useState(0);
+  const facingBot = !!bot;
+  const positioned = !!isPlayerPositioned;
+  useEffect(() => {
+    if (!facingBot || tutorialSettled.current) return;
+    const progress = readTutorialProgress();
+    // Wherever this device left off, as far as this match can honour it.
+    const open = () => {
+      setTutorialStep(resumeIndex(progress.lastStep, positioned));
+      setTutorialActive(true);
+    };
+    // The request is spent the moment it is answered, not when the tour ends:
+    // left unspent, walking out of the tutorial match sends the lobby off to
+    // open another one the moment it is mounted again, and the player is back
+    // in a fight they did not ask for.
+    if (isTutorialMatchArmed()) {
+      disarmTutorialMatch();
+      open();
+      return;
+    }
+    if (!progress.seen) open();
+    // Whether the player has been placed is read once, as the tour opens; it
+    // must not re-open the tour the moment they stand somewhere.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [facingBot]);
+  // Every step the tour moves to is written down, so the way back in is the
+  // step that was open rather than the first card.
+  const goToTutorialStep = (step: number) => {
+    setTutorialStep(step);
+    const id = TUTORIAL_STEPS[step]?.id;
+    if (id) rememberTutorialStep(id);
+  };
+  const opponentIsDummy = !!bot?.isDummy;
+  const finishTutorial = () => {
+    // Leaving the tour, by any door, ends the truce: the opponent that stood
+    // still while the buttons were explained starts fighting, in this same
+    // match. A player who skips out is not left punching a statue.
+    if (opponentIsDummy) {
+      const { messageId, timestamp } = generateMessageId();
+      act({ type: "wake_opponent", messageId, timestamp });
+    }
+    tutorialSettled.current = true;
+    setTutorialStep(0);
+    setTutorialActive(false);
+    // Seen, and no step left half-finished: this tour is over, and the next
+    // one — asked for by name — starts at the first card.
+    markTutorialSeen();
+    disarmTutorialMatch();
+  };
+  // Whether anything on the bar could be cast at all: the same rules the bar
+  // itself greys a slot with, so the tour and the slot never disagree.
+  const canCast = barSpells(currentPlayer, gameState?.spells).some(
+    (spell) =>
+      !unavailableReason(
+        spell,
+        currentPlayer?.spells?.[String(spell.id)],
+        currentCharacter?.actionPoints ?? 0,
+        gameState?.turnNumber ?? 0
+      )
+  );
+  const tutorialFacts: TutorialFacts = {
+    status: gameStatus,
+    hasPositioned: !!isPlayerPositioned,
+    isMyTurn: !!isMyTurn,
+    movementPoints: currentCharacter?.movementPoints ?? 0,
+    maxMovementPoints: currentCharacter?.maxMovementPoints ?? 0,
+    opponentHealth: opponent?.character.health ?? 0,
+    peeks,
+    canCast,
+    opponentIsDummy,
+    turnNumber: gameState?.turnNumber ?? 0,
+  };
   const wonAgainstBot =
-    !!winner && !!bot && !!currentCharacter?.isAlive && !bot.character.isAlive;
+    !!winner &&
+    !!bot &&
+    // A dummy took its beating without ever raising a hand: that is a lesson,
+    // not a win, and it opens nothing in the solo arc.
+    !bot.isDummy &&
+    !!currentCharacter?.isAlive &&
+    !bot.character.isAlive;
   useEffect(() => {
     if (!winner) {
       setSoloResult(null);
@@ -256,23 +353,33 @@ function GamePage() {
     setSelectedSpellId(null);
   };
 
-  const handleLeave = () => {
-    setLeaveAsked(false);
+  /**
+   * What the door out is for. Both ways out of a match leave the room the
+   * same way; only one of them asks the lobby for another match on the way
+   * through, which is what "Replay tutorial" is — a fresh tutorial fight
+   * against a still opponent, not this one with a card laid over it.
+   */
+  const handleLeave = (intent: LeaveIntent = "lobby") => {
+    setLeaveAsked(null);
+    if (intent === "tutorial") {
+      armTutorialMatch();
+      forgetTutorialStep();
+    }
     const { messageId, timestamp } = generateMessageId();
     act({ type: "leave_room", messageId, timestamp });
   };
 
   // Walking out before anyone has fought costs nothing; once the fight is on,
-  // it is a forfeit, so the button asks first.
-  const [leaveAsked, setLeaveAsked] = useState(false);
-  const requestLeave = () => {
+  // it is a forfeit, so the button asks first — whichever door it is.
+  const [leaveAsked, setLeaveAsked] = useState<LeaveIntent | null>(null);
+  const requestLeave = (intent: LeaveIntent = "lobby") => {
     if (
       gameStatus === GAME_STATUS.PLAYING ||
       gameStatus === GAME_STATUS.POSITION_CHARACTERS
     ) {
-      setLeaveAsked(true);
+      setLeaveAsked(intent);
     } else {
-      handleLeave();
+      handleLeave(intent);
     }
   };
 
@@ -350,7 +457,10 @@ function GamePage() {
                   setRailOpen(false);
                   requestLeave();
                 }}
-                onReplayTutorial={() => setTutorialActive(true)}
+                onReplayTutorial={() => {
+                  setRailOpen(false);
+                  requestLeave("tutorial");
+                }}
                 onClose={() => setRailOpen(false)}
               />
             </aside>
@@ -361,7 +471,7 @@ function GamePage() {
           <GameOverModal
             winner={winner}
             onPlayAgain={handlePlayAgain}
-            onExit={handleLeave}
+            onExit={() => handleLeave()}
             farewell={soloResult?.farewell}
             unlocked={soloResult?.unlocked}
           />
@@ -369,12 +479,24 @@ function GamePage() {
 
         {leaveAsked && !winner && (
           <LeaveDialog
-            onConfirm={handleLeave}
-            onCancel={() => setLeaveAsked(false)}
+            replay={leaveAsked === "tutorial"}
+            onConfirm={() => handleLeave(leaveAsked)}
+            onCancel={() => setLeaveAsked(null)}
           />
         )}
 
-        <GameTutorial active={tutorialActive} onFinish={finishTutorial} />
+        {/*
+          The tour steps aside for anything that asks the player a question of
+          its own: dimming the leave confirmation, and talking over it, is the
+          overlay forgetting whose turn it is to speak.
+        */}
+        <GameTutorial
+          active={tutorialActive && !leaveAsked}
+          facts={tutorialFacts}
+          step={tutorialStep}
+          onStep={goToTutorialStep}
+          onFinish={finishTutorial}
+        />
     </>
   );
 
@@ -431,7 +553,7 @@ function GamePage() {
           </div>
           <div className="pointer-events-auto absolute right-[max(12px,env(safe-area-inset-right))] top-[max(8px,env(safe-area-inset-top))] flex gap-2">
             <CornerButton label="Log" onClick={() => setRailOpen(true)} />
-            <CornerButton label="Leave" onClick={requestLeave} />
+            <CornerButton label="Leave" onClick={() => requestLeave()} />
           </div>
           <div
             id="tutorial-fighter-panel"
@@ -453,6 +575,7 @@ function GamePage() {
             turnNumber={gameState?.turnNumber ?? 0}
             hasRelay={!!relayOf(gameState?.terrain, userId)}
             status={gameStatus}
+            onPeek={() => setPeeks((n) => n + 1)}
           />
         </div>
 
@@ -478,7 +601,7 @@ function GamePage() {
               latestGameState={gameState}
               userId={userId}
               onOpenRail={() => setRailOpen(true)}
-              onLeave={requestLeave}
+              onLeave={() => requestLeave()}
             />
           </div>
           <RotateHint />
@@ -499,8 +622,8 @@ function GamePage() {
           <SideRail
             roomName={roomName}
             latestGameState={gameState}
-            onLeave={requestLeave}
-            onReplayTutorial={() => setTutorialActive(true)}
+            onLeave={() => requestLeave()}
+            onReplayTutorial={() => requestLeave("tutorial")}
           />
         </aside>
       </div>
@@ -524,6 +647,7 @@ function GamePage() {
             spells={gameState?.spells ?? null}
             turnNumber={gameState?.turnNumber ?? 0}
             hasRelay={!!relayOf(gameState?.terrain, userId)}
+            onPeek={() => setPeeks((n) => n + 1)}
           />
         </div>
 

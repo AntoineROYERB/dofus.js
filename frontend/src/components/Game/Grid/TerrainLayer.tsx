@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from "react";
 import { Position } from "../../../types/game";
 import { TerrainCell, Zone } from "../../../types/message";
 import { isoToScreen } from "../../../utils/isoUtils";
+import { prefersReducedMotion } from "../../../utils/motion";
 
 interface TerrainLayerProps {
   terrain: TerrainCell[];
@@ -38,10 +39,7 @@ const hash = (x: number, y: number, salt = 0) => {
   return s - Math.floor(s);
 };
 
-const reduced =
-  typeof window !== "undefined" &&
-  !!window.matchMedia &&
-  window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const reduced = prefersReducedMotion();
 
 /**
  * What spells have left on the board, drawn every frame from the server's
@@ -92,8 +90,6 @@ export const TerrainLayer: React.FC<TerrainLayerProps> = ({
       }
     };
     size();
-    const observer = new ResizeObserver(size);
-    observer.observe(container);
 
     const draw = (now: number) => {
       const s = state.current;
@@ -388,6 +384,20 @@ export const TerrainLayer: React.FC<TerrainLayerProps> = ({
         frame = 0;
       }
     };
+    /*
+     * Resizing a canvas blanks it, and the loop above does not necessarily
+     * come back: with reduced motion, or on a board with nothing on it, it
+     * draws once and idles. A ResizeObserver always delivers an initial
+     * observation, and it arrives after the frame callbacks — so left alone
+     * this wipes the terrain off the board immediately after drawing it, and
+     * nothing puts it back. Ask for one more frame whenever the box changes.
+     */
+    const observer = new ResizeObserver(() => {
+      size();
+      if (!frame) frame = requestAnimationFrame(loop);
+    });
+    observer.observe(container);
+
     frame = requestAnimationFrame(loop);
 
     return () => {
