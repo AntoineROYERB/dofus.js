@@ -24,6 +24,19 @@ export const boxAround = (boxes: Box[]): Box | null => {
   };
 };
 
+/**
+ * Whether a box is as good as the whole screen. Such a box is always under the
+ * card and always around everything, so it is worth neither an outline of its
+ * own — which would lie off every edge, drawing a pair of stray red lines —
+ * nor a rule about not covering it, which no position could satisfy.
+ */
+export const fillsScreen = (
+  box: Box,
+  screen: { width: number; height: number }
+): boolean =>
+  (box.right - box.left) * (box.bottom - box.top) >
+  screen.width * screen.height * 0.5;
+
 /** Whether a box has a size worth cutting a hole for. */
 export const hasArea = (box: Box): boolean =>
   box.right > box.left && box.bottom > box.top;
@@ -76,9 +89,7 @@ export const placeCard = (
     right: spot.left + card.width,
     bottom: spot.top + card.height,
   });
-  const area = (box: Box) => (box.right - box.left) * (box.bottom - box.top);
-  const screenArea = screen.width * screen.height;
-  const never = keepClear.never.filter((box) => area(box) < screenArea * 0.5);
+  const never = keepClear.never.filter((box) => !fillsScreen(box, screen));
   const clears = (spot: Spot) =>
     !never.some((box) => overlaps(boxAt(spot), box));
   const hidden = (spot: Spot) =>

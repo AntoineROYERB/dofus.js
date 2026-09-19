@@ -10,7 +10,14 @@ import {
   tourIsOver,
 } from "../../utils/tutorialSteps";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
-import { Box, Spot, boxAround, hasArea, placeCard } from "../../utils/spotlight";
+import {
+  Box,
+  Spot,
+  boxAround,
+  fillsScreen,
+  hasArea,
+  placeCard,
+} from "../../utils/spotlight";
 
 interface GameTutorialProps {
   active: boolean;
@@ -222,6 +229,12 @@ export const GameTutorial: React.FC<GameTutorialProps> = ({
    * points from where it was drawn.
    */
   const lit = [rect, alsoRect].filter((box): box is Box => !!box);
+  // Worth an outline: anything that is not already the whole screen.
+  const worthOutlining = (box: Box) =>
+    !fillsScreen(box, {
+      width: window.innerWidth,
+      height: window.innerHeight,
+    });
 
   const placed = placeCard(
     spot,
@@ -286,11 +299,21 @@ export const GameTutorial: React.FC<GameTutorialProps> = ({
         />
       </svg>
 
-      {lit.map((box, i) => (
+      {/*
+        An outline around each lit element, except one as big as the screen:
+        the board's own outline lies off every edge, so all it ever draws is a
+        pair of red lines with nothing between them — clutter that stays put
+        while the steps move on. The hole in the dim is what lights the board.
+
+        No transition either. An outline that slides from the spell bar to the
+        turn zone reads, for the length of the slide, as a third red box around
+        everything in between.
+      */}
+      {lit.filter(worthOutlining).map((box, i) => (
         <div
           key={i}
           aria-hidden
-          className="pointer-events-none fixed rounded-sm border-2 border-vermilion transition-all duration-200"
+          className="pointer-events-none fixed rounded-sm border-2 border-vermilion"
           style={{
             top: box.top - PADDING,
             left: box.left - PADDING,

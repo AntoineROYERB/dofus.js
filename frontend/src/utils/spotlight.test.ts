@@ -1,4 +1,11 @@
-import { Box, boxAround, hasArea, overlaps, placeCard } from "./spotlight";
+import {
+  Box,
+  boxAround,
+  fillsScreen,
+  hasArea,
+  overlaps,
+  placeCard,
+} from "./spotlight";
 
 const box = (left: number, top: number, width: number, height: number): Box => ({
   left,
@@ -15,6 +22,19 @@ describe("hasArea", () => {
 
   it("accepts anything that would show", () => {
     expect(hasArea(box(12, 339, 248, 73))).toBe(true);
+  });
+});
+
+describe("fillsScreen", () => {
+  const screen = { width: 800, height: 620 };
+
+  it("knows the board, which is most of what is on screen", () => {
+    expect(fillsScreen(box(0, 20, 800, 400), screen)).toBe(true);
+  });
+
+  it("leaves the spell bar and a single cell alone", () => {
+    expect(fillsScreen(box(230, 540, 390, 80), screen)).toBe(false);
+    expect(fillsScreen(box(300, 300, 52, 26), screen)).toBe(false);
   });
 });
 
