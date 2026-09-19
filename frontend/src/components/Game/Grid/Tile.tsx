@@ -252,10 +252,9 @@ const TileView: React.FC<TileProps> = ({
    * both brightens and keeps breathing — reads as a glitch. The cell under the
    * cursor holds still.
    */
-  const breathes =
-    awaitingPlacement &&
-    !!initialPositionOwner?.isCurrentPlayer &&
-    !isHovered;
+  const isMyStartCell =
+    awaitingPlacement && !!initialPositionOwner?.isCurrentPlayer;
+  const breathes = isMyStartCell && !isHovered;
 
   // Playable cells are reachable with the keyboard: they take focus and answer
   // Enter and Space. The board was mouse-only, which left it unusable without
@@ -292,6 +291,9 @@ const TileView: React.FC<TileProps> = ({
       role={interactive ? "button" : undefined}
       tabIndex={interactive ? 0 : undefined}
       aria-label={interactive ? `Cell ${x}, ${y}` : undefined}
+      // A cell this player may still start on. The tutorial reads these to
+      // keep its card off the only cells it is asking anyone to click.
+      data-start-cell={isMyStartCell || undefined}
       style={{
         left: `${screenPosition.x - w / 2}px`,
         top: `${screenPosition.y - h / 2}px`,

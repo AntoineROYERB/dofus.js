@@ -36,6 +36,12 @@ export interface TutorialStep {
    * to press it is how a tutorial teaches a player that it is lying to them.
    */
   alsoId?: string;
+  /**
+   * What the card must not sit on, as a CSS selector. A step that says "one of
+   * the green cells" and then covers them with the sentence saying it has
+   * taught the player nothing.
+   */
+  keepClear?: string;
   title: string;
   /**
    * The objective. A finger and a cursor are told different things — there is
@@ -80,11 +86,12 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     id: "place",
     targetId: "tutorial-board",
     alsoId: "tutorial-mainbutton",
+    keepClear: "[data-start-cell]",
     title: "Pick your ground",
     body: (touch) =>
       touch
-        ? "Tap one of the pulsing cells to stand there, then press Fight."
-        : "Click one of the pulsing cells to stand there, then press Fight.",
+        ? "Tap one of the green cells to stand there, then press Fight."
+        : "Click one of the green cells to stand there, then press Fight.",
     ready: (now) => now.status === GAME_STATUS.POSITION_CHARACTERS,
     waiting: "Waiting for the board…",
     done: (now) => now.hasPositioned,

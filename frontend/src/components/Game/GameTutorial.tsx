@@ -9,7 +9,7 @@ import {
   tourIsOver,
 } from "../../utils/tutorialSteps";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
-import { Box, boxAround, hasArea } from "../../utils/spotlight";
+import { Box, Spot, boxAround, hasArea, placeCard } from "../../utils/spotlight";
 
 interface GameTutorialProps {
   active: boolean;
@@ -60,7 +60,11 @@ export const GameTutorial: React.FC<GameTutorialProps> = ({
   const [rect, setRect] = useState<Box | null>(null);
   const [alsoRect, setAlsoRect] = useState<Box | null>(null);
   const card = useRef<HTMLDivElement>(null);
-  const [cardHeight, setCardHeight] = useState(CARD_HEIGHT_ESTIMATE);
+  const [cardSize, setCardSize] = useState({
+    width: CARD_WIDTH,
+    height: CARD_HEIGHT_ESTIMATE,
+  });
+  const [keepClear, setKeepClear] = useState<Box | null>(null);
   const [stuck, setStuck] = useState(false);
   const step = TUTORIAL_STEPS[stepIndex];
   const isLast = stepIndex === TUTORIAL_STEPS.length - 1;
@@ -100,7 +104,11 @@ export const GameTutorial: React.FC<GameTutorialProps> = ({
   useLayoutEffect(() => {
     const el = card.current;
     if (!active || !el) return;
-    setCardHeight(el.getBoundingClientRect().height || CARD_HEIGHT_ESTIMATE);
+    const own = el.getBoundingClientRect();
+    setCardSize({
+      width: own.width || CARD_WIDTH,
+      height: own.height || CARD_HEIGHT_ESTIMATE,
+    });
   }, [active, stepIndex, ready, done, stuck, touch]);
 
   useLayoutEffect(() => {
@@ -125,8 +133,17 @@ export const GameTutorial: React.FC<GameTutorialProps> = ({
       );
     };
     const measure = () => {
+      const also = box(step.alsoId);
       setRect(box(step.targetId as string));
-      setAlsoRect(box(step.alsoId));
+      setAlsoRect(also);
+      // What the card may not sit on: the cells this step is asking for, and
+      // the button it is asking for next.
+      const asked = step.keepClear
+        ? Array.from(document.querySelectorAll(step.keepClear))
+            .map((el) => el.getBoundingClientRect())
+            .filter(hasArea)
+        : [];
+      setKeepClear(boxAround(also ? [...asked, also] : asked));
     };
 
     measure();
@@ -136,7 +153,7 @@ export const GameTutorial: React.FC<GameTutorialProps> = ({
       window.clearInterval(id);
       window.removeEventListener("resize", measure);
     };
-  }, [active, step.targetId, step.alsoId]);
+  }, [active, step.targetId, step.alsoId, step.keepClear]);
 
   if (!active || tourIsOver(facts)) return null;
 
@@ -154,16 +171,16 @@ export const GameTutorial: React.FC<GameTutorialProps> = ({
   // height can end up pushed off-screen entirely for a target as big as the
   // board, so every branch below clamps to an absolute pixel position.
   let arrow: "up" | "down" | null = null;
-  const cardStyle: React.CSSProperties = rect
+  const spot: Spot | null = rect
     ? (() => {
         const spaceBelow = window.innerHeight - rect.bottom;
         const spaceAbove = rect.top;
         let top: number;
-        if (spaceBelow >= cardHeight + 16) {
+        if (spaceBelow >= cardSize.height + 16) {
           top = rect.bottom + 16;
           arrow = "up";
-        } else if (spaceAbove >= cardHeight + 16) {
-          top = rect.top - 16 - cardHeight;
+        } else if (spaceAbove >= cardSize.height + 16) {
+          top = rect.top - 16 - cardSize.height;
           arrow = "down";
         } else {
           // The target is taller than the screen leaves room beside it — the
@@ -172,8 +189,8 @@ export const GameTutorial: React.FC<GameTutorialProps> = ({
           top = Math.max(
             16,
             Math.min(
-              rect.bottom - cardHeight - 16,
-              window.innerHeight - cardHeight - 16
+              rect.bottom - cardSize.height - 16,
+              window.innerHeight - cardSize.height - 16
             )
           );
         }
@@ -187,21 +204,42 @@ export const GameTutorial: React.FC<GameTutorialProps> = ({
         if (fillsScreen) {
           return {
             top: Math.max(16, rect.top + 44),
-            left: Math.max(16, (window.innerWidth - CARD_WIDTH) / 2),
+            left: Math.max(16, (window.innerWidth - cardSize.width) / 2),
           };
         }
 
         const left = Math.min(
           Math.max(16, rect.left),
-          window.innerWidth - CARD_WIDTH - 16
+          window.innerWidth - cardSize.width - 16
         );
         return { top, left };
       })()
-    : {
-        top: "50%",
-        left: "50%",
-        transform: "translate(-50%, -50%)",
-      };
+    : null;
+
+  /*
+   * Where the card ends up. A step that names something — the green cells to
+   * start on — must not then sit on it, so the spot above is only a
+   * preference: anything it would cover sends the card to the nearest corner
+   * or edge that is clear, and the arrow goes with it, since it no longer
+   * points from where it was drawn.
+   */
+  const placed =
+    spot &&
+    placeCard(
+      spot,
+      cardSize,
+      { width: window.innerWidth, height: window.innerHeight },
+      keepClear
+    );
+  if (placed && (placed.top !== spot?.top || placed.left !== spot?.left)) {
+    arrow = null;
+  }
+
+  const cardStyle: React.CSSProperties = placed ?? {
+    top: "50%",
+    left: "50%",
+    transform: "translate(-50%, -50%)",
+  };
 
   const lit = [rect, alsoRect].filter((box): box is Box => !!box);
 

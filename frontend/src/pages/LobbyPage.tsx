@@ -215,12 +215,21 @@ const LobbyPage: React.FC = () => {
   // to open a match on. This is where that request is answered — once the
   // opponent list has arrived, so the tour starts against the arc's next
   // rival rather than against whoever the server happens to deal.
-  const tutorialStarted = useRef(false);
+  // Once per connection, not once per lifetime: a request sent on a socket
+  // that is closing goes nowhere and says nothing, and the player is left in
+  // the lobby wondering what became of the button they pressed. Asking again
+  // on the next connection cannot open a second room, since a room of our own
+  // stops it.
+  const askedOnThisSocket = useRef(false);
   useEffect(() => {
-    if (!connected || roomId || tutorialStarted.current) return;
+    if (!connected) {
+      askedOnThisSocket.current = false;
+      return;
+    }
+    if (roomId || askedOnThisSocket.current) return;
     if (!isTutorialMatchArmed()) return;
     if (!content && !contentFailed) return;
-    tutorialStarted.current = true;
+    askedOnThisSocket.current = true;
     playSolo(picked?.id);
     // playSolo reads the character and the socket, both stable for this screen.
     // eslint-disable-next-line react-hooks/exhaustive-deps
