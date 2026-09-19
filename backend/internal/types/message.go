@@ -65,6 +65,15 @@ type CreateRoomIn struct {
 	// BotClass picks which class's opponent the bot plays. Empty means the
 	// first class in classes.json.
 	BotClass string `json:"botClass,omitempty"`
+	// BotMode is how that opponent behaves: "fight", the default, or "dummy",
+	// which stands still and takes it. Anything else is refused.
+	BotMode string `json:"botMode,omitempty"`
+}
+
+// WakeOpponentIn turns this room's standing opponent into a fighting one. It
+// carries nothing: there is one room, and one thing to wake in it.
+type WakeOpponentIn struct {
+	BaseMessage
 }
 
 type JoinRoomIn struct {

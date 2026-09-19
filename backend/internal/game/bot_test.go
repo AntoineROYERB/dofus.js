@@ -258,3 +258,195 @@ func TestNoTurnDeadlineOutsidePlay(t *testing.T) {
 		t.Error("a turn expired while no match was running")
 	}
 }
+
+// ---------------------------------------------------------------------------
+// The opponent that stands still
+// ---------------------------------------------------------------------------
+
+func TestParseBotModeTakesWhatTheWireCanSay(t *testing.T) {
+	for in, want := range map[string]BotMode{
+		"":      BotFights,
+		"fight": BotFights,
+		"dummy": BotStandsStill,
+	} {
+		got, ok := ParseBotMode(in)
+		if !ok || got != want {
+			t.Errorf("ParseBotMode(%q) = %q, %v; want %q, true", in, got, ok, want)
+		}
+	}
+	if _, ok := ParseBotMode("asleep"); ok {
+		t.Error("ParseBotMode accepted a mode nothing implements")
+	}
+}
+
+// Whatever the board looks like — in range, out of range, at full points — a
+// dummy hands the turn straight back. This is the guarantee the tutorial
+// leans on: a player reading a card is not being shot at while they read.
+func TestADummyDoesNothingWhateverTheBoardLooksLike(t *testing.T) {
+	boards := map[string]map[string]types.Position{
+		"enemy in its face":      {"a": {X: 0, Y: 0}, "b": {X: 0, Y: 1}},
+		"enemy across the board": {"a": {X: -7, Y: 0}, "b": {X: 7, Y: 0}},
+	}
+	for name, cells := range boards {
+		t.Run(name, func(t *testing.T) {
+			g := playingGame(t, cells, "a", "b")
+			// A fighting opponent would have something to do here.
+			if action := DecideBotAction(g.Snapshot(), "a"); action.Kind == BotEnd {
+				t.Fatalf("the board leaves nothing to do even for a fighter: %+v", action)
+			}
+
+			state := g.Snapshot()
+			me := state.Players["a"]
+			me.IsDummy = true
+			state.Players["a"] = me
+
+			if action := DecideBotAction(state, "a"); action.Kind != BotEnd {
+				t.Errorf("a dummy chose %+v, want it to pass", action)
+			}
+		})
+	}
+}
+
+func TestADummyOpponentNeverTouchesTheHuman(t *testing.T) {
+	g := NewWithOptions(Options{Seed: 5, TurnDuration: time.Minute})
+	botID, err := g.AddBotOfClass("", BotStandsStill)
+	if err != nil {
+		t.Fatalf("AddBotOfClass: %v", err)
+	}
+	if err := g.AddPlayer("human", "User-human", look("Alice")); err != nil {
+		t.Fatalf("AddPlayer: %v", err)
+	}
+	if !g.Snapshot().Players[botID].IsDummy {
+		t.Fatal("the opponent was asked to stand still and did not say so")
+	}
+	pos := g.Snapshot().Players["human"].Character.InitialPositions[0]
+	if err := g.ChooseInitialPosition("human", pos); err != nil {
+		t.Fatalf("ChooseInitialPosition: %v", err)
+	}
+
+	before := g.Snapshot().Players[botID].Character
+	health := g.Snapshot().Players["human"].Character.Health
+	// Ten turns of the human doing nothing at all but passing.
+	for turn := 0; turn < 10; turn++ {
+		if _, isBot := g.CurrentBot(); isBot {
+			g.PlayBotStep()
+			continue
+		}
+		if err := g.EndTurn("human"); err != nil {
+			t.Fatalf("EndTurn: %v", err)
+		}
+	}
+
+	after := g.Snapshot().Players[botID].Character
+	if before.Position == nil || after.Position == nil || *before.Position != *after.Position {
+		t.Errorf("the dummy moved from %+v to %+v", before.Position, after.Position)
+	}
+	if got := g.Snapshot().Players["human"].Character.Health; got != health {
+		t.Errorf("the human is on %d health, want the %d they started with", got, health)
+	}
+	if g.Status() != types.StatusPlaying {
+		t.Errorf("status = %q, want a match still going nowhere", g.Status())
+	}
+}
+
+func TestWakingTheOpponentMakesItFight(t *testing.T) {
+	g := NewWithOptions(Options{Seed: 5, TurnDuration: time.Minute})
+	botID, err := g.AddBotOfClass("", BotStandsStill)
+	if err != nil {
+		t.Fatalf("AddBotOfClass: %v", err)
+	}
+	if err := g.AddPlayer("human", "User-human", look("Alice")); err != nil {
+		t.Fatalf("AddPlayer: %v", err)
+	}
+	pos := g.Snapshot().Players["human"].Character.InitialPositions[0]
+	if err := g.ChooseInitialPosition("human", pos); err != nil {
+		t.Fatalf("ChooseInitialPosition: %v", err)
+	}
+
+	if err := g.WakeBots("human"); err != nil {
+		t.Fatalf("WakeBots: %v", err)
+	}
+	if g.Snapshot().Players[botID].IsDummy {
+		t.Fatal("the opponent is still marked as standing still")
+	}
+
+	// It now plays its turn like any other opponent: something happens.
+	before := g.Snapshot().Players[botID].Character
+	for step := 0; step < 40 && g.Status() == types.StatusPlaying; step++ {
+		if _, isBot := g.CurrentBot(); isBot {
+			g.PlayBotStep()
+			continue
+		}
+		if err := g.EndTurn("human"); err != nil {
+			t.Fatalf("EndTurn: %v", err)
+		}
+	}
+	after := g.Snapshot().Players[botID].Character
+	human := g.Snapshot().Players["human"].Character
+	moved := before.Position != nil && after.Position != nil && *before.Position != *after.Position
+	if !moved && human.Health == human.MaxHealth {
+		t.Error("the woken opponent neither moved nor landed a hit")
+	}
+}
+
+func TestWakingIsRefusedWhenNobodyIsAsleep(t *testing.T) {
+	g := New()
+	if _, err := g.AddBot(); err != nil {
+		t.Fatalf("AddBot: %v", err)
+	}
+	if err := g.AddPlayer("human", "User-human", look("Alice")); err != nil {
+		t.Fatalf("AddPlayer: %v", err)
+	}
+	if err := g.WakeBots("human"); !errors.Is(err, ErrNobodyAsleep) {
+		t.Errorf("WakeBots against a fighting opponent = %v, want ErrNobodyAsleep", err)
+	}
+	if err := g.WakeBots("nobody"); !errors.Is(err, ErrNoCharacter) {
+		t.Errorf("WakeBots from a stranger = %v, want ErrNoCharacter", err)
+	}
+}
+
+// The mode and the wake-up both ride in the command log, so a tutorial match
+// replays as the tutorial it was rather than as a fight nobody had.
+func TestATutorialMatchReplaysAsOne(t *testing.T) {
+	g := NewWithOptions(Options{Seed: 5, TurnDuration: time.Minute})
+	botID, err := g.AddBotOfClass("", BotStandsStill)
+	if err != nil {
+		t.Fatalf("AddBotOfClass: %v", err)
+	}
+	if err := g.AddPlayer("human", "User-human", look("Alice")); err != nil {
+		t.Fatalf("AddPlayer: %v", err)
+	}
+	pos := g.Snapshot().Players["human"].Character.InitialPositions[0]
+	if err := g.ChooseInitialPosition("human", pos); err != nil {
+		t.Fatalf("ChooseInitialPosition: %v", err)
+	}
+	// A couple of turns, whoever holds the first one.
+	for step := 0; step < 4; step++ {
+		if _, isBot := g.CurrentBot(); isBot {
+			g.PlayBotStep()
+			continue
+		}
+		if err := g.EndTurn("human"); err != nil {
+			t.Fatalf("EndTurn: %v", err)
+		}
+	}
+
+	replayed, err := Replay(g.Recording())
+	if err != nil {
+		t.Fatalf("Replay: %v", err)
+	}
+	if !replayed.Snapshot().Players[botID].IsDummy {
+		t.Error("the replayed opponent fights; the recorded one stood still")
+	}
+
+	if err := g.WakeBots("human"); err != nil {
+		t.Fatalf("WakeBots: %v", err)
+	}
+	woken, err := Replay(g.Recording())
+	if err != nil {
+		t.Fatalf("Replay after waking: %v", err)
+	}
+	if woken.Snapshot().Players[botID].IsDummy {
+		t.Error("the replayed opponent is still asleep; the recorded one was woken")
+	}
+}

@@ -24,6 +24,7 @@ var messageHandlers = map[string]MessageHandler{
 	"cast_spell":           handleCastSpell,
 	"end_turn":             handleEndTurn,
 	"play_again":           handlePlayAgain,
+	"wake_opponent":        handleWakeOpponent,
 }
 
 func decode[T any](c *Client, action string, data []byte, out *T) bool {
@@ -61,11 +62,20 @@ func handleCreateRoom(h *Hub, c *Client, data []byte) {
 
 	// An opponent that cannot be seated is refused before the room exists,
 	// rather than leaving the player alone in a solo room with nobody in it.
-	if in.WithBot && in.BotClass != "" {
-		if _, ok := game.Content().Class(in.BotClass); !ok {
-			h.reject(c, "create_room", in.MessageID, game.ErrUnknownClass)
+	botMode := game.BotFights
+	if in.WithBot {
+		if in.BotClass != "" {
+			if _, ok := game.Content().Class(in.BotClass); !ok {
+				h.reject(c, "create_room", in.MessageID, game.ErrUnknownClass)
+				return
+			}
+		}
+		mode, ok := game.ParseBotMode(in.BotMode)
+		if !ok {
+			h.reject(c, "create_room", in.MessageID, game.ErrUnknownBotMode)
 			return
 		}
+		botMode = mode
 	}
 
 	room, err := h.lobby.Create(in.Name)
@@ -75,10 +85,10 @@ func handleCreateRoom(h *Hub, c *Client, data []byte) {
 	}
 
 	if in.WithBot {
-		if botID, err := room.Game.AddBotOfClass(in.BotClass); err != nil {
+		if botID, err := room.Game.AddBotOfClass(in.BotClass, botMode); err != nil {
 			slog.Warn("could not add bot", "component", "handler", "match_id", room.ID, "error", err)
 		} else {
-			slog.Info("bot added", "component", "handler", "match_id", room.ID, "bot_id", botID)
+			slog.Info("bot added", "component", "handler", "match_id", room.ID, "bot_id", botID, "bot_mode", string(botMode))
 		}
 	}
 
@@ -258,6 +268,25 @@ func handleEndTurn(h *Hub, c *Client, data []byte) {
 
 // handlePlayAgain sets up a rematch in place. "Play again" used to reload the
 // page, which reset nothing on the server: the finished game stayed finished.
+// handleWakeOpponent ends the tutorial's truce: the opponent that was
+// standing still starts fighting, in the match already under way.
+func handleWakeOpponent(h *Hub, c *Client, data []byte) {
+	var in types.WakeOpponentIn
+	if !decode(c, "wake_opponent", data, &in) {
+		return
+	}
+	room, ok := h.inRoom(c, "wake_opponent", in.MessageID)
+	if !ok {
+		return
+	}
+	if err := room.Game.WakeBots(c.ID); err != nil {
+		h.reject(c, "wake_opponent", in.MessageID, err)
+		return
+	}
+	slog.Info("opponent woken", "component", "handler", "match_id", room.ID, "user_id", c.ID)
+	h.broadcastGameState(room)
+}
+
 func handlePlayAgain(h *Hub, c *Client, data []byte) {
 	var in types.PlayAgainIn
 	if !decode(c, "play_again", data, &in) {

@@ -125,7 +125,15 @@ function GamePage() {
     }
     if (!hasSeenTutorial()) setTutorialActive(true);
   }, [facingBot]);
+  const opponentIsDummy = !!bot?.isDummy;
   const finishTutorial = () => {
+    // Leaving the tour, by any door, ends the truce: the opponent that stood
+    // still while the buttons were explained starts fighting, in this same
+    // match. A player who skips out is not left punching a statue.
+    if (opponentIsDummy) {
+      const { messageId, timestamp } = generateMessageId();
+      act({ type: "wake_opponent", messageId, timestamp });
+    }
     tutorialSettled.current = true;
     setTutorialStep(0);
     setTutorialActive(false);
@@ -152,10 +160,17 @@ function GamePage() {
     opponentHealth: opponent?.character.health ?? 0,
     peeks,
     canCast,
+    opponentIsDummy,
     turnNumber: gameState?.turnNumber ?? 0,
   };
   const wonAgainstBot =
-    !!winner && !!bot && !!currentCharacter?.isAlive && !bot.character.isAlive;
+    !!winner &&
+    !!bot &&
+    // A dummy took its beating without ever raising a hand: that is a lesson,
+    // not a win, and it opens nothing in the solo arc.
+    !bot.isDummy &&
+    !!currentCharacter?.isAlive &&
+    !bot.character.isAlive;
   useEffect(() => {
     if (!winner) {
       setSoloResult(null);

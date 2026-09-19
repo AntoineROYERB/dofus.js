@@ -18,6 +18,7 @@ const facts = (over: Partial<TutorialFacts> = {}): TutorialFacts => ({
   opponentHealth: 50,
   peeks: 0,
   canCast: true,
+  opponentIsDummy: false,
   turnNumber: 1,
   ...over,
 });
@@ -239,5 +240,23 @@ describe("a turn with nothing left in it", () => {
       expect(s.stalled.body(true).toLowerCase()).not.toContain("tab key");
       expect(s.stalled.targetId).toBe("tutorial-mainbutton");
     }
+  });
+});
+
+describe("the opponent that stood still", () => {
+  const closing = step("done");
+
+  it("is not sent away with the same goodbye as a real fight", () => {
+    expect(closing.againstDummy).toBeDefined();
+    expect(closing.againstDummy?.body(false)).not.toEqual(closing.body(false));
+  });
+
+  it("says what the button is about to do", () => {
+    expect(closing.againstDummy?.cta.toLowerCase()).toContain("wake");
+  });
+
+  it("is the only step that has anything different to say", () => {
+    const withOne = TUTORIAL_STEPS.filter((s) => s.againstDummy);
+    expect(withOne.map((s) => s.id)).toEqual(["done"]);
   });
 });

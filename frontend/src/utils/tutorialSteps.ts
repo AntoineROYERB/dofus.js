@@ -19,6 +19,8 @@ export interface TutorialFacts {
    * action points, off cooldown, unlocked, not already spent this fight.
    */
   canCast: boolean;
+  /** Whether the opponent is the tutorial's: standing still, not fighting. */
+  opponentIsDummy: boolean;
   turnNumber: number;
 }
 
@@ -75,6 +77,17 @@ export interface TutorialStep {
     body: (touch: boolean) => string;
     /** Where to point while it holds: the way to the next turn. */
     targetId: string;
+  };
+  /**
+   * What this step says instead when the opponent has been standing still —
+   * which, for the closing card, is the difference between "off you go" and
+   * "the fight you were shown has not started yet".
+   */
+  againstDummy?: {
+    title: string;
+    body: (touch: boolean) => string;
+    /** What the button says, since it now does something to the match. */
+    cta: string;
   };
   /**
    * Whether the player has done it, judged against the facts as they stood
@@ -188,6 +201,12 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     title: "That is the whole game",
     body: () =>
       "Bring the other one to zero health and you win. This fight carries on from here — it was never a rehearsal.",
+    againstDummy: {
+      title: "Now the real thing",
+      body: () =>
+        "Your opponent has been standing still while you found the buttons. Wake it up and it will fight back, in this same match.",
+      cta: "Wake your opponent",
+    },
   },
 ];
 
