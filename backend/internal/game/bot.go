@@ -12,6 +12,34 @@ import (
 // BotIDPrefix marks the synthetic connections the server plays itself.
 const BotIDPrefix = "bot-"
 
+// BotMode is how a server-played opponent behaves.
+type BotMode string
+
+const (
+	// BotFights is the ordinary opponent: it closes the distance and hits.
+	BotFights BotMode = "fight"
+	/*
+	 * BotStandsStill takes hits and passes its turn, and does nothing else.
+	 * The tutorial opens against one, so that a player being shown which
+	 * button is which is not being shot at while they read. It is the mode,
+	 * not the difficulty: the same opponent wakes up and fights properly the
+	 * moment the tour ends.
+	 */
+	BotStandsStill BotMode = "dummy"
+)
+
+// ParseBotMode reads a mode off the wire. Empty means the ordinary opponent,
+// so a client that has never heard of modes asks for what it always did.
+func ParseBotMode(s string) (BotMode, bool) {
+	switch BotMode(s) {
+	case "", BotFights:
+		return BotFights, true
+	case BotStandsStill:
+		return BotStandsStill, true
+	}
+	return "", false
+}
+
 // BotAction is one step a bot wants to take. Deciding is separated from
 // applying so the decision can be tested against a plain snapshot.
 type BotAction struct {
@@ -35,6 +63,11 @@ const (
 func DecideBotAction(state types.GameState, botID string) BotAction {
 	me, ok := state.Players[botID]
 	if !ok || !me.Character.IsAlive || me.Character.Position == nil {
+		return BotAction{Kind: BotEnd}
+	}
+	// A dummy has nothing to decide: whatever the board looks like, it stands
+	// where it is and hands the turn back.
+	if me.IsDummy {
 		return BotAction{Kind: BotEnd}
 	}
 	from := *me.Character.Position
@@ -558,15 +591,16 @@ func sortPositions(list []types.Position) {
 // Game integration
 // ---------------------------------------------------------------------------
 
-// AddBot drops a server-played opponent of the default class into the room.
+// AddBot drops a server-played opponent of the default class into the room,
+// one that fights.
 func (g *Game) AddBot() (string, error) {
-	return g.AddBotOfClass("")
+	return g.AddBotOfClass("", BotFights)
 }
 
 // AddBotOfClass drops a server-played opponent into the room, already ready
 // to start. It plays the class it is given, under that class's opponent's
 // name and colours; empty means the default class.
-func (g *Game) AddBotOfClass(classID string) (string, error) {
+func (g *Game) AddBotOfClass(classID string, mode BotMode) (string, error) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
@@ -582,7 +616,7 @@ func (g *Game) AddBotOfClass(classID string) (string, error) {
 	}
 
 	id := fmt.Sprintf("%s%d", BotIDPrefix, len(g.players)+1)
-	g.recordLocked(id, CmdAddBot, addBotPayload{Class: class.ID})
+	g.recordLocked(id, CmdAddBot, addBotPayload{Class: class.ID, Mode: string(mode)})
 	name := class.Opponent.Name
 	p := newPlayer(id, name, class, types.Character{
 		Name:   name,
@@ -590,9 +624,44 @@ func (g *Game) AddBotOfClass(classID string) (string, error) {
 		Symbol: strings.ToUpper(string([]rune(name)[:1])),
 	})
 	p.IsBot = true
+	p.IsDummy = mode == BotStandsStill
 	g.players[id] = p
 	g.startPlacementIfReadyLocked()
 	return id, nil
+}
+
+/*
+ * WakeBots turns every opponent that was standing still into one that fights,
+ * for the rest of the match. It is how a tutorial becomes an ordinary solo
+ * game: the fight carries on in the room it started in, with the same
+ * opponent, rather than sending the player back to the lobby to find another.
+ *
+ * It goes the one way only. Nothing puts a fighting opponent back to sleep,
+ * because nothing should: an opponent that stops fighting mid-match reads as
+ * a bug, whoever asked for it.
+ */
+func (g *Game) WakeBots(userID string) error {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
+	if _, ok := g.players[userID]; !ok {
+		return ErrNoCharacter
+	}
+	woken := false
+	for _, id := range g.sortedPlayerIDsLocked() {
+		p := g.players[id]
+		if !p.IsDummy {
+			continue
+		}
+		p.IsDummy = false
+		g.players[id] = p
+		woken = true
+	}
+	if !woken {
+		return ErrNobodyAsleep
+	}
+	g.recordLocked(userID, CmdWakeBots, nil)
+	return nil
 }
 
 // CurrentBot returns the id of the bot whose turn it is, if any.

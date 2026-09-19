@@ -82,6 +82,13 @@ type Player struct {
 	// IsBot marks an opponent the server plays itself, so a lone visitor can
 	// still play a whole match.
 	IsBot bool `json:"isBot"`
+	// IsDummy marks a bot that will not fight back: it takes hits, never
+	// moves, never casts, and passes its turn. The tutorial opens with one so
+	// a player learning which button is which is not being shot at meanwhile.
+	// Left out of the wire when false, so an ordinary match says exactly what
+	// it always said — the recorded fights in testdata still replay byte for
+	// byte, which they should: none of them changed.
+	IsDummy bool `json:"isDummy,omitempty"`
 	// Spells tracks per-spell usage, keyed the same way as the catalogue, so
 	// the client can grey out what cannot be cast right now. A spell missing
 	// from it is not on this player's bar, and casting it is refused.

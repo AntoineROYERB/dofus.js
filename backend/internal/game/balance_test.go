@@ -58,7 +58,7 @@ func simulateMatch(t *testing.T, cat content.Catalogue, seed int64, a, b string)
 	g := NewWithOptions(Options{Seed: seed, TurnDuration: time.Hour, Content: &cat})
 	ids := map[string]string{}
 	for _, class := range []string{a, b} {
-		id, err := g.AddBotOfClass(class)
+		id, err := g.AddBotOfClass(class, BotFights)
 		if err != nil {
 			t.Fatalf("AddBotOfClass(%s): %v", class, err)
 		}
