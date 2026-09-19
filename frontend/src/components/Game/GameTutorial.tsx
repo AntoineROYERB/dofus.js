@@ -9,6 +9,7 @@ import {
   tourIsOver,
 } from "../../utils/tutorialSteps";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
+import { Box, boxAround, hasArea } from "../../utils/spotlight";
 
 interface GameTutorialProps {
   active: boolean;
@@ -56,8 +57,8 @@ export const GameTutorial: React.FC<GameTutorialProps> = ({
   onFinish,
 }) => {
   const touch = useMediaQuery("(hover: none) and (pointer: coarse)");
-  const [rect, setRect] = useState<DOMRect | null>(null);
-  const [alsoRect, setAlsoRect] = useState<DOMRect | null>(null);
+  const [rect, setRect] = useState<Box | null>(null);
+  const [alsoRect, setAlsoRect] = useState<Box | null>(null);
   const card = useRef<HTMLDivElement>(null);
   const [cardHeight, setCardHeight] = useState(CARD_HEIGHT_ESTIMATE);
   const [stuck, setStuck] = useState(false);
@@ -110,9 +111,18 @@ export const GameTutorial: React.FC<GameTutorialProps> = ({
       return;
     }
 
-    const box = (id: string | undefined) => {
+    const box = (id: string | undefined): Box | null => {
       const el = id ? document.getElementById(id) : null;
-      return el ? el.getBoundingClientRect() : null;
+      if (!el) return null;
+      const own = el.getBoundingClientRect();
+      if (hasArea(own)) return own;
+      // A wrapper whose children are all absolutely positioned has no box of
+      // its own: what it holds is what to light.
+      return boxAround(
+        Array.from(el.children)
+          .map((child) => child.getBoundingClientRect())
+          .filter(hasArea)
+      );
     };
     const measure = () => {
       setRect(box(step.targetId as string));
@@ -173,7 +183,7 @@ export const GameTutorial: React.FC<GameTutorialProps> = ({
         // and the spell arc live, and the card would cover the very numbers
         // it is talking about. There it goes to the top instead, between the
         // turn bar and the corner buttons.
-        const fillsScreen = rect.height > window.innerHeight * 0.85;
+        const fillsScreen = rect.bottom - rect.top > window.innerHeight * 0.85;
         if (fillsScreen) {
           return {
             top: Math.max(16, rect.top + 44),
@@ -193,7 +203,7 @@ export const GameTutorial: React.FC<GameTutorialProps> = ({
         transform: "translate(-50%, -50%)",
       };
 
-  const lit = [rect, alsoRect].filter((box): box is DOMRect => !!box);
+  const lit = [rect, alsoRect].filter((box): box is Box => !!box);
 
   const objective = !!step.done;
   const counter = objective
@@ -227,8 +237,8 @@ export const GameTutorial: React.FC<GameTutorialProps> = ({
                 key={i}
                 x={box.left - PADDING}
                 y={box.top - PADDING}
-                width={box.width + PADDING * 2}
-                height={box.height + PADDING * 2}
+                width={box.right - box.left + PADDING * 2}
+                height={box.bottom - box.top + PADDING * 2}
                 fill="black"
               />
             ))}
@@ -252,8 +262,8 @@ export const GameTutorial: React.FC<GameTutorialProps> = ({
           style={{
             top: box.top - PADDING,
             left: box.left - PADDING,
-            width: box.width + PADDING * 2,
-            height: box.height + PADDING * 2,
+            width: box.right - box.left + PADDING * 2,
+            height: box.bottom - box.top + PADDING * 2,
           }}
         />
       ))}
@@ -269,7 +279,7 @@ export const GameTutorial: React.FC<GameTutorialProps> = ({
           className="animate-nudge pointer-events-none fixed font-mono text-[15px] leading-none text-vermilion"
           style={{
             top: alsoRect.top - PADDING - 20,
-            left: alsoRect.left + alsoRect.width / 2 - 6,
+            left: (alsoRect.left + alsoRect.right) / 2 - 6,
           }}
         >
           ▼
