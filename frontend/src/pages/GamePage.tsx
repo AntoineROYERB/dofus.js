@@ -113,7 +113,16 @@ function GamePage() {
   const facingBot = !!bot;
   useEffect(() => {
     if (!facingBot || tutorialSettled.current) return;
-    if (isTutorialMatchArmed() || !hasSeenTutorial()) setTutorialActive(true);
+    // The request is spent the moment it is answered, not when the tour ends:
+    // left unspent, walking out of the tutorial match sends the lobby off to
+    // open another one the moment it is mounted again, and the player is back
+    // in a fight they did not ask for.
+    if (isTutorialMatchArmed()) {
+      disarmTutorialMatch();
+      setTutorialActive(true);
+      return;
+    }
+    if (!hasSeenTutorial()) setTutorialActive(true);
   }, [facingBot]);
   const finishTutorial = () => {
     tutorialSettled.current = true;
@@ -405,8 +414,13 @@ function GamePage() {
           />
         )}
 
+        {/*
+          The tour steps aside for anything that asks the player a question of
+          its own: dimming the leave confirmation, and talking over it, is the
+          overlay forgetting whose turn it is to speak.
+        */}
         <GameTutorial
-          active={tutorialActive}
+          active={tutorialActive && !leaveAsked}
           facts={tutorialFacts}
           step={tutorialStep}
           onStep={setTutorialStep}

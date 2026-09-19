@@ -57,6 +57,7 @@ export const GameTutorial: React.FC<GameTutorialProps> = ({
 }) => {
   const touch = useMediaQuery("(hover: none) and (pointer: coarse)");
   const [rect, setRect] = useState<DOMRect | null>(null);
+  const [alsoRect, setAlsoRect] = useState<DOMRect | null>(null);
   const card = useRef<HTMLDivElement>(null);
   const [cardHeight, setCardHeight] = useState(CARD_HEIGHT_ESTIMATE);
   const [stuck, setStuck] = useState(false);
@@ -105,12 +106,17 @@ export const GameTutorial: React.FC<GameTutorialProps> = ({
     if (!active) return;
     if (!step.targetId) {
       setRect(null);
+      setAlsoRect(null);
       return;
     }
 
+    const box = (id: string | undefined) => {
+      const el = id ? document.getElementById(id) : null;
+      return el ? el.getBoundingClientRect() : null;
+    };
     const measure = () => {
-      const el = document.getElementById(step.targetId as string);
-      setRect(el ? el.getBoundingClientRect() : null);
+      setRect(box(step.targetId as string));
+      setAlsoRect(box(step.alsoId));
     };
 
     measure();
@@ -120,7 +126,7 @@ export const GameTutorial: React.FC<GameTutorialProps> = ({
       window.clearInterval(id);
       window.removeEventListener("resize", measure);
     };
-  }, [active, step.targetId]);
+  }, [active, step.targetId, step.alsoId]);
 
   if (!active || tourIsOver(facts)) return null;
 
@@ -187,6 +193,8 @@ export const GameTutorial: React.FC<GameTutorialProps> = ({
         transform: "translate(-50%, -50%)",
       };
 
+  const lit = [rect, alsoRect].filter((box): box is DOMRect => !!box);
+
   const objective = !!step.done;
   const counter = objective
     ? `Step ${objectivesBefore(stepIndex) + 1}/${OBJECTIVE_COUNT}`
@@ -201,25 +209,71 @@ export const GameTutorial: React.FC<GameTutorialProps> = ({
       role="dialog"
       aria-modal="false"
     >
-      {rect ? (
+      {/*
+        The dim, with a hole cut for everything the step needs — which is more
+        than one thing as soon as an objective takes two: a cell and the button
+        that confirms it. A hole per element, rather than one shadow per
+        element, because two of those shadows only darken each other's hole.
+      */}
+      <svg
+        aria-hidden
+        className="pointer-events-none fixed inset-0 h-full w-full"
+      >
+        <defs>
+          <mask id="tutorial-spotlight">
+            <rect width="100%" height="100%" fill="white" />
+            {lit.map((box, i) => (
+              <rect
+                key={i}
+                x={box.left - PADDING}
+                y={box.top - PADDING}
+                width={box.width + PADDING * 2}
+                height={box.height + PADDING * 2}
+                fill="black"
+              />
+            ))}
+          </mask>
+        </defs>
+        <rect
+          width="100%"
+          height="100%"
+          // Light enough that the fight stays readable through it: the player
+          // is meant to be watching the board, not the card.
+          fill={lit.length > 0 ? "rgba(20, 16, 12, 0.45)" : "rgba(20, 16, 12, 0.6)"}
+          mask={lit.length > 0 ? "url(#tutorial-spotlight)" : undefined}
+        />
+      </svg>
+
+      {lit.map((box, i) => (
         <div
+          key={i}
           aria-hidden
           className="pointer-events-none fixed rounded-sm border-2 border-vermilion transition-all duration-200"
           style={{
-            top: rect.top - PADDING,
-            left: rect.left - PADDING,
-            width: rect.width + PADDING * 2,
-            height: rect.height + PADDING * 2,
-            // Light enough that the fight stays readable through it: the
-            // player is meant to be watching the board, not the card.
-            boxShadow: "0 0 0 9999px rgba(20, 16, 12, 0.45)",
+            top: box.top - PADDING,
+            left: box.left - PADDING,
+            width: box.width + PADDING * 2,
+            height: box.height + PADDING * 2,
           }}
         />
-      ) : (
-        <div
+      ))}
+
+      {/*
+        The companion gets the arrow the card cannot give it: on a step whose
+        card sits inside the board, the button to press is the one thing a
+        player has to be pointed at.
+      */}
+      {alsoRect && (
+        <span
           aria-hidden
-          className="pointer-events-none fixed inset-0 bg-ink/60"
-        />
+          className="animate-nudge pointer-events-none fixed font-mono text-[15px] leading-none text-vermilion"
+          style={{
+            top: alsoRect.top - PADDING - 20,
+            left: alsoRect.left + alsoRect.width / 2 - 6,
+          }}
+        >
+          ▼
+        </span>
       )}
 
       <div
@@ -293,7 +347,7 @@ export const GameTutorial: React.FC<GameTutorialProps> = ({
               onClick={advance}
               className="pointer-events-auto border border-ink bg-ink px-4 py-2 font-mono text-[10px] uppercase tracking-label text-paper transition-colors hover:bg-vermilion hover:border-vermilion"
             >
-              {isLast ? "Start playing" : "Show me"}
+              {isLast ? "Back to the fight" : "Show me"}
             </button>
           )}
         </div>

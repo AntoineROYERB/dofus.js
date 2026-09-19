@@ -40,6 +40,21 @@ describe("the tour's shape", () => {
     const ids = ["tutorial-board", "tutorial-spellbar", "tutorial-mainbutton"];
     for (const s of TUTORIAL_STEPS.filter((x) => !!x.done)) {
       expect(ids).toContain(s.targetId);
+      if (s.alsoId) expect(ids).toContain(s.alsoId);
+    }
+  });
+
+  it("lights the button a step tells the player to press", () => {
+    // Placing asks for a cell and then for Fight; leaving the button in the
+    // dark is how the old tour told a player to press something it had greyed.
+    expect(step("place").alsoId).toBe("tutorial-mainbutton");
+    // Casting asks for a spell and then for a target on the board.
+    expect(step("cast").alsoId).toBe("tutorial-board");
+  });
+
+  it("never lights the same element twice", () => {
+    for (const s of TUTORIAL_STEPS) {
+      if (s.alsoId) expect(s.alsoId).not.toBe(s.targetId);
     }
   });
 

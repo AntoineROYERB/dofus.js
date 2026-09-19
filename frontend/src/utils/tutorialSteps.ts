@@ -30,6 +30,12 @@ export interface TutorialStep {
   id: TutorialStepId;
   /** The element to spotlight, or null for a card in the middle. */
   targetId: string | null;
+  /**
+   * A second element the step also needs lit. Placing yourself means picking
+   * a cell *and* pressing Fight: dimming the button while the card tells you
+   * to press it is how a tutorial teaches a player that it is lying to them.
+   */
+  alsoId?: string;
   title: string;
   /**
    * The objective. A finger and a cursor are told different things — there is
@@ -73,6 +79,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: "place",
     targetId: "tutorial-board",
+    alsoId: "tutorial-mainbutton",
     title: "Pick your ground",
     body: (touch) =>
       touch
@@ -109,6 +116,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: "cast",
     targetId: "tutorial-spellbar",
+    alsoId: "tutorial-board",
     title: "Cast it",
     body: (touch) =>
       touch
@@ -136,7 +144,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     targetId: null,
     title: "That is the whole game",
     body: () =>
-      "Bring the other one to zero health and you win. Terrain, ultimates and the turn clock you will pick up as you go.",
+      "Bring the other one to zero health and you win. This fight carries on from here — it was never a rehearsal.",
   },
 ];
 
