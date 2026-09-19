@@ -6,6 +6,7 @@ import {
   LIVE_CELLS,
   isStepDone,
   isStepReady,
+  isStepStalled,
   objectivesBefore,
   tourIsOver,
 } from "../../utils/tutorialSteps";
@@ -89,6 +90,9 @@ export const GameTutorial: React.FC<GameTutorialProps> = ({
 
   const ready = isStepReady(step, facts);
   const done = isStepDone(step, facts, opened.current);
+  // The turn has nothing left for this objective. The step stays open and the
+  // card points at the way to the next turn instead.
+  const stalled = !done && isStepStalled(step, facts);
 
   // Done, and a beat to take it in before the next card.
   useEffect(() => {
@@ -136,8 +140,9 @@ export const GameTutorial: React.FC<GameTutorialProps> = ({
       );
     };
     const measure = () => {
-      const also = box(step.alsoId);
-      setRect(step.targetId ? box(step.targetId) : null);
+      const also = stalled ? null : box(step.alsoId);
+      const target = stalled ? step.stalled?.targetId : step.targetId;
+      setRect(target ? box(target) : null);
       setAlsoRect(also);
       // Every cell the player could click right now, whichever step is open:
       // the board under the card is where the answer has to be given.
@@ -155,7 +160,7 @@ export const GameTutorial: React.FC<GameTutorialProps> = ({
       window.clearInterval(id);
       window.removeEventListener("resize", measure);
     };
-  }, [active, step.targetId, step.alsoId]);
+  }, [active, step.targetId, step.alsoId, step.stalled?.targetId, stalled]);
 
   if (!active || tourIsOver(facts)) return null;
 
@@ -372,10 +377,14 @@ export const GameTutorial: React.FC<GameTutorialProps> = ({
         </div>
 
         <h3 className="mt-2 font-display text-[18px] font-bold leading-tight">
-          {step.title}
+          {stalled && step.stalled ? step.stalled.title : step.title}
         </h3>
         <p className="mt-1.5 text-[13px] leading-relaxed text-graphite">
-          {ready ? step.body(touch) : step.waiting}
+          {!ready
+            ? step.waiting
+            : stalled && step.stalled
+              ? step.stalled.body(touch)
+              : step.body(touch)}
         </p>
 
         <div className="mt-3.5 flex items-center justify-between gap-3">
@@ -399,7 +408,7 @@ export const GameTutorial: React.FC<GameTutorialProps> = ({
               </button>
             ) : (
               <span className="font-mono text-[9.5px] uppercase tracking-label text-muted">
-                {ready ? "Your move" : "Waiting"}
+                {!ready ? "Waiting" : stalled ? "Next turn" : "Your move"}
               </span>
             )
           ) : (

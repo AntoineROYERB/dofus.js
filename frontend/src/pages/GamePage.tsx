@@ -33,6 +33,7 @@ import {
 } from "../utils/tutorialStorage";
 import { TutorialFacts } from "../utils/tutorialSteps";
 import { barSpells, unlockedBy } from "../utils/classUtils";
+import { unavailableReason } from "../utils/spellUtils";
 import { markDefeated, readDefeated } from "../utils/progressStorage";
 import { useContent } from "../hooks/useContent";
 import { hapticGameOver, hapticTurnStart } from "../lib/native";
@@ -131,6 +132,17 @@ function GamePage() {
     markTutorialSeen();
     disarmTutorialMatch();
   };
+  // Whether anything on the bar could be cast at all: the same rules the bar
+  // itself greys a slot with, so the tour and the slot never disagree.
+  const canCast = barSpells(currentPlayer, gameState?.spells).some(
+    (spell) =>
+      !unavailableReason(
+        spell,
+        currentPlayer?.spells?.[String(spell.id)],
+        currentCharacter?.actionPoints ?? 0,
+        gameState?.turnNumber ?? 0
+      )
+  );
   const tutorialFacts: TutorialFacts = {
     status: gameStatus,
     hasPositioned: !!isPlayerPositioned,
@@ -139,6 +151,7 @@ function GamePage() {
     maxMovementPoints: currentCharacter?.maxMovementPoints ?? 0,
     opponentHealth: opponent?.character.health ?? 0,
     peeks,
+    canCast,
     turnNumber: gameState?.turnNumber ?? 0,
   };
   const wonAgainstBot =
