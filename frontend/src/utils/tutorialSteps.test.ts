@@ -287,3 +287,22 @@ describe("picking the tour back up", () => {
     expect(resumeIndex("welcome", false)).toBe(0);
   });
 });
+
+describe("one tour, two input devices", () => {
+  it("teaches the long press on a touch screen, and the hover elsewhere", () => {
+    const peek = step("peek");
+    expect(peek.body(true)).toMatch(/hold a spell/i);
+    expect(peek.body(false)).toMatch(/hover a spell/i);
+  });
+
+  it("never tells a finger to hover, nor a cursor to tap", () => {
+    for (const s of TUTORIAL_STEPS) {
+      expect(s.body(true)).not.toMatch(/hover|number key/i);
+      expect(s.body(false)).not.toMatch(/\btap\b/i);
+      // The ways out of a stalled turn are worded the same way.
+      if (s.stalled) {
+        expect(s.stalled.body(true)).not.toMatch(/hover|the Tab key/i);
+      }
+    }
+  });
+});
