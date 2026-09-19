@@ -15,6 +15,7 @@ import { RenameDialog } from "../components/Lobby/RenameDialog";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import {
   armTutorialMatch,
+  hasSeenTutorial,
   isTutorialMatchArmed,
 } from "../utils/tutorialStorage";
 
@@ -203,8 +204,16 @@ const LobbyPage: React.FC = () => {
    * The tutorial's opponent stands still until the tour ends: nobody learns
    * which button is which while being shot at. It wakes up on the way out.
    */
-  const playSolo = (botClass?: string, still = false) => {
+  const playSolo = (botClass?: string, asked = false) => {
     const opponent = classes.find((c) => c.id === botClass)?.opponent.name;
+    /*
+     * Any solo match a player opens before they have seen the tour is a
+     * tutorial match, whichever button opened it: the game screen shows the
+     * tour to anyone who has not seen it, and showing it over an opponent
+     * that fights back is the thing this was meant to stop. Asked for by
+     * name, or first time out — same still opponent either way.
+     */
+    const still = asked || !hasSeenTutorial();
     const { messageId, timestamp } = generateMessageId();
     sendGameAction({
       type: "create_room",
