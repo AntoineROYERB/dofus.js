@@ -17,6 +17,13 @@ export interface TutorialFacts {
   turnNumber: number;
 }
 
+/**
+ * Every cell the player could click at this moment, as the board marks them.
+ * No card may sit on one of these: whichever step is open, the board under it
+ * is where the answer has to be given.
+ */
+export const LIVE_CELLS = "[data-live-cell]";
+
 export type TutorialStepId =
   | "welcome"
   | "place"
@@ -36,12 +43,6 @@ export interface TutorialStep {
    * to press it is how a tutorial teaches a player that it is lying to them.
    */
   alsoId?: string;
-  /**
-   * What the card must not sit on, as a CSS selector. A step that says "one of
-   * the green cells" and then covers them with the sentence saying it has
-   * taught the player nothing.
-   */
-  keepClear?: string;
   title: string;
   /**
    * The objective. A finger and a cursor are told different things — there is
@@ -86,7 +87,6 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     id: "place",
     targetId: "tutorial-board",
     alsoId: "tutorial-mainbutton",
-    keepClear: "[data-start-cell]",
     title: "Pick your ground",
     body: (touch) =>
       touch

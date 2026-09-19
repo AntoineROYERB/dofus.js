@@ -54,34 +54,89 @@ describe("overlaps", () => {
 describe("placeCard", () => {
   const card = { width: 320, height: 180 };
   const screen = { width: 800, height: 620 };
+  const boxAt = (spot: { top: number; left: number }): Box => ({
+    left: spot.left,
+    top: spot.top,
+    right: spot.left + card.width,
+    bottom: spot.top + card.height,
+  });
+  /** A row of cells, the size the board draws them at. */
+  const cells = (left: number, top: number, count: number): Box[] =>
+    Array.from({ length: count }, (_, i) => box(left + i * 54, top, 52, 26));
+  /** The spell bar, across the foot of a desk layout. */
+  const spellBar = box(230, 540, 390, 80);
 
-  it("leaves the preferred spot alone when nothing is in the way", () => {
-    const spot = { top: 400, left: 40 };
-    expect(placeCard(spot, card, screen, null)).toEqual(spot);
-    expect(placeCard(spot, card, screen, box(600, 20, 100, 100))).toEqual(spot);
+  it("leaves the preferred spot alone when it covers nothing", () => {
+    const spot = { top: 340, left: 40 };
+    expect(placeCard(spot, card, screen, { cells: [], never: [] })).toEqual(spot);
+    expect(
+      placeCard(spot, card, screen, { cells: cells(600, 20, 3), never: [] })
+    ).toEqual(spot);
   });
 
   it("moves off the cells the step is asking the player to click", () => {
-    // Start cells at the foot of the board, where the card would rather sit.
-    const startCells = box(40, 380, 200, 90);
-    const chosen = placeCard({ top: 400, left: 40 }, card, screen, startCells);
-    expect(overlaps(
-      { left: chosen.left, top: chosen.top, right: chosen.left + card.width, bottom: chosen.top + card.height },
-      startCells
-    )).toBe(false);
+    const startCells = cells(40, 420, 3);
+    const chosen = placeCard({ top: 400, left: 40 }, card, screen, {
+      cells: startCells,
+      never: [],
+    });
+    for (const cell of startCells) {
+      expect(overlaps(boxAt(chosen), cell)).toBe(false);
+    }
+  });
+
+  it("never covers what the step is lighting, even to hide fewer cells", () => {
+    // A range across the board: the only cell-free spots are over the bar.
+    const range = [...cells(0, 40, 14), ...cells(0, 300, 14)];
+    const chosen = placeCard({ top: 340, left: 40 }, card, screen, {
+      cells: range,
+      never: [spellBar],
+    });
+    expect(overlaps(boxAt(chosen), spellBar)).toBe(false);
+  });
+
+  it("ignores something as big as the board, which is always underneath", () => {
+    const wholeBoard = box(0, 20, 800, 400);
+    const spot = { top: 340, left: 40 };
+    expect(
+      placeCard(spot, card, screen, { cells: [], never: [wholeBoard] })
+    ).toEqual(spot);
+  });
+
+  it("hides the fewest cells it can when nowhere is clear", () => {
+    const range = [
+      ...cells(0, 40, 14),
+      ...cells(0, 300, 14),
+      ...cells(0, 560, 2),
+    ];
+    const preferred = { top: 300, left: 40 };
+    const chosen = placeCard(preferred, card, screen, {
+      cells: range,
+      never: [],
+    });
+    const covered = (spot: { top: number; left: number }) =>
+      range.filter((cell) => overlaps(boxAt(spot), cell)).length;
+    expect(covered(chosen)).toBeLessThan(covered(preferred));
   });
 
   it("keeps the card on screen wherever it lands", () => {
-    const chosen = placeCard({ top: 400, left: 40 }, card, screen, box(0, 300, 400, 200));
+    const chosen = placeCard({ top: 400, left: 40 }, card, screen, {
+      cells: cells(0, 420, 8),
+      never: [spellBar],
+    });
     expect(chosen.left).toBeGreaterThanOrEqual(16);
     expect(chosen.top).toBeGreaterThanOrEqual(16);
     expect(chosen.left + card.width).toBeLessThanOrEqual(screen.width - 16);
     expect(chosen.top + card.height).toBeLessThanOrEqual(screen.height - 16);
   });
 
-  it("gives up on a screen with nowhere clear, rather than hiding the card", () => {
-    const everywhere = box(0, 0, 800, 620);
+  it("stays put rather than vanishing when every spot is as bad", () => {
     const spot = { top: 400, left: 40 };
-    expect(placeCard(spot, card, screen, everywhere)).toEqual(spot);
+    expect(
+      placeCard(spot, card, screen, {
+        cells: [],
+        never: [box(0, 0, 400, 300), box(400, 0, 400, 320), box(0, 300, 800, 320)],
+      })
+    ).toEqual(spot);
   });
 });

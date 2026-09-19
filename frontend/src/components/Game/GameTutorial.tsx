@@ -3,6 +3,7 @@ import {
   OBJECTIVE_COUNT,
   TUTORIAL_STEPS,
   TutorialFacts,
+  LIVE_CELLS,
   isStepDone,
   isStepReady,
   objectivesBefore,
@@ -64,7 +65,7 @@ export const GameTutorial: React.FC<GameTutorialProps> = ({
     width: CARD_WIDTH,
     height: CARD_HEIGHT_ESTIMATE,
   });
-  const [keepClear, setKeepClear] = useState<Box | null>(null);
+  const [liveCells, setLiveCells] = useState<Box[]>([]);
   const [stuck, setStuck] = useState(false);
   const step = TUTORIAL_STEPS[stepIndex];
   const isLast = stepIndex === TUTORIAL_STEPS.length - 1;
@@ -113,11 +114,6 @@ export const GameTutorial: React.FC<GameTutorialProps> = ({
 
   useLayoutEffect(() => {
     if (!active) return;
-    if (!step.targetId) {
-      setRect(null);
-      setAlsoRect(null);
-      return;
-    }
 
     const box = (id: string | undefined): Box | null => {
       const el = id ? document.getElementById(id) : null;
@@ -134,16 +130,15 @@ export const GameTutorial: React.FC<GameTutorialProps> = ({
     };
     const measure = () => {
       const also = box(step.alsoId);
-      setRect(box(step.targetId as string));
+      setRect(step.targetId ? box(step.targetId) : null);
       setAlsoRect(also);
-      // What the card may not sit on: the cells this step is asking for, and
-      // the button it is asking for next.
-      const asked = step.keepClear
-        ? Array.from(document.querySelectorAll(step.keepClear))
-            .map((el) => el.getBoundingClientRect())
-            .filter(hasArea)
-        : [];
-      setKeepClear(boxAround(also ? [...asked, also] : asked));
+      // Every cell the player could click right now, whichever step is open:
+      // the board under the card is where the answer has to be given.
+      setLiveCells(
+        Array.from(document.querySelectorAll(LIVE_CELLS))
+          .map((el) => el.getBoundingClientRect())
+          .filter(hasArea)
+      );
     };
 
     measure();
@@ -153,7 +148,7 @@ export const GameTutorial: React.FC<GameTutorialProps> = ({
       window.clearInterval(id);
       window.removeEventListener("resize", measure);
     };
-  }, [active, step.targetId, step.alsoId, step.keepClear]);
+  }, [active, step.targetId, step.alsoId]);
 
   if (!active || tourIsOver(facts)) return null;
 
@@ -171,7 +166,7 @@ export const GameTutorial: React.FC<GameTutorialProps> = ({
   // height can end up pushed off-screen entirely for a target as big as the
   // board, so every branch below clamps to an absolute pixel position.
   let arrow: "up" | "down" | null = null;
-  const spot: Spot | null = rect
+  const spot: Spot = rect
     ? (() => {
         const spaceBelow = window.innerHeight - rect.bottom;
         const spaceAbove = rect.top;
@@ -214,7 +209,10 @@ export const GameTutorial: React.FC<GameTutorialProps> = ({
         );
         return { top, left };
       })()
-    : null;
+    : {
+        top: Math.max(16, (window.innerHeight - cardSize.height) / 2),
+        left: Math.max(16, (window.innerWidth - cardSize.width) / 2),
+      };
 
   /*
    * Where the card ends up. A step that names something — the green cells to
@@ -223,25 +221,21 @@ export const GameTutorial: React.FC<GameTutorialProps> = ({
    * or edge that is clear, and the arrow goes with it, since it no longer
    * points from where it was drawn.
    */
-  const placed =
-    spot &&
-    placeCard(
-      spot,
-      cardSize,
-      { width: window.innerWidth, height: window.innerHeight },
-      keepClear
-    );
-  if (placed && (placed.top !== spot?.top || placed.left !== spot?.left)) {
-    arrow = null;
-  }
-
-  const cardStyle: React.CSSProperties = placed ?? {
-    top: "50%",
-    left: "50%",
-    transform: "translate(-50%, -50%)",
-  };
-
   const lit = [rect, alsoRect].filter((box): box is Box => !!box);
+
+  const placed = placeCard(
+    spot,
+    cardSize,
+    { width: window.innerWidth, height: window.innerHeight },
+    // The cells are counted; what the step is lighting is not to be covered at
+    // all — a card over the spell bar while it says "pick a spell" is worse
+    // than a card over a corner of a range.
+    { cells: liveCells, never: lit }
+  );
+  if (placed.top !== spot.top || placed.left !== spot.left) arrow = null;
+
+  const cardStyle: React.CSSProperties = placed;
+
 
   const objective = !!step.done;
   const counter = objective
