@@ -3,6 +3,13 @@ import React from "react";
 interface LeaveDialogProps {
   onConfirm: () => void;
   onCancel: () => void;
+  /**
+   * The door out is "Replay tutorial": the fight is still being left, and it
+   * still counts, but what is on the other side of it is a new tutorial match
+   * rather than the room list. Saying so is the difference between a player
+   * pressing Leave and a player pressing something that turned out to.
+   */
+  replay?: boolean;
 }
 
 /**
@@ -12,6 +19,7 @@ interface LeaveDialogProps {
 export const LeaveDialog: React.FC<LeaveDialogProps> = ({
   onConfirm,
   onCancel,
+  replay = false,
 }) => (
   <div
     role="dialog"
@@ -25,16 +33,18 @@ export const LeaveDialog: React.FC<LeaveDialogProps> = ({
       onClick={(event) => event.stopPropagation()}
     >
       <div className="font-mono text-[9.5px] uppercase tracking-label text-muted">
-        Leave
+        {replay ? "Replay tutorial" : "Leave"}
       </div>
       <h2
         id="leave-dialog-title"
         className="mt-2 font-display text-[24px] font-bold leading-none tracking-tight"
       >
-        Leave the fight?
+        {replay ? "Leave this fight for the tutorial?" : "Leave the fight?"}
       </h2>
       <p className="mt-3 text-[13.5px] text-graphite">
-        It counts as a loss, and you go back to the lobby.
+        {replay
+          ? "It counts as a loss, and a fresh tutorial match opens against an opponent that stands still."
+          : "It counts as a loss, and you go back to the lobby."}
       </p>
       <div className="mt-6 flex gap-3">
         <button
@@ -42,7 +52,7 @@ export const LeaveDialog: React.FC<LeaveDialogProps> = ({
           onClick={onConfirm}
           className="flex-1 bg-vermilion px-3 py-3 font-display text-[15px] font-bold text-white transition-colors hover:bg-[#b93a25]"
         >
-          Leave
+          {replay ? "Start the tutorial" : "Leave"}
         </button>
         <button
           type="button"
