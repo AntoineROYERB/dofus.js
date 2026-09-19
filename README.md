@@ -69,6 +69,18 @@ Then open <http://localhost>. Pick a name, a colour and a class, and either
 **challenge the computer** or open a game and wait for someone to join. Two
 browser tabs are enough for a real 1v1.
 
+The first solo fight teaches itself. Rather than a stack of cards read before
+the game starts, the tutorial is the game: the screen dims around the one
+thing each step is about — the cells you may stand on, the spell bar, the End
+turn button — and waits for you to do it. Five things, about a minute: place
+yourself, walk, read a spell, cast it, end your turn. Nothing has a *Next*
+button, because doing it is the button, and *Skip tutorial* is always in the
+corner. The opponent stands still throughout — nobody learns which button is
+which while being shot at — and wakes up to fight back in that same match the
+moment you leave the tour, by finishing it or by skipping it. Walk out halfway
+and it picks back up at the step you were on. **Replay tutorial**, in the log
+rail, opens a fresh tutorial fight from the first step.
+
 There are four classes, one per element: the **Pyromancer** (burns that stack
 and then go off at once), the **Windwalker** (reach, through a relay it sets
 across the board, and displacement), the **Tidecaller** (control: traps, ice
@@ -398,7 +410,7 @@ web views, so the app plays anonymously.
 
 ```bash
 cd backend && go test -race ./...     # rules, lobby, turn cycle, bot, content, balance
-cd frontend && npm test               # isometric geometry, spell text, terrain, solo arc, phone HUD
+cd frontend && npm test               # isometric geometry, spell text, terrain, solo arc, tutorial, phone HUD
 cd frontend && npm test -- --coverage # the same, failing if the phone HUD's logic loses coverage
 cd frontend && npm run lint && npm run build
 ```

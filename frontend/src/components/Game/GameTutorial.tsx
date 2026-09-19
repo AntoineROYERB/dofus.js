@@ -11,6 +11,7 @@ import {
   tourIsOver,
 } from "../../utils/tutorialSteps";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
+import { prefersReducedMotion } from "../../utils/motion";
 import {
   Box,
   Spot,
@@ -36,6 +37,15 @@ interface GameTutorialProps {
 }
 
 const PADDING = 8;
+/*
+ * The arrow's bob. It is the only thing moving on a screen the player is
+ * being asked to read, which is what makes it noticed — and it is also the
+ * one piece of the tour that a player who asked for less motion would want
+ * stilled. It goes through the project's single switch rather than reading
+ * the media query itself, so the tour says the same thing about motion as
+ * the board does; today that switch ships the animation (see utils/motion).
+ */
+const NUDGE = prefersReducedMotion() ? "" : "animate-nudge";
 // What the card is assumed to be until it has been rendered once and measured.
 // A card placed from an estimate alone floats well clear of the thing it is
 // pointing at, which on a short screen means sitting over the board.
@@ -147,6 +157,24 @@ export const GameTutorial: React.FC<GameTutorialProps> = ({
       const target = stalled ? step.stalled?.targetId : step.targetId;
       setRect(target ? box(target) : null);
       setAlsoRect(also);
+      /*
+       * The card's own size, measured on the same beat as everything else.
+       * It is not a constant: the card is narrower on a phone than on a
+       * desktop and its text reflows at every width, so turning the phone
+       * changes its height — and a card placed from the height it had in the
+       * other orientation is the one hanging off the bottom of the screen.
+       * The iOS web view settles late enough that this outlives the first
+       * paint, which is why it is on the timer rather than only on resize.
+       */
+      const own = card.current?.getBoundingClientRect();
+      if (own && own.width && own.height) {
+        setCardSize((prev) =>
+          Math.abs(prev.width - own.width) > 1 ||
+          Math.abs(prev.height - own.height) > 1
+            ? { width: own.width, height: own.height }
+            : prev
+        );
+      }
       // Every cell the player could click right now, whichever step is open:
       // the board under the card is where the answer has to be given.
       setLiveCells(
@@ -339,10 +367,18 @@ export const GameTutorial: React.FC<GameTutorialProps> = ({
       {alsoRect && (
         <span
           aria-hidden
-          className="animate-nudge pointer-events-none fixed font-mono text-[15px] leading-none text-vermilion"
+          className={`${NUDGE} pointer-events-none fixed font-mono text-[15px] leading-none text-vermilion`}
+          /*
+           * Above the thing it points at, unless there is no above: the phone
+           * held sideways puts the turn zone within twenty-eight pixels of
+           * the top edge, and an arrow drawn off the screen points at nothing.
+           */
           style={{
-            top: alsoRect.top - PADDING - 20,
-            left: (alsoRect.left + alsoRect.right) / 2 - 6,
+            top: Math.max(4, alsoRect.top - PADDING - 20),
+            left: Math.min(
+              Math.max(4, (alsoRect.left + alsoRect.right) / 2 - 6),
+              window.innerWidth - 16
+            ),
           }}
         >
           ▼
@@ -358,7 +394,7 @@ export const GameTutorial: React.FC<GameTutorialProps> = ({
         {arrow && (
           <span
             aria-hidden
-            className={`absolute left-6 animate-nudge font-mono text-[15px] leading-none text-vermilion ${
+            className={`absolute left-6 ${NUDGE} font-mono text-[15px] leading-none text-vermilion ${
               arrow === "up" ? "-top-5" : "-bottom-5"
             }`}
           >

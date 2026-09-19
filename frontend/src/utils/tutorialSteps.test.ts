@@ -6,6 +6,7 @@ import {
   isStepDone,
   isStepReady,
   isStepStalled,
+  resumeIndex,
   tourIsOver,
 } from "./tutorialSteps";
 
@@ -258,5 +259,31 @@ describe("the opponent that stood still", () => {
   it("is the only step that has anything different to say", () => {
     const withOne = TUTORIAL_STEPS.filter((s) => s.againstDummy);
     expect(withOne.map((s) => s.id)).toEqual(["done"]);
+  });
+});
+
+describe("picking the tour back up", () => {
+  const indexOf = (id: TutorialStepId) =>
+    TUTORIAL_STEPS.findIndex((s) => s.id === id);
+
+  it("starts at the top when nothing was remembered", () => {
+    expect(resumeIndex(null, true)).toBe(0);
+  });
+
+  it("starts at the top when the remembered step is no longer a step", () => {
+    expect(resumeIndex("nowhere" as TutorialStepId, true)).toBe(0);
+  });
+
+  it("comes back to the step that was left open", () => {
+    expect(resumeIndex("cast", true)).toBe(indexOf("cast"));
+  });
+
+  it("will not resume past a board that still has to be stood on", () => {
+    expect(resumeIndex("cast", false)).toBe(indexOf("place"));
+    expect(resumeIndex("walk", false)).toBe(indexOf("place"));
+  });
+
+  it("leaves the opening card alone: it asks for nothing to be placed", () => {
+    expect(resumeIndex("welcome", false)).toBe(0);
   });
 });

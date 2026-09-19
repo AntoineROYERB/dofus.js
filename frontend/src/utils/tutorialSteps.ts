@@ -248,3 +248,25 @@ export const OBJECTIVE_COUNT = TUTORIAL_STEPS.filter((s) => !!s.done).length;
 /** How many objectives come before this step, so a card can number itself. */
 export const objectivesBefore = (index: number): number =>
   TUTORIAL_STEPS.slice(0, index).filter((s) => !!s.done).length;
+
+/**
+ * Where the tour picks back up, given the step this device last reached.
+ *
+ * Two things can go wrong with a remembered step, and both land here. It can
+ * name nothing the tour has any more — cleared site data, an older build, a
+ * step since renamed — in which case the tour starts at the top. Or it can be
+ * ahead of the match it is resumed into: the steps are remembered across
+ * matches, so a player who left at "cast" and comes back to a board still
+ * waiting to be stood on has to be told to stand on it first. A tour that
+ * skips the placement step leaves that player looking at a board that will
+ * not move until they press a button nothing has mentioned.
+ */
+export const resumeIndex = (
+  lastStep: TutorialStepId | null,
+  hasPositioned: boolean
+): number => {
+  const remembered = TUTORIAL_STEPS.findIndex((s) => s.id === lastStep);
+  if (remembered <= 0) return 0;
+  const place = TUTORIAL_STEPS.findIndex((s) => s.id === "place");
+  return hasPositioned ? remembered : Math.min(remembered, place);
+};
