@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useWebSocket } from "../context/WebSocketContext";
 import { generateMessageId } from "../utils/messageUtils";
@@ -13,6 +13,10 @@ import { CharacterClass } from "../types/message";
 import { LobbyHome } from "../components/Lobby/LobbyHome";
 import { RenameDialog } from "../components/Lobby/RenameDialog";
 import { useMediaQuery } from "../hooks/useMediaQuery";
+import {
+  armTutorialMatch,
+  isTutorialMatchArmed,
+} from "../utils/tutorialStorage";
 
 /**
  * One rung of the solo arc: an opponent, and whether it can be fought yet.
@@ -151,7 +155,7 @@ const LobbyPage: React.FC = () => {
   const notice = useRejectionBanner(rejection);
 
   const character = readCharacter();
-  const { content } = useContent();
+  const { content, failed: contentFailed } = useContent();
   const classes = content?.classes ?? [];
   // Read on every render: coming back from a won match has to show the rung
   // it opened without a reload.
@@ -205,6 +209,27 @@ const LobbyPage: React.FC = () => {
       withBot: true,
       ...(botClass ? { botClass } : {}),
     });
+  };
+
+  // "Play the tutorial" was pressed on the landing page, which has no socket
+  // to open a match on. This is where that request is answered — once the
+  // opponent list has arrived, so the tour starts against the arc's next
+  // rival rather than against whoever the server happens to deal.
+  const tutorialStarted = useRef(false);
+  useEffect(() => {
+    if (!connected || roomId || tutorialStarted.current) return;
+    if (!isTutorialMatchArmed()) return;
+    if (!content && !contentFailed) return;
+    tutorialStarted.current = true;
+    playSolo(picked?.id);
+    // playSolo reads the character and the socket, both stable for this screen.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [connected, roomId, content, contentFailed, picked?.id]);
+
+  const startTutorial = () => {
+    armTutorialMatch();
+    setHowToPlayOpen(false);
+    playSolo(picked?.id);
   };
 
   const joinRoom = (id: string) => {
@@ -284,6 +309,7 @@ const LobbyPage: React.FC = () => {
     <HowToPlayDialog
       open={howToPlayOpen}
       onClose={() => setHowToPlayOpen(false)}
+      onPlayTutorial={connected ? startTutorial : undefined}
     />
   );
 

@@ -25,7 +25,13 @@ import {
   TurnBar,
 } from "../components/Game/PhoneHud";
 import { useMediaQuery } from "../hooks/useMediaQuery";
-import { hasSeenTutorial, markTutorialSeen } from "../utils/tutorialStorage";
+import {
+  disarmTutorialMatch,
+  hasSeenTutorial,
+  isTutorialMatchArmed,
+  markTutorialSeen,
+} from "../utils/tutorialStorage";
+import { TutorialFacts } from "../utils/tutorialSteps";
 import { barSpells, unlockedBy } from "../utils/classUtils";
 import { markDefeated, readDefeated } from "../utils/progressStorage";
 import { useContent } from "../hooks/useContent";
@@ -67,17 +73,6 @@ function GamePage() {
   const [railOpen, setRailOpen] = useState(false);
   const compact = useMediaQuery("(max-height: 560px)");
 
-  // Runs once for a new player, and again any time "Replay tutorial" is
-  // pressed from the room panel.
-  const [tutorialActive, setTutorialActive] = useState(false);
-  useEffect(() => {
-    if (!hasSeenTutorial()) setTutorialActive(true);
-  }, []);
-  const finishTutorial = () => {
-    setTutorialActive(false);
-    markTutorialSeen();
-  };
-
   // The character request must go out exactly once, and only once the socket
   // is open: an early attempt used to be dropped with no retry, leaving the
   // player on the board with no character at all.
@@ -101,6 +96,51 @@ function GamePage() {
     unlocked: string[];
   } | null>(null);
   const bot = Object.values(gameState?.players ?? {}).find((p) => p.isBot);
+  const opponent = Object.values(gameState?.players ?? {}).find(
+    (p) => p.userId !== userId
+  );
+
+  /*
+   * The guided first match. It only ever runs against a computer opponent:
+   * over a human it would be a modal laid on someone else's turn clock. It
+   * opens by itself for a player who has never seen it, and on request for
+   * anyone who pressed "Play the tutorial" on the way in.
+   */
+  const [tutorialActive, setTutorialActive] = useState(false);
+  const [tutorialStep, setTutorialStep] = useState(0);
+  const tutorialSettled = useRef(false);
+  const [peeks, setPeeks] = useState(0);
+  const facingBot = !!bot;
+  useEffect(() => {
+    if (!facingBot || tutorialSettled.current) return;
+    // The request is spent the moment it is answered, not when the tour ends:
+    // left unspent, walking out of the tutorial match sends the lobby off to
+    // open another one the moment it is mounted again, and the player is back
+    // in a fight they did not ask for.
+    if (isTutorialMatchArmed()) {
+      disarmTutorialMatch();
+      setTutorialActive(true);
+      return;
+    }
+    if (!hasSeenTutorial()) setTutorialActive(true);
+  }, [facingBot]);
+  const finishTutorial = () => {
+    tutorialSettled.current = true;
+    setTutorialStep(0);
+    setTutorialActive(false);
+    markTutorialSeen();
+    disarmTutorialMatch();
+  };
+  const tutorialFacts: TutorialFacts = {
+    status: gameStatus,
+    hasPositioned: !!isPlayerPositioned,
+    isMyTurn: !!isMyTurn,
+    movementPoints: currentCharacter?.movementPoints ?? 0,
+    maxMovementPoints: currentCharacter?.maxMovementPoints ?? 0,
+    opponentHealth: opponent?.character.health ?? 0,
+    peeks,
+    turnNumber: gameState?.turnNumber ?? 0,
+  };
   const wonAgainstBot =
     !!winner && !!bot && !!currentCharacter?.isAlive && !bot.character.isAlive;
   useEffect(() => {
@@ -374,7 +414,18 @@ function GamePage() {
           />
         )}
 
-        <GameTutorial active={tutorialActive} onFinish={finishTutorial} />
+        {/*
+          The tour steps aside for anything that asks the player a question of
+          its own: dimming the leave confirmation, and talking over it, is the
+          overlay forgetting whose turn it is to speak.
+        */}
+        <GameTutorial
+          active={tutorialActive && !leaveAsked}
+          facts={tutorialFacts}
+          step={tutorialStep}
+          onStep={setTutorialStep}
+          onFinish={finishTutorial}
+        />
     </>
   );
 
@@ -453,6 +504,7 @@ function GamePage() {
             turnNumber={gameState?.turnNumber ?? 0}
             hasRelay={!!relayOf(gameState?.terrain, userId)}
             status={gameStatus}
+            onPeek={() => setPeeks((n) => n + 1)}
           />
         </div>
 
@@ -524,6 +576,7 @@ function GamePage() {
             spells={gameState?.spells ?? null}
             turnNumber={gameState?.turnNumber ?? 0}
             hasRelay={!!relayOf(gameState?.terrain, userId)}
+            onPeek={() => setPeeks((n) => n + 1)}
           />
         </div>
 

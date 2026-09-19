@@ -1,8 +1,13 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 
 interface HowToPlayDialogProps {
   open: boolean;
   onClose: () => void;
+  /**
+   * Start the guided match. Left out — on a screen with no way into a game —
+   * the dialog is the rules alone, as it always was.
+   */
+  onPlayTutorial?: () => void;
 }
 
 const Section: React.FC<{ label: string; children: React.ReactNode }> = ({
@@ -119,23 +124,28 @@ const SpellRangeDiagram: React.FC = () => {
 };
 
 /**
- * The rules, in plain language and a couple of diagrams, for someone who has
- * never played Dofus or anything like it. It is a dialog rather than a forced
- * step because a player who already knows the genre shouldn't have to click
- * through it — "How to play" is always one click away instead.
+ * Two ways to learn the game, and the played one comes first: a guided match
+ * against the computer for someone who has never seen a turn-based tactics
+ * game, and a page of rules for someone who has and just wants the specifics.
+ * Reading was the only option here for a long time, which meant the people who
+ * needed it most were the ones asked to do the most work before playing.
  */
 export const HowToPlayDialog: React.FC<HowToPlayDialogProps> = ({
   open,
   onClose,
+  onPlayTutorial,
 }) => {
   const ref = useRef<HTMLDialogElement>(null);
+  const [reading, setReading] = useState(!onPlayTutorial);
 
   useEffect(() => {
     const dialog = ref.current;
     if (!dialog) return;
     if (open && !dialog.open) dialog.showModal();
     if (!open && dialog.open) dialog.close();
-  }, [open]);
+    // Opening always lands on the choice, never on wherever it was left.
+    if (open) setReading(!onPlayTutorial);
+  }, [open, onPlayTutorial]);
 
   return (
     <dialog
@@ -160,86 +170,113 @@ export const HowToPlayDialog: React.FC<HowToPlayDialogProps> = ({
           </button>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-7">
-          <h2 className="font-display text-[30px] font-bold leading-none tracking-tight">
-            The rules, in short
-          </h2>
-          <p className="mt-3 text-[13.5px] leading-relaxed text-graphite">
-            Two fighters, one grid, turns until one side falls. If you've never
-            played a turn-based tactics game before, this covers everything
-            you need.
-          </p>
+        {!reading ? (
+          <div className="flex min-h-0 flex-1 flex-col justify-center px-5 py-7 sm:px-7">
+            <h2 className="font-display text-[30px] font-bold leading-none tracking-tight">
+              Learn it, or read it
+            </h2>
+            <p className="mt-3 text-[13.5px] leading-relaxed text-graphite">
+              Two fighters, one grid, turns until one side falls. Whichever of
+              these you pick takes about a minute.
+            </p>
 
-          <div className="mt-6 space-y-5">
-            <Section label="The goal">
-              <p>
-                Bring your opponent's health to zero before they do the same
-                to you. That's the whole game — everything else is how you get
-                there.
-              </p>
-            </Section>
+            <button
+              type="button"
+              onClick={onPlayTutorial}
+              className="mt-6 w-full bg-vermilion px-4 py-4 text-left text-white transition-colors hover:bg-[#b93a25] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+            >
+              <span className="block font-display text-[17px] font-bold leading-none">
+                Play the tutorial
+              </span>
+              <span className="mt-1.5 block text-[12.5px] leading-snug text-white/85">
+                A real match against the computer, with five things to try. You
+                learn by doing them.
+              </span>
+            </button>
 
-            <Section label="Turns and points">
-              <p>
-                Play alternates one turn at a time. On your turn you get{" "}
-                <b className="text-ink">action points (AP)</b> to cast spells
-                and <b className="text-ink">movement points (MP)</b> to walk —
-                spend either, both, or neither, then end your turn. Points
-                refill at the start of your next one.
-              </p>
-              <MovementDiagram />
-              <p>
-                Click a cell within reach to walk there, one step at a time —
-                walls and other fighters block the path.
-              </p>
-            </Section>
-
-            <Section label="Spells">
-              <p>
-                Each spell has a <b className="text-ink">range</b> (how far it
-                reaches) and an <b className="text-ink">AP cost</b>. Pick a
-                spell — click its icon in the bar, or press its number key —
-                then click a cell in range to cast it. Some hit a wider area
-                once they land.
-              </p>
-              <SpellRangeDiagram />
-              <p>
-                Every class carries five spells, each with its own job — the
-                word under its icon says which. The gold one is its{" "}
-                <b className="text-ink">ultimate</b>: it unlocks on turn 2 and
-                can be cast once a fight.
-              </p>
-            </Section>
-
-            <Section label="The board changes">
-              <p>
-                Spells leave things behind for the rest of the fight: fire that
-                burns, water that slows, ice that makes you slide, smoke you
-                cannot see through, traps, pillars and fissures you cannot walk
-                through. <b className="text-ink">Hover a cell</b> to see what is
-                on it and what it does.
-              </p>
-            </Section>
-
-            <Section label="Winning">
-              <p>
-                A turn runs on a 45-second clock, so a match always keeps
-                moving. The first fighter to hit zero health loses — win, and
-                you can rematch the same opponent instantly.
-              </p>
-            </Section>
+            <button
+              type="button"
+              onClick={() => setReading(true)}
+              className="mt-3 w-full border border-ink px-4 py-4 text-left transition-colors hover:border-vermilion hover:text-vermilion"
+            >
+              <span className="block font-display text-[17px] font-bold leading-none">
+                Just the rules
+              </span>
+              <span className="mt-1.5 block text-[12.5px] leading-snug text-graphite">
+                Points, spells and what wins a fight, on one page — if you have
+                played something like this before.
+              </span>
+            </button>
           </div>
-        </div>
+        ) : (
+          <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-7">
+            <h2 className="font-display text-[30px] font-bold leading-none tracking-tight">
+              The rules, in short
+            </h2>
 
-        <div className="flex flex-none items-center justify-end border-t-2 border-ink px-5 py-3 sm:px-7">
-          <button
-            type="button"
-            onClick={onClose}
-            className="border border-ink bg-ink px-5 py-2 font-mono text-[10px] uppercase tracking-label text-paper transition-colors hover:bg-vermilion hover:border-vermilion"
-          >
-            Got it
-          </button>
-        </div>
+            <div className="mt-6 space-y-5">
+              <Section label="The goal">
+                <p>
+                  Two fighters, one grid, turns until one side falls. Bring your
+                  opponent&apos;s health to zero before they do the same to you
+                  — everything else is how you get there.
+                </p>
+              </Section>
+
+              <Section label="Turns and points">
+                <p>
+                  On your turn you get{" "}
+                  <b className="text-ink">action points (AP)</b> to cast spells
+                  and <b className="text-ink">movement points (MP)</b> to walk.
+                  Spend either, both, or neither, then end your turn; points
+                  refill at the start of your next one, and a turn runs on a
+                  45-second clock.
+                </p>
+                <MovementDiagram />
+              </Section>
+
+              <Section label="Spells">
+                <p>
+                  Each spell has a <b className="text-ink">range</b> and an{" "}
+                  <b className="text-ink">AP cost</b>. Pick one — tap it, click
+                  it, or press its number key — then pick a cell in range. Some
+                  hit a wider area once they land, and some leave fire, ice or
+                  traps behind for the rest of the fight.
+                </p>
+                <SpellRangeDiagram />
+                <p>
+                  Hold a spell on a phone, or hover it on a desk, to read what
+                  it does. The gold one is your{" "}
+                  <b className="text-ink">ultimate</b>: it unlocks on turn 2 and
+                  can be cast once a fight.
+                </p>
+              </Section>
+            </div>
+          </div>
+        )}
+
+        {reading && (
+          <div className="flex flex-none items-center justify-between gap-4 border-t-2 border-ink px-5 py-3 sm:px-7">
+            {onPlayTutorial ? (
+              <button
+                type="button"
+                onClick={onPlayTutorial}
+                className="font-mono text-[9.5px] uppercase tracking-label text-muted underline decoration-rule underline-offset-4 transition-colors hover:text-vermilion"
+              >
+                Play the tutorial instead
+              </button>
+            ) : (
+              <span />
+            )}
+            <button
+              type="button"
+              onClick={onClose}
+              className="border border-ink bg-ink px-5 py-2 font-mono text-[10px] uppercase tracking-label text-paper transition-colors hover:bg-vermilion hover:border-vermilion"
+            >
+              Got it
+            </button>
+          </div>
+        )}
       </div>
     </dialog>
   );
