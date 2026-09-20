@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from "react";
 import { Position } from "../../../types/game";
 import { TerrainCell, Zone } from "../../../types/message";
 import { isoToScreen } from "../../../utils/isoUtils";
+import { TEAR_SIDES, diamondCorners } from "../../../utils/tearSides";
 import { prefersReducedMotion } from "../../../utils/motion";
 
 interface TerrainLayerProps {
@@ -26,17 +27,138 @@ const EMBER = "#e2521d";
 const EMBER_HOT = "#ffb03a";
 const INK = "#2f5fa8";
 const INK_LIGHT = "#8fb4ea";
-const SOIL = "#8a6a3a";
 const SOIL_DARK = "#2a1d10";
 const WIND = "#2e9e6a";
 const ENEMY = "#a3231b";
 
 const TAU = Math.PI * 2;
 
+/**
+ * What shows through a hole in the board: the page the sheet is lying on,
+ * which is `bg-paper` behind every screen the board is shown on. A crater is
+ * not painted onto its cell, it is torn out of it, so the colour that belongs
+ * in the gap is the one that was already under the paper.
+ */
+const PAGE: [number, number, number] = [242, 242, 240];
+/** How dark the gap is at the instant the sheet gives way. */
+const IMPACT: [number, number, number] = [20, 19, 15];
+
+/*
+ * The life of an impact, in milliseconds. The dark is held just long enough to
+ * register as a blow, then withdraws over a second while the shadow of the
+ * torn edge settles in its place. Everything here is spent in the moment: what
+ * stays on the board afterwards costs no ink at all, which is the whole point
+ * — a fight can dig twenty craters without the board getting any busier.
+ */
+const HOLE_HOLD = 160;
+const HOLE_INK = 1000;
+const HOLE_SMOKE = 1600;
+const HOLE_SHRED = 800;
+const HOLE_SHOCK = 340;
+
 /** A stable pseudo-random number per cell, so a crack keeps its shape. */
 const hash = (x: number, y: number, salt = 0) => {
   const s = Math.sin(x * 127.1 + y * 311.7 + salt * 74.7) * 43758.5453;
   return s - Math.floor(s);
+};
+
+const clamp01 = (u: number) => (u < 0 ? 0 : u > 1 ? 1 : u);
+const smoothstep = (u: number) => u * u * (3 - 2 * u);
+const mix = (a: [number, number, number], b: [number, number, number], u: number) =>
+  `rgb(${Math.round(a[0] + (b[0] - a[0]) * u)},${Math.round(a[1] + (b[1] - a[1]) * u)},${Math.round(
+    a[2] + (b[2] - a[2]) * u
+  )})`;
+
+/** How many points a torn side is drawn with. */
+const TEAR_STEPS = 6;
+
+type Corner = [number, number];
+
+const cornersOf = (c: Position, tw: number, th: number): Corner[] =>
+  diamondCorners(c, { width: tw, height: th }).map((p) => [p.x, p.y] as Corner);
+
+/**
+ * One point along a torn side, always bitten inwards so the tear stays within
+ * its own cell and the cells around it keep their outline. The bite comes from
+ * the cell's hash, so a hole keeps the same ragged shape for the whole fight
+ * and across a resize.
+ */
+const tearPoint = (
+  x: number,
+  y: number,
+  side: number,
+  step: number,
+  a: Corner,
+  b: Corner,
+  c: Position
+): Corner => {
+  const u = step / TEAR_STEPS;
+  let px = a[0] + (b[0] - a[0]) * u;
+  let py = a[1] + (b[1] - a[1]) * u;
+  if (step < TEAR_STEPS) {
+    const n = hash(x * 7 + side, y * 11 + step, side * 3 + step);
+    const m = hash(y * 5 + side, x * 13 + step, side + step * 7);
+    const bite = 0.02 + 0.09 * n + 0.05 * m * m;
+    px += (c.x - px) * bite;
+    py += (c.y - py) * bite;
+  }
+  return [px, py];
+};
+
+/**
+ * The outline of the hole torn out of one cell. A side that faces another hole
+ * is left straight and full width: the two tears then overlap exactly, and the
+ * edge between them is never drawn. Six craters in a heap stop being six dark
+ * discs piled on each other and become one opening — the denser the cluster,
+ * the less there is to draw, which is the opposite of how it used to behave.
+ */
+const tearPath = (
+  ctx: CanvasRenderingContext2D,
+  p: Position,
+  c: Position,
+  tw: number,
+  th: number,
+  isHole: (x: number, y: number) => boolean
+) => {
+  const k = cornersOf(c, tw, th);
+  ctx.beginPath();
+  ctx.moveTo(...k[TEAR_SIDES[0].from]);
+  TEAR_SIDES.forEach((side, i) => {
+    const a = k[side.from];
+    const b = k[side.to];
+    if (isHole(p.x + side.dx, p.y + side.dy)) {
+      ctx.lineTo(...b);
+      return;
+    }
+    for (let step = 1; step <= TEAR_STEPS; step++) {
+      ctx.lineTo(...tearPoint(p.x, p.y, i, step, a, b, c));
+    }
+  });
+  ctx.closePath();
+};
+
+/** The same tear, side by side, so only the sides facing paper get an edge. */
+const tearEdges = (
+  ctx: CanvasRenderingContext2D,
+  p: Position,
+  c: Position,
+  tw: number,
+  th: number,
+  isHole: (x: number, y: number) => boolean,
+  stroke: () => void
+) => {
+  const k = cornersOf(c, tw, th);
+  TEAR_SIDES.forEach((side, i) => {
+    if (isHole(p.x + side.dx, p.y + side.dy)) return;
+    const a = k[side.from];
+    const b = k[side.to];
+    ctx.beginPath();
+    ctx.moveTo(...a);
+    for (let step = 1; step <= TEAR_STEPS; step++) {
+      ctx.lineTo(...tearPoint(p.x, p.y, i, step, a, b, c));
+    }
+    stroke();
+  });
 };
 
 const reduced = prefersReducedMotion();
@@ -59,6 +181,17 @@ export const TerrainLayer: React.FC<TerrainLayerProps> = ({
 }) => {
   const groundRef = useRef<HTMLCanvasElement>(null);
   const topRef = useRef<HTMLCanvasElement>(null);
+  /**
+   * When each hole was torn, so an impact can be played once and then left
+   * alone. The server says nothing about a crater's age — terrain stays for
+   * the rest of the fight and carries no timestamp — so the moment is the
+   * client's own: a crater the board has never seen before is one that has
+   * just been dug. Everything already there on the first frame is settled, so
+   * a player joining a fight in progress finds the holes rather than watching
+   * the whole fight's worth of explosions replay at once.
+   */
+  const bornAt = useRef(new Map<string, number>());
+  const seeded = useRef(false);
   const state = useRef({ terrain, zones, tileSize, centerX, centerY, userId, relayActive });
   state.current = { terrain, zones, tileSize, centerX, centerY, userId, relayActive };
 
@@ -121,6 +254,127 @@ export const TerrainLayer: React.FC<TerrainLayerProps> = ({
         }
       }
 
+      /*
+       * The craters, drawn together and before the rest, because each one
+       * needs to know which of its neighbours are holes too. The board is a
+       * sheet of paper; a crater is not a dark shape painted on a cell, it is
+       * that cell torn out of the sheet. What is left is the page underneath,
+       * and the only ink spent is the shadow the torn edge casts into it.
+       *
+       * It is also the truth of the rules, which the old drawing contradicted:
+       * the server lets sight cross a crater and refuses to let legs cross it
+       * — exactly what a hole does, and nothing a painted black disc says.
+       */
+      const holes = new Set<string>();
+      for (const cell of s.terrain) {
+        if (cell.kind === "crater") holes.add(`${cell.position.x},${cell.position.y}`);
+      }
+      const isHole = (x: number, y: number) => holes.has(`${x},${y}`);
+
+      const born = bornAt.current;
+      for (const k of born.keys()) if (!holes.has(k)) born.delete(k);
+      for (const k of holes) {
+        // -Infinity settles a hole immediately: it was already there.
+        if (!born.has(k)) born.set(k, seeded.current && !reduced ? now : -Infinity);
+      }
+      seeded.current = true;
+
+      for (const cell of s.terrain) {
+        if (cell.kind !== "crater") continue;
+        const p = cell.position;
+        const c = at(p);
+        const age = now - (born.get(`${p.x},${p.y}`) ?? -Infinity);
+        const u = smoothstep(clamp01((age - HOLE_HOLD) / HOLE_INK));
+
+        // The gap itself, black at the blow and withdrawing to the page.
+        tearPath(g, p, c, tw, th, isHole);
+        g.fillStyle = mix(IMPACT, PAGE, u);
+        g.fill();
+
+        /*
+         * The sheet has a thickness, and it shows as the shadow it drops into
+         * the hole. It arrives as the dark leaves, so the two never overlap.
+         * Only the sides facing paper cast it: a side shared with another hole
+         * has no edge above it to cast anything, and shading those too was
+         * what drew a grey lattice across a cluster instead of one opening.
+         */
+        g.save();
+        tearPath(g, p, c, tw, th, isHole);
+        g.clip();
+        for (const [width, alpha, drop] of [
+          [Math.max(9, tw / 6), 0.34, th * 0.16],
+          [Math.max(4, tw / 13), 0.26, th * 0.07],
+        ] as const) {
+          g.save();
+          g.translate(0, drop);
+          tearEdges(g, p, c, tw, th, isHole, () => {
+            g.strokeStyle = `rgba(40,36,30,${alpha * u})`;
+            g.lineWidth = width;
+            g.stroke();
+          });
+          g.restore();
+        }
+        g.restore();
+
+        tearEdges(g, p, c, tw, th, isHole, () => {
+          g.strokeStyle = `rgba(110,104,95,${0.25 + 0.45 * u})`;
+          g.lineWidth = Math.max(1, tw / 58) * (1 + (1 - u) * 1.6);
+          g.stroke();
+        });
+
+        if (age >= HOLE_SMOKE) continue;
+
+        // What the blow throws off: a ring running out past the cell, shreds
+        // of paper thrown clear and falling back, and the smoke that carries
+        // the dark away with it. None of it outlives the second it happens in.
+        if (age < HOLE_SHOCK) {
+          const ring = age / HOLE_SHOCK;
+          g.strokeStyle = `rgba(40,36,30,${0.45 * (1 - ring)})`;
+          g.lineWidth = Math.max(1.2, tw / 40) * (1 - ring) + 0.6;
+          g.beginPath();
+          g.ellipse(c.x, c.y, tw * (0.5 + ring * 1.1), th * (0.5 + ring * 1.1), 0, 0, TAU);
+          g.stroke();
+        }
+
+        if (age < HOLE_SHRED) {
+          const fly = age / HOLE_SHRED;
+          for (let i = 0; i < 5; i++) {
+            const a = hash(p.x, p.y, i + 3) * TAU;
+            const reach = tw * (0.35 + 0.4 * hash(p.x, p.y, i + 13));
+            const sx = c.x + Math.cos(a) * reach * fly;
+            const sy =
+              c.y + Math.sin(a) * reach * 0.55 * fly - th * 1.5 * fly + th * 2.2 * fly * fly;
+            const side = Math.max(2, tw / 22) * (1 - fly * 0.4);
+            t.save();
+            t.translate(sx, sy);
+            t.rotate(a + fly * 5);
+            t.globalAlpha = 1 - fly;
+            t.fillStyle = "#f6f5f0";
+            t.fillRect(-side / 2, -side / 3, side, side * 0.66);
+            t.strokeStyle = "rgba(120,114,104,.5)";
+            t.lineWidth = 0.8;
+            t.strokeRect(-side / 2, -side / 3, side, side * 0.66);
+            t.restore();
+          }
+        }
+
+        const smoke = age / HOLE_SMOKE;
+        for (let i = 0; i < 5; i++) {
+          const lag = i * 0.07;
+          const puff = clamp01((smoke - lag) / (1 - lag));
+          if (puff <= 0) continue;
+          const drift = Math.sin(hash(p.x, p.y, i) * 6 + puff * 3) * tw * 0.16;
+          const rise = th * (0.3 + 2.4 * (1 - Math.pow(1 - puff, 3)));
+          const r = tw * (0.15 + 0.3 * puff);
+          t.globalAlpha = 0.42 * Math.pow(1 - puff, 2.4);
+          t.fillStyle = i % 2 ? "rgb(150,144,135)" : "rgb(122,116,107)";
+          t.beginPath();
+          t.ellipse(c.x + (i - 2) * tw * 0.1 + drift, c.y - rise, r, r * 0.72, 0, 0, TAU);
+          t.fill();
+        }
+        t.globalAlpha = 1;
+      }
+
       for (const cell of s.terrain) {
         const { x, y } = cell.position;
         const c = at(cell.position);
@@ -128,7 +382,7 @@ export const TerrainLayer: React.FC<TerrainLayerProps> = ({
         switch (cell.kind) {
           case "fire": {
             // Warm and bright, never dark: the flames have to read on paper,
-            // and next to a crater, which is already the darkest thing here.
+            // which is all that is left around them now the craters are gaps.
             diamond(g, cell.position, 0.92);
             g.fillStyle = "rgba(255,150,60,.22)";
             g.fill();
@@ -196,27 +450,9 @@ export const TerrainLayer: React.FC<TerrainLayerProps> = ({
             g.globalAlpha = 1;
             break;
           }
-          case "crater": {
-            g.fillStyle = SOIL;
-            g.beginPath();
-            g.ellipse(c.x, c.y, tw * 0.46, th * 0.44, 0, 0, TAU);
-            g.fill();
-            g.fillStyle = "#1c130c";
-            g.beginPath();
-            g.ellipse(c.x, c.y + th * 0.04, tw * 0.34, th * 0.3, 0, 0, TAU);
-            g.fill();
-            g.strokeStyle = "rgba(30,20,12,.7)";
-            g.lineWidth = 1.5;
-            for (let i = 0; i < 6; i++) {
-              const a = (i / 6) * TAU + hash(x, y, i);
-              const len = 0.5 + 0.35 * hash(x, y, i + 9);
-              g.beginPath();
-              g.moveTo(c.x + Math.cos(a) * tw * 0.44, c.y + Math.sin(a) * th * 0.42);
-              g.lineTo(c.x + Math.cos(a) * tw * len * 1.2, c.y + Math.sin(a) * th * len * 1.2);
-              g.stroke();
-            }
+          case "crater":
+            // Torn out of the sheet above, where it can see its neighbours.
             break;
-          }
           case "fissure": {
             diamond(g, cell.position, 0.9);
             g.fillStyle = "rgba(42,29,16,.3)";

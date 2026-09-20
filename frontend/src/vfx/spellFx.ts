@@ -67,7 +67,6 @@ export type Geometry = {
  * spellbar; these name what the spell does to the paper, which is a different
  * question — charring is not "fire red".
  */
-const CHAR = "#241a13";
 const EMBER = "#e2521d";
 const EMBER_HOT = "#ffb03a";
 const RIM = "#ff7a18";
@@ -90,8 +89,19 @@ type Blob = { gx: number; gy: number; rTiles: number; verts: number[] };
 /** A run of grid-space points: tears and fractures are both this. */
 type Poly = { pts: Position[]; width: number };
 
+/**
+ * What a cast leaves: the marks that stay on the board, and — for the spells
+ * that burn — the shape of the burn itself, which does not. A burn used to be
+ * planned as a scar and committed to the board once it had finished eating
+ * outwards, so every fire spell dropped a near-black blob that ignored the
+ * cells it covered and stayed there for the rest of the fight. Two of those
+ * side by side were already unreadable. The burn keeps its moment and gives
+ * up its permanence: the fire it started is drawn by the terrain layer, which
+ * is the thing that actually knows how long the cell goes on burning.
+ */
+type Plans = { scars: Scar[]; burn?: Blob };
+
 type Scar =
-  | ({ kind: "scorch" } & Blob)
   | ({ kind: "stain" } & Blob)
   | ({ kind: "blast" } & Blob)
   | ({ kind: "tear" } & Poly)
@@ -198,6 +208,19 @@ function makeBlob(points: number, jitter: number): number[] {
   const v: number[] = [];
   for (let i = 0; i < points; i++) v.push(1 - jitter / 2 + Math.random() * jitter);
   return v;
+}
+
+/** Where the blob's outline sits at one angle — an ember's launch pad. */
+function blobPointAt(
+  x: number,
+  y: number,
+  r: number,
+  verts: number[],
+  squash: number,
+  a: number
+) {
+  const rr = r * verts[Math.floor((a / TAU) * verts.length) % verts.length];
+  return { x: x + Math.cos(a) * rr, y: y + Math.sin(a) * rr * squash };
 }
 
 function blobPath(
@@ -356,7 +379,7 @@ export class SpellFx {
 
   private paintScar(d: CanvasRenderingContext2D, scar: Scar) {
     const tw = this.geometry.tileSize.width;
-    if (scar.kind === "scorch" || scar.kind === "stain" || scar.kind === "blast") {
+    if (scar.kind === "stain" || scar.kind === "blast") {
       const c = this.screen({ x: scar.gx, y: scar.gy });
       const r = scar.rTiles * tw;
       d.save();
@@ -370,15 +393,6 @@ export class SpellFx {
         d.globalAlpha = 0.55;
         d.lineWidth = 2;
         d.strokeStyle = "#080b14";
-        d.stroke();
-      } else if (scar.kind === "scorch") {
-        d.globalAlpha = 0.82;
-        blobPath(d, c.x, c.y, r, scar.verts, this.squash);
-        d.fillStyle = CHAR;
-        d.fill();
-        d.globalAlpha = 0.5;
-        d.lineWidth = 2;
-        d.strokeStyle = "#0f0b08";
         d.stroke();
       } else {
         // Wet paper: a pale halo, the pooled centre, then the tide line where
@@ -607,7 +621,7 @@ export class SpellFx {
    * The scars a cast will leave, decided up front so that replaying a fight's
    * history draws the same marks the animation would have drawn.
    */
-  private plan(event: CastEvent): { scars: Scar[] } {
+  private plan(event: CastEvent): Plans {
     const { element, target, origin, crit } = event;
     // What moves or buffs leaves no mark of its own; the terrain layer draws
     // whatever it did leave.
@@ -646,26 +660,23 @@ export class SpellFx {
       return { scars };
     }
     if (event.signature === "meteor") {
+      // Nothing is left behind: the cell it lands on is torn out of the board
+      // by the terrain layer, and charring the inside of a hole says nothing.
       return {
-        scars: [
-          // Only the point of impact is charred: the crater and the fire
-          // around it are drawn by the terrain, and need the light.
-          { kind: "scorch", gx: target.x, gy: target.y, rTiles: 0.42, verts: makeBlob(18, 0.4) },
-        ],
+        scars: [],
+        burn: { gx: target.x, gy: target.y, rTiles: 0.42, verts: makeBlob(18, 0.4) },
       };
     }
     switch (element) {
       case "Fire":
         return {
-          scars: [
-            {
-              kind: "scorch",
-              gx: target.x,
-              gy: target.y,
-              rTiles: crit ? 0.62 : 0.42,
-              verts: makeBlob(16, 0.5),
-            },
-          ],
+          scars: [],
+          burn: {
+            gx: target.x,
+            gy: target.y,
+            rTiles: crit ? 0.62 : 0.42,
+            verts: makeBlob(16, 0.5),
+          },
         };
       case "Water":
         return {
@@ -733,7 +744,7 @@ export class SpellFx {
     }
   }
 
-  private playFire(event: CastEvent, plans: { scars: Scar[] }) {
+  private playFire(event: CastEvent, plans: Plans) {
     const a = this.screen(event.origin);
     const b = this.screen(event.target);
     const k = this.reduced ? 0.35 : event.crit ? 1.7 : 1;
@@ -782,18 +793,19 @@ export class SpellFx {
         width: 3,
       });
 
-      const scorch = plans.scars[0] as Scar & { kind: "scorch" };
-      this.burns.push({
-        x: b.x,
-        y: b.y,
-        gx: scorch.gx,
-        gy: scorch.gy,
-        rMax: scorch.rTiles * tw,
-        rTiles: scorch.rTiles,
-        born: performance.now(),
-        dur: 620,
-        verts: scorch.verts,
-      });
+      if (plans.burn) {
+        this.burns.push({
+          x: b.x,
+          y: b.y,
+          gx: plans.burn.gx,
+          gy: plans.burn.gy,
+          rMax: plans.burn.rTiles * tw,
+          rTiles: plans.burn.rTiles,
+          born: performance.now(),
+          dur: 620,
+          verts: plans.burn.verts,
+        });
+      }
 
       for (let i = 0; i < 46 * k; i++) {
         const ang = rand(0, TAU);
@@ -827,7 +839,7 @@ export class SpellFx {
     });
   }
 
-  private playWater(event: CastEvent, plans: { scars: Scar[] }) {
+  private playWater(event: CastEvent, plans: Plans) {
     const a = this.screen(event.origin);
     const b = this.screen(event.target);
     const k = this.reduced ? 0.35 : event.crit ? 1.7 : 1;
@@ -915,7 +927,7 @@ export class SpellFx {
     });
   }
 
-  private playAir(event: CastEvent, plans: { scars: Scar[] }) {
+  private playAir(event: CastEvent, plans: Plans) {
     if (event.via && !event.arrived) {
       this.at(220, () => this.playAir({ ...event, arrived: true }, plans));
       return;
@@ -1010,7 +1022,7 @@ export class SpellFx {
     });
   }
 
-  private playEarth(event: CastEvent, plans: { scars: Scar[] }) {
+  private playEarth(event: CastEvent, plans: Plans) {
     const b = this.screen(event.target);
     const k = this.reduced ? 0.35 : event.crit ? 1.75 : 1;
     const tw = this.geometry.tileSize.width;
@@ -1373,7 +1385,7 @@ export class SpellFx {
   }
 
   /** A jet of water hard enough to throw whoever it hits. */
-  private playCannon(event: CastEvent, plans: { scars: Scar[] }) {
+  private playCannon(event: CastEvent, plans: Plans) {
     const a = this.screen(event.origin);
     const b = this.screen(event.target);
     const tw = this.geometry.tileSize.width;
@@ -1424,7 +1436,7 @@ export class SpellFx {
   }
 
   /** A stone hammer brought down from above the target. */
-  private playHammer(event: CastEvent, plans: { scars: Scar[] }) {
+  private playHammer(event: CastEvent, plans: Plans) {
     const b = this.screen(event.target);
     const tw = this.geometry.tileSize.width;
     const fall = this.reduced ? 120 : 380;
@@ -1648,7 +1660,7 @@ export class SpellFx {
   }
 
   /** A burning rock out of the top corner of the sky, and what it does to the sheet. */
-  private playMeteor(event: CastEvent, plans: { scars: Scar[] }) {
+  private playMeteor(event: CastEvent, plans: Plans) {
     const b = this.screen(event.target);
     const tw = this.geometry.tileSize.width;
     const fall = this.reduced ? 250 : 780;
@@ -1678,18 +1690,19 @@ export class SpellFx {
       this.shake(this.reduced ? 0 : 24, 900);
       this.ring(b.x, b.y, { r0: 6, rMax: tw * 3.2, dur: 700, color: EMBER_HOT, width: 6 });
       this.at(120, () => this.ring(b.x, b.y, { r0: 6, rMax: tw * 4.4, dur: 900, color: EMBER, width: 4 }));
-      const scorch = plans.scars[0] as Scar & { kind: "scorch" };
-      this.burns.push({
-        x: b.x,
-        y: b.y,
-        gx: scorch.gx,
-        gy: scorch.gy,
-        rMax: scorch.rTiles * tw,
-        rTiles: scorch.rTiles,
-        born: performance.now(),
-        dur: 900,
-        verts: scorch.verts,
-      });
+      if (plans.burn) {
+        this.burns.push({
+          x: b.x,
+          y: b.y,
+          gx: plans.burn.gx,
+          gy: plans.burn.gy,
+          rMax: plans.burn.rTiles * tw,
+          rTiles: plans.burn.rTiles,
+          born: performance.now(),
+          dur: 900,
+          verts: plans.burn.verts,
+        });
+      }
       const k = this.reduced ? 0.3 : 1;
       for (let i = 0; i < 110 * k; i++) {
         const ang = rand(Math.PI, TAU);
@@ -1741,7 +1754,7 @@ export class SpellFx {
   }
 
   /** Lightning all over the area, then once more, hard, on the target. */
-  private playTempest(event: CastEvent, plans: { scars: Scar[] }) {
+  private playTempest(event: CastEvent, plans: Plans) {
     const cells = [...(event.area ?? [event.target])].sort(() => Math.random() - 0.5).slice(0, 8);
     this.flash = { color: "#101828", alpha: 0.22, born: performance.now(), dur: 1400 };
     cells.forEach((cell, i) => {
@@ -1765,7 +1778,7 @@ export class SpellFx {
   }
 
   /** The ground giving way all around the caster. */
-  private playQuake(event: CastEvent, plans: { scars: Scar[] }) {
+  private playQuake(event: CastEvent, plans: Plans) {
     const a = this.screen(event.origin);
     const tw = this.geometry.tileSize.width;
     this.shake(this.reduced ? 0 : 18, 1300);
@@ -1998,24 +2011,59 @@ export class SpellFx {
       const b = this.burns[i];
       const p = (now - b.born) / b.dur;
       if (p >= 1) {
-        // The hole has finished eating outwards: it is part of the board now.
-        this.commit({
-          kind: "scorch",
-          gx: b.gx,
-          gy: b.gy,
-          rTiles: b.rTiles,
-          verts: b.verts,
-        });
+        // Finished eating outwards, and gone with it. What the fire actually
+        // did to the cell is the terrain the server put there, which outlives
+        // this animation and stops when the fire does.
         this.burns.splice(i, 1);
         continue;
       }
       const r = b.rMax * ease(p);
-      ctx.save();
-      blobPath(ctx, b.x, b.y, r * 0.94, b.verts, this.squash);
-      ctx.globalAlpha = 0.82;
-      ctx.fillStyle = CHAR;
-      ctx.fill();
-      ctx.restore();
+
+      /*
+       * What the burn is made of. It used to be a near-black blob filled
+       * inside the rim, which is ink laid over a cell for the sake of one
+       * second and the reason a fire cast used to leave a stain. The heat is
+       * carried by what the edge throws off instead: sparks off the line
+       * where it is eating, and a little smoke drifting up over it. Both are
+       * particles, so both are gone on their own — nothing to clean up, and
+       * nothing that can pile up over a long fight.
+       */
+      if (!this.reduced) {
+        for (let k = 0; k < 4; k++) {
+          const a = rand(0, TAU);
+          const edge = blobPointAt(b.x, b.y, r, b.verts, this.squash, a);
+          // Fast enough to streak: a spark is drawn as the line it has just
+          // travelled, so a slow one is a dot and reads as dirt, not heat.
+          const speed = rand(70, 210);
+          this.spawn({
+            x: edge.x,
+            y: edge.y,
+            vx: Math.cos(a) * speed,
+            vy: Math.sin(a) * speed * this.squash - rand(30, 110),
+            g: 190,
+            drag: 0.95,
+            life: rand(260, 620),
+            size: rand(1, 2.4),
+            type: "spark",
+            color: Math.random() < 0.4 ? EMBER_HOT : RIM,
+          });
+        }
+        // Sparingly: a cast that smoked as hard as it sparks would hide the
+        // fighters standing next to it.
+        if (Math.random() < 0.3) {
+          this.spawn({
+            x: b.x + rand(-r * 0.5, r * 0.5),
+            y: b.y + rand(-r * 0.3, r * 0.3) * this.squash,
+            vx: rand(-18, 18),
+            vy: rand(-54, -20),
+            g: 12,
+            life: rand(800, 1500),
+            size: rand(5, 11),
+            type: "smoke",
+            color: DUST,
+          });
+        }
+      }
 
       ctx.save();
       blobPath(ctx, b.x, b.y, r, b.verts, this.squash);
