@@ -67,7 +67,6 @@ export type Geometry = {
  * spellbar; these name what the spell does to the paper, which is a different
  * question — charring is not "fire red".
  */
-const CHAR = "#241a13";
 const EMBER = "#e2521d";
 const EMBER_HOT = "#ffb03a";
 const RIM = "#ff7a18";
@@ -209,6 +208,19 @@ function makeBlob(points: number, jitter: number): number[] {
   const v: number[] = [];
   for (let i = 0; i < points; i++) v.push(1 - jitter / 2 + Math.random() * jitter);
   return v;
+}
+
+/** Where the blob's outline sits at one angle — an ember's launch pad. */
+function blobPointAt(
+  x: number,
+  y: number,
+  r: number,
+  verts: number[],
+  squash: number,
+  a: number
+) {
+  const rr = r * verts[Math.floor((a / TAU) * verts.length) % verts.length];
+  return { x: x + Math.cos(a) * rr, y: y + Math.sin(a) * rr * squash };
 }
 
 function blobPath(
@@ -2006,12 +2018,52 @@ export class SpellFx {
         continue;
       }
       const r = b.rMax * ease(p);
-      ctx.save();
-      blobPath(ctx, b.x, b.y, r * 0.94, b.verts, this.squash);
-      ctx.globalAlpha = 0.82;
-      ctx.fillStyle = CHAR;
-      ctx.fill();
-      ctx.restore();
+
+      /*
+       * What the burn is made of. It used to be a near-black blob filled
+       * inside the rim, which is ink laid over a cell for the sake of one
+       * second and the reason a fire cast used to leave a stain. The heat is
+       * carried by what the edge throws off instead: sparks off the line
+       * where it is eating, and a little smoke drifting up over it. Both are
+       * particles, so both are gone on their own — nothing to clean up, and
+       * nothing that can pile up over a long fight.
+       */
+      if (!this.reduced) {
+        for (let k = 0; k < 4; k++) {
+          const a = rand(0, TAU);
+          const edge = blobPointAt(b.x, b.y, r, b.verts, this.squash, a);
+          // Fast enough to streak: a spark is drawn as the line it has just
+          // travelled, so a slow one is a dot and reads as dirt, not heat.
+          const speed = rand(70, 210);
+          this.spawn({
+            x: edge.x,
+            y: edge.y,
+            vx: Math.cos(a) * speed,
+            vy: Math.sin(a) * speed * this.squash - rand(30, 110),
+            g: 190,
+            drag: 0.95,
+            life: rand(260, 620),
+            size: rand(1, 2.4),
+            type: "spark",
+            color: Math.random() < 0.4 ? EMBER_HOT : RIM,
+          });
+        }
+        // Sparingly: a cast that smoked as hard as it sparks would hide the
+        // fighters standing next to it.
+        if (Math.random() < 0.3) {
+          this.spawn({
+            x: b.x + rand(-r * 0.5, r * 0.5),
+            y: b.y + rand(-r * 0.3, r * 0.3) * this.squash,
+            vx: rand(-18, 18),
+            vy: rand(-54, -20),
+            g: 12,
+            life: rand(800, 1500),
+            size: rand(5, 11),
+            type: "smoke",
+            color: DUST,
+          });
+        }
+      }
 
       ctx.save();
       blobPath(ctx, b.x, b.y, r, b.verts, this.squash);
