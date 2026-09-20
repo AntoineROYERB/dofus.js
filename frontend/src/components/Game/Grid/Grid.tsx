@@ -29,6 +29,7 @@ import { BOARD } from "../../../constants";
 import { useCharacterAnimations } from "../../../hooks/useCharacterAnimations";
 import { useHitFeedback } from "../../../hooks/useHitFeedback";
 import { useGridInteraction } from "../../../hooks/useGridInteraction";
+import { peekedFighter } from "../../../utils/statsPeek";
 import { useTileSize } from "../../../hooks/useTileSize";
 import { usePinchZoom } from "../../../hooks/usePinchZoom";
 import { GameState } from "../../../types/message";
@@ -177,6 +178,7 @@ export const Grid: React.FC<GridProps> = ({
 
   const {
     hoveredPosition,
+    peekedPosition,
     pathCells,
     impactedCells,
     confirmsTap,
@@ -310,19 +312,20 @@ export const Grid: React.FC<GridProps> = ({
   }, [hoveredPosition, terrainAt, zones, userId, tileSize, centerX, centerY]);
 
   // Whoever the pointer is over, keyed the same way as characterRenderState
-  // — reusing hoveredPosition rather than a dedicated hitbox, so the card
-  // never fights the tile underneath for clicks.
-  const hoveredCharacterEntry = React.useMemo(() => {
-    if (!hoveredPosition || !players) return null;
-    return (
-      Object.entries(players).find(
-        ([, player]) =>
-          player.character.isAlive &&
-          player.character.position?.x === hoveredPosition.x &&
-          player.character.position?.y === hoveredPosition.y
-      ) ?? null
-    );
-  }, [hoveredPosition, players]);
+  // — reusing hoveredPosition rather than a dedicated hitbox, so nothing
+  // the board draws over a fighter fights the tile underneath for clicks.
+  const hoveredCharacterEntry = React.useMemo(
+    () => peekedFighter(players, hoveredPosition),
+    [hoveredPosition, players]
+  );
+
+  // Whoever the pointer is on *right now* — the mouse's tile, or the cell
+  // under a finger still held down. The stats card follows this one, so a
+  // tap that moves or casts never leaves a card pinned to the board.
+  const peekedCharacterEntry = React.useMemo(
+    () => peekedFighter(players, peekedPosition),
+    [peekedPosition, players]
+  );
 
   const findPlayerOnCell = (x: number, y: number) => {
     return (
@@ -643,19 +646,21 @@ export const Grid: React.FC<GridProps> = ({
         {/*
           The fighter under the pointer's stats — HP, AP, MP and buffs — the
           same figures the bottom bar shows for the current player, but for
-          whoever the mouse is over. Driven by hoveredPosition rather than a
-          hitbox of its own, so it never steals a click meant for the tile.
+          whoever the pointer is on. A peek, never a selection: it lasts as
+          long as the mouse stays over the fighter, or as long as a finger is
+          held down on it, and it has no hitbox of its own, so it never
+          steals a click meant for the tile.
         */}
         {!isPositioningPhase &&
           !confirmAction &&
-          hoveredCharacterEntry &&
-          characterRenderState[hoveredCharacterEntry[0]] && (
+          peekedCharacterEntry &&
+          characterRenderState[peekedCharacterEntry[0]] && (
             <CharacterTooltip
               screenPosition={
-                characterRenderState[hoveredCharacterEntry[0]]!.screenPosition
+                characterRenderState[peekedCharacterEntry[0]]!.screenPosition
               }
               tileSize={tileSize}
-              character={hoveredCharacterEntry[1].character}
+              character={peekedCharacterEntry[1].character}
               clipRef={containerRef}
             />
           )}
