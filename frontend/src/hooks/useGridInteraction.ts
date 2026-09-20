@@ -37,6 +37,14 @@ export const useGridInteraction = ({
   zoom,
 }: UseGridInteractionProps) => {
   const [hoveredPosition, setHoveredPosition] = useState<Position | null>(null);
+  /*
+   * Where the stats card may peek, which is stricter than `hoveredPosition`:
+   * that one legitimately survives a tap — it drives the move preview and the
+   * confirm bubble — while the card is only ever a peek. It follows the mouse
+   * and dies with it, and on a touch screen it lives only as long as the
+   * finger stays down, so a tap that moves or casts leaves no card behind.
+   */
+  const [peekedPosition, setPeekedPosition] = useState<Position | null>(null);
   const [pathCells, setPathCells] = useState<Position[]>([]);
   const [impactedCells, setImpactedCells] = useState<Position[]>([]);
   const [isMouseInContainer, setIsMouseInContainer] = useState(false);
@@ -142,6 +150,7 @@ export const useGridInteraction = ({
           armed.current = false;
           previewed.current = null;
           setHoveredPosition(null);
+          setPeekedPosition(null);
           return;
         }
       }
@@ -155,9 +164,13 @@ export const useGridInteraction = ({
         !!tile && !!before && before.x === tile.x && before.y === tile.y;
       previewed.current = tile;
       setHoveredPosition(tile);
+      setPeekedPosition(tile);
     };
 
     const handlePointerUp = (e: PointerEvent) => {
+      if (e.pointerType !== "touch" && e.pointerType !== "pen") return;
+      // The finger is off the fighter, so the card goes with it.
+      setPeekedPosition(null);
       if (e.pointerType !== "touch") return;
       activeTouchPointers.current.delete(e.pointerId);
       if (activeTouchPointers.current.size === 0) suppressTap.current = false;
@@ -169,8 +182,13 @@ export const useGridInteraction = ({
       const tile = findTileUnderMouse(e.clientX, e.clientY);
       if (tile) {
         setHoveredPosition(tile);
+        setPeekedPosition(tile);
       } else if (isMouseInContainer) {
         setHoveredPosition(null);
+        setPeekedPosition(null);
+      } else {
+        // Off the board entirely: nothing to peek at any more.
+        setPeekedPosition(null);
       }
     };
 
@@ -182,6 +200,7 @@ export const useGridInteraction = ({
       if (usingTouch.current) return;
       setIsMouseInContainer(false);
       setHoveredPosition(null);
+      setPeekedPosition(null);
       setPathCells([]);
     };
 
@@ -234,12 +253,14 @@ export const useGridInteraction = ({
     previewed.current = null;
     armed.current = false;
     setHoveredPosition(null);
+    setPeekedPosition(null);
     setPathCells([]);
     setImpactedCells([]);
   }, []);
 
   return {
     hoveredPosition,
+    peekedPosition,
     pathCells,
     impactedCells,
     confirmsTap,
