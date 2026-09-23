@@ -32,6 +32,7 @@ import { useGridInteraction } from "../../../hooks/useGridInteraction";
 import { peekedFighter } from "../../../utils/statsPeek";
 import { useTileSize } from "../../../hooks/useTileSize";
 import { usePinchZoom } from "../../../hooks/usePinchZoom";
+import { CAMERA, centreOf, followPan } from "../../../utils/camera";
 import { GameState } from "../../../types/message";
 import { bubblePlacement, confirmActionFor } from "../../../utils/touchConfirm";
 
@@ -91,8 +92,13 @@ export const Grid: React.FC<GridProps> = ({
   const movementPoints = currentPlayer?.character.movementPoints;
   const characterPosition = currentPlayer?.character.position;
 
-  // Get initial positions from the current player's character
-  const initialPositions = currentPlayer?.character.initialPositions || [];
+  // Get initial positions from the current player's character. Memoised for
+  // the same reason as the lists above: a fresh `|| []` every render is a new
+  // array every render, and the camera memo below would recompute on each one.
+  const initialPositions = React.useMemo(
+    () => currentPlayer?.character.initialPositions ?? [],
+    [currentPlayer?.character.initialPositions]
+  );
 
   // Check if we're in the positioning phase
   const isPositioningPhase = latestGameState?.status === "position_characters";
@@ -160,18 +166,78 @@ export const Grid: React.FC<GridProps> = ({
     );
   }, [characterPosition, movementPoints, blocked]);
 
+  /*
+   * Whether there is anything for a camera to hold on to. Read off the game
+   * state rather than off the screen, because the tile size below depends on
+   * the answer and the screen positions depend on the tile size. A replay
+   * watches with no fighter of its own (viewerId is ""), and a board with
+   * nobody to follow must stay the fitted, whole-board one it has always been
+   * rather than a zoomed view of its own empty middle.
+   */
+  const cameraZoom =
+    CAMERA !== null && (!!characterPosition || initialPositions.length > 0)
+      ? CAMERA
+      : null;
+  const follows = cameraZoom !== null;
+
   const {
     tile: tileSize,
     size: boardSize,
     measured,
-  } = useTileSize(containerRef, gridSize);
-  const { scale, pan, isPinching, reset: resetZoom } = usePinchZoom(containerRef);
+  } = useTileSize(containerRef, gridSize, cameraZoom ?? 1);
+  const {
+    scale,
+    pan: handPan,
+    isPinching,
+    reset: resetZoom,
+  } = usePinchZoom(containerRef);
 
   const characterRenderState = useCharacterAnimations(
     latestGameState ?? null,
     tileSize,
     containerRef
   );
+
+  const centerX = boardSize.width / 2;
+  const centerY = boardSize.height / 2;
+
+  /*
+   * What the camera is looking at, in the board layer's own pixels: this
+   * player's fighter, or — before there is one — the middle of the cells they
+   * are being asked to start on, so the green block is on screen at the moment
+   * it is the only thing worth clicking.
+   *
+   * The fighter's position comes from the animation loop rather than from the
+   * game state, so it is the interpolated one: the camera moves with the walk
+   * instead of jumping a whole cell each time a step lands.
+   */
+  const cameraTarget = React.useMemo(() => {
+    if (!follows) return null;
+    const walking = characterRenderState[userId]?.screenPosition;
+    if (walking) return walking;
+    const block = centreOf(initialPositions);
+    if (!block) return null;
+    return isoToScreen(block.x, block.y, tileSize, centerX, centerY);
+  }, [
+    follows,
+    characterRenderState,
+    userId,
+    initialPositions,
+    tileSize,
+    centerX,
+    centerY,
+  ]);
+
+  /*
+   * The camera rides on the pinch-zoom's pan: one transform on one layer, and
+   * the cells below never hear about it — see camera.ts for why that matters.
+   * The player's own two-finger drag stays on top of it as a nudge.
+   */
+  const pan = React.useMemo(() => {
+    if (!cameraTarget) return handPan;
+    const camera = followPan(cameraTarget, { x: centerX, y: centerY }, scale);
+    return { x: handPan.x + camera.x, y: handPan.y + camera.y };
+  }, [cameraTarget, handPan, centerX, centerY, scale]);
 
   // Who just lost health, PA or PM, and how much. Empty for most of a turn.
   const stats = useHitFeedback(latestGameState ?? null);
@@ -199,9 +265,6 @@ export const Grid: React.FC<GridProps> = ({
     initialPositions,
     zoom: { scale, pan },
   });
-
-  const centerX = boardSize.width / 2;
-  const centerY = boardSize.height / 2;
 
   // Only worth showing where the spell can actually land: out of range, or
   // behind cover, the estimate would be a lie.
@@ -487,7 +550,14 @@ export const Grid: React.FC<GridProps> = ({
         style={{
           transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale})`,
           transformOrigin: "center center",
-          transition: isPinching ? "none" : "transform 150ms ease-out",
+          /*
+           * The ease is there to settle a pinch when the fingers leave. A
+           * following camera writes a new pan every frame, and easing towards
+           * a target that has already moved leaves the board trailing behind
+           * its own fighter — the walk is interpolated already, so there is
+           * nothing here left to smooth.
+           */
+          transition: isPinching || follows ? "none" : "transform 150ms ease-out",
           /*
            * The board's centre is the container's, and until the container
            * has been measured that centre is a guess — one that puts the
