@@ -31,11 +31,11 @@ import { Position } from "../types/game";
  * *drawn* larger instead of being blown up after the fact — Character takes
  * its own scale from tileSize.width, and a canvas stretched by CSS goes soft.
  *
- * 1.6 rather than something bolder because the board has to stay somewhere
+ * 1.6 rather than something bolder because the world has to stay somewhere
  * you can see, not just somewhere you stand: at 2.2 a desktop showed under
- * four cells across and the opponent spent most of the fight off the edge of
- * the screen, which reads as a close-up rather than as a place. Tune it from
- * the URL — see resolveCamera.
+ * four cells across and anything worth walking towards was off the edge of
+ * the screen before you could want to, which reads as a close-up rather than
+ * as a place.
  */
 export const CAMERA_ZOOM = 1.6;
 
@@ -79,31 +79,32 @@ export const centreOf = (cells: Position[]): Position | null => {
 };
 
 /**
- * How far the camera is zoomed in, or null for the fitted, still board this
- * has always been. `?camera=off` is the still one; `?camera=1.6` is a different
- * amount of paper on screen.
+ * Whether a *fight* gets a camera, and how far in — null for the fitted,
+ * whole-board view a fight is played on.
  *
- * The zoom is on the query string rather than only in the constant above
- * because the amount of board a player can see is the whole question this is
- * asking, and it is not a question anyone answers by reasoning — it is
- * answered by trying three values in a row and keeping the one that felt like
- * somewhere rather than like a close-up. That reaches a phone too: the iOS
- * shell is pointed at the Vite dev server through CAP_SERVER_URL, and a query
- * string rides along on that URL — see capacitor.config.ts.
+ * A fight is not the place for this. Its board is a diamond sized to the
+ * screen on purpose: both fighters, every cell a spell could reach and every
+ * scrap of terrain are meant to be readable at a glance, and a camera that
+ * holds you in the middle takes half of that away to buy movement a fight
+ * does not need. Exploration is where going somewhere is the point, and that
+ * is where the camera lives — see ExploreBoard.
+ *
+ * So a fight has no camera unless its URL asks: `?camera=1.6` turns one on at
+ * that zoom, for comparing a fight with one against a fight without. That
+ * reaches a phone too — the iOS shell is pointed at the Vite dev server
+ * through CAP_SERVER_URL, and a query string rides along on that URL.
  *
  * Kept pure, and separate from the window it normally reads, because the
  * precedence is the part worth holding still.
  */
 export const resolveCamera = (search: string): number | null => {
   const asked = new URLSearchParams(search).get("camera");
-  if (asked === "off") return null;
-  if (asked !== null) {
-    const zoom = Number(asked);
-    // A zoom that does not parse, or that would shrink the board below the
-    // one place it is known to fit, is a typo — not an instruction.
-    if (Number.isFinite(zoom) && zoom >= 1) return zoom;
-  }
-  return CAMERA_ZOOM;
+  if (asked === null || asked === "off") return null;
+  if (asked === "on") return CAMERA_ZOOM;
+  const zoom = Number(asked);
+  // A zoom that does not parse, or that would shrink the board below the one
+  // size it is known to fit its box at, is a typo — not an instruction.
+  return Number.isFinite(zoom) && zoom >= 1 ? zoom : null;
 };
 
 /**
@@ -112,4 +113,4 @@ export const resolveCamera = (search: string): number | null => {
  * forgotten what it is for.
  */
 export const CAMERA =
-  typeof window === "undefined" ? CAMERA_ZOOM : resolveCamera(window.location.search);
+  typeof window === "undefined" ? null : resolveCamera(window.location.search);

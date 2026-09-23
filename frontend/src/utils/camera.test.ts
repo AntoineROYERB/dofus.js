@@ -62,28 +62,27 @@ describe("centreOf", () => {
 });
 
 describe("resolveCamera", () => {
-  it("follows at the default zoom unless it is told otherwise", () => {
-    expect(resolveCamera("")).toBe(CAMERA_ZOOM);
-    expect(resolveCamera("?spectate=1")).toBe(CAMERA_ZOOM);
-  });
-
-  it("stands still for ?camera=off", () => {
+  // A fight is played on a board sized to show the whole fight. Nothing but
+  // an explicit ask takes that away.
+  it("leaves a fight alone unless its URL asks", () => {
+    expect(resolveCamera("")).toBeNull();
+    expect(resolveCamera("?spectate=1")).toBeNull();
     expect(resolveCamera("?camera=off")).toBeNull();
-    expect(resolveCamera("?debug=1&camera=off")).toBeNull();
   });
 
   it("takes the zoom the URL asks for", () => {
     expect(resolveCamera("?camera=1.6")).toBe(1.6);
     expect(resolveCamera("?camera=3")).toBe(3);
+    expect(resolveCamera("?camera=on")).toBe(CAMERA_ZOOM);
   });
 
   // A typo must not quietly hand back a board smaller than the fitted one,
   // which is the single size it is known to fit its box at.
   it("ignores a zoom that is not a usable number", () => {
-    expect(resolveCamera("?camera=yes")).toBe(CAMERA_ZOOM);
-    expect(resolveCamera("?camera=0")).toBe(CAMERA_ZOOM);
-    expect(resolveCamera("?camera=0.4")).toBe(CAMERA_ZOOM);
-    expect(resolveCamera("?camera=-2")).toBe(CAMERA_ZOOM);
+    expect(resolveCamera("?camera=yes")).toBeNull();
+    expect(resolveCamera("?camera=0")).toBeNull();
+    expect(resolveCamera("?camera=0.4")).toBeNull();
+    expect(resolveCamera("?camera=-2")).toBeNull();
   });
 });
 
