@@ -78,25 +78,23 @@ const key = (p: Position) => `${p.x},${p.y}`;
  * onto the ground with the projection as its transform. Sampled at a fraction
  * of a cell, it runs across cell edges the way a wash does instead of filling
  * the grid square by square, with a darker rim where the pigment dried.
- *
- * One copy per terrace level, each holding only that level's cells, so a
- * level's wash goes down in one draw with no clip — a clip over a few
- * thousand diamonds was the single most expensive thing in a frame.
  */
 const WASH_PER_CELL = 6;
 const WASH_ORIGIN = -WORLD_RADIUS - 1.5;
-const washes: HTMLCanvasElement[] = [];
+let wash: HTMLCanvasElement | null = null;
 
-const buildWashes = () => {
+const washTexture = (): HTMLCanvasElement => {
+  if (wash) return wash;
   const side = (WORLD_RADIUS * 2 + 3) * WASH_PER_CELL;
-  const pigment = new Uint8ClampedArray(side * side * 4);
-  const levelOfTexel = new Int8Array(side * side);
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = side;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return (wash = canvas);
+  const img = ctx.createImageData(side, side);
   for (let j = 0; j < side; j++) {
     for (let i = 0; i < side; i++) {
       const X = WASH_ORIGIN + (i + 0.5) / WASH_PER_CELL;
       const Y = WASH_ORIGIN + (j + 0.5) / WASH_PER_CELL;
-      const g = groundAt({ x: Math.round(X), y: Math.round(Y) });
-      levelOfTexel[j * side + i] = g.obstacle === "water" || g.ford ? -1 : g.level;
       const wobble = (valueNoise(X, Y, 1.1, 17) - 0.5) * 0.25;
       const { moss, sand } = biomeAt(X + wobble, Y - wobble);
       const w = Math.max(moss, sand);
@@ -105,31 +103,14 @@ const buildWashes = () => {
       const rim = Math.exp(-(((w - 0.5) / 0.1) ** 2)) * 0.12;
       const mottle = (valueNoise(X, Y, 0.7, 23) - 0.5) * 0.08 * w;
       const k = (j * side + i) * 4;
-      pigment[k] = colour[0];
-      pigment[k + 1] = colour[1];
-      pigment[k + 2] = colour[2];
-      pigment[k + 3] = clamp01(w * 0.26 + rim + mottle) * 255;
+      img.data[k] = colour[0];
+      img.data[k + 1] = colour[1];
+      img.data[k + 2] = colour[2];
+      img.data[k + 3] = clamp01(w * 0.26 + rim + mottle) * 255;
     }
   }
-  for (let level = 0; level <= MAX_LEVEL; level++) {
-    const canvas = document.createElement("canvas");
-    canvas.width = canvas.height = side;
-    const ctx = canvas.getContext("2d");
-    if (ctx) {
-      const img = ctx.createImageData(side, side);
-      for (let t = 0; t < side * side; t++) {
-        if (levelOfTexel[t] !== level) continue;
-        img.data.set(pigment.subarray(t * 4, t * 4 + 4), t * 4);
-      }
-      ctx.putImageData(img, 0, 0);
-    }
-    washes.push(canvas);
-  }
-};
-
-const washTexture = (level: number): HTMLCanvasElement => {
-  if (washes.length === 0) buildWashes();
-  return washes[level];
+  ctx.putImageData(img, 0, 0);
+  return (wash = canvas);
 };
 
 /** The paper's tooth: speckle and a few fibres, laid over everything. */
@@ -260,27 +241,23 @@ const painter = (ctx: CanvasRenderingContext2D, scene: Scene) => {
         );
 
   /**
-   * The wash for one terrace level, in one draw. On the ground sheet the
-   * texture is already masked to that level's cells and nothing else is
-   * needed; a single cell redrawn over the walker is clipped to its diamond.
+   * The wash, as a fill rather than a draw: one pattern per terrace level,
+   * carrying the projection as its transform, so a cell's top is washed by
+   * filling it — no clip, and no way for the wash to land anywhere else.
    */
-  const paintWash = (level: number, only?: Position) => {
-    ctx.save();
-    if (only) {
-      ctx.beginPath();
-      path(diamond(cornersOf(at(only, level))));
-      ctx.clip();
+  const washes: (CanvasPattern | null)[] = [];
+  const washFor = (level: number): CanvasPattern | null => {
+    if (washes[level] !== undefined) return washes[level];
+    const pattern = ctx.createPattern(washTexture(), "no-repeat");
+    if (pattern) {
+      // Texture pixel (i, j) is the point WASH_ORIGIN + (i, j) / WASH_PER_CELL
+      // in cells; the projection is affine, so it is one matrix.
+      const o = at({ x: WASH_ORIGIN, y: WASH_ORIGIN }, level);
+      const a = tw / 2 / WASH_PER_CELL;
+      const b = th / 2 / WASH_PER_CELL;
+      pattern.setTransform(new DOMMatrix([a, b, -a, b, o.x, o.y]));
     }
-    // Texture pixel (i, j) is the point WASH_ORIGIN + (i, j) / WASH_PER_CELL
-    // in cells; the projection is affine, so it is one transform.
-    const o = at({ x: WASH_ORIGIN, y: WASH_ORIGIN }, level);
-    const a = tw / 2 / WASH_PER_CELL;
-    const b = th / 2 / WASH_PER_CELL;
-    const d = scene.dpr;
-    ctx.setTransform(a * d, b * d, -a * d, b * d, o.x * d, o.y * d);
-    ctx.imageSmoothingEnabled = true;
-    ctx.drawImage(washTexture(level), 0, 0);
-    ctx.restore();
+    return (washes[level] = pattern);
   };
 
   /** The seam between cells: drawn near the walker, gone further out. */
@@ -312,27 +289,30 @@ const painter = (ctx: CanvasRenderingContext2D, scene: Scene) => {
   };
 
   /**
-   * One terrace level's worth of ground: the cliffs below it, the paper, the
-   * wash, then the ink — water, seams, contours, grass, stones, flowers —
-   * each gathered into a handful of paths.
+   * One row of ground — cells sharing an x + y, which never overlap one
+   * another: the cliffs below them, the paper, the wash, then the ink —
+   * water, seams, contours, grass, stones, flowers — each gathered into a
+   * handful of paths. Shadows are gathered for the caller to lay down once
+   * the ground is finished, since they fall across the rows in front.
    */
-  const paintLayer = (cells: Position[], level: number, only?: Position) => {
+  const paintRow = (cells: Position[], shadows: Path2D) => {
     const fills = batch();
-    const hatching = new Path2D();
-    const ripples = new Path2D();
-    const banks = new Path2D();
+    // Created on first use: most rows need only a few of these.
+    const paths = new Map<string, Path2D>();
+    const P = (name: string) => {
+      let p = paths.get(name);
+      if (!p) paths.set(name, (p = new Path2D()));
+      return p;
+    };
+    const washed: Path2D[] = [];
     const seams = batch();
-    const contours = new Path2D();
     const grass = batch();
-    const stones = new Path2D();
-    const flowers = new Path2D();
-    const stipple = new Path2D();
-    const shadows = new Path2D();
     const fords: { c: Position; k: Corners }[] = [];
     const marked: { c: Position; k: Corners; s: Position }[] = [];
 
     for (const c of cells) {
       const g = groundAt(c);
+      const level = g.level;
       const s = at(c, level);
       const k = cornersOf(s);
       const top = topColour(c, g);
@@ -346,7 +326,7 @@ const painter = (ctx: CanvasRenderingContext2D, scene: Scene) => {
         polyTo(fills.get(rgb(shade(top, 0.78))), [k.R, k.B, down(k.B, drop), down(k.R, drop)]);
         for (let i = 1; i < 4; i++) {
           const p = { x: k.R.x + ((k.B.x - k.R.x) * i) / 4, y: k.R.y + ((k.B.y - k.R.y) * i) / 4 };
-          segmentTo(hatching, down(p, 2), down(p, drop - 2));
+          segmentTo(P("hatching"), down(p, 2), down(p, drop - 2));
         }
       }
       if (left < level) {
@@ -354,17 +334,18 @@ const painter = (ctx: CanvasRenderingContext2D, scene: Scene) => {
         polyTo(fills.get(rgb(shade(top, 0.88))), [k.L, k.B, down(k.B, drop), down(k.L, drop)]);
       }
       polyTo(fills.get(rgb(top)), diamond(k));
+      if (!water) polyTo((washed[level] ??= new Path2D()), diamond(k));
 
       if (water) {
         for (let i = 0; i < 2; i++) {
           const px = s.x + (cellNoise(c.x, c.y, 50 + i) - 0.5) * tw * 0.4;
           const py = s.y + (i - 0.5) * th * 0.35;
-          ripples.moveTo(px - tw * 0.1, py);
-          ripples.quadraticCurveTo(px, py - 2.5, px + tw * 0.1, py);
+          P("ripples").moveTo(px - tw * 0.1, py);
+          P("ripples").quadraticCurveTo(px, py - 2.5, px + tw * 0.1, py);
         }
         for (const [dx, dy, a, b] of EDGES) {
           const n = groundAt({ x: c.x + dx, y: c.y + dy });
-          if (n.obstacle !== "water" && !n.ford) segmentTo(banks, k[a], k[b]);
+          if (n.obstacle !== "water" && !n.ford) segmentTo(P("banks"), k[a], k[b]);
         }
         if (g.ford) fords.push({ c, k });
       } else {
@@ -374,7 +355,7 @@ const painter = (ctx: CanvasRenderingContext2D, scene: Scene) => {
 
       // The contour: a firm line along every edge that drops to lower ground.
       for (const [dx, dy, a, b] of EDGES) {
-        if (groundAt({ x: c.x + dx, y: c.y + dy }).level < level) segmentTo(contours, k[a], k[b]);
+        if (groundAt({ x: c.x + dx, y: c.y + dy }).level < level) segmentTo(P("contours"), k[a], k[b]);
       }
 
       if (!g.obstacle && !g.ford && !(c.x === 0 && c.y === 0)) {
@@ -413,8 +394,8 @@ const painter = (ctx: CanvasRenderingContext2D, scene: Scene) => {
             const r = tw * (0.035 + 0.03 * cellNoise(c.x, c.y, 83 + i));
             const ex = px + i * r * 1.6;
             const ey = py + (i % 2) * r * 0.6;
-            stones.moveTo(ex + r, ey);
-            stones.ellipse(ex, ey, r, r * 0.6, 0, 0, TAU);
+            P("stones").moveTo(ex + r, ey);
+            P("stones").ellipse(ex, ey, r, r * 0.6, 0, 0, TAU);
           }
         }
 
@@ -426,15 +407,15 @@ const painter = (ctx: CanvasRenderingContext2D, scene: Scene) => {
             const fx = px + (i - 1) * 4 * size;
             const fy = py - (2 + (i % 2) * 3) * size;
             segmentTo(grass.get(ink), { x: fx, y: fy + 4 * size }, { x: fx, y: fy });
-            flowers.moveTo(fx + 1.7 * size, fy);
-            flowers.arc(fx, fy, 1.7 * size, 0, TAU);
+            P("flowers").moveTo(fx + 1.7 * size, fy);
+            P("flowers").arc(fx, fy, 1.7 * size, 0, TAU);
           }
         }
 
         if (g.sand > 0.4) {
           for (let i = 0; i < 5; i++) {
             if (cellNoise(c.x, c.y, 100 + i) > g.sand * 0.8) continue;
-            stipple.rect(
+            P("stipple").rect(
               s.x + (cellNoise(c.x, c.y, 110 + i) - 0.5) * tw * 0.6,
               s.y + (cellNoise(c.x, c.y, 120 + i) - 0.5) * th * 0.5,
               1.2,
@@ -458,45 +439,63 @@ const painter = (ctx: CanvasRenderingContext2D, scene: Scene) => {
     fills.fill();
     ctx.strokeStyle = "rgba(95,98,96,.28)";
     ctx.lineWidth = 0.7;
-    ctx.stroke(hatching);
-    paintWash(level, only);
+    if (paths.has("hatching")) ctx.stroke(P("hatching"));
+    washed.forEach((p, level) => {
+      const pattern = washFor(level);
+      if (!pattern) return;
+      ctx.fillStyle = pattern;
+      ctx.fill(p);
+    });
 
     ctx.strokeStyle = RIPPLE;
     ctx.lineWidth = 1;
-    ctx.stroke(ripples);
+    if (paths.has("ripples")) ctx.stroke(P("ripples"));
     // Stepping stones, the one thing that says this water can be crossed.
     for (const { c, k } of fords) {
       for (let i = 0; i < 3; i++) {
         const u = (i + 0.5) / 3;
         const px = k.T.x + (k.B.x - k.T.x) * u + (cellNoise(c.x, c.y, 55 + i) - 0.5) * tw * 0.2;
         const py = k.T.y + (k.B.y - k.T.y) * u;
-        stones.moveTo(px + tw * 0.09, py);
-        stones.ellipse(px, py, tw * 0.09, th * 0.1, 0, 0, TAU);
+        P("stones").moveTo(px + tw * 0.09, py);
+        P("stones").ellipse(px, py, tw * 0.09, th * 0.1, 0, 0, TAU);
       }
     }
     ctx.strokeStyle = BANK;
     ctx.lineWidth = 1.3;
-    ctx.stroke(banks);
+    if (paths.has("banks")) ctx.stroke(P("banks"));
 
     seams.stroke(0.8);
     ctx.strokeStyle = "rgba(61,63,61,.75)";
     ctx.lineWidth = 1.2;
-    ctx.stroke(contours);
+    if (paths.has("contours")) ctx.stroke(P("contours"));
 
     grass.stroke(1);
     ctx.fillStyle = "#e7e7e3";
-    ctx.fill(stones);
+    if (paths.has("stones")) ctx.fill(P("stones"));
     ctx.strokeStyle = GRAPHITE;
     ctx.lineWidth = 0.8;
-    ctx.stroke(stones);
+    if (paths.has("stones")) ctx.stroke(P("stones"));
     ctx.fillStyle = BOARD.accent;
-    ctx.fill(flowers);
+    if (paths.has("flowers")) ctx.fill(P("flowers"));
     ctx.fillStyle = "rgba(150,128,90,.45)";
-    ctx.fill(stipple);
+    if (paths.has("stipple")) ctx.fill(P("stipple"));
 
     for (const { c, k, s } of marked) paintMarks(c, k, s);
-    ctx.fillStyle = "rgba(40,42,40,.11)";
-    ctx.fill(shadows);
+  };
+
+  /** Ground, back to front, a row at a time: the painter's algorithm. */
+  const paintRows = (cells: Position[]) => {
+    const shadows = new Path2D();
+    let row: Position[] = [];
+    for (const c of cells) {
+      if (row.length > 0 && c.x + c.y !== row[0].x + row[0].y) {
+        paintRow(row, shadows);
+        row = [];
+      }
+      row.push(c);
+    }
+    if (row.length > 0) paintRow(row, shadows);
+    return shadows;
   };
 
   const shadow = (x: number, y: number, rx: number, ry: number, alpha: number) => {
@@ -507,20 +506,34 @@ const painter = (ctx: CanvasRenderingContext2D, scene: Scene) => {
   };
 
   /**
-   * The ground, one terrace level at a time. In a height field higher ground
-   * only ever covers lower ground, never the other way round, so drawing the
-   * levels in order is a correct painter's algorithm — and it lets each
-   * level's wash go down in a single draw.
+   * The ground, strictly back to front. Drawing it a terrace level at a time
+   * looks equivalent and is not: a high cell's cliff drops past the cells
+   * diagonally in front of it, and one of those standing at an intermediate
+   * level has to cover the foot of that cliff. Only depth order gets it right.
    */
   const paintGround = () => {
-    for (let level = 0; level <= MAX_LEVEL; level++) {
-      paintLayer(
-        scene.cells.filter((c) => groundAt(c).level === level),
-        level
-      );
-    }
+    const shadows = paintRows(scene.cells);
+    // Nothing stands just in front of higher ground (see world.ts), so the
+    // shadows can go down over the finished ground without landing on a cliff.
+    ctx.fillStyle = "rgba(40,42,40,.11)";
+    ctx.fill(shadows);
     const feet = at(walker, heightAt(walker));
     shadow(feet.x + 2, feet.y + 1, tw * 0.16, th * 0.16, 0.16);
+  };
+
+  /**
+   * The ground in front of the walker, again, but only inside a box around
+   * them: whatever of it covers the walker has to be over the sprite, and
+   * redrawing every row in that box — not a hand-picked few cells — keeps it
+   * drawn in the same order, and so identical, to the sheet underneath.
+   */
+  const paintGroundWithin = (cells: Position[], box: { x: number; y: number; w: number; h: number }) => {
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(box.x, box.y, box.w, box.h);
+    ctx.clip();
+    paintRows(cells);
+    ctx.restore();
   };
 
   /* ---------- what stands on the ground ---------- */
@@ -666,8 +679,6 @@ const painter = (ctx: CanvasRenderingContext2D, scene: Scene) => {
    * over them: a terrace between you and the camera hides your feet, the way
    * a boulder does. Only the few cells right in front are worth it.
    */
-  const paintOccluder = (c: Position) => paintLayer([c], groundAt(c).level, c);
-
   const paintGrain = (mode: GlobalCompositeOperation) => {
     const pattern = ctx.createPattern(grainTexture(), "repeat");
     if (!pattern) return;
@@ -678,7 +689,7 @@ const painter = (ctx: CanvasRenderingContext2D, scene: Scene) => {
     ctx.restore();
   };
 
-  return { paintGround, paintObject, paintOccluder, paintGrain };
+  return { paintGround, paintGroundWithin, paintObject, paintGrain };
 };
 
 const begin = (canvas: HTMLCanvasElement, scene: Scene) => {
@@ -716,9 +727,6 @@ export const paintWorld = (behind: HTMLCanvasElement, front: HTMLCanvasElement, 
   };
   scene = { ...scene, cells: scene.cells.filter(onScreen) };
 
-  const standing = heightAt(scene.walker);
-  const here = { x: Math.round(scene.walker.x), y: Math.round(scene.walker.y) };
-
   const b = painter(back, scene);
   b.paintGround();
   for (const c of scene.cells) {
@@ -726,13 +734,34 @@ export const paintWorld = (behind: HTMLCanvasElement, front: HTMLCanvasElement, 
   }
   b.paintGrain("multiply");
 
+  /*
+   * The box the sprite can occupy: a frame as wide as a tile, standing on
+   * the walker's feet. Every cell in front of the walker whose ground — top
+   * or cliff — reaches into it is redrawn there.
+   */
+  const rise = th * LEVEL_RISE;
+  const feet = {
+    x: scene.origin.x + ((scene.walker.x - scene.walker.y) * tw) / 2,
+    y: scene.origin.y + ((scene.walker.x + scene.walker.y) * th) / 2 - heightAt(scene.walker) * rise,
+  };
+  const box = { x: feet.x - tw * 0.6, y: feet.y - tw * 1.1, w: tw * 1.2, h: tw * 1.1 + th * 0.6 };
+  const reaches = (c: Position) => {
+    const x = scene.origin.x + ((c.x - c.y) * tw) / 2;
+    const y = scene.origin.y + ((c.x + c.y) * th) / 2 - groundAt(c).level * rise;
+    return (
+      Math.abs(x - feet.x) < box.w / 2 + tw / 2 &&
+      y - th / 2 < box.y + box.h &&
+      y + th / 2 + MAX_LEVEL * rise > box.y
+    );
+  };
+
   const f = painter(fore, scene);
+  f.paintGroundWithin(
+    scene.cells.filter((c) => inFrontOf(c, scene.walker) && reaches(c)),
+    box
+  );
   for (const c of scene.cells) {
-    if (!inFrontOf(c, scene.walker)) continue;
-    const g = groundAt(c);
-    const near = Math.abs(c.x - here.x) + Math.abs(c.y - here.y) <= 3;
-    if (near && g.level > standing + 0.01) f.paintOccluder(c);
-    if (g.obstacle) f.paintObject(c);
+    if (groundAt(c).obstacle && inFrontOf(c, scene.walker)) f.paintObject(c);
   }
   // Only over what this sheet holds: everywhere else it would grain the
   // walker too, who is drawn on neither.
