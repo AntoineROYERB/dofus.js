@@ -1,6 +1,6 @@
-import React from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ExploreBoard } from "../explore/ExploreBoard";
+import { Daylight, ExploreBoard } from "../explore/ExploreBoard";
 import { readCharacter } from "../utils/characterStorage";
 
 /**
@@ -13,9 +13,29 @@ import { readCharacter } from "../utils/characterStorage";
  * going somewhere is the entire activity, and the board is allowed to be
  * bigger than the screen because that is what makes it somewhere.
  */
+/** Whether the world follows the player's clock is theirs to choose, and remembered. */
+const DAYLIGHT_KEY = "explore.daylight";
+const readDaylight = (): Daylight => {
+  try {
+    return localStorage.getItem(DAYLIGHT_KEY) === "clock" ? "clock" : "day";
+  } catch {
+    return "day";
+  }
+};
+
 const ExplorePage: React.FC = () => {
   const navigate = useNavigate();
   const character = readCharacter();
+  const [daylight, setDaylight] = useState<Daylight>(readDaylight);
+  const toggleDaylight = () => {
+    const next: Daylight = daylight === "day" ? "clock" : "day";
+    setDaylight(next);
+    try {
+      localStorage.setItem(DAYLIGHT_KEY, next);
+    } catch {
+      // A private window: the choice lasts as long as the page.
+    }
+  };
 
   return (
     <div className="flex h-[100dvh] flex-col overflow-hidden bg-paper text-ink">
@@ -30,6 +50,14 @@ const ExplorePage: React.FC = () => {
           </span>
           <button
             type="button"
+            onClick={toggleDaylight}
+            aria-pressed={daylight === "clock"}
+            className="font-mono text-[9.5px] uppercase tracking-label text-muted transition-colors hover:text-vermilion"
+          >
+            {daylight === "clock" ? "Time: your clock" : "Time: always day"}
+          </button>
+          <button
+            type="button"
             onClick={() => navigate("/lobby")}
             className="font-mono text-[9.5px] uppercase tracking-label text-muted transition-colors hover:text-vermilion"
           >
@@ -39,7 +67,7 @@ const ExplorePage: React.FC = () => {
       </div>
 
       <div className="relative min-h-0 flex-1">
-        <ExploreBoard color={character?.color} />
+        <ExploreBoard color={character?.color} daylight={daylight} />
       </div>
     </div>
   );

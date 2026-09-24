@@ -1,13 +1,18 @@
 import {
+  BOSSES,
   canStep,
   findPath,
   groundAt,
   heightAt,
   inWorld,
   isRock,
+  lairOf,
   levelOf,
+  LINEAGES,
   MAX_LEVEL,
   neighbours,
+  regionAt,
+  RING,
   SPAWN,
   walkable,
   WORLD_RADIUS,
@@ -249,5 +254,55 @@ describe("the world as a whole", () => {
       }
     }
     expect(seen.size).toBe(everyCell().filter(walkable).length);
+  });
+});
+
+describe("regions", () => {
+  it("begin in the Prairie, around the spawn", () => {
+    expect(regionAt(SPAWN)).toBe("prairie");
+    expect(groundAt(SPAWN).region).toBe("prairie");
+  });
+
+  it("give every boss of the ring a region of its own", () => {
+    const seen = new Set(everyCell().map((c) => groundAt(c).region));
+    for (const r of RING) expect(seen.has(r)).toBe(true);
+  });
+
+  // A boss has to be reachable, or its region is scenery around a locked door.
+  it("put each boss in its lair, with a way to walk up to it", () => {
+    const reached = new Set([`${SPAWN.x},${SPAWN.y}`]);
+    const queue = [SPAWN];
+    while (queue.length > 0) {
+      for (const n of neighbours(queue.shift() as Position)) {
+        const k = `${n.x},${n.y}`;
+        if (!reached.has(k)) {
+          reached.add(k);
+          queue.push(n);
+        }
+      }
+    }
+    for (const r of RING) {
+      const lair = lairOf(r) as Position;
+      const g = groundAt(lair);
+      expect(g.boss).toBe(true);
+      expect(g.creature).toBe(BOSSES[r]);
+      expect(walkable(lair)).toBe(false);
+      const approach = [
+        { x: lair.x + 1, y: lair.y },
+        { x: lair.x - 1, y: lair.y },
+        { x: lair.x, y: lair.y + 1 },
+        { x: lair.x, y: lair.y - 1 },
+      ];
+      expect(approach.some((p) => reached.has(`${p.x},${p.y}`))).toBe(true);
+    }
+  });
+
+  it("people each region with its own lineage, and nobody walks through them", () => {
+    for (const c of everyCell()) {
+      const g = groundAt(c);
+      if (!g.creature || g.boss) continue;
+      expect(LINEAGES[g.region]).toContain(g.creature);
+      expect(walkable(c)).toBe(false);
+    }
   });
 });

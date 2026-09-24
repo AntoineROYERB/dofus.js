@@ -20,7 +20,7 @@ import { cellNoise, fbm, smoothstep, valueNoise } from "./noise";
  */
 
 /** Half the world's extent, in cells, along each axis. */
-export const WORLD_RADIUS = 24;
+export const WORLD_RADIUS = 32;
 
 /** Cells you are guaranteed to arrive in the middle of, rather than inside a rock. */
 const CLEARING = 3;
@@ -54,7 +54,57 @@ const inClearing = (p: Position): boolean => Math.abs(p.x) + Math.abs(p.y) <= CL
  * pocket nothing else could reach without standing tall enough to hide behind
  * a terrace.
  */
-export type Obstacle = "rock" | "tree" | "water" | "thicket";
+export type Obstacle = "rock" | "tree" | "water" | "thicket" | "creature";
+
+/**
+ * The world is cut into regions, one for each boss of the bestiary, around a
+ * Prairie in the middle where the walk begins. A region decides how its
+ * ground is drawn, what its liquid is, and which creatures live there.
+ */
+export type Region = "prairie" | "earth" | "water" | "ice" | "air" | "acid" | "fire";
+
+/** The ring of boss regions around the Prairie, in order round the compass. */
+export const RING: Region[] = ["earth", "water", "ice", "air", "acid", "fire"];
+
+/** Who lives where: sprite sheets of the bestiary, by region. */
+export const LINEAGES: Record<Region, string[]> = {
+  prairie: ["bouflaine", "bouflaine_2", "souchon", "souchon_2"],
+  earth: ["caillou", "caillou_2", "caillou_3"],
+  water: ["poulpinet", "poulpinet_2", "poulpinet_3"],
+  ice: ["givrelle", "givrelle_2", "givrelle_3"],
+  air: ["chauvolet", "chauvolet_2", "chauvolet_3"],
+  acid: ["gloop", "gloop_2", "gloop_3"],
+  fire: [],
+};
+
+/** The boss who rules each region, and where its lair is. */
+export const BOSSES: Partial<Record<Region, string>> = {
+  earth: "boss_monolithe",
+  water: "boss_kraken",
+  ice: "boss_coeur_hiver",
+  air: "boss_oeil_nuee",
+  acid: "boss_mere_gloop",
+  fire: "legend_roi_cendre",
+};
+
+const PRAIRIE_RADIUS = 11;
+const LAIR_RADIUS = 22;
+
+export const regionAt = (p: Position): Region => {
+  const d = Math.hypot(p.x, p.y) + (valueNoise(p.x, p.y, 5, 61) - 0.5) * 5;
+  if (d < PRAIRIE_RADIUS) return "prairie";
+  const a = Math.atan2(p.y, p.x) + (valueNoise(p.x, p.y, 7, 62) - 0.5) * 0.7;
+  const k = Math.round(((a + Math.PI) / (2 * Math.PI)) * 6);
+  return RING[((k % 6) + 6) % 6];
+};
+
+/** The lair of each boss: the middle of its sector of the ring. */
+export const lairOf = (r: Region): Position | null => {
+  const k = RING.indexOf(r);
+  if (k < 0) return null;
+  const a = (k / 6) * 2 * Math.PI - Math.PI;
+  return { x: Math.round(Math.cos(a) * LAIR_RADIUS), y: Math.round(Math.sin(a) * LAIR_RADIUS) };
+};
 
 export type Ground = {
   /** Terrace height, 0 to MAX_LEVEL. */
@@ -75,6 +125,10 @@ export type Ground = {
   /** How much of the cell is moss and how much sand, each 0 to 1. */
   moss: number;
   sand: number;
+  region: Region;
+  /** For a creature: the bestiary sheet it is drawn from, and whether it is the region's boss. */
+  creature: string | null;
+  boss: boolean;
 };
 
 export const MAX_LEVEL = 2;
@@ -261,9 +315,28 @@ const survey = (): Ground[] => {
   };
 
   const biome = all.map((p) => biomeAt(p.x, p.y));
+  const region = all.map(regionAt);
+  const lairs = RING.map((r) => lairOf(r) as Position);
+  const nearLair = (p: Position) => lairs.some((l) => Math.abs(l.x - p.x) + Math.abs(l.y - p.y) <= 2);
+  const creature: (string | null)[] = new Array(count).fill(null);
+  const boss = new Uint8Array(count);
   const obstacle: (Obstacle | null)[] = all.map((p, i) => {
     if (river[i]) return ford[i] ? null : "water";
-    if (inClearing(p) || behindHigherGround(p, level[i])) return null;
+    const lair = lairs.findIndex((l) => l.x === p.x && l.y === p.y);
+    if (lair >= 0) {
+      creature[i] = BOSSES[RING[lair]] ?? null;
+      boss[i] = 1;
+      return "creature";
+    }
+    if (inClearing(p) || nearLair(p) || behindHigherGround(p, level[i])) return null;
+    // Each boss region has its own still liquid: lagoons, acid, lava, ice.
+    if (region[i] !== "prairie" && region[i] !== "earth" && region[i] !== "air" && valueNoise(p.x, p.y, 4, 70 + RING.indexOf(region[i])) > 0.72) return "water";
+    // Creatures of the region's lineage, here and there, away from the spawn.
+    const kin = LINEAGES[region[i]];
+    if (kin.length > 0 && Math.hypot(p.x, p.y) > 6 && cellNoise(p.x, p.y, 500) < 0.024) {
+      creature[i] = kin[Math.floor(cellNoise(p.x, p.y, 501) * kin.length)];
+      return "creature";
+    }
     // Rocks gather on the sand and trees in the moss, so a region reads as
     // one kind of place instead of an even sprinkle of both.
     if (cellNoise(p.x, p.y) < ROCK_DENSITY + 0.05 * biome[i].sand) return "rock";
@@ -389,11 +462,12 @@ const survey = (): Ground[] => {
           const wall = plus(all[i], step);
           if (!inWorld(wall)) continue;
           const w = index(wall);
-          if (obstacle[w] !== "rock" && obstacle[w] !== "tree") continue;
+          if (obstacle[w] !== "rock" && obstacle[w] !== "tree" && !(obstacle[w] === "creature" && !boss[w])) continue;
           const beyond = plus(wall, step);
           if (!free(beyond) || !reached[index(beyond)]) continue;
           if (level[w] !== level[i] || level[index(beyond)] !== level[i]) continue;
           obstacle[w] = null;
+          creature[w] = null;
           cleared = true;
         }
       }
@@ -432,6 +506,9 @@ const survey = (): Ground[] => {
     path: path[i] === 1,
     moss: biome[i].moss,
     sand: biome[i].sand,
+    region: region[i],
+    creature: creature[i],
+    boss: boss[i] === 1,
   }));
 };
 
@@ -444,6 +521,9 @@ const OUTSIDE: Ground = {
   path: false,
   moss: 0,
   sand: 0,
+  region: "prairie",
+  creature: null,
+  boss: false,
 };
 
 export const groundAt = (p: Position): Ground =>

@@ -1,37 +1,50 @@
 import { Position } from "../types/game";
 import { BOARD } from "../constants";
-import { cellNoise, clamp01, valueNoise } from "./noise";
+import { Direction } from "../components/Game/SpriteAnimation";
+import { cellNoise, clamp01 } from "./noise";
 import { inFrontOf } from "./viewport";
-import { biomeAt, Ground, groundAt, heightAt, MAX_LEVEL, WORLD_RADIUS } from "./world";
+import { Ground, groundAt, heightAt, inWorld, MAX_LEVEL, Region } from "./world";
+import { artOf, creatureSheet, CREATURE_FEET, FRAMES, HERO_FEET, HERO_FRAME, heroSheet, ROWS } from "./sprites";
 
 /**
- * The world, drawn: paper with a grain, washes of moss and sand, ink for the
- * grass and the stones, faceted rocks and trees drawn by hand, terraces with
- * a contour line along their edge, and a river.
+ * The world, in pixel art.
  *
- * It is the "Composée" palette carried outdoors: paper, ink and graphite, a
- * wash where a fight would use none, and the vermilion kept for the rare
- * flower. Colour does almost nothing here that the line cannot, which keeps
- * the world recognisably the same object as the board you fight on.
+ * The bestiary's creatures and the hero are pixel art: 64-pixel frames, a
+ * one-pixel dark outline, short palettes, light from the upper left. The
+ * world is drawn the same way so that they live in it rather than on it. It
+ * is painted into a canvas at the art's own resolution — a cell is 64 pixels
+ * wide, exactly the width of a creature — then shown enlarged by a whole
+ * number without smoothing, so every pixel is a visible square.
  *
- * It is a canvas rather than a div per cell, for the reason the fight's
- * TerrainLayer is: a few hundred diamonds with grass on them, redrawn every
- * frame the camera moves, is a few milliseconds of canvas and a great deal of
- * layout for the DOM.
+ * Shapes are drawn with ordinary canvas paths and then snapped to the
+ * palette, which is what removes the blended edges a canvas would otherwise
+ * leave and gives the hard stair-stepped edges of hand-made pixel art. What
+ * stands on the ground — trees, rocks, obelisks, crystals — is drawn once
+ * per cell, snapped and outlined, and reused on every frame.
+ *
+ * Each region of the world is a boss's domain and takes its look from that
+ * boss: see world.ts for which region is whose.
  */
+
+/** A cell's width in pixels of art; its height is half that. */
+export const ART_TILE = 64;
 
 /** How far one terrace level lifts the ground, as a share of a tile's height. */
 export const LEVEL_RISE = 0.6;
 
-type Tile = { width: number; height: number };
-type RGB = [number, number, number];
+export type Phase = "day" | "dusk" | "night";
+
+/** The time of day at a given hour, for a world that follows the clock. */
+export const phaseAt = (hour: number): Phase =>
+  hour >= 7 && hour < 18 ? "day" : (hour >= 18 && hour < 21) || (hour >= 5 && hour < 7) ? "dusk" : "night";
 
 export type Scene = {
+  /** The canvas's size in screen pixels. */
   width: number;
   height: number;
-  dpr: number;
-  tile: Tile;
-  /** Where cell (0, 0) lands on the canvas at ground level, the camera's pan included. */
+  /** How many screen pixels one pixel of art takes. */
+  px: number;
+  /** Where cell (0, 0) lands on screen at ground level, the camera's pan included. */
   origin: Position;
   /** The cells worth drawing, back to front. */
   cells: Position[];
@@ -40,969 +53,867 @@ export type Scene = {
   hovered: Position | null;
   /** Cells the hovered walk would take, as "x,y". */
   route: Set<string>;
-  /** Seconds, for what moves on its own: the wind in the grass, the water. */
+  /** Seconds, for what moves on its own. */
   time: number;
+  phase: Phase;
+  hero: { pose: "idle" | "walk"; direction: Direction; color?: string };
 };
 
-/* ---------- palette ---------- */
+/* ---------- palettes, one per region, taken from its boss ---------- */
 
-const WHITE: RGB = [255, 255, 255];
-const WATER: RGB = [219, 232, 243];
-const RIPPLE = "rgba(111,150,205,.75)";
-const BANK = "rgba(61,90,140,.55)";
-const GRAPHITE = "rgba(95,98,96,.85)";
-const MOSS_INK = "rgba(72,98,70,.85)";
-const SAND_INK = "rgba(122,104,70,.85)";
-const LINE = "#3d3f3d";
-const STONE_DARK: RGB = [168, 170, 165];
-const STONE_LIGHT: RGB = [234, 234, 230];
-const LEAF: RGB = [236, 239, 232];
-const LEAF_MOSS: RGB = [212, 227, 198];
-const WASH_MOSS: RGB = [120, 160, 100];
-const WASH_SAND: RGB = [205, 170, 105];
-/** Terrace stone, for cliffs and the stairs cut into them alike. */
-const STONE_RIGHT: RGB = [218, 216, 210];
-const STONE_LEFT: RGB = [233, 231, 226];
+type Palette = {
+  ground: string[];
+  path: string;
+  stone: string[];
+  wood: string[];
+  leaves: string[];
+  pine: string[];
+  grass: string;
+  flowers: string[];
+  shadow: string;
+  earth: string[];
+  outline: string;
+  liquid: string[];
+  /** The region's own glow: magma, runes, crystals. */
+  accent: string;
+};
 
-const mix = (a: RGB, b: RGB, u: number): RGB => [
-  a[0] + (b[0] - a[0]) * u,
-  a[1] + (b[1] - a[1]) * u,
-  a[2] + (b[2] - a[2]) * u,
-];
-const shade = (c: RGB, k: number): RGB => [c[0] * k, c[1] * k, c[2] * k];
-const rgb = (c: RGB, a = 1) =>
-  `rgba(${Math.round(c[0])},${Math.round(c[1])},${Math.round(c[2])},${a})`;
+const PALETTES: Record<Region, Palette> = {
+  prairie: {
+    ground: ["#6ea552", "#80b85e", "#94c96c"], path: "#c2a676", stone: ["#7f7a72", "#9b958b", "#b8b1a4", "#d6cfc0"],
+    wood: ["#5e412a", "#86603e"], leaves: ["#3b7236", "#5a9e46", "#80c25a", "#a8dc78"], pine: ["#2c5a44", "#3e7a58", "#5d9c6c"],
+    grass: "#3f6e34", flowers: ["#e0564a", "#f2c94c", "#ffffff"], shadow: "#4f7e40", earth: ["#6a4a3a", "#8a6048"],
+    outline: "#1b201c", liquid: ["#2a6aa0", "#3a8ac0", "#5aaad8", "#b4e2f4"], accent: "#f2c94c",
+  },
+  earth: {
+    ground: ["#5a5654", "#666260", "#726e6a"], path: "#8a7a6a", stone: ["#2e2c30", "#45424a", "#5e5a62", "#7a7680"],
+    wood: ["#3a3230", "#544a44"], leaves: ["#4a5a3a", "#5e7044", "#76884e", "#92a05a"], pine: ["#34443a", "#44584a", "#5a705e"],
+    grass: "#4a5a40", flowers: ["#f0a040", "#e06a2a", "#ffd070"], shadow: "#403c3c", earth: ["#2a2628", "#3a3436"],
+    outline: "#120e10", liquid: ["#2a4a6a", "#36607e", "#4a7a96", "#9ab8c8"], accent: "#e2701e",
+  },
+  water: {
+    ground: ["#3a4656", "#445264", "#506072"], path: "#6a7a86", stone: ["#1e2a3e", "#2c3c54", "#3e526c", "#566e88"],
+    wood: ["#3a3a44", "#50505a"], leaves: ["#1e4a4a", "#28605c", "#347a70", "#4a9486"], pine: ["#1a3a44", "#244c56", "#306270"],
+    grass: "#2e5a5a", flowers: ["#5ae0e0", "#9af0f0", "#e0f8f8"], shadow: "#2a3444", earth: ["#1a2230", "#242e40"],
+    outline: "#070c14", liquid: ["#0c1e36", "#12304e", "#1c4a6a", "#5ae0e0"], accent: "#5ae0e0",
+  },
+  ice: {
+    ground: ["#e6eef6", "#eef4fa", "#f8fbfe"], path: "#c8d4e6", stone: ["#7a90b8", "#94aad0", "#b4c6e4", "#d4e0f2"],
+    wood: ["#5a5a6a", "#7a7a8a"], leaves: ["#8aa8d8", "#a8c2e8", "#c8daf4", "#eef4fc"], pine: ["#3a5a86", "#4e70a0", "#6a8cbc"],
+    grass: "#a8bcd8", flowers: ["#8ab4f0", "#ffffff", "#c6dcfa"], shadow: "#c0cee4", earth: ["#4a5a7a", "#627496"],
+    outline: "#16223a", liquid: ["#8ab4e0", "#a8ccee", "#c6e0f6", "#eef6fe"], accent: "#8ab4f0",
+  },
+  air: {
+    ground: ["#4a3a52", "#56445e", "#62506a"], path: "#7a6a82", stone: ["#2e2436", "#42344c", "#584866", "#72607e"],
+    wood: ["#2a1e28", "#3e2c38"], leaves: ["#3a2a44", "#4a3656", "#5c4468", "#72567e"], pine: ["#2a2234", "#3a2e46", "#4c3e5a"],
+    grass: "#6a5474", flowers: ["#e0306a", "#ff6a9a", "#c38ff0"], shadow: "#2e2436", earth: ["#241a2a", "#342638"],
+    outline: "#0c0810", liquid: ["#2a2a5a", "#3a3a72", "#4e4e8a", "#a0a0e0"], accent: "#e03aa0",
+  },
+  acid: {
+    ground: ["#2e4a2a", "#385632", "#42623a"], path: "#5a5a32", stone: ["#2a3426", "#3a4834", "#4e5e44", "#667a58"],
+    wood: ["#2a2418", "#403624"], leaves: ["#2a4a22", "#38602a", "#4a7a34", "#62943e"], pine: ["#1e3a26", "#284a30", "#365e3c"],
+    grass: "#1e3a1a", flowers: ["#e6c040", "#9ce04a", "#c4f26a"], shadow: "#22361e", earth: ["#22261a", "#2e3424"],
+    outline: "#0a100a", liquid: ["#2e6a14", "#4e9a1e", "#7ec82e", "#c4f26a"], accent: "#9ce04a",
+  },
+  fire: {
+    ground: ["#3a3238", "#463c42", "#52464c"], path: "#5a4a4a", stone: ["#2e2a32", "#423c46", "#58505c", "#706874"],
+    wood: ["#2a2226", "#403438"], leaves: ["#3a3036", "#4a3c40", "#5a4a4e", "#6a585a"], pine: ["#2a2e30", "#383e40", "#4a5254"],
+    grass: "#6a5a50", flowers: ["#e2521d", "#ffb03a", "#8c2d4c"], shadow: "#241e24", earth: ["#2a2024", "#3a2c30"],
+    outline: "#0e0b10", liquid: ["#8a1e10", "#c8401a", "#e2701e", "#ffc04a"], accent: "#ffb03a",
+  },
+};
 
-const TAU = Math.PI * 2;
-const key = (p: Position) => `${p.x},${p.y}`;
+/** Liquids that give their own light keep their colour at any hour. */
+const GLOWING_LIQUID: Partial<Record<Region, boolean>> = { fire: true, acid: true };
 
-/* ---------- textures, made once ---------- */
+const SKY: Record<Phase, string[]> = {
+  day: ["#7fb8e6", "#95c6ec", "#aad3f0", "#c0def2", "#d6e9f4", "#e8f2f6"],
+  dusk: ["#2c2455", "#4a2f6c", "#8a4478", "#c8607a", "#f09a6a", "#f6c46a"],
+  night: ["#0a0c1e", "#0e1228", "#141a34", "#1a2240", "#222b4c", "#2a3456"],
+};
+const CLOUD: Record<Phase, string[]> = { day: ["#ffffff", "#e8f2f8"], dusk: ["#f4c4b8", "#fbe0d4"], night: ["#2e3858", "#3a4668"] };
+
+const hex = (h: string): number[] => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+const toHex = (c: number[]) =>
+  "#" + c.map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, "0")).join("");
+const mix = (a: number[], b: number[], u: number) => a.map((v, i) => v + (b[i] - v) * u);
 
 /**
- * The moss and sand, painted once over the whole world in cell space and laid
- * onto the ground with the projection as its transform. Sampled at a fraction
- * of a cell, it runs across cell edges the way a wash does instead of filling
- * the grid square by square, with a darker rim where the pigment dried.
+ * Dusk and night are worked out from the day, the same way for every region,
+ * so the whole world changes hour together and each region stays itself.
  */
-const WASH_PER_CELL = 6;
-const WASH_ORIGIN = -WORLD_RADIUS - 1.5;
-let wash: HTMLCanvasElement | null = null;
-
-const washTexture = (): HTMLCanvasElement => {
-  if (wash) return wash;
-  const side = (WORLD_RADIUS * 2 + 3) * WASH_PER_CELL;
-  const canvas = document.createElement("canvas");
-  canvas.width = canvas.height = side;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return (wash = canvas);
-  const img = ctx.createImageData(side, side);
-  for (let j = 0; j < side; j++) {
-    for (let i = 0; i < side; i++) {
-      const X = WASH_ORIGIN + (i + 0.5) / WASH_PER_CELL;
-      const Y = WASH_ORIGIN + (j + 0.5) / WASH_PER_CELL;
-      const wobble = (valueNoise(X, Y, 1.1, 17) - 0.5) * 0.25;
-      const { moss, sand } = biomeAt(X + wobble, Y - wobble);
-      const w = Math.max(moss, sand);
-      if (w < 0.01) continue;
-      const colour = moss > sand ? WASH_MOSS : WASH_SAND;
-      const rim = Math.exp(-(((w - 0.5) / 0.1) ** 2)) * 0.12;
-      const mottle = (valueNoise(X, Y, 0.7, 23) - 0.5) * 0.08 * w;
-      const k = (j * side + i) * 4;
-      img.data[k] = colour[0];
-      img.data[k + 1] = colour[1];
-      img.data[k + 2] = colour[2];
-      img.data[k + 3] = clamp01(w * 0.26 + rim + mottle) * 255;
-    }
-  }
-  ctx.putImageData(img, 0, 0);
-  return (wash = canvas);
+const shift = (c: string, phase: Phase): string => {
+  if (phase === "day") return c;
+  const v = hex(c);
+  if (phase === "dusk") return toHex(mix([v[0] * 0.92, v[1] * 0.82, v[2] * 0.88], [214, 120, 110], 0.08));
+  return toHex(mix([v[0] * 0.5, v[1] * 0.55, v[2] * 0.7], [22, 26, 62], 0.2));
 };
 
-/** The paper's tooth: speckle and a few fibres, laid over everything. */
-let grain: HTMLCanvasElement | null = null;
+const phased = new Map<string, Palette>();
+const paletteOf = (region: Region, phase: Phase): Palette => {
+  const key = `${region}:${phase}`;
+  let p = phased.get(key);
+  if (!p) {
+    const base = PALETTES[region];
+    const s = (c: string) => shift(c, phase);
+    p = {
+      ground: base.ground.map(s), path: s(base.path), stone: base.stone.map(s), wood: base.wood.map(s),
+      leaves: base.leaves.map(s), pine: base.pine.map(s), grass: s(base.grass), flowers: base.flowers.map(s),
+      shadow: s(base.shadow), earth: base.earth.map(s),
+      liquid: GLOWING_LIQUID[region] ? base.liquid : base.liquid.map(s),
+      accent: base.accent, outline: base.outline,
+    };
+    phased.set(key, p);
+  }
+  return p;
+};
 
-const grainTexture = (): HTMLCanvasElement => {
-  if (grain) return grain;
-  const size = 220;
+/** Every colour the world may use at an hour: what the snapping snaps to. */
+const EXTRA = ["#ece4d6", "#c38ff0", "#9ce04a", "#f6f8fc", "#e6c040", "#ff2a2a", "#4a78d0", "#8ab4f0", "#c6dcfa", "#fff0a8"];
+const snapPalettes = new Map<Phase, { colours: number[][]; memo: Int16Array }>();
+const snapPaletteOf = (phase: Phase) => {
+  let s = snapPalettes.get(phase);
+  if (!s) {
+    const all = new Set<string>([...SKY[phase], ...CLOUD[phase], ...EXTRA]);
+    for (const r of Object.keys(PALETTES) as Region[]) {
+      const p = paletteOf(r, phase);
+      [...p.ground, p.path, ...p.stone, ...p.wood, ...p.leaves, ...p.pine, p.grass, ...p.flowers, p.shadow, ...p.earth, p.outline, ...p.liquid, p.accent].forEach((c) => all.add(c));
+    }
+    // A colour, at 6 bits a channel, remembers which palette entry it snapped to.
+    s = { colours: [...all].map(hex), memo: new Int16Array(1 << 18).fill(-1) };
+    snapPalettes.set(phase, s);
+  }
+  return s;
+};
+
+/** Snap every pixel to the palette: no blend survives, as in hand-made pixel art. */
+const snap = (ctx: CanvasRenderingContext2D, w: number, h: number, phase: Phase, x = 0, y = 0) => {
+  const { colours, memo } = snapPaletteOf(phase);
+  x = Math.max(0, Math.floor(x));
+  y = Math.max(0, Math.floor(y));
+  w = Math.min(ctx.canvas.width - x, Math.ceil(w));
+  h = Math.min(ctx.canvas.height - y, Math.ceil(h));
+  if (w <= 0 || h <= 0) return;
+  const img = ctx.getImageData(x, y, w, h);
+  // Read four channels at once, and reuse the answer across runs of one
+  // colour, which is most of any row: the ground is flat colour with edges.
+  const px32 = new Uint32Array(img.data.buffer);
+  let lastIn = -1;
+  let lastOut = 0;
+  for (let i = 0; i < px32.length; i++) {
+    const v = px32[i];
+    if (v === lastIn) {
+      px32[i] = lastOut;
+      continue;
+    }
+    lastIn = v;
+    const a = v >>> 24;
+    if (a < 110) {
+      lastOut = 0;
+      px32[i] = 0;
+      continue;
+    }
+    const r = v & 255, gg = (v >>> 8) & 255, b = (v >>> 16) & 255;
+    const key = ((r >> 2) << 12) | ((gg >> 2) << 6) | (b >> 2);
+    let best = memo[key];
+    if (best < 0) {
+      let bd = Infinity;
+      best = 0;
+      for (let k = 0; k < colours.length; k++) {
+        const c = colours[k];
+        const dr = c[0] - r, dg = c[1] - gg, db = c[2] - b;
+        const dd = dr * dr * 0.3 + dg * dg * 0.59 + db * db * 0.11;
+        if (dd < bd) {
+          bd = dd;
+          best = k;
+        }
+      }
+      memo[key] = best;
+    }
+    const c = colours[best];
+    lastOut = (255 << 24) | (c[2] << 16) | (c[1] << 8) | c[0];
+    px32[i] = lastOut;
+  }
+  ctx.putImageData(img, x, y);
+};
+
+/** A one-pixel dark outline around whatever is drawn on a canvas. */
+const outlined = (source: HTMLCanvasElement, colour: string): HTMLCanvasElement => {
+  const w = source.width, h = source.height;
+  const sil = document.createElement("canvas");
+  sil.width = w;
+  sil.height = h;
+  const s = sil.getContext("2d") as CanvasRenderingContext2D;
+  s.drawImage(source, 0, 0);
+  s.globalCompositeOperation = "source-in";
+  s.fillStyle = colour;
+  s.fillRect(0, 0, w, h);
+  const out = document.createElement("canvas");
+  out.width = w;
+  out.height = h;
+  const o = out.getContext("2d") as CanvasRenderingContext2D;
+  for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) o.drawImage(sil, dx, dy);
+  o.drawImage(source, 0, 0);
+  return out;
+};
+
+/* ---------- drawing helpers, in pixels of art ---------- */
+
+type Ctx = CanvasRenderingContext2D;
+const TAU = Math.PI * 2;
+const LIGHT = -Math.PI * 0.75;
+const TW = ART_TILE;
+const TH = ART_TILE / 2;
+const RISE = TH * LEVEL_RISE;
+
+const poly = (g: Ctx, pts: Position[]) => {
+  g.beginPath();
+  g.moveTo(pts[0].x, pts[0].y);
+  for (let i = 1; i < pts.length; i++) g.lineTo(pts[i].x, pts[i].y);
+  g.closePath();
+};
+const fill = (g: Ctx, pts: Position[], colour: string, stroke?: string) => {
+  poly(g, pts);
+  g.fillStyle = colour;
+  g.fill();
+  if (stroke) {
+    g.strokeStyle = stroke;
+    g.lineWidth = 1;
+    g.stroke();
+  }
+};
+const lerp = (a: Position, b: Position, u: number): Position => ({ x: a.x + (b.x - a.x) * u, y: a.y + (b.y - a.y) * u });
+const quad = (q: Position[], u: number, v: number) => lerp(lerp(q[0], q[1], u), lerp(q[3], q[2], u), v);
+
+/** The level a cell's ground is drawn at: a stair's floor is the level below. */
+const floorOf = (p: Position): number => {
+  if (!inWorld(p)) return -99;
+  const g = groundAt(p);
+  return g.level - (g.stair ? 1 : 0);
+};
+
+/* ---------- what stands on the ground, drawn once per cell ---------- */
+
+type Standing = { canvas: HTMLCanvasElement; ax: number; ay: number; glow: { x: number; y: number; c: string }[] };
+const standingCache = new Map<string, Standing>();
+const BOX_W = 112;
+const BOX_H = 176;
+
+const gem = (g: Ctx, cx: number, cy: number, r: number, seed: number, tones: string[]) => {
+  const n = 8, a0 = cellNoise(seed, 1, 3) * 0.6, outer: { x: number; y: number; a: number }[] = [];
+  for (let i = 0; i < n; i++) {
+    const a = a0 + (i / n) * TAU, k = 0.86 + 0.24 * cellNoise(seed, i, 4);
+    outer.push({ x: cx + Math.cos(a) * r * k, y: cy + Math.sin(a) * r * k * 0.92, a });
+  }
+  const apex = { x: cx - r * 0.22, y: cy - r * 0.28 };
+  for (let i = 0; i < n; i++) {
+    const t = clamp01(0.5 + 0.5 * Math.cos(outer[i].a + Math.PI / n - LIGHT));
+    fill(g, [apex, outer[i], outer[(i + 1) % n]], tones[Math.min(3, Math.floor(t * 3.99))]);
+  }
+};
+const trunk = (g: Ctx, s: Position, topY: number, w: number, P: Palette) => {
+  fill(g, [{ x: s.x - w, y: s.y }, { x: s.x + w, y: s.y }, { x: s.x + w * 0.6, y: topY }, { x: s.x - w * 0.6, y: topY }], P.wood[1]);
+  fill(g, [{ x: s.x, y: s.y }, { x: s.x + w, y: s.y }, { x: s.x + w * 0.6, y: topY }, { x: s.x, y: topY }], P.wood[0]);
+};
+const tiers = (g: Ctx, s: Position, P: Palette, snow: boolean) => {
+  trunk(g, s, s.y - TH * 0.45, TW * 0.03, P);
+  const w0 = TW * 0.27, h0 = TH * 0.95;
+  for (let t = 0; t < 3; t++) {
+    const by = s.y - TH * 0.35 - t * h0 * 0.5, ww = w0 * (1 - t * 0.24), top = by - h0 * 0.55;
+    fill(g, [{ x: s.x - ww, y: by }, { x: s.x, y: by + ww * 0.35 }, { x: s.x, y: top + ww * 0.16 }, { x: s.x - ww * 0.45, y: top }], P.pine[2]);
+    fill(g, [{ x: s.x, y: by + ww * 0.35 }, { x: s.x + ww, y: by }, { x: s.x + ww * 0.45, y: top }, { x: s.x, y: top + ww * 0.16 }], P.pine[0]);
+    fill(g, [{ x: s.x - ww * 0.45, y: top }, { x: s.x, y: top - ww * 0.16 }, { x: s.x + ww * 0.45, y: top }, { x: s.x, y: top + ww * 0.16 }], snow ? "#f6f8fc" : P.pine[1]);
+  }
+};
+const boulder = (g: Ctx, s: Position, seed: number, P: Palette) => {
+  const n = 7, rx = TW * 0.3, ry = rx * 0.52, hh = TH * (0.45 + cellNoise(seed, 2, 12) * 0.35), a0 = cellNoise(seed, 3, 13) * TAU;
+  const base: Position[] = [], crown: Position[] = [];
+  for (let i = 0; i < n; i++) {
+    const a = a0 + (i / n) * TAU, r = 1 + (cellNoise(seed, i, 20) - 0.5) * 0.3;
+    base.push({ x: s.x + Math.cos(a) * rx * r, y: s.y + Math.sin(a) * ry * r });
+    crown.push({ x: s.x + Math.cos(a) * rx * r * 0.6, y: s.y - hh + Math.sin(a) * ry * r * 0.6 });
+  }
+  const facets: { i: number; j: number; am: number }[] = [];
+  for (let i = 0; i < n; i++) {
+    const am = a0 + ((i + 0.5) / n) * TAU;
+    if (Math.sin(am) >= -0.35) facets.push({ i, j: (i + 1) % n, am });
+  }
+  facets.sort((a, b) => Math.sin(a.am) - Math.sin(b.am));
+  for (const f of facets) {
+    const t = clamp01(0.5 - 0.55 * Math.cos(f.am + 0.5));
+    fill(g, [base[f.i], base[f.j], crown[f.j], crown[f.i]], P.stone[Math.min(3, Math.floor(t * 3.2))]);
+  }
+  fill(g, crown, P.stone[3]);
+};
+const branches = (g: Ctx, s: Position, P: Palette, bend: number, thorns: boolean) => {
+  const branch = (x0: number, y0: number, a: number, len: number, w: number, d: number) => {
+    const x1 = x0 + Math.cos(a) * len, y1 = y0 + Math.sin(a) * len;
+    g.strokeStyle = d ? P.wood[1] : P.wood[0];
+    g.lineWidth = Math.max(1, w);
+    g.beginPath();
+    g.moveTo(x0, y0);
+    g.lineTo(x1, y1);
+    g.stroke();
+    if (thorns) {
+      g.fillStyle = P.wood[1];
+      g.fillRect(Math.round((x0 + x1) / 2) + 1, Math.round((y0 + y1) / 2) - 1, 2, 1);
+    }
+    if (d < 3) for (let k = 0; k < 2; k++) branch(x1, y1, a + (k ? 0.6 : -0.65) + bend, len * 0.64, w * 0.6, d + 1);
+  };
+  branch(s.x, s.y, -Math.PI / 2 + bend, TH * 0.95, TW * 0.055, 0);
+};
+const pillar = (g: Ctx, s: Position, hh: number, r: number, lit: string, dark: string) => {
+  fill(g, [{ x: s.x - r, y: s.y }, { x: s.x, y: s.y + r * 0.5 }, { x: s.x, y: s.y - hh }, { x: s.x - r * 0.7, y: s.y - hh * 0.9 }], lit);
+  fill(g, [{ x: s.x, y: s.y + r * 0.5 }, { x: s.x + r, y: s.y }, { x: s.x + r * 0.7, y: s.y - hh * 0.9 }, { x: s.x, y: s.y - hh }], dark);
+};
+
+/**
+ * One cell's standing thing — its tree, its rock — in the look of its region:
+ * a prairie tree is a crown of faceted leaves, the Monolith's is an obelisk
+ * veined with magma, the Winter Heart's a cluster of crystals.
+ */
+const standingOf = (c: Position, gr: Ground, phase: Phase): Standing => {
+  const key = `${c.x},${c.y}:${phase}`;
+  const hit = standingCache.get(key);
+  if (hit) return hit;
   const canvas = document.createElement("canvas");
-  canvas.width = canvas.height = size;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return (grain = canvas);
-  let seed = 7;
-  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-  const img = ctx.createImageData(size, size);
-  for (let k = 0; k < img.data.length; k += 4) {
-    const v = 150 + rnd() * 80;
-    img.data[k] = v;
-    img.data[k + 1] = v;
-    img.data[k + 2] = v - 4;
-    img.data[k + 3] = rnd() < 0.55 ? rnd() * 34 : 0;
+  canvas.width = BOX_W;
+  canvas.height = BOX_H;
+  const g = canvas.getContext("2d", { willReadFrequently: true }) as Ctx;
+  g.lineCap = "round";
+  g.lineJoin = "round";
+  const s = { x: BOX_W / 2, y: BOX_H - 24 };
+  const P = paletteOf(gr.region, phase);
+  const seed = c.x * 131 + c.y * 17;
+  const alt = cellNoise(c.x, c.y, 15) >= 0.55;
+  const glow: Standing["glow"] = [];
+
+  if (gr.obstacle === "rock") {
+    if (gr.region === "acid" && cellNoise(c.x, c.y, 16) < 0.4) {
+      // A sword of someone who faced the Mother Gloop, rusting where it fell.
+      const tilt = (cellNoise(c.x, c.y, 2) - 0.5) * 6;
+      g.fillStyle = P.stone[3];
+      for (let t = 0; t < 18; t++) g.fillRect(Math.round(s.x + (tilt * t) / 18), s.y - t, 2, 1);
+      g.fillStyle = P.wood[1];
+      g.fillRect(Math.round(s.x + tilt) - 4, s.y - 19, 10, 2);
+      g.fillStyle = "#e6c040";
+      g.fillRect(Math.round(s.x + tilt), s.y - 24, 2, 5);
+    } else {
+      boulder(g, s, seed, P);
+      if (gr.region === "earth") {
+        g.fillStyle = P.accent;
+        for (let t = 0; t < 5; t++) g.fillRect(s.x - 4 + t, s.y - 8 - (t % 2), 1, 1);
+        glow.push({ x: s.x, y: s.y - 8, c: P.accent });
+      }
+    }
+  } else if (gr.obstacle === "tree") {
+    switch (gr.region) {
+      case "prairie":
+        if (alt) tiers(g, s, P, false);
+        else {
+          const r = TW * 0.34, cy = s.y - TH * 1.3;
+          trunk(g, s, cy + r * 0.4, TW * 0.05, P);
+          const lobes = [[-0.52, -0.42, 0.56], [0.5, -0.46, 0.54], [0, -0.78, 0.52], [0, -0.12, 0.72], [-0.62, 0.14, 0.5], [0.62, 0.18, 0.48], [0.02, 0.36, 0.5]];
+          lobes.forEach(([dx, dy, k], i) => gem(g, s.x + dx * r, cy + dy * r, k * r, seed + i, P.leaves));
+        }
+        break;
+      case "earth": {
+        // The Monolith's obelisks, veined with its magma.
+        const hh = TH * 2 * (0.85 + cellNoise(c.x, c.y, 9) * 0.3);
+        pillar(g, s, hh, TW * 0.13, P.stone[2], P.stone[0]);
+        g.fillStyle = P.accent;
+        for (let t = 0; t < 6; t++) g.fillRect(Math.round(s.x + 2 + (t % 2)), Math.round(s.y - hh * 0.2 - (t * hh) / 10), 1, 2);
+        glow.push({ x: s.x + 2, y: s.y - hh * 0.4, c: P.accent });
+        break;
+      }
+      case "water":
+        if (alt) {
+          // A rune stone of the Kraken's, lit cyan.
+          const hh = TH * 1.3;
+          pillar(g, s, hh, TW * 0.13, P.stone[2], P.stone[0]);
+          g.fillStyle = P.accent;
+          g.fillRect(s.x - 5, Math.round(s.y - hh * 0.6), 3, 1);
+          g.fillRect(s.x - 4, Math.round(s.y - hh * 0.6), 1, 4);
+          g.fillRect(s.x - 6, Math.round(s.y - hh * 0.4), 4, 1);
+          glow.push({ x: s.x - 3, y: s.y - hh * 0.5, c: P.accent });
+        } else {
+          g.fillStyle = P.leaves[2];
+          for (let k = 0; k < 5; k++) for (let t = 0; t < 16 + k * 3; t++) g.fillRect(s.x - 8 + k * 4 + Math.round(Math.sin(t * 0.5 + k) * 1.5), s.y - t, 1, 1);
+        }
+        break;
+      case "ice":
+        if (alt) tiers(g, s, P, true);
+        else {
+          for (let k = 0; k < 5; k++) {
+            const x0 = s.x + (k - 2) * 5, hh = 10 + cellNoise(seed, k, 4) * 16, lean = (k - 2) * 2;
+            fill(g, [{ x: x0 - 3, y: s.y }, { x: x0, y: s.y }, { x: x0 + lean, y: s.y - hh }, { x: x0 - 3 + lean, y: s.y - hh + 4 }], "#c6dcfa");
+            fill(g, [{ x: x0, y: s.y }, { x: x0 + 3, y: s.y }, { x: x0 + 3 + lean, y: s.y - hh + 4 }, { x: x0 + lean, y: s.y - hh }], "#4a78d0");
+          }
+          glow.push({ x: s.x, y: s.y - 12, c: "#8ab4f0" });
+        }
+        break;
+      case "air":
+        if (alt) pillar(g, s, TH * 2.6, TW * 0.12, P.stone[2], P.stone[0]);
+        else {
+          branches(g, s, P, 0, true);
+          glow.push({ x: s.x + 4, y: s.y - TH * 0.6, c: "#ff2a2a" });
+        }
+        break;
+      case "acid":
+        if (alt) {
+          for (let k = 0; k < 3; k++) {
+            const x0 = s.x + (k - 1) * 7, hh = 6 + Math.round(cellNoise(c.x, k, 2) * 5), r = 5 + Math.round(cellNoise(c.y, k, 3) * 2);
+            g.fillStyle = "#ece4d6";
+            g.fillRect(x0 - 1, s.y - hh, 2, hh);
+            g.fillStyle = k % 2 ? "#c38ff0" : "#9ce04a";
+            g.beginPath();
+            g.ellipse(x0, s.y - hh, r, r * 0.6, 0, Math.PI, TAU);
+            g.closePath();
+            g.fill();
+          }
+          glow.push({ x: s.x, y: s.y - 8, c: "#9ce04a" });
+        } else {
+          branches(g, s, P, 0.25, false);
+          g.fillStyle = P.leaves[1];
+          for (let k = 0; k < 8; k++) g.fillRect(Math.round(s.x - 14 + cellNoise(k, c.x, 5) * 30), Math.round(s.y - TH * 1.3 + cellNoise(k, c.y, 6) * 14), 2, 5 + Math.round(cellNoise(k, 3, 5) * 5));
+        }
+        break;
+      case "fire":
+        if (alt) pillar(g, s, TH * 1.5, TW * 0.14, P.stone[1], P.stone[0]);
+        else branches(g, s, P, 0, false);
+        break;
+    }
   }
-  ctx.putImageData(img, 0, 0);
-  ctx.lineCap = "round";
-  ctx.lineWidth = 0.6;
-  for (let n = 0; n < 70; n++) {
-    const x = rnd() * size;
-    const y = rnd() * size;
-    const a = rnd() * TAU;
-    const l = 4 + rnd() * 12;
-    ctx.strokeStyle = `rgba(120,118,110,${0.08 + rnd() * 0.12})`;
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-    ctx.quadraticCurveTo(
-      x + Math.cos(a + 0.6) * l * 0.5,
-      y + Math.sin(a + 0.6) * l * 0.5,
-      x + Math.cos(a) * l,
-      y + Math.sin(a) * l
-    );
-    ctx.stroke();
-  }
-  return (grain = canvas);
+
+  snap(g, BOX_W, BOX_H, phase);
+  const standing = { canvas: outlined(canvas, P.outline), ax: s.x, ay: s.y, glow };
+  standingCache.set(key, standing);
+  return standing;
 };
 
 /* ---------- the painter ---------- */
 
-type Corners = { T: Position; R: Position; B: Position; L: Position };
-
-/** Which side of a diamond faces which neighbour. */
-const EDGES: [number, number, keyof Corners, keyof Corners][] = [
-  [1, 0, "R", "B"],
-  [0, 1, "L", "B"],
-  [-1, 0, "L", "T"],
-  [0, -1, "T", "R"],
-];
-
-const painter = (ctx: CanvasRenderingContext2D, scene: Scene) => {
-  const { width: tw, height: th } = scene.tile;
-  const rise = th * LEVEL_RISE;
-  const { origin, walker } = scene;
-
-  const at = (c: Position, level: number): Position => ({
-    x: origin.x + ((c.x - c.y) * tw) / 2,
-    y: origin.y + ((c.x + c.y) * th) / 2 - level * rise,
-  });
-  const cornersOf = (s: Position): Corners => ({
-    T: { x: s.x, y: s.y - th / 2 },
-    R: { x: s.x + tw / 2, y: s.y },
-    B: { x: s.x, y: s.y + th / 2 },
-    L: { x: s.x - tw / 2, y: s.y },
-  });
-  const path = (pts: Position[]) => {
-    ctx.moveTo(pts[0].x, pts[0].y);
-    for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
-    ctx.closePath();
-  };
-  const fillPoly = (pts: Position[], fill: string) => {
-    ctx.beginPath();
-    path(pts);
-    ctx.fillStyle = fill;
-    ctx.fill();
-  };
-  const line = (a: Position, b: Position) => {
-    ctx.beginPath();
-    ctx.moveTo(a.x, a.y);
-    ctx.lineTo(b.x, b.y);
-    ctx.stroke();
-  };
-  const down = (p: Position, d: number): Position => ({ x: p.x, y: p.y + d });
-  const diamond = (k: Corners) => [k.T, k.R, k.B, k.L];
-
-  /** Paths gathered by style, so a few hundred tufts cost one stroke rather than a few hundred. */
-  const batch = () => {
-    const paths = new Map<string, Path2D>();
-    return {
-      get: (style: string) => {
-        let p = paths.get(style);
-        if (!p) paths.set(style, (p = new Path2D()));
-        return p;
-      },
-      fill: () => paths.forEach((p, style) => ((ctx.fillStyle = style), ctx.fill(p))),
-      stroke: (width: number) => {
-        ctx.lineWidth = width;
-        paths.forEach((p, style) => ((ctx.strokeStyle = style), ctx.stroke(p)));
-      },
-    };
-  };
-  const polyTo = (p: Path2D, pts: Position[]) => {
-    p.moveTo(pts[0].x, pts[0].y);
-    for (let i = 1; i < pts.length; i++) p.lineTo(pts[i].x, pts[i].y);
-    p.closePath();
-  };
-  const segmentTo = (p: Path2D, a: Position, b: Position) => {
-    p.moveTo(a.x, a.y);
-    p.lineTo(b.x, b.y);
-  };
-
-  /*
-   * The wind: every blade of grass leans the same way, by an amount that
-   * rises and falls as gusts roll across the world, with each tuft a little
-   * out of step with its neighbours. It is a function of time and place and
-   * nothing else, so a frame can be drawn from scratch at any moment.
-   */
-  const time = scene.time;
-  const windAt = (x: number, y: number): number => {
-    const gust = 0.55 + 0.45 * Math.sin((x + y) * 0.35 - time * 1.3);
-    const flutter = 0.7 + 0.3 * Math.sin(time * 2.6 + cellNoise(Math.round(x), Math.round(y), 300) * TAU);
-    return gust * flutter;
-  };
-
-  /** A tuft of grass, bent by the wind at its root. */
-  const tuft = (p: Path2D, px: number, py: number, blades: number, len: number, seed = 0) => {
-    const lean = windAt((px - origin.x) / tw, (py - origin.y) / th) * 0.45;
-    for (let i = 0; i < blades; i++) {
-      const a = -Math.PI / 2 + (i - (blades - 1) / 2) * 0.32 + lean * 0.5;
-      const l = len * (0.75 + 0.35 * cellNoise(Math.round(px), Math.round(py), 70 + i + seed));
-      p.moveTo(px + (i - blades / 2) * 1.2, py);
-      p.quadraticCurveTo(
-        px + Math.cos(a) * l * 0.3,
-        py + Math.sin(a) * l * 0.6,
-        px + Math.cos(a) * l + (i - 1) * 1.5 + lean * l * 0.35,
-        py + Math.sin(a) * l
-      );
-    }
-  };
-
-  /**
-   * The level a cell's ground is actually drawn at. A stair is carved down
-   * into its terrace, so its floor is the level below, and its neighbours
-   * see a notch there rather than a terrace.
-   */
-  const floorOf = (p: Position): number => {
-    const g = groundAt(p);
-    return g.level - (g.stair ? 1 : 0);
-  };
-
-  /*
-   * The paper is not quite one white: each cell is one of four barely
-   * different ones, few enough to fill each in a single call.
-   */
-  const topColour = (c: Position, g: Ground): RGB =>
-    g.obstacle === "water" || g.ford
-      ? WATER
-      : shade(
-          WHITE,
-          0.985 + (Math.floor(cellNoise(c.x, c.y, 5) * 4) / 3 - 0.5) * 0.03 - (MAX_LEVEL - g.level) * 0.012
-        );
-
-  /**
-   * The wash, as a fill rather than a draw: one pattern per terrace level,
-   * carrying the projection as its transform, so a cell's top is washed by
-   * filling it — no clip, and no way for the wash to land anywhere else.
-   */
-  const washes: (CanvasPattern | null)[] = [];
-  const washFor = (level: number): CanvasPattern | null => {
-    if (washes[level] !== undefined) return washes[level];
-    const pattern = ctx.createPattern(washTexture(), "no-repeat");
-    if (pattern) {
-      // Texture pixel (i, j) is the point WASH_ORIGIN + (i, j) / WASH_PER_CELL
-      // in cells; the projection is affine, so it is one matrix.
-      const o = at({ x: WASH_ORIGIN, y: WASH_ORIGIN }, level);
-      const a = tw / 2 / WASH_PER_CELL;
-      const b = th / 2 / WASH_PER_CELL;
-      pattern.setTransform(new DOMMatrix([a, b, -a, b, o.x, o.y]));
-    }
-    return (washes[level] = pattern);
-  };
-
-  /** The seam between cells: drawn near the walker, gone further out. */
-  const seamAlpha = (c: Position) =>
-    0.4 * clamp01(1 - (Math.abs(c.x - walker.x) + Math.abs(c.y - walker.y) - 2.5) / 4.5);
-
-  /** Where the pointer is, and the walk it would take. */
-  const paintMarks = (c: Position, k: Corners, s: Position) => {
-    if (scene.route.has(key(c))) {
-      ctx.beginPath();
-      ctx.arc(s.x, s.y, Math.max(2, th * 0.07), 0, TAU);
-      ctx.fillStyle = BOARD.move;
-      ctx.globalAlpha = 0.6;
-      ctx.fill();
-      ctx.globalAlpha = 1;
-    }
-    const h = scene.hovered;
-    if (h && h.x === c.x && h.y === c.y) {
-      ctx.beginPath();
-      path(diamond(k));
-      ctx.fillStyle = BOARD.move;
-      ctx.globalAlpha = 0.18;
-      ctx.fill();
-      ctx.globalAlpha = 1;
-      ctx.strokeStyle = BOARD.move;
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
-    }
-  };
-
-  /**
-   * A flight of steps carved into a terrace, down to the ground below. The
-   * cell's own ground lies a level lower (see floorOf), and the steps stand
-   * on it: each a block a quarter of a level taller than the one before, the
-   * last flush with the terrace. They are cut from the same stone as the
-   * cliff around them — the same fills, a stratum on each riser, ink only on
-   * the nosing — so the stair reads as part of the terrace, not an object
-   * leaned against it.
-   */
-  const STEPS_PER_FLIGHT = 4;
-  const flight = (c: Position, tufts: Path2D) => {
-    const g = groundAt(c);
-    if (!g.stair) return;
-    const up = { x: -g.stair.x, y: -g.stair.y };
-    const floor = g.level - 1;
-    const across = { x: Math.abs(up.y), y: Math.abs(up.x) };
-    const project = (X: number, Y: number, h: number): Position => ({
-      x: origin.x + ((X - Y) * tw) / 2,
-      y: origin.y + ((X + Y) * th) / 2 - h * rise,
-    });
-    const blocks = [];
-    for (let i = 0; i < STEPS_PER_FLIGHT; i++) {
-      const t0 = -0.5 + i / STEPS_PER_FLIGHT;
-      const t1 = t0 + 1 / STEPS_PER_FLIGHT;
-      const xs = [c.x + up.x * t0 - across.x * 0.5, c.x + up.x * t1 + across.x * 0.5];
-      const ys = [c.y + up.y * t0 - across.y * 0.5, c.y + up.y * t1 + across.y * 0.5];
-      blocks.push({
-        x0: Math.min(...xs),
-        x1: Math.max(...xs),
-        y0: Math.min(...ys),
-        y1: Math.max(...ys),
-        top: floor + (i + 1) / STEPS_PER_FLIGHT,
-      });
-    }
-    blocks.sort((a, b) => a.x0 + a.y0 - (b.x0 + b.y0));
-    const tread = rgb(topColour(c, g));
-    for (const { x0, x1, y0, y1, top } of blocks) {
-      const right = [project(x1, y0, top), project(x1, y1, top), project(x1, y1, floor), project(x1, y0, floor)];
-      const left = [project(x0, y1, top), project(x1, y1, top), project(x1, y1, floor), project(x0, y1, floor)];
-      const treadPts = [project(x0, y0, top), project(x1, y0, top), project(x1, y1, top), project(x0, y1, top)];
-      fillPoly(right, rgb(STONE_RIGHT));
-      fillPoly(left, rgb(STONE_LEFT));
-      ctx.strokeStyle = "rgba(61,63,61,.3)";
-      ctx.lineWidth = 0.7;
-      const mid = (a: Position, b: Position, u: number) => ({ x: a.x + (b.x - a.x) * u, y: a.y + (b.y - a.y) * u });
-      line(mid(left[3], left[0], 0.45), mid(left[2], left[1], 0.45));
-      line(mid(right[3], right[0], 0.45), mid(right[2], right[1], 0.45));
-      fillPoly(treadPts, tread);
-      // Every step edge gets a fine line — a flight seen from its top shows
-      // no risers, and without them it would read as a flat strip — and the
-      // nosings facing the viewer a firmer one.
-      ctx.strokeStyle = "rgba(61,63,61,.4)";
-      ctx.lineWidth = 0.8;
-      ctx.stroke();
-      ctx.strokeStyle = "rgba(61,63,61,.7)";
-      ctx.lineWidth = 1;
-      line(treadPts[1], treadPts[2]);
-      line(treadPts[2], treadPts[3]);
-    }
-    // Something growing in the corner of a step, now and then.
-    if (cellNoise(c.x, c.y, 160) < 0.6) {
-      const i = 1 + Math.floor(cellNoise(c.x, c.y, 161) * 2);
-      const b = blocks[blocks.length - 1 - i];
-      const p = project(b.x0 + 0.08, b.y1 - 0.08, b.top);
-      tuft(tufts, p.x, p.y, 3, th * 0.2);
-    }
-  };
-
-  /**
-   * One row of ground — cells sharing an x + y, which never overlap one
-   * another: the cliffs below them, the paper, the wash, then the ink —
-   * water, seams, contours, grass, stones, flowers — each gathered into a
-   * handful of paths. Shadows are gathered for the caller to lay down once
-   * the ground is finished, since they fall across the rows in front.
-   */
-  const paintRow = (cells: Position[], shadows: Path2D) => {
-    const fills = batch();
-    // Created on first use: most rows need only a few of these.
-    const paths = new Map<string, Path2D>();
-    const P = (name: string) => {
-      let p = paths.get(name);
-      if (!p) paths.set(name, (p = new Path2D()));
-      return p;
-    };
-    const washed: Path2D[] = [];
-    const seams = batch();
-    const grass = batch();
-    const fords: { c: Position; k: Corners }[] = [];
-    const marked: { c: Position; k: Corners; s: Position }[] = [];
-    const flights: Position[] = [];
-
-    for (const c of cells) {
-      const g = groundAt(c);
-      const level = floorOf(c);
-      const s = at(c, level);
-      const k = cornersOf(s);
-      const top = topColour(c, g);
-      const water = g.obstacle === "water" || g.ford;
-
-      /*
-       * The cliff below a terrace, on the sides that drop to lower ground,
-       * engraved rather than shaded: bands of stone at uneven heights and a
-       * crack or two, in the same ink as everything else on the paper.
-       */
-      const right = floorOf({ x: c.x + 1, y: c.y });
-      const left = floorOf({ x: c.x, y: c.y + 1 });
-      const cliff = (from: Position, to: Position, levels: number, colour: RGB, salt: number) => {
-        const drop = levels * rise;
-        polyTo(fills.get(rgb(colour)), [from, to, down(to, drop), down(from, drop)]);
-        const bands = Math.round(levels * 3);
-        for (let b = 1; b <= bands; b++) {
-          const f = (b - 0.4 + (cellNoise(c.x, c.y, salt + b) - 0.5) * 0.4) / (bands + 0.2);
-          const a = down(from, f * drop);
-          const z = down(to, f * drop);
-          P("strata").moveTo(a.x, a.y);
-          P("strata").quadraticCurveTo(
-            (a.x + z.x) / 2,
-            (a.y + z.y) / 2 + (cellNoise(c.x, c.y, salt + 10 + b) - 0.5) * 4,
-            z.x,
-            z.y
-          );
-        }
-        for (let n = 0; n < 2; n++) {
-          if (cellNoise(c.x, c.y, salt + 20 + n) > 0.6) continue;
-          const u = 0.2 + 0.6 * cellNoise(c.x, c.y, salt + 30 + n);
-          const p = { x: from.x + (to.x - from.x) * u, y: from.y + (to.y - from.y) * u };
-          const start = drop * (0.15 + 0.3 * cellNoise(c.x, c.y, salt + 40 + n));
-          segmentTo(P("cracks"), down(p, start), { x: p.x + 1, y: p.y + start + drop * 0.35 });
-        }
-      };
-      if (right < level) cliff(k.R, k.B, level - right, STONE_RIGHT, 400);
-      if (left < level) cliff(k.L, k.B, level - left, STONE_LEFT, 500);
-      polyTo(fills.get(rgb(top)), diamond(k));
-      if (!water) polyTo((washed[level] ??= new Path2D()), diamond(k));
-
-      if (water) {
-        for (let i = 0; i < 2; i++) {
-          // Ripples drift downstream and back, never quite still.
-          const drift = Math.sin(time * 0.9 + cellNoise(c.x, c.y, 52 + i) * TAU) * tw * 0.06;
-          const px = s.x + (cellNoise(c.x, c.y, 50 + i) - 0.5) * tw * 0.4 + drift;
-          const py = s.y + (i - 0.5) * th * 0.35;
-          P("ripples").moveTo(px - tw * 0.1, py);
-          P("ripples").quadraticCurveTo(px, py - 2.5, px + tw * 0.1, py);
-        }
-        for (const [dx, dy, a, b] of EDGES) {
-          const n = groundAt({ x: c.x + dx, y: c.y + dy });
-          if (n.obstacle !== "water" && !n.ford) segmentTo(P("banks"), k[a], k[b]);
-        }
-        if (g.ford) fords.push({ c, k });
-      } else {
-        const alpha = Math.round(seamAlpha(c) * 20) / 20;
-        if (alpha > 0 && !g.stair) polyTo(seams.get(`rgba(160,162,158,${alpha})`), diamond(k));
-      }
-
-      // The contour: a firm line along every edge that drops to lower ground,
-      // except where the top of a stair comes out onto it.
-      for (const [dx, dy, a, b] of EDGES) {
-        const n = { x: c.x + dx, y: c.y + dy };
-        const flightTop = groundAt(n).stair;
-        const arriving = !!flightTop && flightTop.x === dx && flightTop.y === dy;
-        if (floorOf(n) < level && !arriving) segmentTo(P("contours"), k[a], k[b]);
-      }
-
-      // A few stones fallen at the foot of a cliff that faces the viewer.
-      const underCliff =
-        floorOf({ x: c.x - 1, y: c.y }) > level || floorOf({ x: c.x, y: c.y - 1 }) > level;
-      if (underCliff && !g.obstacle && !g.path && !g.stair && cellNoise(c.x, c.y, 170) < 0.5) {
-        const back = floorOf({ x: c.x - 1, y: c.y }) > level ? k.L : k.R;
-        const px = back.x + (k.T.x - back.x) * 0.5 + (s.x - back.x) * 0.25;
-        const py = back.y + (k.T.y - back.y) * 0.5 + (s.y - back.y) * 0.25 + th * 0.08;
-        for (let i = 0; i < 2; i++) {
-          const r = tw * (0.035 + 0.02 * cellNoise(c.x, c.y, 171 + i));
-          P("stones").moveTo(px + i * r * 1.7 + r, py + i * 2);
-          P("stones").ellipse(px + i * r * 1.7, py + i * 2, r, r * 0.6, 0, 0, TAU);
-        }
-      }
-
-      // The trodden way to and from a stair: worn earth running into the
-      // flight, so the way up can be seen from a distance.
-      if (g.path) {
-        for (const [dx, dy] of EDGES) {
-          const n = { x: c.x + dx, y: c.y + dy };
-          const ng = groundAt(n);
-          const flight = ng.stair;
-          const leads =
-            (ng.path && floorOf(n) === level) ||
-            (!!flight && ((flight.x === -dx && flight.y === -dy) || (flight.x === dx && flight.y === dy)));
-          if (!leads) continue;
-          // Footprints, rather than a band of colour: a trodden way is
-          // ground people have walked on, not something laid over it.
-          const end = { x: s.x + ((dx - dy) * tw) / 4, y: s.y + ((dx + dy) * th) / 4 };
-          for (let i = 0; i < 2; i++) {
-            const u = 0.15 + i * 0.5;
-            const side = (i % 2 ? 1 : -1) * th * 0.09;
-            const fx = s.x + (end.x - s.x) * u + side * 0.6;
-            const fy = s.y + (end.y - s.y) * u + side * 0.3;
-            P("prints").moveTo(fx + 2.2, fy);
-            P("prints").ellipse(fx, fy, 2.2, 1.3, -0.45, 0, TAU);
-          }
-        }
-      }
-
-      if (!g.obstacle && !g.ford && !g.stair && !g.path && !(c.x === 0 && c.y === 0)) {
-        let nearWater = false;
-        for (const [dx, dy] of EDGES) {
-          if (groundAt({ x: c.x + dx, y: c.y + dy }).obstacle === "water") nearWater = true;
-        }
-        const ink = g.sand > g.moss + 0.1 ? SAND_INK : g.moss > 0.1 ? MOSS_INK : GRAPHITE;
-
-        const grassChance = 0.2 + g.moss * 0.35 - g.sand * 0.12 + (nearWater ? 0.5 : 0);
-        const tufts = cellNoise(c.x, c.y, 60) < grassChance ? (cellNoise(c.x, c.y, 61) < 0.35 ? 2 : 1) : 0;
-        for (let t = 0; t < tufts; t++) {
-          const px = s.x + (cellNoise(c.x, c.y, 62 + t) - 0.5) * tw * 0.5;
-          const py = s.y + (cellNoise(c.x, c.y, 64 + t) - 0.5) * th * 0.45;
-          const blades = 3 + Math.floor(cellNoise(c.x, c.y, 66 + t) * 3);
-          const len = th * (0.22 + 0.14 * cellNoise(c.x, c.y, 68 + t)) * (nearWater ? 1.4 : 1);
-          tuft(grass.get(ink), px, py, blades, len, t * 9);
-        }
-
-        const pebbles = cellNoise(c.x, c.y, 80);
-        if (pebbles < 0.09 + g.sand * 0.12) {
-          const px = s.x + (cellNoise(c.x, c.y, 81) - 0.5) * tw * 0.45;
-          const py = s.y + (cellNoise(c.x, c.y, 82) - 0.5) * th * 0.4;
-          for (let i = 0; i < (pebbles < 0.04 ? 3 : 2); i++) {
-            const r = tw * (0.035 + 0.03 * cellNoise(c.x, c.y, 83 + i));
-            const ex = px + i * r * 1.6;
-            const ey = py + (i % 2) * r * 0.6;
-            P("stones").moveTo(ex + r, ey);
-            P("stones").ellipse(ex, ey, r, r * 0.6, 0, 0, TAU);
-          }
-        }
-
-        if (cellNoise(c.x, c.y, 90) < 0.03 + g.moss * 0.03) {
-          const px = s.x + (cellNoise(c.x, c.y, 91) - 0.5) * tw * 0.4;
-          const py = s.y + (cellNoise(c.x, c.y, 92) - 0.5) * th * 0.4;
-          const size = th / 30;
-          for (let i = 0; i < 3; i++) {
-            const fx = px + (i - 1) * 4 * size;
-            const fy = py - (2 + (i % 2) * 3) * size;
-            segmentTo(grass.get(ink), { x: fx, y: fy + 4 * size }, { x: fx, y: fy });
-            P("flowers").moveTo(fx + 1.7 * size, fy);
-            P("flowers").arc(fx, fy, 1.7 * size, 0, TAU);
-          }
-        }
-
-        if (g.sand > 0.4) {
-          for (let i = 0; i < 5; i++) {
-            if (cellNoise(c.x, c.y, 100 + i) > g.sand * 0.8) continue;
-            P("stipple").rect(
-              s.x + (cellNoise(c.x, c.y, 110 + i) - 0.5) * tw * 0.6,
-              s.y + (cellNoise(c.x, c.y, 120 + i) - 0.5) * th * 0.5,
-              1.2,
-              1.2
-            );
-          }
-        }
-      }
-
-      if (g.obstacle === "rock" || g.obstacle === "tree") {
-        const [ox, oy, rx, ry] =
-          g.obstacle === "rock" ? [0.14, 0.1, 0.44, 0.34] : [0.24, 0.06, 0.36, 0.26];
-        shadows.moveTo(s.x + tw * (ox + rx), s.y + th * oy);
-        shadows.ellipse(s.x + tw * ox, s.y + th * oy, tw * rx, th * ry, 0, 0, TAU);
-      }
-
-      const h = scene.hovered;
-      // A thicket: scrub drawn thick and dark enough to read as a barrier.
-      if (g.obstacle === "thicket") {
-        const ink = g.sand > g.moss ? SAND_INK : MOSS_INK;
-        const p = grass.get(ink);
-        for (let t = 0; t < 7; t++) {
-          const px = s.x + (cellNoise(c.x, c.y, 130 + t) - 0.5) * tw * 0.6;
-          const py = s.y + (cellNoise(c.x, c.y, 140 + t) - 0.5) * th * 0.55;
-          tuft(p, px, py, 5, th * (0.3 + 0.2 * cellNoise(c.x, c.y, 150 + t)), t);
-        }
-      }
-
-      if (g.stair) flights.push(c);
-      if (scene.route.has(key(c)) || (h && h.x === c.x && h.y === c.y)) {
-        // On a stair, the mark sits halfway up, where you would stand.
-        const m = g.stair ? at(c, g.level - 0.5) : s;
-        marked.push({ c, k: g.stair ? cornersOf(m) : k, s: m });
-      }
-    }
-
-    fills.fill();
-    ctx.strokeStyle = "rgba(61,63,61,.38)";
-    ctx.lineWidth = 0.8;
-    if (paths.has("strata")) ctx.stroke(P("strata"));
-    ctx.strokeStyle = "rgba(61,63,61,.25)";
-    if (paths.has("cracks")) ctx.stroke(P("cracks"));
-    washed.forEach((p, level) => {
-      const pattern = washFor(level);
-      if (!pattern) return;
-      ctx.fillStyle = pattern;
-      ctx.fill(p);
-    });
-
-    ctx.fillStyle = "rgba(95,98,96,.5)";
-    if (paths.has("prints")) ctx.fill(P("prints"));
-    ctx.strokeStyle = RIPPLE;
-    ctx.lineWidth = 1;
-    if (paths.has("ripples")) ctx.stroke(P("ripples"));
-    // Stepping stones, the one thing that says this water can be crossed.
-    for (const { c, k } of fords) {
-      for (let i = 0; i < 3; i++) {
-        const u = (i + 0.5) / 3;
-        const px = k.T.x + (k.B.x - k.T.x) * u + (cellNoise(c.x, c.y, 55 + i) - 0.5) * tw * 0.2;
-        const py = k.T.y + (k.B.y - k.T.y) * u;
-        P("stones").moveTo(px + tw * 0.09, py);
-        P("stones").ellipse(px, py, tw * 0.09, th * 0.1, 0, 0, TAU);
-      }
-    }
-    ctx.strokeStyle = BANK;
-    ctx.lineWidth = 1.3;
-    if (paths.has("banks")) ctx.stroke(P("banks"));
-
-    seams.stroke(0.8);
-    ctx.strokeStyle = "rgba(61,63,61,.75)";
-    ctx.lineWidth = 1.2;
-    if (paths.has("contours")) ctx.stroke(P("contours"));
-    for (const c of flights) flight(c, grass.get(MOSS_INK));
-
-    grass.stroke(1);
-    ctx.fillStyle = "#e7e7e3";
-    if (paths.has("stones")) ctx.fill(P("stones"));
-    ctx.strokeStyle = GRAPHITE;
-    ctx.lineWidth = 0.8;
-    if (paths.has("stones")) ctx.stroke(P("stones"));
-    ctx.fillStyle = BOARD.accent;
-    if (paths.has("flowers")) ctx.fill(P("flowers"));
-    ctx.fillStyle = "rgba(150,128,90,.45)";
-    if (paths.has("stipple")) ctx.fill(P("stipple"));
-
-    for (const { c, k, s } of marked) paintMarks(c, k, s);
-  };
-
-  /** Ground, back to front, a row at a time: the painter's algorithm. */
-  const paintRows = (cells: Position[]) => {
-    const shadows = new Path2D();
-    let row: Position[] = [];
-    for (const c of cells) {
-      if (row.length > 0 && c.x + c.y !== row[0].x + row[0].y) {
-        paintRow(row, shadows);
-        row = [];
-      }
-      row.push(c);
-    }
-    if (row.length > 0) paintRow(row, shadows);
-    return shadows;
-  };
-
-  const shadow = (x: number, y: number, rx: number, ry: number, alpha: number) => {
-    ctx.beginPath();
-    ctx.ellipse(x, y, rx, ry, 0, 0, TAU);
-    ctx.fillStyle = `rgba(40,42,40,${alpha})`;
-    ctx.fill();
-  };
-
-  /**
-   * The ground, strictly back to front. Drawing it a terrace level at a time
-   * looks equivalent and is not: a high cell's cliff drops past the cells
-   * diagonally in front of it, and one of those standing at an intermediate
-   * level has to cover the foot of that cliff. Only depth order gets it right.
-   */
-  const paintGround = () => {
-    const shadows = paintRows(scene.cells);
-    // Nothing stands just in front of higher ground (see world.ts), so the
-    // shadows can go down over the finished ground without landing on a cliff.
-    ctx.fillStyle = "rgba(40,42,40,.11)";
-    ctx.fill(shadows);
-    const feet = at(walker, heightAt(walker));
-    shadow(feet.x + 2, feet.y + 1, tw * 0.16, th * 0.16, 0.16);
-  };
-
-  /**
-   * The ground in front of the walker, again, but only inside a box around
-   * them: whatever of it covers the walker has to be over the sprite, and
-   * redrawing every row in that box — not a hand-picked few cells — keeps it
-   * drawn in the same order, and so identical, to the sheet underneath.
-   */
-  const paintGroundWithin = (cells: Position[], box: { x: number; y: number; w: number; h: number }) => {
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(box.x, box.y, box.w, box.h);
-    ctx.clip();
-    paintRows(cells);
-    ctx.restore();
-  };
-
-  /* ---------- what stands on the ground ---------- */
-
-  const boulder = (c: Position, s: Position) => {
-    const n = 7;
-    const rx = tw * (0.3 + 0.1 * cellNoise(c.x, c.y, 11));
-    const ry = rx * 0.52;
-    const height = th * (0.5 + 0.7 * cellNoise(c.x, c.y, 12));
-    const a0 = cellNoise(c.x, c.y, 13) * TAU;
-    const base: Position[] = [];
-    const crown: Position[] = [];
-    const angles: number[] = [];
-    for (let i = 0; i < n; i++) {
-      const a = a0 + (i / n) * TAU;
-      const r = 1 + (cellNoise(c.x, c.y, 20 + i) - 0.5) * 0.3;
-      angles.push(a);
-      base.push({ x: s.x + Math.cos(a) * rx * r, y: s.y + Math.sin(a) * ry * r });
-      crown.push({
-        x: s.x + Math.cos(a) * rx * r * 0.6 - tw * 0.02,
-        y: s.y - height + Math.sin(a) * ry * r * 0.6 + (cellNoise(c.x, c.y, 30 + i) - 0.5) * th * 0.18,
-      });
-    }
-    // Only the facets turned towards the viewer, back ones first; the crown
-    // covers the rest. Light comes from the upper left.
-    const facets: { i: number; j: number; am: number }[] = [];
-    for (let i = 0; i < n; i++) {
-      const j = (i + 1) % n;
-      const am = a0 + ((i + 0.5) / n) * TAU;
-      if (Math.sin(am) >= -0.35) facets.push({ i, j, am });
-    }
-    facets.sort((a, b) => Math.sin(a.am) - Math.sin(b.am));
-    ctx.lineJoin = "round";
-    for (const f of facets) {
-      const light = clamp01(0.5 - 0.55 * Math.cos(f.am + 0.5));
-      const pts = [base[f.i], base[f.j], crown[f.j], crown[f.i]];
-      fillPoly(pts, rgb(mix(STONE_DARK, STONE_LIGHT, light)));
-      ctx.strokeStyle = "rgba(61,63,61,.7)";
-      ctx.lineWidth = 0.9;
-      ctx.stroke();
-      if (light < 0.4) {
-        ctx.strokeStyle = "rgba(61,63,61,.35)";
-        ctx.lineWidth = 0.7;
-        for (let q = 1; q < 4; q++) {
-          const u = q / 4;
-          const p = { x: base[f.i].x + (base[f.j].x - base[f.i].x) * u, y: base[f.i].y + (base[f.j].y - base[f.i].y) * u };
-          const r = { x: crown[f.i].x + (crown[f.j].x - crown[f.i].x) * u, y: crown[f.i].y + (crown[f.j].y - crown[f.i].y) * u };
-          line(
-            { x: p.x + (r.x - p.x) * 0.12, y: p.y + (r.y - p.y) * 0.12 },
-            { x: p.x + (r.x - p.x) * 0.7, y: p.y + (r.y - p.y) * 0.7 }
-          );
-        }
-      }
-    }
-    fillPoly(crown, "#f3f3f0");
-    ctx.strokeStyle = "rgba(61,63,61,.75)";
-    ctx.lineWidth = 0.9;
-    ctx.stroke();
-  };
-
-  const hatch = (cx: number, cy: number, r: number) => {
-    ctx.strokeStyle = "rgba(61,63,61,.45)";
-    ctx.lineWidth = 0.7;
-    for (let k = -2 * r; k <= 2 * r; k += 3) {
-      line({ x: cx + k - 2 * r, y: cy - 2 * r }, { x: cx + k + 2 * r, y: cy + 2 * r });
-    }
-  };
-
-  const tree = (c: Position, g: Ground, s: Position) => {
-    const size = 0.9 + 0.35 * cellNoise(c.x, c.y, 14);
-    // The crown leans with the wind; the trunk stays planted.
-    const sway = windAt(c.x, c.y) * tw * 0.025 * size;
-    const leaf = rgb(mix(LEAF, LEAF_MOSS, g.moss));
-    ctx.strokeStyle = "#5f6260";
-    ctx.lineWidth = Math.max(1.5, tw / 28);
-    if (cellNoise(c.x, c.y, 15) < 0.55) {
-      const r = tw * 0.27 * size;
-      const cx = s.x + sway;
-      const cy = s.y - th * 1.45 * size;
-      line(s, { x: cx, y: cy + r * 0.4 });
-      ctx.beginPath();
-      ctx.arc(cx, cy, r, 0, TAU);
-      ctx.fillStyle = leaf;
-      ctx.fill();
-      // The shaded half of the crown, hatched.
-      ctx.save();
-      ctx.beginPath();
-      ctx.arc(cx, cy, r, 0, TAU);
-      ctx.clip();
-      ctx.beginPath();
-      const o = r * 0.2;
-      path([
-        { x: cx + 2 * r + o, y: cy - 2 * r + o },
-        { x: cx + 2 * r + o, y: cy + 2 * r + o },
-        { x: cx - 2 * r + o, y: cy + 2 * r + o },
-      ]);
-      ctx.clip();
-      hatch(cx, cy, r);
-      ctx.restore();
-      ctx.beginPath();
-      ctx.arc(cx, cy, r, 0, TAU);
-      ctx.strokeStyle = LINE;
-      ctx.lineWidth = 1;
-      ctx.stroke();
-    } else {
-      const w = tw * 0.26 * size;
-      const h = th * 1.1 * size;
-      line(s, { x: s.x, y: s.y - th * 0.5 });
-      for (let t = 0; t < 2; t++) {
-        const by = s.y - th * 0.35 - t * h * 0.55;
-        const ww = w * (1 - t * 0.28);
-        const lean = sway * (0.5 + t * 0.5);
-        const tri = [
-          { x: s.x - ww + lean * 0.3, y: by },
-          { x: s.x + ww + lean * 0.3, y: by },
-          { x: s.x + lean, y: by - h },
-        ];
-        fillPoly(tri, leaf);
-        ctx.save();
-        ctx.beginPath();
-        path(tri);
-        ctx.clip();
-        ctx.beginPath();
-        ctx.rect(s.x + lean * 0.5, by - h, ww, h);
-        ctx.clip();
-        hatch(s.x + lean * 0.5, by - h / 2, h);
-        ctx.restore();
-        ctx.beginPath();
-        path(tri);
-        ctx.strokeStyle = LINE;
-        ctx.lineWidth = 1;
-        ctx.stroke();
-      }
-    }
-  };
-
-  const paintObject = (c: Position) => {
-    const g = groundAt(c);
-    const s = at(c, g.level);
-    if (g.obstacle === "rock") boulder(c, s);
-    else if (g.obstacle === "tree") tree(c, g, s);
-  };
-
-  /**
-   * Ground standing higher than the walker and in front of them, drawn again
-   * over them: a terrace between you and the camera hides your feet, the way
-   * a boulder does. Only the few cells right in front are worth it.
-   */
-  const paintGrain = (mode: GlobalCompositeOperation) => {
-    const pattern = ctx.createPattern(grainTexture(), "repeat");
-    if (!pattern) return;
-    ctx.save();
-    ctx.globalCompositeOperation = mode;
-    ctx.fillStyle = pattern;
-    ctx.fillRect(0, 0, scene.width, scene.height);
-    ctx.restore();
-  };
-
-  /**
-   * Gusts: a few airy strokes of ink crossing the sheet in the direction the
-   * grass leans, each carrying a leaf, fading in and out as they pass. They
-   * ride with the paper rather than the screen, so walking into the wind
-   * reads as walking into it.
-   */
-  const paintGusts = () => {
-    const { width: W, height: H } = scene;
-    const span = W * 1.5;
-    const wrap = (v: number, m: number) => ((v % m) + m) % m;
-    ctx.lineCap = "round";
-    for (let k = 0; k < 4; k++) {
-      const period = 9 + k * 1.7;
-      const pass = Math.floor((time + k * 2.3) / period);
-      const u = ((time + k * 2.3) % period) / period;
-      const alpha = Math.sin(u * Math.PI) ** 2 * 0.3;
-      if (alpha < 0.01) continue;
-      const len = Math.min(170, W * 0.2);
-      const x0 = wrap(u * span + origin.x - W / 2 + cellNoise(k, pass, 410) * W, span) - W * 0.25;
-      const y0 = wrap(H * cellNoise(k, pass, 400) + origin.y - H / 2, H);
-      ctx.strokeStyle = `rgba(95,98,96,${alpha})`;
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      for (let i = 0; i <= 24; i++) {
-        const v = i / 24;
-        const x = x0 + v * len;
-        const y = y0 + Math.sin(v * Math.PI * 2 + time * 2 + k) * 4 + v * len * 0.12;
-        if (i === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-      }
-      // A curl where the gust breaks.
-      const hx = x0 + len;
-      const hy = y0 + len * 0.12 + Math.sin(Math.PI * 2 + time * 2 + k) * 4;
-      ctx.arc(hx, hy - 5, 5, Math.PI / 2, Math.PI * 2.1, true);
-      ctx.stroke();
-      // And the leaf it carries.
-      const lx = hx + 14 + Math.sin(time * 1.7 + k) * 6;
-      const ly = hy - 4 + Math.sin(time * 3.1 + k) * 5;
-      ctx.save();
-      ctx.translate(lx, ly);
-      ctx.rotate(time * 2.2 + k);
-      ctx.beginPath();
-      ctx.ellipse(0, 0, 3.4, 1.6, 0, 0, TAU);
-      ctx.fillStyle = `rgba(90,122,84,${Math.min(1, alpha * 3)})`;
-      ctx.fill();
-      ctx.restore();
-    }
-  };
-
-  return { paintGround, paintGroundWithin, paintObject, paintGrain, paintGusts };
-};
-
-const begin = (canvas: HTMLCanvasElement, scene: Scene) => {
-  const w = Math.max(1, Math.round(scene.width * scene.dpr));
-  const h = Math.max(1, Math.round(scene.height * scene.dpr));
+const begin = (canvas: HTMLCanvasElement, w: number, h: number) => {
   if (canvas.width !== w) canvas.width = w;
   if (canvas.height !== h) canvas.height = h;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return null;
-  ctx.setTransform(scene.dpr, 0, 0, scene.dpr, 0, 0);
-  ctx.clearRect(0, 0, scene.width, scene.height);
+  // Read back every frame to be snapped: kept in memory rather than on the GPU.
+  const ctx = canvas.getContext("2d", { willReadFrequently: true }) as Ctx;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+  ctx.imageSmoothingEnabled = false;
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
   return ctx;
 };
 
+/** Each frame of the hero, shrunk to the art's grid and outlined, made once. */
+const heroFrames = new Map<string, HTMLCanvasElement>();
+const heroFrame = (sheet: CanvasImageSource, key: string, frame: number, row: number, outline: string) => {
+  const k = `${key}:${frame}:${row}:${outline}`;
+  let c = heroFrames.get(k);
+  if (!c) {
+    const buffer = document.createElement("canvas");
+    buffer.width = 64;
+    buffer.height = 64;
+    const b = buffer.getContext("2d") as Ctx;
+    b.imageSmoothingEnabled = false;
+    b.drawImage(sheet, frame * HERO_FRAME, row * HERO_FRAME, HERO_FRAME, HERO_FRAME, 0, 0, 64, 64);
+    c = outlined(buffer, outline);
+    heroFrames.set(k, c);
+  }
+  return c;
+};
+
 /**
- * The world in two sheets, with the walker between them: the ground and all
- * that stands behind the walker on the first, and on the second whatever
- * stands in front — rocks, trees, and the edge of any terrace high enough to
- * hide the walker's feet.
+ * The world in two sheets: the sky, the ground, everything behind the walker
+ * and the walker itself on the first; on the second, whatever stands in front
+ * — trees, creatures, and the edge of any terrace high enough to hide the
+ * walker's feet — and the dark, at night.
  */
 export const paintWorld = (behind: HTMLCanvasElement, front: HTMLCanvasElement, scene: Scene) => {
-  const back = begin(behind, scene);
-  const fore = begin(front, scene);
-  if (!back || !fore) return;
+  const { px, phase, time, walker } = scene;
+  const w = Math.max(1, Math.ceil(scene.width / px));
+  const h = Math.max(1, Math.ceil(scene.height / px));
+  const ox = Math.round(scene.origin.x / px);
+  const oy = Math.round(scene.origin.y / px);
+  const at = (c: Position, level: number): Position => ({
+    x: ox + ((c.x - c.y) * TW) / 2,
+    y: oy + ((c.x + c.y) * TH) / 2 - level * RISE,
+  });
+  const cornersOf = (s: Position) => ({
+    T: { x: s.x, y: s.y - TH / 2 },
+    R: { x: s.x + TW / 2, y: s.y },
+    B: { x: s.x, y: s.y + TH / 2 },
+    L: { x: s.x - TW / 2, y: s.y },
+  });
+  type Corners = ReturnType<typeof cornersOf>;
 
-  // The camera's box over-covers the screen by design (see visibleBounds);
-  // what is actually on it is decided here, where the terraces are known.
-  const { width: tw, height: th } = scene.tile;
-  const onScreen = (c: Position) => {
-    const x = scene.origin.x + ((c.x - c.y) * tw) / 2;
-    const y = scene.origin.y + ((c.x + c.y) * th) / 2 - groundAt(c).level * th * LEVEL_RISE;
-    return x > -tw && x < scene.width + tw && y > -th * 2 && y < scene.height + th * 2.5;
-  };
-  scene = { ...scene, cells: scene.cells.filter(onScreen) };
+  const cells = scene.cells.filter((c) => {
+    const s = at(c, groundAt(c).level);
+    return s.x > -TW && s.x < w + TW && s.y > -TH * 3 && s.y < h + TH * 5;
+  });
+  const here = groundAt({ x: Math.round(walker.x), y: Math.round(walker.y) });
+  const heroFeet = at(walker, heightAt(walker));
 
-  const b = painter(back, scene);
-  b.paintGround();
-  for (const c of scene.cells) {
-    if (groundAt(c).obstacle && !inFrontOf(c, scene.walker)) b.paintObject(c);
+  const g = begin(behind, w, h);
+  const f = begin(front, w, h);
+
+  /* sky: the world is an island, and around it is sky */
+  const sky = SKY[phase];
+  for (let k = 0; k < sky.length; k++) {
+    g.fillStyle = sky[k];
+    g.fillRect(0, Math.floor((h * k) / sky.length), w, Math.ceil(h / sky.length) + 1);
   }
-  b.paintGrain("multiply");
+  const cl = CLOUD[phase];
+  for (let k = 0; k < 8; k++) {
+    const cx = ((((k * w * 0.19 + time * 3 + ox * 0.3) % (w * 1.4)) + w * 1.4) % (w * 1.4)) - w * 0.2;
+    g.fillStyle = cl[k % 2];
+    g.beginPath();
+    g.ellipse(cx, h * (0.12 + (k % 4) * 0.24), w * 0.09, h * 0.04, 0, 0, TAU);
+    g.fill();
+  }
+
+  const glows: { x: number; y: number; c: string; r: number }[] = [];
+  const liquids: { x: number; y: number; region: Region }[] = [];
+
+  /** A wall of coursed stone under a coping, in the region's stone. */
+  const face = (ctx: Ctx, q: Position[], side: "R" | "L", c: Position, drop: number, P: Palette, region: Region, salt = 0) => {
+    const tone = side === "R" ? 1 : 2;
+    const hx = (k: number) => cellNoise(c.x * 7 + k, c.y * 13 + salt, 11 + (side === "R" ? 0 : 50));
+    const cap = Math.min(0.22, 0.18 / Math.max(drop, 0.25));
+    const rows = Math.max(1, Math.round(drop * 2.5));
+    for (let r = 0; r < rows; r++) {
+      const v0 = cap + ((1 - cap) * r) / rows, v1 = cap + ((1 - cap) * (r + 1)) / rows;
+      const cuts = [0, ...(r % 2 ? [0.5] : [0.28, 0.72]), 1];
+      for (let k = 0; k < cuts.length - 1; k++) {
+        fill(ctx, [quad(q, cuts[k], v0), quad(q, cuts[k + 1], v0), quad(q, cuts[k + 1], v1), quad(q, cuts[k], v1)], P.stone[Math.min(3, tone + (hx(r * 9 + k) < 0.3 ? -1 : 0))], P.outline);
+      }
+    }
+    const caps = [0, 0.36 + hx(1) * 0.1, 0.7 + hx(2) * 0.1, 1];
+    for (let k = 0; k < caps.length - 1; k++) {
+      fill(ctx, [quad(q, caps[k], -0.04), quad(q, caps[k + 1], -0.04), quad(q, caps[k + 1], cap), quad(q, caps[k], cap)], P.stone[3], P.outline);
+    }
+    if (region === "earth" && hx(40) < 0.6 && drop >= 0.5) {
+      // The Monolith's magma shows in the walls too.
+      ctx.strokeStyle = P.accent;
+      ctx.lineWidth = 1;
+      const a0 = quad(q, 0.2 + hx(41) * 0.3, 0.3), a1 = quad(q, 0.5 + hx(42) * 0.3, 0.9);
+      ctx.beginPath();
+      ctx.moveTo(a0.x, a0.y);
+      ctx.lineTo((a0.x + a1.x) / 2 + 2, (a0.y + a1.y) / 2);
+      ctx.lineTo(a1.x, a1.y);
+      ctx.stroke();
+      glows.push({ x: (a0.x + a1.x) / 2, y: (a0.y + a1.y) / 2, c: P.accent, r: 18 });
+    }
+  };
+
+  /** The world's edge: earth and roots hanging down into the sky. */
+  const underside = (ctx: Ctx, q: Position[], c: Position, P: Palette) => {
+    const depth = TH * (2.2 + cellNoise(c.x, c.y, 9) * 1.4);
+    const pts = [q[0], q[1]];
+    for (let k = 4; k >= 0; k--) {
+      const top = lerp(q[0], q[1], k / 4);
+      pts.push({ x: top.x, y: top.y + depth * (k % 2 ? 1 : 0.5) });
+    }
+    fill(ctx, pts, P.earth[0], P.outline);
+    fill(ctx, [q[0], q[1], lerp(q[1], { x: q[1].x, y: q[1].y + depth }, 0.3), lerp(q[0], { x: q[0].x, y: q[0].y + depth }, 0.3)], P.earth[1]);
+  };
+
+  /** One cell's ground: its top, the cliffs below it, its stair, its ink. */
+  const groundCell = (ctx: Ctx, c: Position, redraw: boolean): { s: Position; k: Corners; gr: Ground } => {
+    const gr = groundAt(c);
+    const P = paletteOf(gr.region, phase);
+    const lv = floorOf(c);
+    const s = at(c, lv);
+    const k = cornersOf(s);
+    const liquid = gr.obstacle === "water" || gr.ford;
+    const m = clamp01(gr.moss * 0.8 + cellNoise(c.x, c.y, 5) * 0.5);
+
+    if (liquid) {
+      // One colour across a whole pool, deeper away from its banks, and a
+      // bank line wherever it meets the ground.
+      const wet = (dx: number, dy: number) => {
+        const n = groundAt({ x: c.x + dx, y: c.y + dy });
+        return n.obstacle === "water" || n.ford;
+      };
+      const inland = wet(1, 0) && wet(-1, 0) && wet(0, 1) && wet(0, -1) && wet(1, 1) && wet(-1, -1) && wet(1, -1) && wet(-1, 1);
+      fill(ctx, [k.T, k.R, k.B, k.L], inland ? P.liquid[0] : P.liquid[1]);
+      ctx.strokeStyle = P.liquid[2];
+      ctx.lineWidth = 1;
+      for (const [dx, dy, a, b] of [[1, 0, k.R, k.B], [0, 1, k.L, k.B], [-1, 0, k.L, k.T], [0, -1, k.T, k.R]] as const) {
+        if (wet(dx, dy)) continue;
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(b.x, b.y);
+        ctx.stroke();
+      }
+      if (!redraw) {
+        liquids.push({ x: s.x, y: s.y, region: gr.region });
+        if (GLOWING_LIQUID[gr.region]) glows.push({ x: s.x, y: s.y, c: P.liquid[2], r: 36 });
+      }
+      if (gr.ford) {
+        for (let i = 0; i < 3; i++) {
+          const p = lerp(k.T, k.B, (i + 0.5) / 3);
+          ctx.fillStyle = P.stone[3];
+          ctx.beginPath();
+          ctx.ellipse(p.x + (cellNoise(c.x, c.y, 55 + i) - 0.5) * 8, p.y, 6, 3, 0, 0, TAU);
+          ctx.fill();
+        }
+      }
+    } else {
+      fill(ctx, [k.T, k.R, k.B, k.L], P.ground[Math.min(2, Math.floor(m * 2.4))]);
+      if (gr.path) fill(ctx, [lerp(k.T, s, 0.25), lerp(k.R, s, 0.25), lerp(k.B, s, 0.25), lerp(k.L, s, 0.25)], P.path);
+    }
+
+    const right = floorOf({ x: c.x + 1, y: c.y });
+    const left = floorOf({ x: c.x, y: c.y + 1 });
+    const qR = [k.R, k.B, { x: k.B.x, y: k.B.y + (lv - right) * RISE }, { x: k.R.x, y: k.R.y + (lv - right) * RISE }];
+    const qL = [k.L, k.B, { x: k.B.x, y: k.B.y + (lv - left) * RISE }, { x: k.L.x, y: k.L.y + (lv - left) * RISE }];
+    if (right === -99) underside(ctx, qR, c, P);
+    else if (right < lv) face(ctx, qR, "R", c, lv - right, P, gr.region);
+    if (left === -99) underside(ctx, qL, c, P);
+    else if (left < lv) face(ctx, qL, "L", c, lv - left, P, gr.region);
+
+    // Contours at the back edges; the front ones are the walls' own crests.
+    ctx.strokeStyle = P.outline;
+    ctx.lineWidth = 1;
+    for (const [dx, dy, a, b] of [[-1, 0, k.L, k.T], [0, -1, k.T, k.R]] as const) {
+      const n = { x: c.x + dx, y: c.y + dy };
+      const flight = groundAt(n).stair;
+      const arriving = !!flight && flight.x === -dx && flight.y === -dy;
+      const nf = floorOf(n);
+      if (nf < lv && nf !== -99 && !arriving) {
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(b.x, b.y);
+        ctx.stroke();
+      }
+    }
+
+    // A stair, carved into its terrace in the same stone as the walls.
+    if (gr.stair) {
+      const up = { x: -gr.stair.x, y: -gr.stair.y };
+      const across = { x: Math.abs(up.y), y: Math.abs(up.x) };
+      const floor = gr.level - 1;
+      const blocks = [];
+      for (let i = 0; i < 4; i++) {
+        const t0 = -0.5 + i / 4, t1 = t0 + 0.25;
+        const xs = [c.x + up.x * t0 - across.x * 0.5, c.x + up.x * t1 + across.x * 0.5];
+        const ys = [c.y + up.y * t0 - across.y * 0.5, c.y + up.y * t1 + across.y * 0.5];
+        blocks.push({ x0: Math.min(...xs), x1: Math.max(...xs), y0: Math.min(...ys), y1: Math.max(...ys), top: floor + (i + 1) / 4 });
+      }
+      blocks.sort((a, b) => a.x0 + a.y0 - (b.x0 + b.y0));
+      const project = (X: number, Y: number, hgt: number) => ({ x: ox + ((X - Y) * TW) / 2, y: oy + ((X + Y) * TH) / 2 - hgt * RISE });
+      for (const bl of blocks) {
+        face(ctx, [project(bl.x1, bl.y0, bl.top), project(bl.x1, bl.y1, bl.top), project(bl.x1, bl.y1, floor), project(bl.x1, bl.y0, floor)], "R", c, bl.top - floor, P, "prairie", 3);
+        face(ctx, [project(bl.x0, bl.y1, bl.top), project(bl.x1, bl.y1, bl.top), project(bl.x1, bl.y1, floor), project(bl.x0, bl.y1, floor)], "L", c, bl.top - floor, P, "prairie", 5);
+        fill(ctx, [project(bl.x0, bl.y0, bl.top), project(bl.x1, bl.y0, bl.top), project(bl.x1, bl.y1, bl.top), project(bl.x0, bl.y1, bl.top)], P.stone[3], P.outline);
+      }
+    }
+
+    // Grass, flowers, and each region's own marks on free ground.
+    if (!gr.obstacle && !gr.ford && !gr.stair && !gr.path) {
+      const lean = Math.sin(time * 1.3 - (c.x + c.y) * 0.35) > 0.4 ? 1 : 0;
+      ctx.fillStyle = P.grass;
+      if (cellNoise(c.x, c.y, 60) < (gr.region === "ice" ? 0.25 : 0.6)) {
+        for (let t = 0; t < 4; t++) {
+          const gx = Math.round(s.x + (cellNoise(c.x, c.y, 62 + t) - 0.5) * TW * 0.5);
+          const gy = Math.round(s.y + (cellNoise(c.x, c.y, 64 + t) - 0.5) * TH * 0.45);
+          ctx.fillRect(gx + lean, gy - 3, 1, 3);
+          ctx.fillRect(gx - 2 + lean, gy - 2, 1, 2);
+          ctx.fillRect(gx + 2 + lean, gy - 2, 1, 2);
+        }
+      }
+      if (cellNoise(c.x, c.y, 90) < 0.12) {
+        ctx.fillStyle = P.flowers[Math.floor(cellNoise(c.x, c.y, 91) * P.flowers.length)];
+        for (let t = 0; t < 3; t++) {
+          ctx.fillRect(Math.round(s.x + (cellNoise(c.x, c.y, 92 + t) - 0.5) * TW * 0.4), Math.round(s.y + (cellNoise(c.x, c.y, 95 + t) - 0.5) * TH * 0.3) - 2, 2, 2);
+        }
+      }
+      if (gr.region === "earth" && cellNoise(c.x, c.y, 30) < 0.3) {
+        // Magma running through the Monolith's ground.
+        ctx.fillStyle = P.accent;
+        let vx = Math.round(s.x - 10 + cellNoise(c.x, c.y, 31) * 6), vy = Math.round(s.y - 2);
+        for (let t = 0; t < 10; t++) {
+          ctx.fillRect(vx, vy, 2, 1);
+          vx += 2;
+          vy += cellNoise(c.x + t, c.y, 32) < 0.5 ? 1 : -1;
+        }
+        if (!redraw) glows.push({ x: s.x, y: s.y, c: P.accent, r: 22 });
+      }
+      if (gr.region === "air" && cellNoise(c.x, c.y, 33) < 0.035) {
+        // A rune circle traced on the Swarm's ground.
+        ctx.strokeStyle = P.accent;
+        ctx.beginPath();
+        ctx.ellipse(s.x, s.y, TW * 0.34, TH * 0.34, 0, 0, TAU);
+        ctx.stroke();
+        ctx.fillStyle = P.accent;
+        for (let t = 0; t < 8; t++) {
+          const a = (t / 8) * TAU;
+          ctx.fillRect(Math.round(s.x + Math.cos(a) * TW * 0.25), Math.round(s.y + Math.sin(a) * TH * 0.25), 2, 1);
+        }
+        if (!redraw) glows.push({ x: s.x, y: s.y, c: P.accent, r: 30 });
+      }
+    }
+    if (gr.obstacle === "thicket") {
+      ctx.fillStyle = P.grass;
+      for (let t = 0; t < 12; t++) {
+        const gx = Math.round(s.x + (cellNoise(c.x, c.y, 130 + t) - 0.5) * TW * 0.6);
+        const gy = Math.round(s.y + (cellNoise(c.x, c.y, 140 + t) - 0.5) * TH * 0.5);
+        ctx.fillRect(gx, gy - 5, 1, 5);
+        ctx.fillRect(gx - 2, gy - 3, 1, 3);
+        ctx.fillRect(gx + 2, gy - 4, 1, 4);
+      }
+    }
+    return { s, k, gr };
+  };
+
+  /* ---------- the ground, back to front, then snapped ---------- */
+  const marks: { k: Corners; s: Position; route: boolean; hover: boolean }[] = [];
+  for (const c of cells) {
+    const { s, k, gr } = groundCell(g, c, false);
+    const hover = !!scene.hovered && scene.hovered.x === c.x && scene.hovered.y === c.y;
+    const route = scene.route.has(`${c.x},${c.y}`);
+    if (hover || route) {
+      const m = gr.stair ? at(c, gr.level - 0.5) : s;
+      marks.push({ k: gr.stair ? cornersOf(m) : k, s: m, route, hover });
+    }
+  }
+  snap(g, w, h, phase);
+
+  // Liquids move: a highlight crossing each cell, bubbles in the acid.
+  for (const l of liquids) {
+    const P = paletteOf(l.region, phase);
+    const t = (time * (l.region === "ice" ? 0.2 : 1.2) + cellNoise(l.x, l.y, 3) * 5) % 5;
+    if (t < 1.4) {
+      g.fillStyle = P.liquid[3];
+      g.fillRect(Math.round(l.x - 6 + t * 6), Math.round(l.y - 2 + cellNoise(l.x, 1, 4) * 4), 3, 1);
+    }
+    if (l.region === "acid" && cellNoise(l.x, l.y, 8) < 0.5) {
+      const b = (time * 0.8 + cellNoise(l.x, l.y, 9)) % 1;
+      g.fillStyle = P.liquid[3];
+      g.fillRect(Math.round(l.x + (cellNoise(l.x, 2, 1) - 0.5) * 20), Math.round(l.y - b * 6), 2, 2);
+    }
+  }
+
+  // The walk the pointer offers, and the cell under it, in crisp pixels.
+  for (const m of marks) {
+    if (m.route) {
+      g.fillStyle = BOARD.move;
+      g.fillRect(Math.round(m.s.x) - 1, Math.round(m.s.y) - 1, 3, 2);
+    }
+    if (m.hover) {
+      g.strokeStyle = BOARD.move;
+      g.lineWidth = 1;
+      poly(g, [m.k.T, m.k.R, m.k.B, m.k.L]);
+      g.stroke();
+    }
+  }
+
+  /* ---------- what stands, the creatures and the walker, back to front ---------- */
+  const frame = Math.floor(time * 12);
+  const drawStanding = (ctx: Ctx, c: Position) => {
+    const gr = groundAt(c);
+    const s = at(c, gr.level);
+    const P = paletteOf(gr.region, phase);
+    if (gr.obstacle === "creature" && gr.creature) {
+      const sheet = creatureSheet(gr.creature);
+      const a = artOf(gr.creature);
+      ctx.fillStyle = P.shadow;
+      ctx.beginPath();
+      ctx.ellipse(s.x, s.y + 2, a * 0.22, a * 0.08, 0, 0, TAU);
+      ctx.fill();
+      if (sheet) {
+        const row = gr.creature.startsWith("legend") ? ROWS.S : ROWS.SE;
+        ctx.drawImage(sheet, (frame % FRAMES) * a, row * a, a, a, Math.round(s.x - a / 2), Math.round(s.y - a * CREATURE_FEET), a, a);
+      }
+      if (gr.boss) glows.push({ x: s.x, y: s.y - a * 0.4, c: P.accent, r: a * 0.6 });
+      return;
+    }
+    if (gr.obstacle !== "rock" && gr.obstacle !== "tree") return;
+    const st = standingOf(c, gr, phase);
+    ctx.fillStyle = P.shadow;
+    ctx.beginPath();
+    ctx.ellipse(s.x + 6, s.y + 2, TW * 0.28, TH * 0.22, 0, 0, TAU);
+    ctx.fill();
+    ctx.drawImage(st.canvas, Math.round(s.x - st.ax), Math.round(s.y - st.ay));
+    for (const gl of st.glow) glows.push({ x: s.x - st.ax + gl.x, y: s.y - st.ay + gl.y, c: gl.c, r: 22 });
+  };
+
+  for (const c of cells) if (!inFrontOf(c, walker)) drawStanding(g, c);
+
+  // The walker: the hero's own sheet at a quarter of its size, outlined like the creatures.
+  const hero = heroSheet(scene.hero.pose, scene.hero.color);
+  if (hero) {
+    const fr = Math.floor(time * (scene.hero.pose === "walk" ? 10 : 12)) % hero.frames;
+    const P = paletteOf(here.region, phase);
+    g.fillStyle = P.shadow;
+    g.beginPath();
+    g.ellipse(heroFeet.x, heroFeet.y + 1, 10, 4, 0, 0, TAU);
+    g.fill();
+    const sprite = heroFrame(hero.sheet, `${scene.hero.pose}:${scene.hero.color ?? ""}`, fr, ROWS[scene.hero.direction], P.outline);
+    g.drawImage(sprite, Math.round(heroFeet.x - 32), Math.round(heroFeet.y - 64 * HERO_FEET));
+  }
 
   /*
-   * The box the sprite can occupy: a frame as wide as a tile, standing on
-   * the walker's feet. Every cell in front of the walker whose ground — top
-   * or cliff — reaches into it is redrawn there.
+   * In front of the walker: the ground of any cell high enough to hide the
+   * walker's feet, redrawn inside a box around the sprite and snapped, then
+   * everything that stands in front.
    */
-  const rise = th * LEVEL_RISE;
-  const feet = {
-    x: scene.origin.x + ((scene.walker.x - scene.walker.y) * tw) / 2,
-    y: scene.origin.y + ((scene.walker.x + scene.walker.y) * th) / 2 - heightAt(scene.walker) * rise,
-  };
-  const box = { x: feet.x - tw * 0.6, y: feet.y - tw * 1.1, w: tw * 1.2, h: tw * 1.1 + th * 0.6 };
-  const reaches = (c: Position) => {
-    const x = scene.origin.x + ((c.x - c.y) * tw) / 2;
-    const y = scene.origin.y + ((c.x + c.y) * th) / 2 - groundAt(c).level * rise;
-    return (
-      Math.abs(x - feet.x) < box.w / 2 + tw / 2 &&
-      y - th / 2 < box.y + box.h &&
-      y + th / 2 + MAX_LEVEL * rise > box.y
-    );
-  };
-
-  const f = painter(fore, scene);
-  f.paintGroundWithin(
-    scene.cells.filter((c) => inFrontOf(c, scene.walker) && reaches(c)),
-    box
-  );
-  for (const c of scene.cells) {
-    if (groundAt(c).obstacle && inFrontOf(c, scene.walker)) f.paintObject(c);
+  const box = { x: heroFeet.x - 40, y: heroFeet.y - 64, w: 80, h: 84 };
+  const standingHeight = heightAt(walker);
+  f.save();
+  f.beginPath();
+  f.rect(box.x, box.y, box.w, box.h);
+  f.clip();
+  for (const c of cells) {
+    if (!inFrontOf(c, walker)) continue;
+    const gr = groundAt(c);
+    const s = at(c, gr.level);
+    if (Math.abs(s.x - heroFeet.x) > box.w / 2 + TW / 2 || s.y - TH / 2 > box.y + box.h || s.y + TH / 2 + MAX_LEVEL * RISE < box.y) continue;
+    if (gr.level <= standingHeight + 0.01) continue;
+    groundCell(f, c, true);
   }
-  // Only over what this sheet holds: everywhere else it would grain the
-  // walker too, who is drawn on neither.
-  f.paintGrain("source-atop");
-  f.paintGusts();
+  f.restore();
+  snap(f, box.w, box.h, phase, box.x, box.y);
+  for (const c of cells) if (inFrontOf(c, walker)) drawStanding(f, c);
+
+  /* ---------- the hour: fireflies at dusk and night, darkness at night ---------- */
+  if (phase !== "day") {
+    f.fillStyle = "#fff0a8";
+    for (let k = 0; k < 18; k++) {
+      if (Math.sin(time * 2.4 + k * 2.1) < 0) continue;
+      const life = (time * 0.15 + cellNoise(k, 1, 40)) % 1;
+      f.fillRect(Math.round(cellNoise(k, 2, 40) * w + Math.sin(time * 0.7 + k) * 8), Math.round(h * 0.85 - life * h * 0.6), 1, 1);
+    }
+  }
+  if (phase === "night") {
+    const dark = document.createElement("canvas");
+    dark.width = w;
+    dark.height = h;
+    const d = dark.getContext("2d") as Ctx;
+    d.fillStyle = here.region === "fire" ? "rgba(6,4,8,.78)" : "rgba(6,10,26,.62)";
+    d.fillRect(0, 0, w, h);
+    d.globalCompositeOperation = "destination-out";
+    const hole = (x: number, y: number, r: number) => {
+      const grd = d.createRadialGradient(x, y, 0, x, y, r);
+      grd.addColorStop(0, "rgba(0,0,0,1)");
+      grd.addColorStop(0.5, "rgba(0,0,0,.7)");
+      grd.addColorStop(1, "rgba(0,0,0,0)");
+      d.fillStyle = grd;
+      d.fillRect(x - r, y - r, r * 2, r * 2);
+    };
+    // The walker carries a light; what glows lights itself.
+    hole(heroFeet.x, heroFeet.y - 20, 80 * (1 + 0.03 * Math.sin(time * 7)));
+    for (const gl of glows) hole(gl.x, gl.y, gl.r * 1.4);
+    f.drawImage(dark, 0, 0);
+    for (const gl of glows) {
+      f.fillStyle = gl.c;
+      for (let k = 0; k < 6; k++) {
+        if (Math.sin(time * 2 + k + gl.x) < 0.2) continue;
+        const a = cellNoise(k, gl.x | 0, 1) * TAU, r = cellNoise(k, gl.y | 0, 2) * gl.r * 0.6;
+        f.fillRect(Math.round(gl.x + Math.cos(a) * r), Math.round(gl.y + Math.sin(a) * r * 0.6), 1, 1);
+      }
+    }
+  }
 };

@@ -3,33 +3,51 @@ import { Position } from "../types/game";
 import { isoToScreen, screenToIso } from "../utils/isoUtils";
 import { followPan } from "../utils/camera";
 import { useTileSize } from "../hooks/useTileSize";
-import { Character } from "../components/Game/Grid/Character";
 import { useWalker } from "./useWalker";
-import { resolveWorldZoom, visibleCells } from "./viewport";
-import { findPath, heightAt, MAX_LEVEL, standingHeight, walkable } from "./world";
-import { LEVEL_RISE, paintWorld, Scene } from "./paint";
+import { visibleCells } from "./viewport";
+import { findPath, heightAt, MAX_LEVEL, SPAWN, standingHeight, walkable } from "./world";
+import { ART_TILE, LEVEL_RISE, paintWorld, Phase, phaseAt, Scene } from "./paint";
 
 /**
- * The world is drawn at the size a fight's board would be drawn at, times the
- * camera's zoom. It is an indirection, and it earns it: a step across the
- * paper is then the same size step it is in a fight, on every screen, and the
- * one piece of sizing in this project that has been fought over on real
- * phones stays the only piece of sizing there is.
+ * How many screen pixels one pixel of art takes. The world is pixel art, so
+ * it only ever grows by whole numbers: a cell is 64 pixels of art, and a
+ * screen pixel count that is not a multiple of that would smear them. Three
+ * on a screen large enough, for pixels that read as pixels; two on a phone,
+ * where three would leave barely three cells across.
+ *
+ * `?pixel=4` on the world's URL forces another size, to try one.
  */
-const FIGHT_SPAN = 15;
+const pixelScaleFor = (width: number, height: number): number => {
+  const asked = typeof window === "undefined" ? NaN : Number(new URLSearchParams(window.location.search).get("pixel"));
+  if (Number.isInteger(asked) && asked >= 1 && asked <= 6) return asked;
+  return width >= 900 && height >= 520 ? 3 : 2;
+};
 
-/** Read once: it cannot change without a reload. */
-const zoom =
-  typeof window === "undefined" ? 1 : resolveWorldZoom(window.location.search);
+/**
+ * Where the walk starts: the spawn, or `?at=x,y` on the world's URL to arrive
+ * straight in a boss's region — the map is large, and checking how one of
+ * its far corners looks should not take a five-minute walk.
+ */
+const startCell = (() => {
+  const asked = typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("at");
+  const [x, y] = (asked ?? "").split(",").map(Number);
+  return Number.isInteger(x) && Number.isInteger(y) && walkable({ x, y }) ? { x, y } : SPAWN;
+})();
 
-export const ExploreBoard: React.FC<{ color?: string }> = ({ color }) => {
+/**
+ * What time it is in the world. By default the world stays in daylight; asked
+ * to follow the clock, it turns to dusk and then to night with the player's
+ * own hour.
+ */
+export type Daylight = "day" | "clock";
+
+export const ExploreBoard: React.FC<{ color?: string; daylight?: Daylight }> = ({ color, daylight = "day" }) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const {
-    tile,
-    size,
-    measured,
-  } = useTileSize(containerRef, FIGHT_SPAN, zoom);
-  const walker = useWalker();
+  // Only the container's size is taken from here: the tile is set by the pixel grid.
+  const { size, measured } = useTileSize(containerRef, 15, 1);
+  const px = pixelScaleFor(size.width, size.height);
+  const tile = useMemo(() => ({ width: ART_TILE * px, height: (ART_TILE / 2) * px }), [px]);
+  const walker = useWalker(startCell);
   const [hovered, setHovered] = useState<Position | null>(null);
 
   const centreX = size.width / 2;
@@ -118,7 +136,9 @@ export const ExploreBoard: React.FC<{ color?: string }> = ({ color }) => {
    * always arrive in the same frame — a camera a frame behind its walker
    * shows as the figure shuddering against the paper.
    */
-  const scene = useRef<Omit<Scene, "time"> | null>(null);
+  const scene = useRef<Omit<Scene, "time" | "phase"> | null>(null);
+  const daylightRef = useRef(daylight);
+  daylightRef.current = daylight;
   const lastPaint = useRef(0);
   const paint = useCallback(() => {
     const behind = behindRef.current;
@@ -126,7 +146,9 @@ export const ExploreBoard: React.FC<{ color?: string }> = ({ color }) => {
     if (!behind || !front || !scene.current) return;
     const now = performance.now();
     lastPaint.current = now;
-    paintWorld(behind, front, { ...scene.current, time: now / 1000 });
+    const clock = new Date();
+    const phase: Phase = daylightRef.current === "clock" ? phaseAt(clock.getHours() + clock.getMinutes() / 60) : "day";
+    paintWorld(behind, front, { ...scene.current, time: now / 1000, phase });
   }, []);
 
   useLayoutEffect(() => {
@@ -134,16 +156,16 @@ export const ExploreBoard: React.FC<{ color?: string }> = ({ color }) => {
     scene.current = {
       width: size.width,
       height: size.height,
-      dpr: Math.min(window.devicePixelRatio || 1, 2),
-      tile,
+      px,
       origin: { x: centreX + pan.x, y: centreY + pan.y },
       cells,
       walker: walker.at,
       hovered,
       route: preview,
+      hero: { pose: walker.moving ? "walk" : "idle", direction: walker.direction, color },
     };
     paint();
-  }, [size, tile, pan, centreX, centreY, cells, walker.at, hovered, preview, measured, paint]);
+  }, [size, px, pan, centreX, centreY, cells, walker.at, walker.moving, walker.direction, color, hovered, preview, measured, paint, daylight]);
 
   /*
    * The wind keeps the world moving while nothing else does. It needs no
@@ -160,6 +182,14 @@ export const ExploreBoard: React.FC<{ color?: string }> = ({ color }) => {
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
   }, [paint]);
+
+  const pixelStyle: React.CSSProperties = {
+    width: `${Math.ceil(size.width / px) * px}px`,
+    height: `${Math.ceil(size.height / px) * px}px`,
+    imageRendering: "pixelated",
+    pointerEvents: "none",
+    visibility: measured ? undefined : "hidden",
+  };
 
   return (
     <div
@@ -179,42 +209,16 @@ export const ExploreBoard: React.FC<{ color?: string }> = ({ color }) => {
         if (cell) walker.walkTo(cell);
       }}
     >
-      <canvas
-        ref={behindRef}
-        className="absolute inset-0"
-        style={{ width: "100%", height: "100%", pointerEvents: "none" }}
-      />
       {/*
-        The figure is drawn between two sheets rather than over the whole
-        world: what stands behind it is on the first, what stands in front of
-        it on the second, so it passes behind a boulder instead of sliding
-        across its face. It is a sprite, not ink, so it keeps its own layer,
-        panned by the camera like the paper under it.
+        Two sheets, the walker drawn on the first: what stands behind the
+        walker is under it, what stands in front on the second sheet, so it
+        passes behind a boulder instead of sliding across its face. Each
+        canvas holds the art at its own resolution and is shown a whole
+        number of times larger, without smoothing, so every pixel stays a
+        square.
       */}
-      <div
-        className="absolute inset-0"
-        style={{
-          transform: `translate(${pan.x}px, ${pan.y}px)`,
-          // No easing: the pan is rewritten every frame from an already
-          // interpolated position, so there is nothing left to smooth and an
-          // ease would only leave the paper trailing behind the figure on it.
-          visibility: measured ? undefined : "hidden",
-          pointerEvents: "none",
-        }}
-      >
-        <Character
-          screenPosition={hero}
-          animation={walker.moving ? "walk" : "idle"}
-          direction={walker.direction}
-          scale={tile.width / 256}
-          color={color}
-        />
-      </div>
-      <canvas
-        ref={frontRef}
-        className="absolute inset-0"
-        style={{ width: "100%", height: "100%", pointerEvents: "none" }}
-      />
+      <canvas ref={behindRef} className="absolute left-0 top-0" style={pixelStyle} />
+      <canvas ref={frontRef} className="absolute left-0 top-0" style={pixelStyle} />
     </div>
   );
 };
