@@ -1,0 +1,63 @@
+# Render blueprint for the development build: the same two free services as
+# render.yaml, but deployed from `develop`, so what is being integrated can be
+# tried on a phone before it reaches `main`.
+#
+#   https://dofusjsdev.onrender.com      the client
+#   https://dofusjsdev-api.onrender.com  the game server
+#
+# Apply it as its own Blueprint with this file as the blueprint path (New →
+# Blueprint, then "Blueprint Path: render.dev.yaml"); render.yaml stays the
+# production one. Every push to `develop` redeploys both services.
+#
+# Unlike production, the two addresses are written out rather than prompted
+# for: the service names are fixed here, and so are their onrender.com hosts.
+# If Render hands out a suffixed host because a name is taken, correct
+# VITE_WS_URL and ALLOWED_ORIGINS to match and rebuild the client.
+
+services:
+  # ---------------------------------------------------------------------------
+  # Game server
+  # ---------------------------------------------------------------------------
+  - name: dofusjsdev-api
+    type: web
+    runtime: docker
+    plan: free
+    region: frankfurt
+    branch: develop
+    dockerfilePath: ./Dockerfile.backend
+    dockerContext: .
+    healthCheckPath: /healthz
+    envVars:
+      - key: PORT
+        value: "8080"
+      - key: TURN_SECONDS
+        value: "45"
+      # The dev site, plus the iOS app built against this server
+      # (VITE_WS_URL=wss://dofusjsdev-api.onrender.com/ws npm run ios:sync).
+      - key: ALLOWED_ORIGINS
+        value: https://dofusjsdev.onrender.com,capacitor://localhost
+      # Debug logs: this server only ever sees its developer.
+      - key: LOG_LEVEL
+        value: debug
+
+  # ---------------------------------------------------------------------------
+  # Client
+  # ---------------------------------------------------------------------------
+  - name: dofusjsdev
+    type: web
+    runtime: static
+    branch: develop
+    # No `plan` here: a static site has no compute plan at all, so Render
+    # rejects the field outright ("no such plan free for service type web").
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: ./dist
+    envVars:
+      # Baked into the bundle at build time, so changing it needs a rebuild.
+      - key: VITE_WS_URL
+        value: wss://dofusjsdev-api.onrender.com/ws
+    routes:
+      # Client-side routes (/lobby, /game, /explore) must survive a direct visit.
+      - type: rewrite
+        source: /*
+        destination: /index.html

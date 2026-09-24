@@ -251,6 +251,20 @@ Because the server keeps every game in memory, a sleep wipes the lobby. That is
 the design, not a regression: rooms are transient, and a returning player just
 starts a new one.
 
+#### Development build
+
+`render.dev.yaml` is the same pair of services deployed from `develop`, so a
+change can be tried on a phone before it reaches `main`:
+<https://dofusjsdev.onrender.com>, talking to `dofusjsdev-api`.
+
+1. New → **Blueprint**, pick this repository, and set **Blueprint Path** to
+   `render.dev.yaml`.
+2. Nothing to fill in: both addresses are written in the file. If Render gives
+   a service a suffixed host because the name is taken, correct `VITE_WS_URL`
+   and `ALLOWED_ORIGINS` to match.
+
+Every push to `develop` redeploys both services.
+
 ### Anywhere else
 
 The root `Dockerfile` builds a single ~25 MB image where the Go binary serves
