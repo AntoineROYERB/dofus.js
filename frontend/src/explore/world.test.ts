@@ -1,12 +1,25 @@
 import {
   findPath,
+  groundAt,
+  heightAt,
   inWorld,
   isRock,
+  levelOf,
+  MAX_LEVEL,
   neighbours,
   SPAWN,
   walkable,
   WORLD_RADIUS,
 } from "./world";
+import { Position } from "../types/game";
+
+const everyCell = (): Position[] => {
+  const cells: Position[] = [];
+  for (let x = -WORLD_RADIUS; x <= WORLD_RADIUS; x++) {
+    for (let y = -WORLD_RADIUS; y <= WORLD_RADIUS; y++) cells.push({ x, y });
+  }
+  return cells;
+};
 
 describe("the world's edges", () => {
   it("ends where it says it ends", () => {
@@ -101,5 +114,90 @@ describe("findPath", () => {
       expect(path.every(walkable)).toBe(true);
       expect(path.length).toBeGreaterThanOrEqual(30);
     }
+  });
+});
+
+describe("the river", () => {
+  const river = everyCell().filter((c) => {
+    const g = groundAt(c);
+    return g.obstacle === "water" || g.ford;
+  });
+
+  it("runs through the world, and cannot be walked into", () => {
+    const water = river.filter((c) => groundAt(c).obstacle === "water");
+    expect(water.length).toBeGreaterThan(WORLD_RADIUS);
+    expect(water.some(walkable)).toBe(false);
+  });
+
+  // A river the width of the world with no way across would cut it in two.
+  it("can be crossed at a ford", () => {
+    const fords = river.filter((c) => groundAt(c).ford);
+    expect(fords.length).toBeGreaterThan(0);
+    expect(fords.every(walkable)).toBe(true);
+
+    const farBank = { x: 0, y: 14 };
+    const path = findPath(SPAWN, farBank)!;
+    expect(path).not.toBeNull();
+    expect(path.some((c) => groundAt(c).ford)).toBe(true);
+  });
+});
+
+describe("terraces", () => {
+  it("stay within the levels the drawing knows about", () => {
+    const levels = new Set(everyCell().map(levelOf));
+    expect(Math.min(...levels)).toBe(0);
+    expect(Math.max(...levels)).toBeLessThanOrEqual(MAX_LEVEL);
+    // Flat ground everywhere would make the terraces a feature nobody sees.
+    expect(levels.size).toBeGreaterThan(1);
+  });
+
+  it("are climbed one level at a time", () => {
+    for (const c of everyCell()) {
+      for (const n of neighbours(c)) {
+        expect(Math.abs(levelOf(n) - levelOf(c))).toBeLessThanOrEqual(1);
+      }
+    }
+  });
+
+  it("put you down level with the ground at your feet", () => {
+    const step = everyCell().find((c) =>
+      walkable(c) && walkable({ x: c.x + 1, y: c.y }) && levelOf({ x: c.x + 1, y: c.y }) === levelOf(c) + 1
+    )!;
+    expect(step).toBeDefined();
+    expect(heightAt(step)).toBe(levelOf(step));
+    expect(heightAt({ x: step.x + 1, y: step.y })).toBe(levelOf(step) + 1);
+    expect(heightAt({ x: step.x + 0.5, y: step.y })).toBeCloseTo(levelOf(step) + 0.5);
+  });
+
+  // Rocks behind a terrace would have the terrace drawn over their feet.
+  it("never hide the foot of a rock or a tree", () => {
+    for (const c of everyCell()) {
+      const g = groundAt(c);
+      if (g.obstacle !== "rock" && g.obstacle !== "tree") continue;
+      for (let i = 0; i <= 2; i++) {
+        for (let j = 0; j <= 2; j++) {
+          expect(levelOf({ x: c.x + i, y: c.y + j })).toBeLessThanOrEqual(g.level);
+        }
+      }
+    }
+  });
+});
+
+describe("the world as a whole", () => {
+  // Scenery that walls off part of the map makes the walled-off part a
+  // drawing of somewhere you cannot go.
+  it("can be walked all over from where you arrive", () => {
+    const seen = new Set([`${SPAWN.x},${SPAWN.y}`]);
+    const queue = [SPAWN];
+    while (queue.length > 0) {
+      for (const n of neighbours(queue.shift() as Position)) {
+        const k = `${n.x},${n.y}`;
+        if (!seen.has(k)) {
+          seen.add(k);
+          queue.push(n);
+        }
+      }
+    }
+    expect(seen.size).toBe(everyCell().filter(walkable).length);
   });
 });
