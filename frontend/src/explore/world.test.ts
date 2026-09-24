@@ -1,12 +1,31 @@
 import {
+  BOSSES,
+  canStep,
   findPath,
+  groundAt,
+  heightAt,
   inWorld,
   isRock,
+  lairOf,
+  levelOf,
+  LINEAGES,
+  MAX_LEVEL,
   neighbours,
+  regionAt,
+  RING,
   SPAWN,
   walkable,
   WORLD_RADIUS,
 } from "./world";
+import { Position } from "../types/game";
+
+const everyCell = (): Position[] => {
+  const cells: Position[] = [];
+  for (let x = -WORLD_RADIUS; x <= WORLD_RADIUS; x++) {
+    for (let y = -WORLD_RADIUS; y <= WORLD_RADIUS; y++) cells.push({ x, y });
+  }
+  return cells;
+};
 
 describe("the world's edges", () => {
   it("ends where it says it ends", () => {
@@ -100,6 +119,190 @@ describe("findPath", () => {
     if (path) {
       expect(path.every(walkable)).toBe(true);
       expect(path.length).toBeGreaterThanOrEqual(30);
+    }
+  });
+});
+
+describe("the river", () => {
+  const river = everyCell().filter((c) => {
+    const g = groundAt(c);
+    return g.obstacle === "water" || g.ford;
+  });
+
+  it("runs through the world, and cannot be walked into", () => {
+    const water = river.filter((c) => groundAt(c).obstacle === "water");
+    expect(water.length).toBeGreaterThan(WORLD_RADIUS);
+    expect(water.some(walkable)).toBe(false);
+  });
+
+  // A river the width of the world with no way across would cut it in two.
+  it("can be crossed at a ford", () => {
+    const fords = river.filter((c) => groundAt(c).ford);
+    expect(fords.length).toBeGreaterThan(0);
+    expect(fords.every(walkable)).toBe(true);
+
+    const farBank = { x: 0, y: 14 };
+    const path = findPath(SPAWN, farBank)!;
+    expect(path).not.toBeNull();
+    expect(path.some((c) => groundAt(c).ford)).toBe(true);
+  });
+});
+
+describe("terraces", () => {
+  it("stay within the levels the drawing knows about", () => {
+    const levels = new Set(everyCell().map(levelOf));
+    expect(Math.min(...levels)).toBe(0);
+    expect(Math.max(...levels)).toBeLessThanOrEqual(MAX_LEVEL);
+    // Flat ground everywhere would make the terraces a feature nobody sees.
+    expect(levels.size).toBeGreaterThan(1);
+  });
+
+  it("are climbed one level at a time", () => {
+    for (const c of everyCell()) {
+      for (const n of neighbours(c)) {
+        expect(Math.abs(levelOf(n) - levelOf(c))).toBeLessThanOrEqual(1);
+      }
+    }
+  });
+
+  it("are only climbed by their stairs", () => {
+    let walls = 0;
+    for (const c of everyCell()) {
+      for (const n of [
+        { x: c.x + 1, y: c.y },
+        { x: c.x, y: c.y + 1 },
+      ]) {
+        if (!walkable(c) || !walkable(n) || Math.abs(levelOf(n) - levelOf(c)) !== 1) continue;
+        const [low, high] = levelOf(c) < levelOf(n) ? [c, n] : [n, c];
+        const flight = groundAt(high).stair;
+        const isStair = !!flight && high.x + flight.x === low.x && high.y + flight.y === low.y;
+        expect(canStep(c, n)).toBe(isStair);
+        if (!isStair) walls++;
+      }
+    }
+    // Most of a terrace's edge is a wall; the stairs are the exception.
+    expect(walls).toBeGreaterThan(0);
+  });
+
+  // Somewhere the ground goes up two levels at once, and you have to go round.
+  it("have cliffs two levels high that nothing climbs", () => {
+    let cliffs = 0;
+    for (const c of everyCell()) {
+      for (const n of [
+        { x: c.x + 1, y: c.y },
+        { x: c.x, y: c.y + 1 },
+      ]) {
+        if (!walkable(c) || !walkable(n) || Math.abs(levelOf(n) - levelOf(c)) !== 2) continue;
+        cliffs++;
+        expect(canStep(c, n)).toBe(false);
+        expect(canStep(n, c)).toBe(false);
+      }
+    }
+    expect(cliffs).toBeGreaterThan(0);
+  });
+
+  // A stair is carved into the terrace and leads down to the ground below.
+  it("put a stair where it can be walked onto and off", () => {
+    const stairs = everyCell().filter((c) => groundAt(c).stair);
+    expect(stairs.length).toBeGreaterThan(0);
+    for (const c of stairs) {
+      const flight = groundAt(c).stair as Position;
+      const foot = { x: c.x + flight.x, y: c.y + flight.y };
+      expect(walkable(c)).toBe(true);
+      expect(walkable(foot)).toBe(true);
+      expect(levelOf(foot)).toBe(levelOf(c) - 1);
+      expect(canStep(foot, c)).toBe(true);
+    }
+  });
+
+  it("are climbed at an even pace, halfway up in the middle of the stair", () => {
+    const c = everyCell().find((p) => groundAt(p).stair) as Position;
+    const flight = groundAt(c).stair as Position;
+    const l = levelOf(c);
+    expect(heightAt(c)).toBe(l - 0.5);
+    expect(heightAt({ x: c.x + flight.x, y: c.y + flight.y })).toBe(l - 1);
+    expect(heightAt({ x: c.x + flight.x / 2, y: c.y + flight.y / 2 })).toBeCloseTo(l - 0.75);
+  });
+
+  // Rocks behind a terrace would have the terrace drawn over their feet.
+  it("never hide the foot of a rock or a tree", () => {
+    for (const c of everyCell()) {
+      const g = groundAt(c);
+      if (g.obstacle !== "rock" && g.obstacle !== "tree") continue;
+      for (let i = 0; i <= 2; i++) {
+        for (let j = 0; j <= 2; j++) {
+          expect(levelOf({ x: c.x + i, y: c.y + j })).toBeLessThanOrEqual(g.level);
+        }
+      }
+    }
+  });
+});
+
+describe("the world as a whole", () => {
+  // Scenery that walls off part of the map makes the walled-off part a
+  // drawing of somewhere you cannot go.
+  it("can be walked all over from where you arrive", () => {
+    const seen = new Set([`${SPAWN.x},${SPAWN.y}`]);
+    const queue = [SPAWN];
+    while (queue.length > 0) {
+      for (const n of neighbours(queue.shift() as Position)) {
+        const k = `${n.x},${n.y}`;
+        if (!seen.has(k)) {
+          seen.add(k);
+          queue.push(n);
+        }
+      }
+    }
+    expect(seen.size).toBe(everyCell().filter(walkable).length);
+  });
+});
+
+describe("regions", () => {
+  it("begin in the Prairie, around the spawn", () => {
+    expect(regionAt(SPAWN)).toBe("prairie");
+    expect(groundAt(SPAWN).region).toBe("prairie");
+  });
+
+  it("give every boss of the ring a region of its own", () => {
+    const seen = new Set(everyCell().map((c) => groundAt(c).region));
+    for (const r of RING) expect(seen.has(r)).toBe(true);
+  });
+
+  // A boss has to be reachable, or its region is scenery around a locked door.
+  it("put each boss in its lair, with a way to walk up to it", () => {
+    const reached = new Set([`${SPAWN.x},${SPAWN.y}`]);
+    const queue = [SPAWN];
+    while (queue.length > 0) {
+      for (const n of neighbours(queue.shift() as Position)) {
+        const k = `${n.x},${n.y}`;
+        if (!reached.has(k)) {
+          reached.add(k);
+          queue.push(n);
+        }
+      }
+    }
+    for (const r of RING) {
+      const lair = lairOf(r) as Position;
+      const g = groundAt(lair);
+      expect(g.boss).toBe(true);
+      expect(g.creature).toBe(BOSSES[r]);
+      expect(walkable(lair)).toBe(false);
+      const approach = [
+        { x: lair.x + 1, y: lair.y },
+        { x: lair.x - 1, y: lair.y },
+        { x: lair.x, y: lair.y + 1 },
+        { x: lair.x, y: lair.y - 1 },
+      ];
+      expect(approach.some((p) => reached.has(`${p.x},${p.y}`))).toBe(true);
+    }
+  });
+
+  it("people each region with its own lineage, and nobody walks through them", () => {
+    for (const c of everyCell()) {
+      const g = groundAt(c);
+      if (!g.creature || g.boss) continue;
+      expect(LINEAGES[g.region]).toContain(g.creature);
+      expect(walkable(c)).toBe(false);
     }
   });
 });

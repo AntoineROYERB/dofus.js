@@ -1,123 +1,53 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Position } from "../types/game";
-import { BOARD } from "../constants";
 import { isoToScreen, screenToIso } from "../utils/isoUtils";
 import { followPan } from "../utils/camera";
 import { useTileSize } from "../hooks/useTileSize";
-import { Character } from "../components/Game/Grid/Character";
 import { useWalker } from "./useWalker";
-import { inFrontOf, resolveWorldZoom, visibleCells } from "./viewport";
-import { findPath, isRock, walkable } from "./world";
+import { visibleCells } from "./viewport";
+import { findPath, heightAt, MAX_LEVEL, SPAWN, standingHeight, walkable } from "./world";
+import { ART_TILE, LEVEL_RISE, paintWorld, Phase, phaseAt, Scene } from "./paint";
 
 /**
- * The world is drawn at the size a fight's board would be drawn at, times the
- * camera's zoom. It is an indirection, and it earns it: a step across the
- * paper is then the same size step it is in a fight, on every screen, and the
- * one piece of sizing in this project that has been fought over on real
- * phones stays the only piece of sizing there is.
+ * How many screen pixels one pixel of art takes. The world is pixel art, so
+ * it only ever grows by whole numbers: a cell is 64 pixels of art, and a
+ * screen pixel count that is not a multiple of that would smear them. Three
+ * on a screen large enough, for pixels that read as pixels; two on a phone,
+ * where three would leave barely three cells across.
+ *
+ * `?pixel=4` on the world's URL forces another size, to try one.
  */
-const FIGHT_SPAN = 15;
+const pixelScaleFor = (width: number, height: number): number => {
+  const asked = typeof window === "undefined" ? NaN : Number(new URLSearchParams(window.location.search).get("pixel"));
+  if (Number.isInteger(asked) && asked >= 1 && asked <= 6) return asked;
+  return width >= 900 && height >= 520 ? 3 : 2;
+};
 
-/** The ground, and what is standing on it. */
-const Cell: React.FC<{
-  screen: Position;
-  tile: { width: number; height: number };
-  rock: boolean;
-  hovered: boolean;
-  onPath: boolean;
-}> = React.memo(({ screen, tile, rock, hovered, onPath }) => {
-  const w = tile.width;
-  const h = tile.height;
-  const points = `${w / 2},0 ${w},${h / 2} ${w / 2},${h} 0,${h / 2}`;
-  const rise = rock ? h * BOARD.block.rise : 0;
+/**
+ * Where the walk starts: the spawn, or `?at=x,y` on the world's URL to arrive
+ * straight in a boss's region — the map is large, and checking how one of
+ * its far corners looks should not take a five-minute walk.
+ */
+const startCell = (() => {
+  const asked = typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("at");
+  const [x, y] = (asked ?? "").split(",").map(Number);
+  return Number.isInteger(x) && Number.isInteger(y) && walkable({ x, y }) ? { x, y } : SPAWN;
+})();
 
-  return (
-    <div
-      className="absolute"
-      style={{
-        left: `${screen.x - w / 2}px`,
-        top: `${screen.y - h / 2}px`,
-        width: `${w}px`,
-        height: `${h}px`,
-        // The container reads the pointer and does the arithmetic itself, so
-        // no cell competes for a click meant for the ground.
-        pointerEvents: "none",
-      }}
-    >
-      <svg
-        width={w}
-        height={h}
-        viewBox={`0 0 ${w} ${h}`}
-        preserveAspectRatio="none"
-        style={{ pointerEvents: "none", overflow: "visible" }}
-      >
-        {rock ? (
-          <g>
-            <polygon
-              points={`0,${h / 2} ${w / 2},${h} ${w / 2},${h - rise} 0,${h / 2 - rise}`}
-              fill={BOARD.block.left}
-            />
-            <polygon
-              points={`${w},${h / 2} ${w / 2},${h} ${w / 2},${h - rise} ${w},${h / 2 - rise}`}
-              fill={BOARD.block.right}
-            />
-            <polygon
-              points={points}
-              transform={`translate(0, ${-rise})`}
-              fill={BOARD.block.top}
-              stroke={BOARD.block.stroke}
-              strokeWidth={1}
-            />
-          </g>
-        ) : (
-          <>
-            {/*
-              No checker out here. The fight's board alternates its cells
-              because a fight is counted in them — movement points, a spell's
-              range, the walk it charges you for. Walking somewhere is not
-              counted, so the grid stops being information and goes back to
-              being a pattern over everything you look at. What is left is the
-              paper, a seam faint enough to read as its texture, and a cell
-              that answers when the pointer is on it.
-            */}
-            <polygon points={points} fill={BOARD.tile} stroke="none" />
-            {onPath && (
-              <circle
-                cx={w / 2}
-                cy={h / 2}
-                r={Math.max(2, h * 0.07)}
-                fill={BOARD.move}
-                fillOpacity={0.5}
-              />
-            )}
-            <polygon
-              points={points}
-              fill={hovered ? BOARD.move : "none"}
-              fillOpacity={hovered ? 0.18 : 0}
-              stroke={hovered ? BOARD.move : BOARD.stroke}
-              strokeWidth={hovered ? BOARD.strokes.marked : BOARD.strokes.tile}
-              strokeOpacity={hovered ? 1 : 0.4}
-            />
-          </>
-        )}
-      </svg>
-    </div>
-  );
-});
-Cell.displayName = "Cell";
+/**
+ * What time it is in the world. By default the world stays in daylight; asked
+ * to follow the clock, it turns to dusk and then to night with the player's
+ * own hour.
+ */
+export type Daylight = "day" | "clock";
 
-/** Read once: it cannot change without a reload. */
-const zoom =
-  typeof window === "undefined" ? 1 : resolveWorldZoom(window.location.search);
-
-export const ExploreBoard: React.FC<{ color?: string }> = ({ color }) => {
+export const ExploreBoard: React.FC<{ color?: string; daylight?: Daylight }> = ({ color, daylight = "day" }) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const {
-    tile,
-    size,
-    measured,
-  } = useTileSize(containerRef, FIGHT_SPAN, zoom);
-  const walker = useWalker();
+  // Only the container's size is taken from here: the tile is set by the pixel grid.
+  const { size, measured } = useTileSize(containerRef, 15, 1);
+  const px = pixelScaleFor(size.width, size.height);
+  const tile = useMemo(() => ({ width: ART_TILE * px, height: (ART_TILE / 2) * px }), [px]);
+  const walker = useWalker(startCell);
   const [hovered, setHovered] = useState<Position | null>(null);
 
   const centreX = size.width / 2;
@@ -129,10 +59,15 @@ export const ExploreBoard: React.FC<{ color?: string }> = ({ color }) => {
    * that projection in the middle of the screen. Nothing else on the board
    * knows — see camera.ts.
    */
-  const hero = isoToScreen(walker.at.x, walker.at.y, tile, centreX, centreY);
+  const rise = tile.height * LEVEL_RISE;
+  const flat = isoToScreen(walker.at.x, walker.at.y, tile, centreX, centreY);
+  // Up a terrace, the figure stands as high as the ground under it, and the
+  // camera follows the figure rather than the cell.
+  const hero = { x: flat.x, y: flat.y - heightAt(walker.at) * rise };
   const pan = useMemo(
     () => followPan(hero, { x: centreX, y: centreY }, 1),
-    [hero, centreX, centreY]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [hero.x, hero.y, centreX, centreY]
   );
 
   const cells = useMemo(
@@ -140,21 +75,32 @@ export const ExploreBoard: React.FC<{ color?: string }> = ({ color }) => {
     [size, tile, pan]
   );
 
-  /** Where a click or a hover actually landed, undoing the camera's pan. */
+  /**
+   * Where a click or a hover actually landed, undoing the camera's pan. The
+   * ground is not flat, so the point is tried against every terrace height —
+   * and halfway up, for a stair — and of the cells whose top is under the
+   * pointer, the one furthest forward wins: it is the one drawn last, so it
+   * is the one you can see.
+   */
   const cellUnder = useCallback(
     (clientX: number, clientY: number): Position | null => {
       const box = containerRef.current?.getBoundingClientRect();
       if (!box) return null;
-      const at = screenToIso(
-        clientX - box.left - pan.x,
-        clientY - box.top - pan.y,
-        tile,
-        centreX,
-        centreY
-      );
-      return walkable(at) ? at : null;
+      let best: Position | null = null;
+      for (let height = 0; height <= MAX_LEVEL; height += 0.5) {
+        const at = screenToIso(
+          clientX - box.left - pan.x,
+          clientY - box.top - pan.y + height * rise,
+          tile,
+          centreX,
+          centreY
+        );
+        if (standingHeight(at) !== height) continue;
+        if (!best || at.x + at.y >= best.x + best.y) best = at;
+      }
+      return best && walkable(best) ? best : null;
     },
-    [pan, tile, centreX, centreY]
+    [pan, tile, rise, centreX, centreY]
   );
 
   /*
@@ -182,25 +128,68 @@ export const ExploreBoard: React.FC<{ color?: string }> = ({ color }) => {
     return new Set((route ?? []).map((c) => `${c.x},${c.y}`));
   }, [hovered, walker.cell, walker.moving]);
 
-  /* Split at the walker's own depth — see inFrontOf for where that falls. */
-  const ground = useMemo(
-    () => ({
-      behind: cells.filter((c) => !inFrontOf(c, walker.at)),
-      inFront: cells.filter((c) => inFrontOf(c, walker.at)),
-    }),
-    [cells, walker.at]
-  );
+  const behindRef = useRef<HTMLCanvasElement>(null);
+  const frontRef = useRef<HTMLCanvasElement>(null);
 
-  const drawCell = (c: Position) => (
-    <Cell
-      key={`${c.x},${c.y}`}
-      screen={isoToScreen(c.x, c.y, tile, centreX, centreY)}
-      tile={tile}
-      rock={isRock(c)}
-      hovered={!!hovered && hovered.x === c.x && hovered.y === c.y}
-      onPath={preview.has(`${c.x},${c.y}`)}
-    />
-  );
+  /*
+   * Painted before the browser paints, so the ground and the figure on it
+   * always arrive in the same frame — a camera a frame behind its walker
+   * shows as the figure shuddering against the paper.
+   */
+  const scene = useRef<Omit<Scene, "time" | "phase"> | null>(null);
+  const daylightRef = useRef(daylight);
+  daylightRef.current = daylight;
+  const lastPaint = useRef(0);
+  const paint = useCallback(() => {
+    const behind = behindRef.current;
+    const front = frontRef.current;
+    if (!behind || !front || !scene.current) return;
+    const now = performance.now();
+    lastPaint.current = now;
+    const clock = new Date();
+    const phase: Phase = daylightRef.current === "clock" ? phaseAt(clock.getHours() + clock.getMinutes() / 60) : "day";
+    paintWorld(behind, front, { ...scene.current, time: now / 1000, phase });
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!measured) return;
+    scene.current = {
+      width: size.width,
+      height: size.height,
+      px,
+      origin: { x: centreX + pan.x, y: centreY + pan.y },
+      cells,
+      walker: walker.at,
+      hovered,
+      route: preview,
+      hero: { pose: walker.moving ? "walk" : "idle", direction: walker.direction, color },
+    };
+    paint();
+  }, [size, px, pan, centreX, centreY, cells, walker.at, walker.moving, walker.direction, color, hovered, preview, measured, paint, daylight]);
+
+  /*
+   * The wind keeps the world moving while nothing else does. It needs no
+   * more than thirty frames a second to read as wind, and a world standing
+   * still should not cost a phone its battery at sixty; while the walker is
+   * moving, the layout effect above is already painting every frame.
+   */
+  useEffect(() => {
+    let frame = 0;
+    const tick = (now: number) => {
+      frame = requestAnimationFrame(tick);
+      if (now - lastPaint.current >= 33) paint();
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [paint]);
+
+  const pixelStyle: React.CSSProperties = {
+    width: `${Math.ceil(size.width / px) * px}px`,
+    height: `${Math.ceil(size.height / px) * px}px`,
+    imageRendering: "pixelated",
+    pointerEvents: "none",
+    visibility: measured ? undefined : "hidden",
+  };
 
   return (
     <div
@@ -220,36 +209,16 @@ export const ExploreBoard: React.FC<{ color?: string }> = ({ color }) => {
         if (cell) walker.walkTo(cell);
       }}
     >
-      <div
-        className="absolute inset-0"
-        style={{
-          transform: `translate(${pan.x}px, ${pan.y}px)`,
-          // No easing: the pan is rewritten every frame from an already
-          // interpolated position, so there is nothing left to smooth and an
-          // ease would only leave the paper trailing behind the figure on it.
-          visibility: measured ? undefined : "hidden",
-        }}
-      >
-        {ground.behind.map(drawCell)}
-        {/*
-          The figure is drawn among the ground, not over all of it. Nothing in
-          this projection overlaps anything with a smaller x + y, so the walker
-          belongs at its own sum: what is behind it is already down, what is in
-          front of it comes after, and it passes behind a boulder instead of
-          sliding across its face. The fight's board lays every fighter on top
-          of everything, which it gets away with because its cover is sparse
-          and its camera never walks you in among it. Out here the scenery is
-          the only thing saying the paper moved, so it has to be believable.
-        */}
-        <Character
-          screenPosition={hero}
-          animation={walker.moving ? "walk" : "idle"}
-          direction={walker.direction}
-          scale={tile.width / 256}
-          color={color}
-        />
-        {ground.inFront.map(drawCell)}
-      </div>
+      {/*
+        Two sheets, the walker drawn on the first: what stands behind the
+        walker is under it, what stands in front on the second sheet, so it
+        passes behind a boulder instead of sliding across its face. Each
+        canvas holds the art at its own resolution and is shown a whole
+        number of times larger, without smoothing, so every pixel stays a
+        square.
+      */}
+      <canvas ref={behindRef} className="absolute left-0 top-0" style={pixelStyle} />
+      <canvas ref={frontRef} className="absolute left-0 top-0" style={pixelStyle} />
     </div>
   );
 };
