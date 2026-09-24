@@ -31,11 +31,12 @@ import { Position } from "../types/game";
  * *drawn* larger instead of being blown up after the fact — Character takes
  * its own scale from tileSize.width, and a canvas stretched by CSS goes soft.
  *
- * 1.6 rather than something bolder because the world has to stay somewhere
- * you can see, not just somewhere you stand: at 2.2 a desktop showed under
- * four cells across and anything worth walking towards was off the edge of
- * the screen before you could want to, which reads as a close-up rather than
- * as a place.
+ * 1.6 rather than something bolder because a board has to stay somewhere you
+ * can see, not just somewhere you stand: at 2.2 a desktop showed under four
+ * cells across and anything worth walking towards was off the edge of the
+ * screen before you could want to, which reads as a close-up rather than as a
+ * place. It is what `?camera=on` gives a fight; the world sets its own, and
+ * sets it lower — see WORLD_ZOOM.
  */
 export const CAMERA_ZOOM = 1.6;
 

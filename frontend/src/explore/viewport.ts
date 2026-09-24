@@ -3,6 +3,31 @@ import { screenToIso } from "../utils/isoUtils";
 import { WORLD_RADIUS } from "./world";
 
 /**
+ * How large the world's cells are drawn, as a multiple of the size the same
+ * cells would be on a fight's board fitted to the same box.
+ *
+ * 1 — the same size — rather than the camera's own 1.6, which is what a fight
+ * uses when asked for a camera. A fight wants you close: everything that
+ * matters is within a few cells and the board ends just past it. A world
+ * wants the opposite. Held as tight as a fight, it reads as a corridor — you
+ * can see the cell you are on and not much reason to leave it, and a mode
+ * about going somewhere has to show you somewhere to go. Drawn at a fight's
+ * own size, roughly two and a half times as much ground is on screen, and the
+ * camera still has plenty to scroll because the world does not end.
+ *
+ * `?zoom=0.8` on the world's URL opens it further out, `?zoom=1.4` pulls it
+ * in. The right answer is felt rather than argued, so it is easy to try.
+ */
+export const WORLD_ZOOM = 1;
+
+export const resolveWorldZoom = (search: string): number => {
+  const asked = Number(new URLSearchParams(search).get("zoom"));
+  // Far enough out that cells stop being clickable, or so far in that a step
+  // fills the screen, is a typo rather than an instruction.
+  return Number.isFinite(asked) && asked >= 0.4 && asked <= 4 ? asked : WORLD_ZOOM;
+};
+
+/**
  * Which cells are worth drawing.
  *
  * The fight's board draws all of itself, and can: it is a hundred-odd cells
@@ -68,3 +93,22 @@ export const visibleCells = (
   }
   return cells.sort((a, b) => a.x + a.y - (b.x + b.y) || a.x - b.x || a.y - b.y);
 };
+
+/**
+ * Whether a cell is drawn after the walker — in front of it — given where the
+ * walker is, in cells, fractions and all.
+ *
+ * The rounding is the whole of it, and leaving it out is a bug you can see.
+ * A cell's ground is an opaque diamond, and a walker mid-step is already
+ * standing partly inside the diamond of the cell it is stepping onto: judge
+ * that cell by the walker's fractional position and it stays "in front" for
+ * the whole step, so it paints over the walker's feet on the way in. Ground
+ * swallowing the thing standing on it.
+ *
+ * Rounding fixes it exactly, not approximately. Stepping from one cell to the
+ * next, the walker's feet cross into the far cell's diamond at precisely
+ * halfway — which is the same instant the rounding flips. So the cell stops
+ * being drawn in front on the frame the feet arrive, and never before.
+ */
+export const inFrontOf = (cell: Position, walker: Position): boolean =>
+  cell.x + cell.y > Math.round(walker.x) + Math.round(walker.y);

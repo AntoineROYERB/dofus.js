@@ -1,5 +1,12 @@
+import { Position } from "../types/game";
 import { isoToScreen } from "../utils/isoUtils";
-import { visibleBounds, visibleCells } from "./viewport";
+import {
+  inFrontOf,
+  resolveWorldZoom,
+  visibleBounds,
+  visibleCells,
+  WORLD_ZOOM,
+} from "./viewport";
 import { WORLD_RADIUS } from "./world";
 
 const size = { width: 800, height: 500 };
@@ -68,5 +75,67 @@ describe("visibleCells", () => {
     // Paper pulled to the left brings cells further along x and y into view.
     expect(panned.maxX).toBeGreaterThan(still.maxX);
     expect(panned.minY).toBeLessThan(still.minY);
+  });
+});
+
+describe("inFrontOf", () => {
+  it("puts the row behind you behind, and the row ahead ahead", () => {
+    const at = { x: 0, y: 0 };
+    expect(inFrontOf({ x: -1, y: 0 }, at)).toBe(false);
+    expect(inFrontOf({ x: 1, y: -1 }, at)).toBe(false); // same depth, beside you
+    expect(inFrontOf({ x: 1, y: 0 }, at)).toBe(true);
+    expect(inFrontOf({ x: 0, y: 1 }, at)).toBe(true);
+  });
+
+  /*
+   * The property the rounding exists for. A cell's ground is opaque, so a cell
+   * drawn after the walker paints over whatever of the walker it covers — and
+   * the walker's feet sit at its own projected point. So at no moment of a
+   * step may a cell be both drawn in front AND have the feet inside it.
+   */
+  it("never draws ground over the feet standing on it", () => {
+    const tile = { width: 160, height: 80 };
+    const steps: [Position, Position][] = [
+      [{ x: 0, y: 0 }, { x: 0, y: 1 }],
+      [{ x: 0, y: 0 }, { x: 1, y: 0 }],
+      [{ x: 3, y: -2 }, { x: 2, y: -2 }],
+      [{ x: -4, y: 5 }, { x: -4, y: 4 }],
+    ];
+
+    for (const [from, to] of steps) {
+      for (let t = 0; t <= 1.0001; t += 0.02) {
+        const at = {
+          x: from.x + (to.x - from.x) * t,
+          y: from.y + (to.y - from.y) * t,
+        };
+        const feet = isoToScreen(at.x, at.y, tile, 0, 0);
+        for (const cell of [from, to]) {
+          const centre = isoToScreen(cell.x, cell.y, tile, 0, 0);
+          const insideDiamond =
+            Math.abs(feet.x - centre.x) / (tile.width / 2) +
+              Math.abs(feet.y - centre.y) / (tile.height / 2) <
+            0.999;
+          if (insideDiamond) expect(inFrontOf(cell, at)).toBe(false);
+        }
+      }
+    }
+  });
+});
+
+describe("resolveWorldZoom", () => {
+  it("draws the world at a fight's own scale unless asked otherwise", () => {
+    expect(resolveWorldZoom("")).toBe(WORLD_ZOOM);
+    expect(resolveWorldZoom("?camera=1.6")).toBe(WORLD_ZOOM);
+  });
+
+  it("opens out or pulls in on request", () => {
+    expect(resolveWorldZoom("?zoom=0.8")).toBe(0.8);
+    expect(resolveWorldZoom("?zoom=2")).toBe(2);
+  });
+
+  it("ignores a zoom nobody could play at", () => {
+    expect(resolveWorldZoom("?zoom=0.01")).toBe(WORLD_ZOOM);
+    expect(resolveWorldZoom("?zoom=40")).toBe(WORLD_ZOOM);
+    expect(resolveWorldZoom("?zoom=wide")).toBe(WORLD_ZOOM);
   });
 });

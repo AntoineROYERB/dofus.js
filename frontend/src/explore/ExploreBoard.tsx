@@ -2,11 +2,11 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Position } from "../types/game";
 import { BOARD } from "../constants";
 import { isoToScreen, screenToIso } from "../utils/isoUtils";
-import { CAMERA_ZOOM, followPan } from "../utils/camera";
+import { followPan } from "../utils/camera";
 import { useTileSize } from "../hooks/useTileSize";
 import { Character } from "../components/Game/Grid/Character";
 import { useWalker } from "./useWalker";
-import { visibleCells } from "./viewport";
+import { inFrontOf, resolveWorldZoom, visibleCells } from "./viewport";
 import { findPath, isRock, walkable } from "./world";
 
 /**
@@ -106,13 +106,17 @@ const Cell: React.FC<{
 });
 Cell.displayName = "Cell";
 
+/** Read once: it cannot change without a reload. */
+const zoom =
+  typeof window === "undefined" ? 1 : resolveWorldZoom(window.location.search);
+
 export const ExploreBoard: React.FC<{ color?: string }> = ({ color }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const {
     tile,
     size,
     measured,
-  } = useTileSize(containerRef, FIGHT_SPAN, CAMERA_ZOOM);
+  } = useTileSize(containerRef, FIGHT_SPAN, zoom);
   const walker = useWalker();
   const [hovered, setHovered] = useState<Position | null>(null);
 
@@ -178,18 +182,14 @@ export const ExploreBoard: React.FC<{ color?: string }> = ({ color }) => {
     return new Set((route ?? []).map((c) => `${c.x},${c.y}`));
   }, [hovered, walker.cell, walker.moving]);
 
-  /*
-   * Split at the walker's own depth. Its position is a fraction of a cell
-   * mid-step, which is what makes the hand-off land in the right place: at
-   * halfway between two rows, the nearer row is already in front of it.
-   */
-  const ground = useMemo(() => {
-    const depth = walker.at.x + walker.at.y;
-    return {
-      behind: cells.filter((c) => c.x + c.y <= depth),
-      inFront: cells.filter((c) => c.x + c.y > depth),
-    };
-  }, [cells, walker.at.x, walker.at.y]);
+  /* Split at the walker's own depth — see inFrontOf for where that falls. */
+  const ground = useMemo(
+    () => ({
+      behind: cells.filter((c) => !inFrontOf(c, walker.at)),
+      inFront: cells.filter((c) => inFrontOf(c, walker.at)),
+    }),
+    [cells, walker.at]
+  );
 
   const drawCell = (c: Position) => (
     <Cell
