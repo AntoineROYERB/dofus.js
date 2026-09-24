@@ -47,16 +47,29 @@ const inClearing = (p: Position): boolean => Math.abs(p.x) + Math.abs(p.y) <= CL
  *
  * Everything the rules need and everything the drawing needs comes from the
  * one record below, so the two cannot disagree: a tree is drawn exactly where
- * walking refuses to go, and a slope is drawn exactly where it lets you climb.
+ * walking refuses to go, and a stair is drawn exactly where it lets you climb.
  */
-export type Obstacle = "rock" | "tree" | "water";
+/**
+ * What stops you. A thicket is low scrub, drawn flat on the ground: it fills a
+ * pocket nothing else could reach without standing tall enough to hide behind
+ * a terrace.
+ */
+export type Obstacle = "rock" | "tree" | "water" | "thicket";
 
 export type Ground = {
-  /** Terrace height, 0 to MAX_LEVEL. One level is a step; two is a cliff. */
+  /** Terrace height, 0 to MAX_LEVEL. */
   level: number;
   obstacle: Obstacle | null;
   /** A shallow crossing: river drawn, stones to step on, and walkable. */
   ford: boolean;
+  /**
+   * Steps cut into this cell, climbing towards the neighbour one level up in
+   * this direction. A terrace is only ever climbed by its stairs: without
+   * them a one-level edge is as much a wall as a two-level one.
+   */
+  stair: Position | null;
+  /** Trodden ground on the way to or from a stair. */
+  path: boolean;
   /** How much of the cell is moss and how much sand, each 0 to 1. */
   moss: number;
   sand: number;
@@ -79,6 +92,8 @@ const riverCentre = (x: number): number =>
 
 const riverDistance = (p: Position): number => Math.abs(p.y - riverCentre(p.x));
 
+const isFordColumn = (x: number): boolean => ((x % FORD_EVERY) + FORD_EVERY) % FORD_EVERY === 0;
+
 /**
  * Moss and sand as smooth fields over the plane, fractional coordinates and
  * all, so the wash that paints them can be sampled finer than the grid.
@@ -88,64 +103,347 @@ export const biomeAt = (x: number, y: number): { moss: number; sand: number } =>
   return { moss: smoothstep((n - 0.52) / 0.12), sand: smoothstep((0.44 - n) / 0.12) };
 };
 
-const rawLevel = (p: Position): number => {
-  if (inClearing(p)) return 0;
-  const lift = fbm(p.x, p.y, 3) + Math.min(Math.hypot(p.x, p.y), 9) * 0.03 - 0.08;
-  const level = Math.max(0, Math.min(MAX_LEVEL, Math.floor((lift - 0.38) * 6)));
-  // The banks come down to the water gently: a cliff straight into the river
-  // would leave the fords with no way down to them.
-  return Math.min(level, Math.floor(riverDistance(p)));
-};
-
-/*
- * Nothing stands just behind higher ground. A rock tucked behind a terrace
- * would have the terrace drawn over its foot, and working out that overlap
- * every frame is a price paid for scenery nobody would miss.
+/**
+ * Where a middle terrace is pushed up to meet the one above it, so that the
+ * ground goes from the bottom to the top in one cliff: two levels at once,
+ * which no stair climbs. You go round.
  */
-const behindHigherGround = (p: Position, level: number): boolean => {
-  for (let i = 0; i <= 2; i++) {
-    for (let j = 0; j <= 2; j++) {
-      if ((i || j) && rawLevel({ x: p.x + i, y: p.y + j }) > level) return true;
-    }
-  }
-  return false;
+const ESCARPMENT = 0.64;
+
+const baseLevel = (p: Position): number => {
+  // Flat where you arrive, and flat either side of a ford, so the way across
+  // the river never ends at the foot of a wall.
+  if (inClearing(p)) return 0;
+  const d = riverDistance(p);
+  if (d < 3 && (isFordColumn(p.x - 1) || isFordColumn(p.x) || isFordColumn(p.x + 1))) return 0;
+  const lift = fbm(p.x, p.y, 3) + Math.min(Math.hypot(p.x, p.y), 9) * 0.03 - 0.08;
+  let level = Math.max(0, Math.min(MAX_LEVEL, Math.floor((lift - 0.38) * 6)));
+  if (level === 1 && valueNoise(p.x, p.y, 5, 41) > ESCARPMENT) level = MAX_LEVEL;
+  // The river runs in a valley: flat along the water, a terrace above it,
+  // and the high ground only further out.
+  return Math.min(level, Math.floor(d / 2));
 };
 
 const ROCK_DENSITY = 0.07;
 const TREE_DENSITY = 0.025;
+/** How often a terrace gets a second stair, once it is already reachable. */
+const EXTRA_STAIRS = 0.12;
+/** No two stairs closer than this, counted in steps, unless one is needed. */
+const STAIR_SPACING = 6;
 
-const survey = (p: Position): Ground => {
-  const { moss, sand } = biomeAt(p.x, p.y);
-  const river = riverDistance(p) < RIVER_HALF_WIDTH;
-  const ford = river && (((p.x % FORD_EVERY) + FORD_EVERY) % FORD_EVERY) === 0;
-  const level = river ? 0 : rawLevel(p);
+const SIDE = WORLD_RADIUS * 2 + 1;
+const index = (p: Position): number => (p.x + WORLD_RADIUS) * SIDE + (p.y + WORLD_RADIUS);
+const cellAt = (i: number): Position => ({
+  x: Math.floor(i / SIDE) - WORLD_RADIUS,
+  y: (i % SIDE) - WORLD_RADIUS,
+});
+const STEPS: Position[] = [
+  { x: 1, y: 0 },
+  { x: -1, y: 0 },
+  { x: 0, y: 1 },
+  { x: 0, y: -1 },
+];
+const plus = (a: Position, b: Position): Position => ({ x: a.x + b.x, y: a.y + b.y });
+const minus = (a: Position, b: Position): Position => ({ x: a.x - b.x, y: a.y - b.y });
 
-  let obstacle: Obstacle | null = null;
-  if (river) {
-    if (!ford) obstacle = "water";
-  } else if (!inClearing(p) && !behindHigherGround(p, level)) {
+/**
+ * The whole world, surveyed once. It is finite and small, and some of it —
+ * where the stairs go — can only be decided by looking at all of it at once.
+ */
+const survey = (): Ground[] => {
+  const count = SIDE * SIDE;
+  const all = Array.from({ length: count }, (_, i) => cellAt(i));
+  const river = all.map((p) => riverDistance(p) < RIVER_HALF_WIDTH);
+  const ford = all.map((p, i) => river[i] && isFordColumn(p.x));
+  let level = all.map((p, i) => (river[i] ? 0 : baseLevel(p)));
+  const levelAt = (p: Position) => (inWorld(p) ? level[index(p)] : -1);
+
+  /*
+   * Terraces are smoothed before anything is built on them: noise leaves
+   * single cells and thin strands a level apart, and every one of those
+   * would be a terrace of its own, needing its own stair to reach.
+   */
+  for (let pass = 0; pass < 2; pass++) {
+    level = level.map((l, i) => {
+      if (river[i]) return 0;
+      const votes = new Array(MAX_LEVEL + 1).fill(0);
+      for (let dx = -1; dx <= 1; dx++) {
+        for (let dy = -1; dy <= 1; dy++) {
+          const n = { x: all[i].x + dx, y: all[i].y + dy };
+          if (inWorld(n) && !river[index(n)]) votes[level[index(n)]]++;
+        }
+      }
+      const best = votes.indexOf(Math.max(...votes));
+      return votes[best] >= 5 ? best : l;
+    });
+  }
+
+  /*
+   * What smoothing leaves behind — a patch of a few cells a level apart from
+   * everything round it — is folded into the largest terrace it touches.
+   */
+  const SMALLEST_TERRACE = 10;
+  for (let pass = 0; pass < 3; pass++) {
+    const seen = new Uint8Array(count);
+    let changed = false;
+    for (let start = 0; start < count; start++) {
+      if (seen[start] || river[start]) continue;
+      const patch = [start];
+      seen[start] = 1;
+      const touching = new Map<number, number>();
+      for (let k = 0; k < patch.length; k++) {
+        for (const step of STEPS) {
+          const n = plus(all[patch[k]], step);
+          if (!inWorld(n)) continue;
+          const j = index(n);
+          if (river[j] && !ford[j]) continue;
+          if (level[j] !== level[start]) {
+            touching.set(level[j], (touching.get(level[j]) ?? 0) + 1);
+          } else if (!seen[j]) {
+            seen[j] = 1;
+            patch.push(j);
+          }
+        }
+      }
+      if (patch.length >= SMALLEST_TERRACE || touching.size === 0 || ford[start]) continue;
+      const into = [...touching.entries()].sort((a, b) => b[1] - a[1])[0][0];
+      for (const i of patch) level[i] = into;
+      changed = true;
+    }
+    if (!changed) break;
+  }
+
+  /*
+   * A plateau walled in by two-level cliffs on every side would be a drawing
+   * of somewhere you cannot go. Anything that cannot be reached from the
+   * spawn, climbing at most a level at a time, is lowered a level and the
+   * question asked again, until nothing is left out.
+   */
+  const passable = (i: number) => !river[i] || ford[i];
+  for (let round = 0; round < MAX_LEVEL + 2; round++) {
+    const reached = new Uint8Array(count);
+    const queue = [index(SPAWN)];
+    reached[queue[0]] = 1;
+    while (queue.length > 0) {
+      const i = queue.pop() as number;
+      for (const step of STEPS) {
+        const n = plus(cellAt(i), step);
+        if (!inWorld(n)) continue;
+        const j = index(n);
+        if (reached[j] || !passable(j) || Math.abs(level[j] - level[i]) > 1) continue;
+        reached[j] = 1;
+        queue.push(j);
+      }
+    }
+    let lowered = false;
+    for (let i = 0; i < count; i++) {
+      if (!reached[i] && passable(i) && level[i] > 0) {
+        level[i]--;
+        lowered = true;
+      }
+    }
+    if (!lowered) break;
+  }
+
+  /*
+   * Nothing stands just behind higher ground. A rock tucked behind a terrace
+   * would have the terrace drawn over its foot.
+   */
+  const behindHigherGround = (p: Position, l: number): boolean => {
+    for (let i = 0; i <= 2; i++) {
+      for (let j = 0; j <= 2; j++) {
+        if ((i || j) && levelAt({ x: p.x + i, y: p.y + j }) > l) return true;
+      }
+    }
+    return false;
+  };
+
+  const biome = all.map((p) => biomeAt(p.x, p.y));
+  const obstacle: (Obstacle | null)[] = all.map((p, i) => {
+    if (river[i]) return ford[i] ? null : "water";
+    if (inClearing(p) || behindHigherGround(p, level[i])) return null;
     // Rocks gather on the sand and trees in the moss, so a region reads as
     // one kind of place instead of an even sprinkle of both.
-    if (cellNoise(p.x, p.y) < ROCK_DENSITY + 0.05 * sand) obstacle = "rock";
-    else if (cellNoise(p.x, p.y, 2) < TREE_DENSITY + 0.09 * moss) obstacle = "tree";
+    if (cellNoise(p.x, p.y) < ROCK_DENSITY + 0.05 * biome[i].sand) return "rock";
+    if (cellNoise(p.x, p.y, 2) < TREE_DENSITY + 0.09 * biome[i].moss) return "tree";
+    return null;
+  });
+  const free = (p: Position) => inWorld(p) && obstacle[index(p)] === null;
+
+  const stair: (Position | null)[] = new Array(count).fill(null);
+  const stairs: Position[] = [];
+
+  /** Every cell the spawn can walk to, by the same rule canStep applies. */
+  const reachable = (): Uint8Array => {
+    const reached = new Uint8Array(count);
+    const queue = [index(SPAWN)];
+    reached[queue[0]] = 1;
+    while (queue.length > 0) {
+      const i = queue.pop() as number;
+      const here = all[i];
+      for (const step of STEPS) {
+        const n = plus(here, step);
+        if (!free(n)) continue;
+        const j = index(n);
+        if (reached[j]) continue;
+        const up = level[j] - level[i];
+        const climbs =
+          up === 0 ||
+          (up === 1 && stair[i]?.x === step.x && stair[i]?.y === step.y) ||
+          (up === -1 && stair[j]?.x === -step.x && stair[j]?.y === -step.y);
+        if (!climbs) continue;
+        reached[j] = 1;
+        queue.push(j);
+      }
+    }
+    return reached;
+  };
+
+  /*
+   * Stairs. Every place a terrace meets ground one level below is a place a
+   * stair could go; they are tried in an order that is random but fixed, and
+   * a stair is kept when it joins two terraces not yet joined — which is what
+   * guarantees everything can be reached — or, now and then, when it is far
+   * from any other, so that a terrace has more than one way up. A stair is
+   * cut into the lower cell; one that is approached straight on, with flat
+   * ground behind it, is preferred to one that is entered from the side.
+   */
+  const placeStairs = () => {
+    stair.fill(null);
+    stairs.length = 0;
+
+    // Flat ground you can walk across without climbing, one id per terrace.
+    const region = new Int32Array(count).fill(-1);
+    let regions = 0;
+    for (let start = 0; start < count; start++) {
+      if (region[start] !== -1 || obstacle[start] !== null) continue;
+      region[start] = regions;
+      const queue = [start];
+      while (queue.length > 0) {
+        const i = queue.pop() as number;
+        for (const step of STEPS) {
+          const n = plus(all[i], step);
+          if (!free(n)) continue;
+          const j = index(n);
+          if (region[j] !== -1 || level[j] !== level[i]) continue;
+          region[j] = regions;
+          queue.push(j);
+        }
+      }
+      regions++;
+    }
+    const joined = Array.from({ length: regions }, (_, r) => r);
+    const root = (r: number): number => (joined[r] === r ? r : (joined[r] = root(joined[r])));
+
+    const candidates: { at: Position; dir: Position; order: number }[] = [];
+    for (let i = 0; i < count; i++) {
+      const at = all[i];
+      if (obstacle[i] !== null || ford[i]) continue;
+      STEPS.forEach((dir, d) => {
+        const up = plus(at, dir);
+        if (!free(up) || levelAt(up) !== level[i] + 1) return;
+        const behind = minus(at, dir);
+        const straight = free(behind) && levelAt(behind) === level[i];
+        candidates.push({ at, dir, order: cellNoise(at.x, at.y, 200 + d) + (straight ? 0 : 1) });
+      });
+    }
+    candidates.sort((a, b) => a.order - b.order);
+
+    const near = (p: Position, gap: number) =>
+      stairs.some((s) => Math.abs(s.x - p.x) + Math.abs(s.y - p.y) < gap);
+    for (const { at, dir } of candidates) {
+      const i = index(at);
+      const up = plus(at, dir);
+      // One flight per cell, and none landing on another.
+      if (stair[i] || stair[index(up)]) continue;
+      const a = root(region[i]);
+      const b = root(region[index(up)]);
+      const needed = a !== b;
+      if (!needed && !(cellNoise(at.x, at.y, 210) < EXTRA_STAIRS && !near(at, STAIR_SPACING))) continue;
+      joined[a] = b;
+      stair[i] = dir;
+      stairs.push(at);
+    }
+  };
+
+  /*
+   * Rocks and trees can still close off a pocket of ground that no stair
+   * reaches. Each round, a rock or tree standing between the pocket and
+   * ground that can be reached, on the same level, is cleared; a pocket with
+   * nothing to clear is overgrown with thicket instead. Either way nothing is
+   * left drawn as open ground that cannot be walked to.
+   */
+  for (let round = 0; ; round++) {
+    placeStairs();
+    const reached = reachable();
+    const cut: number[] = [];
+    for (let i = 0; i < count; i++) if (obstacle[i] === null && !reached[i]) cut.push(i);
+    if (cut.length === 0) break;
+    let cleared = false;
+    if (round < 8) {
+      for (const i of cut) {
+        for (const step of STEPS) {
+          const wall = plus(all[i], step);
+          if (!inWorld(wall)) continue;
+          const w = index(wall);
+          if (obstacle[w] !== "rock" && obstacle[w] !== "tree") continue;
+          const beyond = plus(wall, step);
+          if (!free(beyond) || !reached[index(beyond)]) continue;
+          if (level[w] !== level[i] || level[index(beyond)] !== level[i]) continue;
+          obstacle[w] = null;
+          cleared = true;
+        }
+      }
+    }
+    if (!cleared) {
+      for (const i of cut) obstacle[i] = "thicket";
+      placeStairs();
+      break;
+    }
   }
-  return { level, obstacle, ford, moss, sand };
+
+  // The trodden way on and off each stair.
+  const path = new Uint8Array(count);
+  for (const at of stairs) {
+    const dir = stair[index(at)] as Position;
+    for (const [from, towards] of [
+      [minus(at, dir), minus({ x: 0, y: 0 }, dir)],
+      [plus(at, dir), dir],
+    ] as const) {
+      let p = from;
+      for (let n = 0; n < 2 && free(p) && !stair[index(p)]; n++) {
+        path[index(p)] = 1;
+        const next = plus(p, towards);
+        if (levelAt(next) !== levelAt(p)) break;
+        p = next;
+      }
+    }
+  }
+
+  return all.map((_, i) => ({
+    level: level[i],
+    obstacle: obstacle[i],
+    ford: ford[i],
+    stair: stair[i],
+    path: path[i] === 1,
+    moss: biome[i].moss,
+    sand: biome[i].sand,
+  }));
 };
 
-/*
- * The world is finite and small, so every cell is surveyed once and kept:
- * the drawing asks about a thousand cells a frame, and the path search asks
- * about the same cells over and over.
- */
-const SIDE = WORLD_RADIUS * 2 + 1;
-const surveyed: (Ground | undefined)[] = new Array(SIDE * SIDE);
-const OUTSIDE: Ground = { level: 0, obstacle: null, ford: false, moss: 0, sand: 0 };
-
-export const groundAt = (p: Position): Ground => {
-  if (!inWorld(p)) return OUTSIDE;
-  const i = (p.x + WORLD_RADIUS) * SIDE + (p.y + WORLD_RADIUS);
-  return (surveyed[i] ??= survey(p));
+let world: Ground[] | null = null;
+const OUTSIDE: Ground = {
+  level: 0,
+  obstacle: null,
+  ford: false,
+  stair: null,
+  path: false,
+  moss: 0,
+  sand: 0,
 };
+
+export const groundAt = (p: Position): Ground =>
+  inWorld(p) ? (world ??= survey())[index(p)] : OUTSIDE;
 
 export const levelOf = (p: Position): number => groundAt(p).level;
 
@@ -154,37 +452,48 @@ export const isRock = (p: Position): boolean => groundAt(p).obstacle === "rock";
 export const walkable = (p: Position): boolean => inWorld(p) && groundAt(p).obstacle === null;
 
 /**
+ * Whether a step between two neighbouring cells is allowed by the ground: on
+ * the level, or up and down a stair. A single level without a stair is a wall,
+ * and so, always, is a drop of two.
+ */
+export const canStep = (from: Position, to: Position): boolean => {
+  const a = levelOf(from);
+  const b = levelOf(to);
+  if (a === b) return true;
+  if (Math.abs(a - b) !== 1) return false;
+  const [low, high] = a < b ? [from, to] : [to, from];
+  const flight = groundAt(low).stair;
+  return !!flight && low.x + flight.x === high.x && low.y + flight.y === high.y;
+};
+
+/** How high someone standing in the middle of a cell stands: halfway up, on a stair. */
+const standingHeight = (p: Position): number => {
+  const g = groundAt(p);
+  return g.level + (g.stair ? 0.5 : 0);
+};
+
+/**
  * How high the ground is under a point that may sit between cells — a walker
- * mid-step. It holds the level of the cell being left and climbs near the
- * edge, so a step up reads as a step and not as a slow float.
+ * mid-step. It runs straight between the middles of two cells, so a flight of
+ * stairs is climbed at an even pace rather than jumped.
  */
 export const heightAt = (p: Position): number => {
   const x0 = Math.floor(p.x);
   const y0 = Math.floor(p.y);
-  const tx = smoothstep(p.x - x0);
-  const ty = smoothstep(p.y - y0);
-  const l = (x: number, y: number) => levelOf({ x, y });
+  const tx = p.x - x0;
+  const ty = p.y - y0;
+  const h = (x: number, y: number) => standingHeight({ x, y });
   return (
-    l(x0, y0) * (1 - tx) * (1 - ty) +
-    l(x0 + 1, y0) * tx * (1 - ty) +
-    l(x0, y0 + 1) * (1 - tx) * ty +
-    l(x0 + 1, y0 + 1) * tx * ty
+    h(x0, y0) * (1 - tx) * (1 - ty) +
+    h(x0 + 1, y0) * tx * (1 - ty) +
+    h(x0, y0 + 1) * (1 - tx) * ty +
+    h(x0 + 1, y0 + 1) * tx * ty
   );
 };
 
-/**
- * The four cells you can step to. Movement is never diagonal, as in a fight,
- * and a terrace can be climbed one level at a time but not two.
- */
-export const neighbours = (p: Position): Position[] => {
-  const here = levelOf(p);
-  return [
-    { x: p.x + 1, y: p.y },
-    { x: p.x - 1, y: p.y },
-    { x: p.x, y: p.y + 1 },
-    { x: p.x, y: p.y - 1 },
-  ].filter((n) => walkable(n) && Math.abs(levelOf(n) - here) <= 1);
-};
+/** The four cells you can step to. Movement is never diagonal, as in a fight. */
+export const neighbours = (p: Position): Position[] =>
+  STEPS.map((s) => plus(p, s)).filter((n) => walkable(n) && canStep(p, n));
 
 const key = (p: Position) => `${p.x},${p.y}`;
 

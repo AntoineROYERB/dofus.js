@@ -1,4 +1,5 @@
 import {
+  canStep,
   findPath,
   groundAt,
   heightAt,
@@ -159,14 +160,61 @@ describe("terraces", () => {
     }
   });
 
-  it("put you down level with the ground at your feet", () => {
-    const step = everyCell().find((c) =>
-      walkable(c) && walkable({ x: c.x + 1, y: c.y }) && levelOf({ x: c.x + 1, y: c.y }) === levelOf(c) + 1
-    )!;
-    expect(step).toBeDefined();
-    expect(heightAt(step)).toBe(levelOf(step));
-    expect(heightAt({ x: step.x + 1, y: step.y })).toBe(levelOf(step) + 1);
-    expect(heightAt({ x: step.x + 0.5, y: step.y })).toBeCloseTo(levelOf(step) + 0.5);
+  it("are only climbed by their stairs", () => {
+    let walls = 0;
+    for (const c of everyCell()) {
+      for (const n of [
+        { x: c.x + 1, y: c.y },
+        { x: c.x, y: c.y + 1 },
+      ]) {
+        if (!walkable(c) || !walkable(n) || Math.abs(levelOf(n) - levelOf(c)) !== 1) continue;
+        const [low, high] = levelOf(c) < levelOf(n) ? [c, n] : [n, c];
+        const flight = groundAt(low).stair;
+        const isStair = !!flight && low.x + flight.x === high.x && low.y + flight.y === high.y;
+        expect(canStep(c, n)).toBe(isStair);
+        if (!isStair) walls++;
+      }
+    }
+    // Most of a terrace's edge is a wall; the stairs are the exception.
+    expect(walls).toBeGreaterThan(0);
+  });
+
+  // Somewhere the ground goes up two levels at once, and you have to go round.
+  it("have cliffs two levels high that nothing climbs", () => {
+    let cliffs = 0;
+    for (const c of everyCell()) {
+      for (const n of [
+        { x: c.x + 1, y: c.y },
+        { x: c.x, y: c.y + 1 },
+      ]) {
+        if (!walkable(c) || !walkable(n) || Math.abs(levelOf(n) - levelOf(c)) !== 2) continue;
+        cliffs++;
+        expect(canStep(c, n)).toBe(false);
+        expect(canStep(n, c)).toBe(false);
+      }
+    }
+    expect(cliffs).toBeGreaterThan(0);
+  });
+
+  it("put a stair where it can be walked onto and off", () => {
+    const stairs = everyCell().filter((c) => groundAt(c).stair);
+    expect(stairs.length).toBeGreaterThan(0);
+    for (const c of stairs) {
+      const flight = groundAt(c).stair as Position;
+      const top = { x: c.x + flight.x, y: c.y + flight.y };
+      expect(walkable(c)).toBe(true);
+      expect(walkable(top)).toBe(true);
+      expect(levelOf(top)).toBe(levelOf(c) + 1);
+    }
+  });
+
+  it("are climbed at an even pace, halfway up in the middle of the stair", () => {
+    const c = everyCell().find((p) => groundAt(p).stair) as Position;
+    const flight = groundAt(c).stair as Position;
+    const l = levelOf(c);
+    expect(heightAt(c)).toBe(l + 0.5);
+    expect(heightAt({ x: c.x + flight.x, y: c.y + flight.y })).toBe(l + 1);
+    expect(heightAt({ x: c.x + flight.x / 2, y: c.y + flight.y / 2 })).toBeCloseTo(l + 0.75);
   });
 
   // Rocks behind a terrace would have the terrace drawn over their feet.

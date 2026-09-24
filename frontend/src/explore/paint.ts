@@ -58,6 +58,9 @@ const LEAF: RGB = [236, 239, 232];
 const LEAF_MOSS: RGB = [212, 227, 198];
 const WASH_MOSS: RGB = [120, 160, 100];
 const WASH_SAND: RGB = [205, 170, 105];
+const STAIR_TREAD: RGB = [243, 242, 238];
+const STAIR_LEFT: RGB = [222, 221, 216];
+const STAIR_RIGHT: RGB = [200, 200, 195];
 
 const mix = (a: RGB, b: RGB, u: number): RGB => [
   a[0] + (b[0] - a[0]) * u,
@@ -289,6 +292,57 @@ const painter = (ctx: CanvasRenderingContext2D, scene: Scene) => {
   };
 
   /**
+   * A flight of steps cut into a cell, climbing to the terrace one level up.
+   * Each step is a block standing on the cell, a quarter of a level taller
+   * than the one before; drawn back to front with the two sides that face
+   * the viewer, they make the staircase, and the last one is flush with the
+   * terrace it leads onto.
+   */
+  const STEPS_PER_FLIGHT = 4;
+  const flight = (c: Position) => {
+    const g = groundAt(c);
+    const dir = g.stair;
+    if (!dir) return;
+    const across = { x: Math.abs(dir.y), y: Math.abs(dir.x) };
+    const project = (X: number, Y: number, h: number): Position => ({
+      x: origin.x + ((X - Y) * tw) / 2,
+      y: origin.y + ((X + Y) * th) / 2 - h * rise,
+    });
+    const blocks = [];
+    for (let i = 0; i < STEPS_PER_FLIGHT; i++) {
+      const t0 = -0.5 + i / STEPS_PER_FLIGHT;
+      const t1 = t0 + 1 / STEPS_PER_FLIGHT;
+      const xs = [c.x + dir.x * t0 - across.x * 0.5, c.x + dir.x * t1 + across.x * 0.5];
+      const ys = [c.y + dir.y * t0 - across.y * 0.5, c.y + dir.y * t1 + across.y * 0.5];
+      blocks.push({
+        x0: Math.min(...xs),
+        x1: Math.max(...xs),
+        y0: Math.min(...ys),
+        y1: Math.max(...ys),
+        top: g.level + (i + 1) / STEPS_PER_FLIGHT,
+      });
+    }
+    blocks.sort((a, b) => a.x0 + a.y0 - (b.x0 + b.y0));
+    ctx.strokeStyle = "rgba(61,63,61,.6)";
+    ctx.lineWidth = 0.8;
+    for (const { x0, x1, y0, y1, top } of blocks) {
+      const base = g.level;
+      const faces: [Position[], RGB][] = [
+        [[project(x1, y0, top), project(x1, y1, top), project(x1, y1, base), project(x1, y0, base)], STAIR_RIGHT],
+        [[project(x0, y1, top), project(x1, y1, top), project(x1, y1, base), project(x0, y1, base)], STAIR_LEFT],
+        [[project(x0, y0, top), project(x1, y0, top), project(x1, y1, top), project(x0, y1, top)], STAIR_TREAD],
+      ];
+      for (const [pts, colour] of faces) {
+        ctx.beginPath();
+        path(pts);
+        ctx.fillStyle = rgb(colour);
+        ctx.fill();
+        ctx.stroke();
+      }
+    }
+  };
+
+  /**
    * One row of ground — cells sharing an x + y, which never overlap one
    * another: the cliffs below them, the paper, the wash, then the ink —
    * water, seams, contours, grass, stones, flowers — each gathered into a
@@ -309,6 +363,7 @@ const painter = (ctx: CanvasRenderingContext2D, scene: Scene) => {
     const grass = batch();
     const fords: { c: Position; k: Corners }[] = [];
     const marked: { c: Position; k: Corners; s: Position }[] = [];
+    const flights: Position[] = [];
 
     for (const c of cells) {
       const g = groundAt(c);
@@ -350,15 +405,33 @@ const painter = (ctx: CanvasRenderingContext2D, scene: Scene) => {
         if (g.ford) fords.push({ c, k });
       } else {
         const alpha = Math.round(seamAlpha(c) * 20) / 20;
-        if (alpha > 0) polyTo(seams.get(`rgba(160,162,158,${alpha})`), diamond(k));
+        if (alpha > 0 && !g.stair) polyTo(seams.get(`rgba(160,162,158,${alpha})`), diamond(k));
       }
 
-      // The contour: a firm line along every edge that drops to lower ground.
+      // The contour: a firm line along every edge that drops to lower ground,
+      // except where a stair comes up to meet it.
       for (const [dx, dy, a, b] of EDGES) {
-        if (groundAt({ x: c.x + dx, y: c.y + dy }).level < level) segmentTo(P("contours"), k[a], k[b]);
+        const n = groundAt({ x: c.x + dx, y: c.y + dy });
+        const arriving = n.stair && n.stair.x === -dx && n.stair.y === -dy;
+        if (n.level < level && !arriving) segmentTo(P("contours"), k[a], k[b]);
       }
 
-      if (!g.obstacle && !g.ford && !(c.x === 0 && c.y === 0)) {
+      // The trodden way to and from a stair: worn earth running into the
+      // flight, so the way up can be seen from a distance.
+      if (g.path) {
+        for (const [dx, dy] of EDGES) {
+          const n = { x: c.x + dx, y: c.y + dy };
+          const ng = groundAt(n);
+          const flight = ng.stair;
+          const leads =
+            (ng.path && ng.level === level) ||
+            (!!flight && ((flight.x === -dx && flight.y === -dy) || (flight.x === dx && flight.y === dy)));
+          if (!leads) continue;
+          segmentTo(P("trail"), s, { x: s.x + ((dx - dy) * tw) / 4, y: s.y + ((dx + dy) * th) / 4 });
+        }
+      }
+
+      if (!g.obstacle && !g.ford && !g.stair && !g.path && !(c.x === 0 && c.y === 0)) {
         let nearWater = false;
         for (const [dx, dy] of EDGES) {
           if (groundAt({ x: c.x + dx, y: c.y + dy }).obstacle === "water") nearWater = true;
@@ -433,7 +506,28 @@ const painter = (ctx: CanvasRenderingContext2D, scene: Scene) => {
       }
 
       const h = scene.hovered;
-      if (scene.route.has(key(c)) || (h && h.x === c.x && h.y === c.y)) marked.push({ c, k, s });
+      // A thicket: scrub drawn thick and dark enough to read as a barrier.
+      if (g.obstacle === "thicket") {
+        const ink = g.sand > g.moss ? SAND_INK : MOSS_INK;
+        const p = grass.get(ink);
+        for (let t = 0; t < 7; t++) {
+          const px = s.x + (cellNoise(c.x, c.y, 130 + t) - 0.5) * tw * 0.6;
+          const py = s.y + (cellNoise(c.x, c.y, 140 + t) - 0.5) * th * 0.55;
+          const len = th * (0.3 + 0.2 * cellNoise(c.x, c.y, 150 + t));
+          for (let i = 0; i < 5; i++) {
+            const a = -Math.PI / 2 + (i - 2) * 0.35;
+            p.moveTo(px + (i - 2) * 1.4, py);
+            p.quadraticCurveTo(px + Math.cos(a) * len * 0.3, py + Math.sin(a) * len * 0.6, px + Math.cos(a) * len, py + Math.sin(a) * len);
+          }
+        }
+      }
+
+      if (g.stair) flights.push(c);
+      if (scene.route.has(key(c)) || (h && h.x === c.x && h.y === c.y)) {
+        // On a stair, the mark sits halfway up, where you would stand.
+        const m = g.stair ? at(c, level + 0.5) : s;
+        marked.push({ c, k: g.stair ? cornersOf(m) : k, s: m });
+      }
     }
 
     fills.fill();
@@ -447,6 +541,11 @@ const painter = (ctx: CanvasRenderingContext2D, scene: Scene) => {
       ctx.fill(p);
     });
 
+    if (paths.has("trail")) {
+      ctx.strokeStyle = "rgba(176,150,105,.16)";
+      ctx.lineWidth = th * 0.34;
+      ctx.stroke(P("trail"));
+    }
     ctx.strokeStyle = RIPPLE;
     ctx.lineWidth = 1;
     if (paths.has("ripples")) ctx.stroke(P("ripples"));
@@ -468,6 +567,7 @@ const painter = (ctx: CanvasRenderingContext2D, scene: Scene) => {
     ctx.strokeStyle = "rgba(61,63,61,.75)";
     ctx.lineWidth = 1.2;
     if (paths.has("contours")) ctx.stroke(P("contours"));
+    for (const c of flights) flight(c);
 
     grass.stroke(1);
     ctx.fillStyle = "#e7e7e3";

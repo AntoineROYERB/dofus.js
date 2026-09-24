@@ -6,7 +6,7 @@ import { useTileSize } from "../hooks/useTileSize";
 import { Character } from "../components/Game/Grid/Character";
 import { useWalker } from "./useWalker";
 import { resolveWorldZoom, visibleCells } from "./viewport";
-import { findPath, heightAt, levelOf, MAX_LEVEL, walkable } from "./world";
+import { findPath, groundAt, heightAt, MAX_LEVEL, walkable } from "./world";
 import { LEVEL_RISE, paintWorld } from "./paint";
 
 /**
@@ -59,25 +59,30 @@ export const ExploreBoard: React.FC<{ color?: string }> = ({ color }) => {
 
   /**
    * Where a click or a hover actually landed, undoing the camera's pan. The
-   * ground is not flat, so the point is tried against each terrace from the
-   * top down: raised ground stands in front of what is behind it, so the
-   * highest cell whose top is under the pointer is the one you are pointing at.
+   * ground is not flat, so the point is tried against every terrace height —
+   * and halfway up, for a stair — and of the cells whose top is under the
+   * pointer, the one furthest forward wins: it is the one drawn last, so it
+   * is the one you can see.
    */
   const cellUnder = useCallback(
     (clientX: number, clientY: number): Position | null => {
       const box = containerRef.current?.getBoundingClientRect();
       if (!box) return null;
-      for (let level = MAX_LEVEL; level >= 0; level--) {
+      let best: Position | null = null;
+      for (let height = 0; height <= MAX_LEVEL; height += 0.5) {
         const at = screenToIso(
           clientX - box.left - pan.x,
-          clientY - box.top - pan.y + level * rise,
+          clientY - box.top - pan.y + height * rise,
           tile,
           centreX,
           centreY
         );
-        if (levelOf(at) === level) return walkable(at) ? at : null;
+        const g = groundAt(at);
+        const standsHere = g.level + (g.stair ? 0.5 : 0) === height;
+        if (!standsHere) continue;
+        if (!best || at.x + at.y >= best.x + best.y) best = at;
       }
-      return null;
+      return best && walkable(best) ? best : null;
     },
     [pan, tile, rise, centreX, centreY]
   );
