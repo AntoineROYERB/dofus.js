@@ -63,9 +63,11 @@ export type Ground = {
   /** A shallow crossing: river drawn, stones to step on, and walkable. */
   ford: boolean;
   /**
-   * Steps cut into this cell, climbing towards the neighbour one level up in
-   * this direction. A terrace is only ever climbed by its stairs: without
-   * them a one-level edge is as much a wall as a two-level one.
+   * Steps carved down into this cell, from its own level to the neighbour one
+   * level below in this direction. The stair is cut into the terrace rather
+   * than stood against it, so the cliff keeps its line and the ground below
+   * stays ground. A terrace is only ever climbed by its stairs: without them
+   * a one-level edge is as much a wall as a two-level one.
    */
   stair: Position | null;
   /** Trodden ground on the way to or from a stair. */
@@ -287,10 +289,11 @@ const survey = (): Ground[] => {
         const j = index(n);
         if (reached[j]) continue;
         const up = level[j] - level[i];
+        // A stair belongs to the upper cell and points down to the lower one.
         const climbs =
           up === 0 ||
-          (up === 1 && stair[i]?.x === step.x && stair[i]?.y === step.y) ||
-          (up === -1 && stair[j]?.x === -step.x && stair[j]?.y === -step.y);
+          (up === 1 && stair[j]?.x === -step.x && stair[j]?.y === -step.y) ||
+          (up === -1 && stair[i]?.x === step.x && stair[i]?.y === step.y);
         if (!climbs) continue;
         reached[j] = 1;
         queue.push(j);
@@ -305,8 +308,8 @@ const survey = (): Ground[] => {
    * a stair is kept when it joins two terraces not yet joined — which is what
    * guarantees everything can be reached — or, now and then, when it is far
    * from any other, so that a terrace has more than one way up. A stair is
-   * cut into the lower cell; one that is approached straight on, with flat
-   * ground behind it, is preferred to one that is entered from the side.
+   * carved into the upper cell; one that arrives straight onto flat ground at
+   * the top is preferred to one that comes out against a wall.
    */
   const placeStairs = () => {
     stair.fill(null);
@@ -342,8 +345,8 @@ const survey = (): Ground[] => {
       STEPS.forEach((dir, d) => {
         const up = plus(at, dir);
         if (!free(up) || levelAt(up) !== level[i] + 1) return;
-        const behind = minus(at, dir);
-        const straight = free(behind) && levelAt(behind) === level[i];
+        const landing = plus(up, dir);
+        const straight = free(landing) && levelAt(landing) === level[i] + 1;
         candidates.push({ at, dir, order: cellNoise(at.x, at.y, 200 + d) + (straight ? 0 : 1) });
       });
     }
@@ -354,15 +357,15 @@ const survey = (): Ground[] => {
     for (const { at, dir } of candidates) {
       const i = index(at);
       const up = plus(at, dir);
-      // One flight per cell, and none landing on another.
-      if (stair[i] || stair[index(up)]) continue;
+      // One flight per cell, and none running into another.
+      if (stair[i] || stair[index(up)] || ford[index(up)]) continue;
       const a = root(region[i]);
       const b = root(region[index(up)]);
       const needed = a !== b;
       if (!needed && !(cellNoise(at.x, at.y, 210) < EXTRA_STAIRS && !near(at, STAIR_SPACING))) continue;
       joined[a] = b;
-      stair[i] = dir;
-      stairs.push(at);
+      stair[index(up)] = minus({ x: 0, y: 0 }, dir);
+      stairs.push(up);
     }
   };
 
@@ -402,13 +405,14 @@ const survey = (): Ground[] => {
     }
   }
 
-  // The trodden way on and off each stair.
+  // The trodden way on and off each stair: out from its foot, and on from
+  // its top.
   const path = new Uint8Array(count);
   for (const at of stairs) {
-    const dir = stair[index(at)] as Position;
+    const down = stair[index(at)] as Position;
     for (const [from, towards] of [
-      [minus(at, dir), minus({ x: 0, y: 0 }, dir)],
-      [plus(at, dir), dir],
+      [plus(at, down), down],
+      [minus(at, down), minus({ x: 0, y: 0 }, down)],
     ] as const) {
       let p = from;
       for (let n = 0; n < 2 && free(p) && !stair[index(p)]; n++) {
@@ -462,14 +466,14 @@ export const canStep = (from: Position, to: Position): boolean => {
   if (a === b) return true;
   if (Math.abs(a - b) !== 1) return false;
   const [low, high] = a < b ? [from, to] : [to, from];
-  const flight = groundAt(low).stair;
-  return !!flight && low.x + flight.x === high.x && low.y + flight.y === high.y;
+  const flight = groundAt(high).stair;
+  return !!flight && high.x + flight.x === low.x && high.y + flight.y === low.y;
 };
 
-/** How high someone standing in the middle of a cell stands: halfway up, on a stair. */
-const standingHeight = (p: Position): number => {
+/** How high someone standing in the middle of a cell stands: halfway down, on a stair. */
+export const standingHeight = (p: Position): number => {
   const g = groundAt(p);
-  return g.level + (g.stair ? 0.5 : 0);
+  return g.level - (g.stair ? 0.5 : 0);
 };
 
 /**

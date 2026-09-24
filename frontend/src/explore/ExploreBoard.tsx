@@ -6,8 +6,8 @@ import { useTileSize } from "../hooks/useTileSize";
 import { Character } from "../components/Game/Grid/Character";
 import { useWalker } from "./useWalker";
 import { resolveWorldZoom, visibleCells } from "./viewport";
-import { findPath, groundAt, heightAt, MAX_LEVEL, walkable } from "./world";
-import { LEVEL_RISE, paintWorld } from "./paint";
+import { findPath, heightAt, MAX_LEVEL, standingHeight, walkable } from "./world";
+import { LEVEL_RISE, paintWorld, Scene } from "./paint";
 
 /**
  * The world is drawn at the size a fight's board would be drawn at, times the
@@ -77,9 +77,7 @@ export const ExploreBoard: React.FC<{ color?: string }> = ({ color }) => {
           centreX,
           centreY
         );
-        const g = groundAt(at);
-        const standsHere = g.level + (g.stair ? 0.5 : 0) === height;
-        if (!standsHere) continue;
+        if (standingHeight(at) !== height) continue;
         if (!best || at.x + at.y >= best.x + best.y) best = at;
       }
       return best && walkable(best) ? best : null;
@@ -120,11 +118,20 @@ export const ExploreBoard: React.FC<{ color?: string }> = ({ color }) => {
    * always arrive in the same frame — a camera a frame behind its walker
    * shows as the figure shuddering against the paper.
    */
-  useLayoutEffect(() => {
+  const scene = useRef<Omit<Scene, "time"> | null>(null);
+  const lastPaint = useRef(0);
+  const paint = useCallback(() => {
     const behind = behindRef.current;
     const front = frontRef.current;
-    if (!behind || !front || !measured) return;
-    paintWorld(behind, front, {
+    if (!behind || !front || !scene.current) return;
+    const now = performance.now();
+    lastPaint.current = now;
+    paintWorld(behind, front, { ...scene.current, time: now / 1000 });
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!measured) return;
+    scene.current = {
       width: size.width,
       height: size.height,
       dpr: Math.min(window.devicePixelRatio || 1, 2),
@@ -134,8 +141,25 @@ export const ExploreBoard: React.FC<{ color?: string }> = ({ color }) => {
       walker: walker.at,
       hovered,
       route: preview,
-    });
-  }, [size, tile, pan, centreX, centreY, cells, walker.at, hovered, preview, measured]);
+    };
+    paint();
+  }, [size, tile, pan, centreX, centreY, cells, walker.at, hovered, preview, measured, paint]);
+
+  /*
+   * The wind keeps the world moving while nothing else does. It needs no
+   * more than thirty frames a second to read as wind, and a world standing
+   * still should not cost a phone its battery at sixty; while the walker is
+   * moving, the layout effect above is already painting every frame.
+   */
+  useEffect(() => {
+    let frame = 0;
+    const tick = (now: number) => {
+      frame = requestAnimationFrame(tick);
+      if (now - lastPaint.current >= 33) paint();
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [paint]);
 
   return (
     <div

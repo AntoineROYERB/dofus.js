@@ -169,8 +169,8 @@ describe("terraces", () => {
       ]) {
         if (!walkable(c) || !walkable(n) || Math.abs(levelOf(n) - levelOf(c)) !== 1) continue;
         const [low, high] = levelOf(c) < levelOf(n) ? [c, n] : [n, c];
-        const flight = groundAt(low).stair;
-        const isStair = !!flight && low.x + flight.x === high.x && low.y + flight.y === high.y;
+        const flight = groundAt(high).stair;
+        const isStair = !!flight && high.x + flight.x === low.x && high.y + flight.y === low.y;
         expect(canStep(c, n)).toBe(isStair);
         if (!isStair) walls++;
       }
@@ -196,15 +196,17 @@ describe("terraces", () => {
     expect(cliffs).toBeGreaterThan(0);
   });
 
+  // A stair is carved into the terrace and leads down to the ground below.
   it("put a stair where it can be walked onto and off", () => {
     const stairs = everyCell().filter((c) => groundAt(c).stair);
     expect(stairs.length).toBeGreaterThan(0);
     for (const c of stairs) {
       const flight = groundAt(c).stair as Position;
-      const top = { x: c.x + flight.x, y: c.y + flight.y };
+      const foot = { x: c.x + flight.x, y: c.y + flight.y };
       expect(walkable(c)).toBe(true);
-      expect(walkable(top)).toBe(true);
-      expect(levelOf(top)).toBe(levelOf(c) + 1);
+      expect(walkable(foot)).toBe(true);
+      expect(levelOf(foot)).toBe(levelOf(c) - 1);
+      expect(canStep(foot, c)).toBe(true);
     }
   });
 
@@ -212,9 +214,9 @@ describe("terraces", () => {
     const c = everyCell().find((p) => groundAt(p).stair) as Position;
     const flight = groundAt(c).stair as Position;
     const l = levelOf(c);
-    expect(heightAt(c)).toBe(l + 0.5);
-    expect(heightAt({ x: c.x + flight.x, y: c.y + flight.y })).toBe(l + 1);
-    expect(heightAt({ x: c.x + flight.x / 2, y: c.y + flight.y / 2 })).toBeCloseTo(l + 0.75);
+    expect(heightAt(c)).toBe(l - 0.5);
+    expect(heightAt({ x: c.x + flight.x, y: c.y + flight.y })).toBe(l - 1);
+    expect(heightAt({ x: c.x + flight.x / 2, y: c.y + flight.y / 2 })).toBeCloseTo(l - 0.75);
   });
 
   // Rocks behind a terrace would have the terrace drawn over their feet.
