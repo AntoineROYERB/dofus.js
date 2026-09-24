@@ -29,7 +29,14 @@ const SETTLE_MS = 1000;
  */
 export const useTileSize = (
   containerRef: React.RefObject<HTMLDivElement>,
-  gridSize: number
+  gridSize: number,
+  /**
+   * How much larger than "the whole board fits" to draw the tiles. 1 — the
+   * board fitted to its box — for every screen that shows a fight whole. More
+   * than that only while a camera is holding a fighter in the middle of the
+   * screen, where the board is *meant* to run off the edges: see camera.ts.
+   */
+  zoom = 1
 ) => {
   const [layout, setLayout] = useState({
     tile: { width: 40, height: 20 },
@@ -58,7 +65,7 @@ export const useTileSize = (
         return;
       }
 
-      const tile = fitTile(width, height, gridSize);
+      const tile = fitTile(width, height, gridSize) * zoom;
 
       setLayout((prev) =>
         prev.measured &&
@@ -102,7 +109,7 @@ export const useTileSize = (
       window.removeEventListener("pageshow", measure);
       window.visualViewport?.removeEventListener("resize", measure);
     };
-  }, [gridSize, containerRef]);
+  }, [gridSize, containerRef, zoom]);
 
   return layout;
 };

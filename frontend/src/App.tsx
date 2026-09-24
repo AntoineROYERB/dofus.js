@@ -4,6 +4,7 @@ import LandingPage from "./pages/LandingPage";
 import LobbyPage from "./pages/LobbyPage";
 import GamePage from "./pages/GamePage";
 import MatchHistoryPage from "./pages/MatchHistoryPage";
+import ExplorePage from "./pages/ExplorePage";
 import ReplayPage from "./pages/ReplayPage";
 
 function App() {
@@ -14,6 +15,7 @@ function App() {
           <Route path="/" element={<LandingPage />} />
           <Route path="/lobby" element={<LobbyPage />} />
           <Route path="/game" element={<GamePage />} />
+          <Route path="/explore" element={<ExplorePage />} />
           <Route path="/matches" element={<MatchHistoryPage />} />
           <Route path="/matches/:id" element={<ReplayPage />} />
         </Routes>

@@ -472,6 +472,13 @@ const LobbyPage: React.FC = () => {
           </button>
           <button
             type="button"
+            onClick={() => navigate("/explore")}
+            className="self-start font-mono text-[9.5px] uppercase tracking-label text-muted transition-colors hover:text-vermilion"
+          >
+            Open world
+          </button>
+          <button
+            type="button"
             onClick={() => navigate("/matches")}
             className="self-start font-mono text-[9.5px] uppercase tracking-label text-muted transition-colors hover:text-vermilion"
           >
