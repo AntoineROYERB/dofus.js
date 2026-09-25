@@ -40,6 +40,7 @@ var (
 	ErrNoRoute             = errors.New("there is no way through to that cell")
 	ErrUnknownClass        = errors.New("unknown class")
 	ErrUnknownBotMode      = errors.New("unknown opponent mode")
+	ErrUnknownIsland       = errors.New("unknown island")
 	ErrNobodyAsleep        = errors.New("no opponent is standing still")
 	ErrSpellNotOnBar       = errors.New("that spell is not one of yours")
 )
@@ -68,6 +69,12 @@ type Game struct {
 	obstacles map[types.Position]bool
 	// terrain is what spells have left on the board, one kind per cell.
 	terrain map[types.Position]types.TerrainCell
+	// island is what this fight is played on, and groundKinds the terrains
+	// it deals: at most two, from the library in ground.go. ground is those
+	// terrains laid over the board, dealt with the cover and fixed after.
+	island      string
+	groundKinds []string
+	ground      map[types.Position]types.GroundCell
 	// zones are the areas ultimates keep acting on.
 	zones []types.Zone
 	log   []types.LogEntry
@@ -120,6 +127,10 @@ type Options struct {
 	// the catalogue installed with ApplyContent. A recording's rules
 	// fingerprint covers it, so a replay has to run under the same content.
 	Content *content.Catalogue
+	// Island is the island the fight is played on, which decides the ground
+	// it is dealt. Empty, or an island the catalogue does not know, is a
+	// plain arena with no ground at all.
+	Island string
 }
 
 func New() *Game { return NewWithSeed(NewSeed()) }
@@ -158,6 +169,13 @@ func NewWithOptions(opts Options) *Game {
 		clock:        opts.Clock,
 		turnDuration: opts.TurnDuration,
 	}
+	if island, ok := cat.Island(opts.Island); ok {
+		g.island = island.ID
+		g.groundKinds = append([]string(nil), island.Terrains...)
+		if len(g.groundKinds) > content.MaxTerrainsPerIsland {
+			g.groundKinds = g.groundKinds[:content.MaxTerrainsPerIsland]
+		}
+	}
 	g.startedAt = g.now()
 	return g
 }
@@ -195,6 +213,17 @@ func (g *Game) SnapshotFor(viewerID string) types.GameState {
 			}
 			p.Character.Position = nil
 			state.Players[id] = p
+		}
+	}
+	// In the fight, whoever is hidden in tall grass is hidden from this
+	// viewer too, unless they are close enough to see them.
+	if g.status == types.StatusPlaying {
+		for id, p := range state.Players {
+			if g.concealedFromLocked(viewerID, id) {
+				p.Character.Position = nil
+				p.Character.Concealed = true
+				state.Players[id] = p
+			}
 		}
 	}
 	return state
@@ -268,6 +297,8 @@ func (g *Game) snapshotLocked() types.GameState {
 		Obstacles:   obstacles,
 		Terrain:     g.terrainSnapshotLocked(),
 		Zones:       g.zonesSnapshotLocked(),
+		Island:      g.island,
+		Ground:      g.groundSnapshotLocked(),
 	}
 }
 
@@ -485,6 +516,7 @@ func (g *Game) returnToLobbyLocked() {
 	g.log = nil
 	g.obstacles = nil
 	g.terrain = nil
+	g.ground = nil
 	g.zones = nil
 
 	// A rematch between two players who are both still here goes straight back
@@ -531,6 +563,7 @@ func (g *Game) startTurnForLocked(userID string) (alive bool) {
 	g.ageZonesLocked(userID)
 	g.zonesActOnLocked(userID)
 	slowed := g.terrainAtTurnStartLocked(userID)
+	g.groundAtTurnStartLocked(userID)
 
 	p := g.players[userID]
 	damage, healing := 0, 0
@@ -641,6 +674,16 @@ func (g *Game) beginPlacementLocked() {
 	for _, p := range GenerateObstacles(reserved, g.rng) {
 		g.obstacles[p] = true
 	}
+	// The island's ground goes down over the cover. A plain arena draws
+	// nothing more from the random source, so its boards are the ones they
+	// always were.
+	g.ground = nil
+	if len(g.groundKinds) > 0 {
+		g.ground = make(map[types.Position]types.GroundCell)
+		for _, cell := range GenerateGround(g.groundKinds, reserved, g.obstacles, g.rng) {
+			g.ground[cell.Position] = cell
+		}
+	}
 
 	// Bots take their starting cell immediately; a human never waits on them.
 	g.placeBotsLocked()
@@ -736,12 +779,13 @@ func (g *Game) Move(userID string, to types.Position) error {
 
 	// The cost is the length of the walk around whatever is in the way, not the
 	// straight-line distance: with cover on the board those are different, and
-	// sometimes there is no way through at all.
-	path := FindPath(*p.Character.Position, to, g.blocksMovementLocked)
+	// sometimes there is no way through at all. Some ground costs more than a
+	// point a step, so it is the cheapest walk, not the shortest.
+	path := FindPath(*p.Character.Position, to, g.blocksMovementLocked, g.enterCostLocked)
 	if path == nil {
 		return ErrNoRoute
 	}
-	if len(path) > p.Character.MovementPoints {
+	if pathCost(path, g.enterCostLocked) > p.Character.MovementPoints {
 		return ErrNotEnoughMP
 	}
 	g.recordLocked(userID, CmdMove, movePayload{Position: to})
@@ -753,12 +797,16 @@ func (g *Game) Move(userID string, to types.Position) error {
 	walked := 0
 	for _, step := range path {
 		from := *g.players[userID].Character.Position
+		dir := types.Position{X: step.X - from.X, Y: step.Y - from.Y}
+		walked += g.enterCostLocked(step)
 		g.setPositionLocked(userID, step)
-		walked++
 		if g.enterCellLocked(userID) {
 			break
 		}
-		if g.slideLocked(userID, types.Position{X: step.X - from.X, Y: step.Y - from.Y}) > 0 {
+		if g.slideLocked(userID, dir) > 0 {
+			break
+		}
+		if g.groundEnterLocked(userID, dir) {
 			break
 		}
 	}
@@ -782,7 +830,7 @@ func (g *Game) Move(userID string, to types.Position) error {
 // blocksSightLocked reports whether a cell stops a line of sight: cover,
 // smoke, or a living character standing in the way.
 func (g *Game) blocksSightLocked(pos types.Position) bool {
-	if g.obstacles[pos] || g.terrainKindLocked(pos) == types.TerrainSmoke {
+	if g.obstacles[pos] || g.terrainKindLocked(pos) == types.TerrainSmoke || g.groundBlocksSightLocked(pos) {
 		return true
 	}
 	id, ok := g.playerAtLocked(pos)
@@ -818,6 +866,9 @@ func (g *Game) EndTurn(userID string) error {
 		return err
 	}
 	g.recordLocked(userID, CmdEndTurn, nil)
+	if g.groundAtTurnEndLocked(userID) {
+		return nil
+	}
 	g.advanceTurnLocked()
 	return nil
 }

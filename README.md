@@ -149,6 +149,21 @@ and adding an island is an `islands.json` one: an island is a recipe over four
 fixed elements and a small library of terrains (at most two per island), with a
 palette, the bestiary monsters that live there, its boss and the armour it
 unlocks.
+
+**Terrains are small modules.** A fight on an island is dealt that island's
+ground along with its cover, from the match seed: tall grass that hides
+whoever is in it from more than two cells away, rock that stops feet and sight,
+shallow water that costs 2 MP to wade and makes water hit 10% harder, ice that
+carries you one cell further, acid that eats 5% of your health if you end a
+turn in it, lava that nobody crosses and that burns the cells around it, and
+air currents that push you a cell at the start of your turn. Each is one Go
+type behind a single interface (`internal/game/ground.go`) with hooks for
+arriving on a cell, starting and ending a turn beside or on it, sight and the
+cost of a step; the client mirrors only what its move preview needs, and reads
+each terrain's name and rule from the catalogue. The ground's numbers are part
+of the rules fingerprint, and a recorded fight on every island replays exactly.
+Until the campaign map chooses the island, `/lobby?island=ice` opens solo
+fights on one.
 Balance is a test rather than an opinion: every class is played against every
 class by the server's own bot over seeded matches, and CI fails if any class
 wins more than 65% of a matchup or fights stop lasting four to eight turns. The

@@ -1,6 +1,7 @@
 import { Position } from "../types/game";
-import { TerrainCell } from "../types/message";
+import { GroundCell, TerrainCell } from "../types/message";
 import { isSolidTerrain } from "./terrain";
+import { groundBlocksSight, isSolidGround } from "./ground";
 
 /** Matches GridRadius on the server: the board is a diamond of this radius. */
 export const GRID_RADIUS = 7;
@@ -22,43 +23,58 @@ export const neighbours = (p: Position): Position[] =>
     { x: p.x, y: p.y - 1 },
   ].filter(inGrid);
 
+/** What a step onto a cell costs, in movement points: one, unless the ground says otherwise. */
+export type StepCost = (p: Position) => number;
+const unitCost: StepCost = () => 1;
+
 /**
- * Every cell reachable with the movement points available, and what each one
- * costs. This mirrors Reachable on the server, so the highlighted range is
- * exactly the range the server will accept — a Manhattan radius would promise
- * cells that cover makes unreachable.
+ * Every cell reachable with the movement points available, and what the
+ * cheapest walk to each one costs. This mirrors Reachable on the server, so
+ * the highlighted range is exactly the range the server will accept — a
+ * Manhattan radius would promise cells that cover makes unreachable, and a
+ * count of steps would promise water it costs two points to wade.
  */
 export const reachable = (
   from: Position,
   movementPoints: number,
-  blocked: (p: Position) => boolean
+  blocked: (p: Position) => boolean,
+  cost: StepCost = unitCost
 ): Map<string, number> => {
   const reached = new Map<string, number>([[key(from), 0]]);
-  const queue: Position[] = [from];
+  const open: { pos: Position; spent: number }[] = [{ pos: from, spent: 0 }];
 
-  while (queue.length > 0) {
-    const current = queue.shift() as Position;
-    const cost = reached.get(key(current)) ?? 0;
-    if (cost === movementPoints) continue;
+  while (open.length > 0) {
+    open.sort((a, b) => a.spent - b.spent);
+    const { pos: current, spent } = open.shift() as { pos: Position; spent: number };
+    if (spent > (reached.get(key(current)) ?? Infinity)) continue;
 
     for (const next of neighbours(current)) {
-      if (blocked(next) || reached.has(key(next))) continue;
-      reached.set(key(next), cost + 1);
-      queue.push(next);
+      if (blocked(next)) continue;
+      const total = spent + cost(next);
+      if (total > movementPoints) continue;
+      const known = reached.get(key(next));
+      if (known !== undefined && known <= total) continue;
+      reached.set(key(next), total);
+      open.push({ pos: next, spent: total });
     }
   }
   reached.delete(key(from));
   return reached;
 };
 
+/** What walking a path costs, step by step. */
+export const pathCost = (path: Position[], cost: StepCost = unitCost): number =>
+  path.reduce((total, p) => total + cost(p), 0);
+
 /**
- * The walk from one cell to another around whatever is in the way, or null
- * when there is none. Mirrors FindPath on the server.
+ * The cheapest walk from one cell to another around whatever is in the way,
+ * or null when there is none. Mirrors FindPath on the server.
  */
 export const findPath = (
   from: Position,
   to: Position,
-  blocked: (p: Position) => boolean
+  blocked: (p: Position) => boolean,
+  stepCost: StepCost = unitCost
 ): Position[] | null => {
   if (key(from) === key(to)) return [];
   if (!inGrid(to) || blocked(to)) return null;
@@ -86,12 +102,12 @@ export const findPath = (
 
     for (const next of neighbours(current)) {
       if (blocked(next)) continue;
-      const stepCost = (cost.get(key(current)) ?? 0) + 1;
+      const spent = (cost.get(key(current)) ?? 0) + stepCost(next);
       const known = cost.get(key(next));
-      if (known !== undefined && stepCost >= known) continue;
-      cost.set(key(next), stepCost);
+      if (known !== undefined && spent >= known) continue;
+      cost.set(key(next), spent);
       cameFrom.set(key(next), current);
-      open.push({ pos: next, priority: stepCost + distance(next, to) });
+      open.push({ pos: next, priority: spent + distance(next, to) });
     }
   }
   return null;
@@ -130,12 +146,13 @@ export const hasLineOfSight = (
 
 /**
  * Builds the "a walker cannot go here" test from the board's contents: cover,
- * craters and fissures, and everyone standing on it.
+ * craters and fissures, rock and lava, and everyone standing on it.
  */
 export const blockedBy = (
   obstacles: Position[] | null | undefined,
   occupied: Position[],
-  terrain?: TerrainCell[] | null
+  terrain?: TerrainCell[] | null,
+  ground?: GroundCell[] | null
 ): ((p: Position) => boolean) => {
   const taken = new Set<string>([
     ...(obstacles ?? []).map(key),
@@ -143,24 +160,32 @@ export const blockedBy = (
     ...(terrain ?? [])
       .filter((cell) => isSolidTerrain(cell.kind))
       .map((cell) => key(cell.position)),
+    ...(ground ?? [])
+      .filter((cell) => isSolidGround(cell.kind))
+      .map((cell) => key(cell.position)),
   ]);
   return (p: Position) => taken.has(key(p));
 };
 
 /**
- * Builds the "nothing is seen past this" test: cover, smoke, and everyone
- * standing on the board. Craters and fissures are holes, not walls.
+ * Builds the "nothing is seen past this" test: cover, smoke, rock, and
+ * everyone standing on the board. Craters, fissures and lava are low, not
+ * walls.
  */
 export const sightBlockedBy = (
   obstacles: Position[] | null | undefined,
   occupied: Position[],
-  terrain?: TerrainCell[] | null
+  terrain?: TerrainCell[] | null,
+  ground?: GroundCell[] | null
 ): ((p: Position) => boolean) => {
   const taken = new Set<string>([
     ...(obstacles ?? []).map(key),
     ...occupied.map(key),
     ...(terrain ?? [])
       .filter((cell) => cell.kind === "smoke")
+      .map((cell) => key(cell.position)),
+    ...(ground ?? [])
+      .filter((cell) => groundBlocksSight(cell.kind))
       .map((cell) => key(cell.position)),
   ]);
   return (p: Position) => taken.has(key(p));

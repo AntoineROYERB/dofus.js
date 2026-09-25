@@ -307,7 +307,22 @@ export interface GameState {
   terrain?: TerrainCell[] | null;
   /** Areas ultimates keep acting on for a few turns. */
   zones?: Zone[] | null;
+  /** The island the fight is on; absent for a plain arena. */
+  island?: string;
+  /**
+   * The island's ground, laid with the board and fixed for the fight: at most
+   * two kinds from the terrain library. Nothing a spell does changes it.
+   */
+  ground?: GroundCell[] | null;
 }
+
+/** One cell of an island's ground. Its kind is a terrain id of the catalogue. */
+export type GroundCell = {
+  position: Position;
+  kind: string;
+  /** The one-cell step an air current pushes along. */
+  wind?: Position;
+};
 
 export interface GameStateMessage {
   type: "game_state";

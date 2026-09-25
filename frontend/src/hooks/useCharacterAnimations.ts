@@ -3,6 +3,7 @@ import { GameState } from "../types/message";
 import { Position } from "../types/game";
 import { getDirection } from "../utils/pathUtils";
 import { blockedBy, findPath } from "../utils/board";
+import { stepCostOf } from "../utils/ground";
 import { isoToScreen } from "../utils/isoUtils";
 
 type Direction = "N" | "NE" | "E" | "SE" | "S" | "SW" | "W" | "NW";
@@ -102,8 +103,11 @@ export const useCharacterAnimations = (
         const justDied =
           oldPlayer?.character?.isAlive === true &&
           newPlayer?.character?.isAlive === false;
+        // Slipping out of sight into tall grass is not leaving the board.
         const justVanished =
-          !!oldPlayer?.character?.position && !newPlayer?.character?.position;
+          !!oldPlayer?.character?.position &&
+          !newPlayer?.character?.position &&
+          !newPlayer?.character?.concealed;
         if (justDied || justVanished) {
           newAnimations[playerId] = {
             type: "die",
@@ -139,7 +143,8 @@ export const useCharacterAnimations = (
             ? findPath(
                 oldPlayer.character.position,
                 newPlayer.character.position,
-                blockedBy(latestGameState.obstacles, others, latestGameState.terrain)
+                blockedBy(latestGameState.obstacles, others, latestGameState.terrain, latestGameState.ground),
+                stepCostOf(latestGameState.ground)
               )
             : null;
           const path = [

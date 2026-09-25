@@ -45,6 +45,9 @@ type Character struct {
 	// Effects currently riding on this character, ticked at the start of its
 	// own turn.
 	Effects []Effect `json:"effects"`
+	// Concealed says the character is somewhere the viewer cannot see — deep
+	// in tall grass — and its Position has been withheld from them.
+	Concealed bool `json:"concealed,omitempty"`
 }
 
 // Effect is one status effect on a character: poison ticking away at it, a
@@ -131,6 +134,22 @@ type GameState struct {
 	// Zones are the weather an ultimate leaves over an area for a few turns.
 	// Always an array.
 	Zones []Zone `json:"zones"`
+	// Island is the island this fight is played on, empty for a plain arena.
+	Island string `json:"island,omitempty"`
+	// Ground is the island's terrain, laid when the board is dealt and fixed
+	// for the fight: at most two kinds, from the library in islands.json.
+	// Unlike Terrain nothing a spell does changes it. Always an array.
+	Ground []GroundCell `json:"ground"`
+}
+
+// GroundCell is one cell of an island's terrain.
+type GroundCell struct {
+	Position Position `json:"position"`
+	// Kind is a terrain id from the library: tall_grass, rock, ...
+	Kind string `json:"kind"`
+	// Wind is the one-cell step an air current pushes along. Absent on every
+	// other kind.
+	Wind *Position `json:"wind,omitempty"`
 }
 
 // TerrainCell is one cell a spell has changed.

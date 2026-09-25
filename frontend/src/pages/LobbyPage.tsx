@@ -146,6 +146,16 @@ const Sheet: React.FC<{
   </div>
 );
 
+/**
+ * The island a solo match is fought on, from `?island=ice` on the lobby's URL.
+ * Until the campaign map picks the island, this is how a fight on one is
+ * opened; without it the match is a plain arena, as it always was.
+ */
+const soloIsland = (): string | undefined => {
+  if (typeof window === "undefined") return undefined;
+  return new URLSearchParams(window.location.search).get("island")?.trim() || undefined;
+};
+
 const LobbyPage: React.FC = () => {
   const { connected, rooms, roomId, sendGameAction, rejection } =
     useWebSocket();
@@ -223,6 +233,7 @@ const LobbyPage: React.FC = () => {
       withBot: true,
       ...(botClass ? { botClass } : {}),
       ...(still ? { botMode: "dummy" as const } : {}),
+      ...(soloIsland() ? { island: soloIsland() } : {}),
     });
   };
 

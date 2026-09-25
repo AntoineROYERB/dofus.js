@@ -68,6 +68,9 @@ type CreateRoomIn struct {
 	// BotMode is how that opponent behaves: "fight", the default, or "dummy",
 	// which stands still and takes it. Anything else is refused.
 	BotMode string `json:"botMode,omitempty"`
+	// Island is what the fight is played on, which decides its ground. Empty
+	// is a plain arena; an island the catalogue does not know is refused.
+	Island string `json:"island,omitempty"`
 }
 
 // WakeOpponentIn turns this room's standing opponent into a fighting one. It

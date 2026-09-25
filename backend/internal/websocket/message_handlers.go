@@ -78,7 +78,14 @@ func handleCreateRoom(h *Hub, c *Client, data []byte) {
 		botMode = mode
 	}
 
-	room, err := h.lobby.Create(in.Name)
+	if in.Island != "" {
+		if _, ok := game.Content().Island(in.Island); !ok {
+			h.reject(c, "create_room", in.MessageID, game.ErrUnknownIsland)
+			return
+		}
+	}
+
+	room, err := h.lobby.Create(in.Name, in.Island)
 	if err != nil {
 		h.reject(c, "create_room", in.MessageID, err)
 		return

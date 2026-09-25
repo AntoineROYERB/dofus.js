@@ -19,6 +19,9 @@ import {
   ZONE_INFO,
 } from "../../../utils/terrain";
 import { TerrainLayer } from "./TerrainLayer";
+import { GroundLayer } from "./GroundLayer";
+import { groundIndex, stepCostOf } from "../../../utils/ground";
+import { useContent } from "../../../hooks/useContent";
 import { Character } from "./Character";
 import { Socle } from "./Socle";
 import { CharacterTooltip } from "./CharacterTooltip";
@@ -80,6 +83,18 @@ export const Grid: React.FC<GridProps> = ({
   const zones = React.useMemo(
     () => latestGameState?.zones ?? [],
     [latestGameState?.zones]
+  );
+  const ground = React.useMemo(
+    () => latestGameState?.ground ?? [],
+    [latestGameState?.ground]
+  );
+  const groundAt = React.useMemo(() => groundIndex(ground), [ground]);
+  const stepCost = React.useMemo(() => stepCostOf(ground), [ground]);
+  // What each terrain of the island is called, and the rule a player reads.
+  const { content } = useContent();
+  const terrainLibrary = React.useMemo(
+    () => new Map((content?.terrains ?? []).map((t) => [t.id, t])),
+    [content]
   );
   const terrainAt = React.useMemo(() => terrainIndex(terrain), [terrain]);
   const relay = React.useMemo(() => relayOf(terrain, userId), [terrain, userId]);
@@ -144,12 +159,12 @@ export const Grid: React.FC<GridProps> = ({
     [players]
   );
   const blocked = React.useMemo(
-    () => blockedBy(obstacles, occupied, terrain),
-    [obstacles, occupied, terrain]
+    () => blockedBy(obstacles, occupied, terrain, ground),
+    [obstacles, occupied, terrain, ground]
   );
   const sightBlocked = React.useMemo(
-    () => sightBlockedBy(obstacles, occupied, terrain),
-    [obstacles, occupied, terrain]
+    () => sightBlockedBy(obstacles, occupied, terrain, ground),
+    [obstacles, occupied, terrain, ground]
   );
 
   const obstacleSet = React.useMemo(
@@ -161,10 +176,13 @@ export const Grid: React.FC<GridProps> = ({
   // unreachable and some far ones cost more than they look.
   const walkable = React.useMemo(() => {
     if (!characterPosition || movementPoints === undefined) return new Map();
-    return reachable(characterPosition, movementPoints, (p) =>
-      blocked(p) && !(p.x === characterPosition.x && p.y === characterPosition.y)
+    return reachable(
+      characterPosition,
+      movementPoints,
+      (p) => blocked(p) && !(p.x === characterPosition.x && p.y === characterPosition.y),
+      stepCost
     );
-  }, [characterPosition, movementPoints, blocked]);
+  }, [characterPosition, movementPoints, blocked, stepCost]);
 
   /*
    * Whether there is anything for a camera to hold on to. Read off the game
@@ -261,6 +279,7 @@ export const Grid: React.FC<GridProps> = ({
     isCurrentTurn: currentPlayer?.isCurrentTurn || false,
     selectedSpell,
     blocked,
+    stepCost,
     players,
     initialPositions,
     zoom: { scale, pan },
@@ -336,9 +355,13 @@ export const Grid: React.FC<GridProps> = ({
     const zone = zones.find((z) =>
       z.cells.some((c) => c.x === hoveredPosition.x && c.y === hoveredPosition.y)
     );
-    if (!cell && !zone) return null;
+    // The island's own ground, in the catalogue's words.
+    const land = groundAt.get(`${hoveredPosition.x},${hoveredPosition.y}`);
+    const landInfo = land ? terrainLibrary.get(land.kind) : undefined;
+    if (!cell && !zone && !landInfo) return null;
     return {
       lines: [
+        ...(landInfo ? [{ title: landInfo.name, text: landInfo.rule }] : []),
         ...(cell
           ? [
               {
@@ -372,7 +395,7 @@ export const Grid: React.FC<GridProps> = ({
         centerY
       ),
     };
-  }, [hoveredPosition, terrainAt, zones, userId, tileSize, centerX, centerY]);
+  }, [hoveredPosition, terrainAt, zones, groundAt, terrainLibrary, userId, tileSize, centerX, centerY]);
 
   // Whoever the pointer is over, keyed the same way as characterRenderState
   // — reusing hoveredPosition rather than a dedicated hitbox, so nothing
@@ -632,6 +655,10 @@ export const Grid: React.FC<GridProps> = ({
             />
           );
         })}
+        {/*
+          The island's own ground, under whatever spells leave on it.
+        */}
+        <GroundLayer ground={ground} tileSize={tileSize} centerX={centerX} centerY={centerY} />
         {/*
           What spells left behind: fire, water, ice, cracks under the fighters;
           smoke, bubbles and storm clouds over them.

@@ -27,6 +27,11 @@ export type Character = {
   isAlive: boolean;
   /** Status effects currently riding on this character. */
   effects: Effect[] | null;
+  /**
+   * Hidden from this viewer — deep in tall grass, too far to see — so its
+   * position has been withheld.
+   */
+  concealed?: boolean;
 };
 
 export interface Player {
@@ -105,6 +110,8 @@ export interface CreateRoomAction extends ActionEnvelope {
   botClass?: string;
   /** How it behaves: "fight", the default, or "dummy", which stands still. */
   botMode?: "fight" | "dummy";
+  /** The island to fight on, which decides the ground. Empty is a plain arena. */
+  island?: string;
 }
 
 export interface WakeOpponentAction extends ActionEnvelope {

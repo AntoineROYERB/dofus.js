@@ -64,6 +64,16 @@ func (c Catalogue) Class(id string) (types.Class, bool) {
 	return types.Class{}, false
 }
 
+// Island looks an island up by id.
+func (c Catalogue) Island(id string) (types.Island, bool) {
+	for _, island := range c.Islands {
+		if island.ID == id {
+			return island, true
+		}
+	}
+	return types.Island{}, false
+}
+
 // DefaultClass is what a character gets when nobody picked: the first class
 // in the file. Validation guarantees there is one.
 func (c Catalogue) DefaultClass() types.Class {

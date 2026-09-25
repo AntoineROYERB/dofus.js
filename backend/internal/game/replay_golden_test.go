@@ -43,12 +43,22 @@ var goldenMatches = []struct {
 	file        string
 	seed        int64
 	withBot     bool
+	island      string
 	description string
 }{
-	{"duel.json", 3, false, "two humans, played to a winner and then a rematch"},
-	{"duel-long.json", 9, false, "two humans, a longer fight with turns left to expire"},
-	{"bot-match.json", 4, true, "a lone human against the server's own opponent"},
-	{"bot-match-rematch.json", 6, true, "a bot match, restarted and played again"},
+	{"duel.json", 3, false, "", "two humans, played to a winner and then a rematch"},
+	{"duel-long.json", 9, false, "", "two humans, a longer fight with turns left to expire"},
+	{"bot-match.json", 4, true, "", "a lone human against the server's own opponent"},
+	{"bot-match-rematch.json", 6, true, "", "a bot match, restarted and played again"},
+	// One fight per island that between them deal every terrain of the
+	// library, so each terrain's rule is frozen too. The seeds are ones where
+	// the rule actually comes into play: someone hides in the grass, slides,
+	// is carried by the wind, eaten by acid, scorched by lava.
+	{"island-prairie.json", 31, true, "prairie", "a bot match in the Prairie's tall grass"},
+	{"island-ice.json", 33, false, "ice", "a duel on the Ice island: ice and shallow water"},
+	{"island-air.json", 32, true, "air", "a bot match on the Air island: air currents and rock"},
+	{"island-acid.json", 34, false, "acid", "a duel on the Acid island's pools"},
+	{"island-fire.json", 31, true, "fire", "a bot match on the Fire island, round its lava"},
 }
 
 func TestRecordedMatchesStillReplay(t *testing.T) {
@@ -88,7 +98,7 @@ func writeGoldenMatches(t *testing.T) {
 		t.Fatalf("creating %s: %v", goldenDir, err)
 	}
 	for _, match := range goldenMatches {
-		g, _ := playRandomMatch(t, match.seed, match.withBot)
+		g, _ := playRandomMatchOn(t, match.seed, match.withBot, match.island)
 		snapshot, err := json.Marshal(g.Snapshot())
 		if err != nil {
 			t.Fatalf("marshalling the final snapshot: %v", err)

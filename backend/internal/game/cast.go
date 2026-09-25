@@ -88,7 +88,7 @@ func (g *Game) CastSpell(userID string, spellID int, target types.Position) erro
 	g.deferLog = true
 	if spell.Special == types.SpecialLeap {
 		g.setPositionLocked(userID, target)
-		g.enterCellLocked(userID)
+		g.arriveLocked(userID, types.Position{})
 	}
 
 	affected := g.coveredCellsLocked(spell, target, origin)
@@ -231,6 +231,9 @@ func (g *Game) strikeLocked(userID string, spell types.Spell, cells []types.Posi
 		}
 		if bonus > 0 && id != userID && Distance(*g.players[userID].Character.Position, cell) == 1 {
 			amount = amount * (100 + bonus) / 100
+		}
+		if _, rule, ok := g.groundAtLocked(cell); ok {
+			amount = rule.DamageTaken(spell.Element, amount)
 		}
 		g.players[id] = hit
 

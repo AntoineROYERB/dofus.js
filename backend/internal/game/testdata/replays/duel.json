@@ -5,7 +5,7 @@
     "seed": 3,
     "startedAt": 1700000000000,
     "turnDurationMs": 3000,
-    "rules": "fbe92e4727a59625f381482080c207fe920ba774e2fb5e0607b3d86705519251",
+    "rules": "ce767a9d3390851973f3ff29aa47ca6430ed369eeeabd3bc9797dc2f6f313548",
     "commands": [
       {
         "seq": 1,
@@ -1849,6 +1849,7 @@
         "owner": "alice"
       }
     ],
-    "zones": []
+    "zones": [],
+    "ground": []
   }
 }
