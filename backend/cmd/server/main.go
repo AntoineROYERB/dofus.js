@@ -37,13 +37,17 @@ func main() {
 
 	// Content is checked before anything listens: a typo in a spell should
 	// stop the deploy, not the first match that casts it.
-	catalogue, err := content.Load(cfg.SpellsFile, cfg.ClassesFile, cfg.Balance, game.ContentBounds())
+	catalogue, err := content.Load(content.Paths{
+		Spells:  cfg.SpellsFile,
+		Classes: cfg.ClassesFile,
+		Islands: cfg.IslandsFile,
+	}, cfg.Balance, game.ContentBounds())
 	if err != nil {
 		slog.Error("invalid game content, refusing to start", "component", "content", "error", err)
 		os.Exit(1)
 	}
 	game.ApplyContent(catalogue)
-	slog.Info("content loaded", "component", "content", "spells", len(catalogue.Spells), "classes", len(catalogue.Classes))
+	slog.Info("content loaded", "component", "content", "spells", len(catalogue.Spells), "classes", len(catalogue.Classes), "islands", len(catalogue.Islands))
 
 	matches, err := openStore(cfg.DatabaseURL)
 	if err != nil {

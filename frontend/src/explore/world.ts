@@ -1,5 +1,6 @@
 import { Position } from "../types/game";
 import { cellNoise, fbm, smoothstep, valueNoise } from "./noise";
+import { atlas, islandOf } from "./islands";
 
 /**
  * The world you walk around in, as opposed to the board you fight on.
@@ -57,52 +58,42 @@ const inClearing = (p: Position): boolean => Math.abs(p.x) + Math.abs(p.y) <= CL
 export type Obstacle = "rock" | "tree" | "water" | "thicket" | "creature";
 
 /**
- * The world is cut into regions, one for each boss of the bestiary, around a
- * Prairie in the middle where the walk begins. A region decides how its
- * ground is drawn, what its liquid is, and which creatures live there.
+ * The world is cut into regions, one for each island of the campaign: the
+ * first island in the middle, where the walk begins, and the others in a ring
+ * round it, each with its boss in a lair. Which islands there are, who lives
+ * on them and how they are painted is the server's catalogue (see islands.ts);
+ * a region here is an island's id.
  */
-export type Region = "prairie" | "earth" | "water" | "ice" | "air" | "acid" | "fire";
+export type Region = string;
 
-/** The ring of boss regions around the Prairie, in order round the compass. */
-export const RING: Region[] = ["earth", "water", "ice", "air", "acid", "fire"];
+/** The ring of islands around the middle one, in order round the compass. */
+export const ringOf = (): Region[] => atlas().ring.map((i) => i.id);
 
-/** Who lives where: sprite sheets of the bestiary, by region. */
-export const LINEAGES: Record<Region, string[]> = {
-  prairie: ["bouflaine", "bouflaine_2", "souchon", "souchon_2"],
-  earth: ["caillou", "caillou_2", "caillou_3"],
-  water: ["poulpinet", "poulpinet_2", "poulpinet_3"],
-  ice: ["givrelle", "givrelle_2", "givrelle_3"],
-  air: ["chauvolet", "chauvolet_2", "chauvolet_3"],
-  acid: ["gloop", "gloop_2", "gloop_3"],
-  fire: [],
-};
+/** Who lives in a region: sprite sheets of the bestiary. */
+export const lineageOf = (r: Region): string[] => islandOf(r).lineage;
 
-/** The boss who rules each region, and where its lair is. */
-export const BOSSES: Partial<Record<Region, string>> = {
-  earth: "boss_monolithe",
-  water: "boss_kraken",
-  ice: "boss_coeur_hiver",
-  air: "boss_oeil_nuee",
-  acid: "boss_mere_gloop",
-  fire: "legend_roi_cendre",
-};
+/** The boss who rules a region, if it has one. */
+export const bossOf = (r: Region): string | null => islandOf(r).boss || null;
 
 const PRAIRIE_RADIUS = 11;
 const LAIR_RADIUS = 22;
 
 export const regionAt = (p: Position): Region => {
+  const { hub, ring } = atlas();
   const d = Math.hypot(p.x, p.y) + (valueNoise(p.x, p.y, 5, 61) - 0.5) * 5;
-  if (d < PRAIRIE_RADIUS) return "prairie";
+  if (d < PRAIRIE_RADIUS || ring.length === 0) return hub.id;
+  const n = ring.length;
   const a = Math.atan2(p.y, p.x) + (valueNoise(p.x, p.y, 7, 62) - 0.5) * 0.7;
-  const k = Math.round(((a + Math.PI) / (2 * Math.PI)) * 6);
-  return RING[((k % 6) + 6) % 6];
+  const k = Math.round(((a + Math.PI) / (2 * Math.PI)) * n);
+  return ring[((k % n) + n) % n].id;
 };
 
 /** The lair of each boss: the middle of its sector of the ring. */
 export const lairOf = (r: Region): Position | null => {
-  const k = RING.indexOf(r);
+  const ring = ringOf();
+  const k = ring.indexOf(r);
   if (k < 0) return null;
-  const a = (k / 6) * 2 * Math.PI - Math.PI;
+  const a = (k / ring.length) * 2 * Math.PI - Math.PI;
   return { x: Math.round(Math.cos(a) * LAIR_RADIUS), y: Math.round(Math.sin(a) * LAIR_RADIUS) };
 };
 
@@ -126,6 +117,8 @@ export type Ground = {
   moss: number;
   sand: number;
   region: Region;
+  /** How the region is drawn: the id of its island's palette. */
+  look: string;
   /** For a creature: the bestiary sheet it is drawn from, and whether it is the region's boss. */
   creature: string | null;
   boss: boolean;
@@ -316,7 +309,9 @@ const survey = (): Ground[] => {
 
   const biome = all.map((p) => biomeAt(p.x, p.y));
   const region = all.map(regionAt);
-  const lairs = RING.map((r) => lairOf(r) as Position);
+  const ring = ringOf();
+  const { liquid } = atlas();
+  const lairs = ring.map((r) => lairOf(r) as Position);
   const nearLair = (p: Position) => lairs.some((l) => Math.abs(l.x - p.x) + Math.abs(l.y - p.y) <= 2);
   const creature: (string | null)[] = new Array(count).fill(null);
   const boss = new Uint8Array(count);
@@ -324,15 +319,16 @@ const survey = (): Ground[] => {
     if (river[i]) return ford[i] ? null : "water";
     const lair = lairs.findIndex((l) => l.x === p.x && l.y === p.y);
     if (lair >= 0) {
-      creature[i] = BOSSES[RING[lair]] ?? null;
+      creature[i] = bossOf(ring[lair]);
+      if (!creature[i]) return null;
       boss[i] = 1;
       return "creature";
     }
     if (inClearing(p) || nearLair(p) || behindHigherGround(p, level[i])) return null;
-    // Each boss region has its own still liquid: lagoons, acid, lava, ice.
-    if (region[i] !== "prairie" && region[i] !== "earth" && region[i] !== "air" && valueNoise(p.x, p.y, 4, 70 + RING.indexOf(region[i])) > 0.72) return "water";
+    // An island with a liquid terrain has pools of it: lagoons, acid, lava, ice.
+    if (liquid.has(region[i]) && valueNoise(p.x, p.y, 4, 70 + ring.indexOf(region[i])) > 0.72) return "water";
     // Creatures of the region's lineage, here and there, away from the spawn.
-    const kin = LINEAGES[region[i]];
+    const kin = lineageOf(region[i]);
     if (kin.length > 0 && Math.hypot(p.x, p.y) > 6 && cellNoise(p.x, p.y, 500) < 0.024) {
       creature[i] = kin[Math.floor(cellNoise(p.x, p.y, 501) * kin.length)];
       return "creature";
@@ -507,27 +503,43 @@ const survey = (): Ground[] => {
     moss: biome[i].moss,
     sand: biome[i].sand,
     region: region[i],
+    look: islandOf(region[i]).palette,
     creature: creature[i],
     boss: boss[i] === 1,
   }));
 };
 
-let world: Ground[] | null = null;
-const OUTSIDE: Ground = {
-  level: 0,
-  obstacle: null,
-  ford: false,
-  stair: null,
-  path: false,
-  moss: 0,
-  sand: 0,
-  region: "prairie",
-  creature: null,
-  boss: false,
+/**
+ * The world as surveyed, and the atlas it was surveyed from: new islands mean
+ * a new survey. Beyond the edge it is the middle island's bare ground.
+ */
+let world: { version: number; ground: Ground[]; outside: Ground } | null = null;
+const surveyed = () => {
+  const { version, hub } = atlas();
+  if (world?.version !== version) {
+    world = {
+      version,
+      ground: survey(),
+      outside: {
+        level: 0,
+        obstacle: null,
+        ford: false,
+        stair: null,
+        path: false,
+        moss: 0,
+        sand: 0,
+        region: hub.id,
+        look: hub.palette,
+        creature: null,
+        boss: false,
+      },
+    };
+  }
+  return world;
 };
 
 export const groundAt = (p: Position): Ground =>
-  inWorld(p) ? (world ??= survey())[index(p)] : OUTSIDE;
+  inWorld(p) ? surveyed().ground[index(p)] : surveyed().outside;
 
 export const levelOf = (p: Position): number => groundAt(p).level;
 

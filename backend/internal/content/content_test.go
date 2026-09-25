@@ -16,13 +16,16 @@ var testBounds = Bounds{MaxRange: 14}
 const (
 	spellsPath  = "../../config/spells.json"
 	classesPath = "../../config/classes.json"
+	islandsPath = "../../config/islands.json"
 	balancePath = "../../config/balance.json"
 )
+
+var shippedPaths = Paths{Spells: spellsPath, Classes: classesPath, Islands: islandsPath}
 
 // shippedCatalogue loads the files exactly as the server does at startup.
 func shippedCatalogue(t *testing.T) Catalogue {
 	t.Helper()
-	cat, err := Load(spellsPath, classesPath, config.LoadBalance(balancePath), testBounds)
+	cat, err := Load(shippedPaths, config.LoadBalance(balancePath), testBounds)
 	if err != nil {
 		t.Fatalf("the shipped content does not load:\n%v", err)
 	}
@@ -195,10 +198,10 @@ func TestShippedUnlockArcReachesEveryClass(t *testing.T) {
 
 func TestClassStatsFallBackToTheBalance(t *testing.T) {
 	balance := config.Balance{Health: 77, ActionPoints: 9, MovementPoints: 2}
-	cat, err := Parse("spells.json", validSpells(t), "classes.json", mutateClasses(t, func(c map[string]any) {
+	cat, err := Parse(sources(validSpells(t), mutateClasses(t, func(c map[string]any) {
 		delete(c, "health")
 		c["movementPoints"] = 6
-	}), balance, testBounds)
+	}), validIslands(t)), balance, testBounds)
 	if err != nil {
 		t.Fatalf("Parse: %v", err)
 	}
@@ -265,7 +268,7 @@ func TestMalformedSpellsAreRefused(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			data := mutateSpells(t, tc.mutate)
-			_, err := Parse("config/spells.json", data, "config/classes.json", validClasses(t), config.DefaultBalance, testBounds)
+			_, err := Parse(sources(data, validClasses(t), validIslands(t)), config.DefaultBalance, testBounds)
 			assertProblem(t, err, "config/spells.json", tc.field, tc.reason)
 		})
 	}
@@ -303,7 +306,7 @@ func TestMalformedClassesAreRefused(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			data := mutateClasses(t, tc.mutate)
-			_, err := Parse("config/spells.json", validSpells(t), "config/classes.json", data, config.DefaultBalance, testBounds)
+			_, err := Parse(sources(validSpells(t), data, validIslands(t)), config.DefaultBalance, testBounds)
 			assertProblem(t, err, "config/classes.json", tc.field, tc.reason)
 		})
 	}
@@ -318,7 +321,7 @@ func TestDuplicateClassIDsAreRefused(t *testing.T) {
 	classes[1].(map[string]any)["id"] = classes[0].(map[string]any)["id"]
 	data, _ := json.Marshal(doc)
 
-	_, err := Parse("config/spells.json", validSpells(t), "config/classes.json", data, config.DefaultBalance, testBounds)
+	_, err := Parse(sources(validSpells(t), data, validIslands(t)), config.DefaultBalance, testBounds)
 	assertProblem(t, err, "config/classes.json", "classes[1].id", "duplicate id")
 }
 
@@ -334,7 +337,7 @@ func TestUnlockLoopsAreRefused(t *testing.T) {
 	classes[0].(map[string]any)["unlockedBy"] = last
 	data, _ := json.Marshal(doc)
 
-	_, err := Parse("config/spells.json", validSpells(t), "config/classes.json", data, config.DefaultBalance, testBounds)
+	_, err := Parse(sources(validSpells(t), data, validIslands(t)), config.DefaultBalance, testBounds)
 	assertProblem(t, err, "config/classes.json", "classes", "no opponent can ever be challenged")
 }
 
@@ -343,7 +346,7 @@ func TestEveryProblemIsReportedAtOnce(t *testing.T) {
 		spell(s, "1")["APCost"] = 0
 		spell(s, "2")["areaOfEffect"] = "donut"
 	})
-	_, err := Parse("config/spells.json", data, "config/classes.json", validClasses(t), config.DefaultBalance, testBounds)
+	_, err := Parse(sources(data, validClasses(t), validIslands(t)), config.DefaultBalance, testBounds)
 	if err == nil {
 		t.Fatal("Parse accepted two broken spells")
 	}
@@ -355,7 +358,9 @@ func TestEveryProblemIsReportedAtOnce(t *testing.T) {
 }
 
 func TestMissingFileIsNamed(t *testing.T) {
-	_, err := Load("nope/spells.json", classesPath, config.DefaultBalance, testBounds)
+	paths := shippedPaths
+	paths.Spells = "nope/spells.json"
+	_, err := Load(paths, config.DefaultBalance, testBounds)
 	if err == nil || !strings.Contains(err.Error(), "nope/spells.json") {
 		t.Errorf("error = %v, want it to name the missing file", err)
 	}
@@ -365,23 +370,28 @@ func TestMissingFileIsNamed(t *testing.T) {
 // Helpers
 // ---------------------------------------------------------------------------
 
-func validSpells(t *testing.T) []byte {
+// sources names the files as the server does, so problems can be asserted
+// against the names it would print.
+func sources(spells, classes, islands []byte) Sources {
+	return Sources{
+		Spells:  Source{Name: "config/spells.json", Data: spells},
+		Classes: Source{Name: "config/classes.json", Data: classes},
+		Islands: Source{Name: "config/islands.json", Data: islands},
+	}
+}
+
+func readFile(t *testing.T, path string) []byte {
 	t.Helper()
-	data, err := os.ReadFile(spellsPath)
+	data, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatal(err)
 	}
 	return data
 }
 
-func validClasses(t *testing.T) []byte {
-	t.Helper()
-	data, err := os.ReadFile(classesPath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return data
-}
+func validSpells(t *testing.T) []byte  { return readFile(t, spellsPath) }
+func validClasses(t *testing.T) []byte { return readFile(t, classesPath) }
+func validIslands(t *testing.T) []byte { return readFile(t, islandsPath) }
 
 func mutateSpells(t *testing.T, mutate func(map[string]any)) []byte {
 	t.Helper()
