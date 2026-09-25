@@ -1,4 +1,5 @@
 import { CharacterAppearance } from "../types/game";
+import { Loadout } from "../types/message";
 
 const KEY = "dofusjs.character";
 
@@ -13,13 +14,13 @@ export const NAME_RULE = /^[a-zA-Z0-9 ]{3,20}$/;
 export const saveCharacter = (
   name: string,
   color: string,
-  characterClass?: string
+  loadout?: Partial<Loadout>
 ): void => {
   const character: CharacterAppearance = {
     name,
     color,
     symbol: (name || "P")[0].toUpperCase(),
-    ...(characterClass ? { class: characterClass } : {}),
+    ...(loadout ? { loadout } : {}),
   };
   try {
     localStorage.setItem(KEY, JSON.stringify(character));
@@ -32,15 +33,21 @@ export const readCharacter = (): CharacterAppearance | null => {
   try {
     const raw = localStorage.getItem(KEY);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as Partial<CharacterAppearance>;
+    const parsed = JSON.parse(raw) as Partial<CharacterAppearance> & {
+      class?: string;
+    };
     if (!parsed.name || !parsed.color) return null;
+    // A character saved when it was a class carries that class's grimoire
+    // now; settleLoadout dresses it in the set of the champion who carries
+    // it. One saved before classes existed has nothing, and gets the first
+    // champion's set.
+    const loadout =
+      parsed.loadout ?? (parsed.class ? { grimoire: parsed.class } : undefined);
     return {
       name: parsed.name,
       color: parsed.color,
       symbol: parsed.symbol ?? parsed.name[0].toUpperCase(),
-      // A character saved before classes existed simply has none, and the
-      // server deals it the first one.
-      ...(parsed.class ? { class: parsed.class } : {}),
+      ...(loadout ? { loadout } : {}),
     };
   } catch {
     return null;

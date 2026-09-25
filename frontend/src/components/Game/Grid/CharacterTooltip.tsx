@@ -2,7 +2,7 @@ import React, { useLayoutEffect, useRef, useState } from "react";
 import { Position, Character } from "../../../types/game";
 import { EffectBadges } from "../EffectBadges";
 import { effectTotal } from "../../../utils/effectUtils";
-import { ClassTag } from "../ClassTag";
+import { KitTag } from "../KitTag";
 import { useContent } from "../../../hooks/useContent";
 
 interface CharacterTooltipProps {
@@ -89,7 +89,7 @@ export const CharacterTooltip: React.FC<CharacterTooltipProps> = ({
       <span className="font-display text-[13px] font-bold leading-none text-ink">
         {character.name}
       </span>
-      <ClassTag classId={character.class} classes={content?.classes} />
+      <KitTag loadout={character.loadout} content={content} />
       <div className="flex items-baseline gap-2.5">
         <span className="font-mono text-[11px] font-bold tabular-nums text-vermilion">
           {character.health}

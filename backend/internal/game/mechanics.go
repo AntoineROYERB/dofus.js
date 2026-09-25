@@ -299,9 +299,9 @@ func (g *Game) slideLocked(id string, dir types.Position) int {
 // before it has run its course hurts.
 func (g *Game) shoveLocked(id string, dir types.Position, n int, pullTo *types.Position) {
 	if pullTo == nil {
-		// Some classes are harder to throw around than others.
-		if class, ok := g.catalogue.Class(g.players[id].Character.Class); ok {
-			n -= class.PushResist
+		// An Anchor rune makes its carrier harder to throw around.
+		if rune, ok := g.runeOf(g.players[id].Character, types.RunePushResist); ok {
+			n -= rune.Value
 		}
 	}
 	if dir == (types.Position{}) || n <= 0 {

@@ -23,15 +23,22 @@ describe("saveCharacter / readCharacter", () => {
   });
   beforeEach(() => store.clear());
 
-  it("round-trips a rename and a class change, as the home screen does", () => {
-    saveCharacter("Tester", "#d8ae31", "pyromancer");
-    saveCharacter("Antoine", "#5bd831", "windwalker");
+  const sefSet = { outfit: "sef", grimoire: "windwalker", rune: "second-skin", talisman: "sefs-feather" };
+
+  it("round-trips a rename and a change of set, as the home screen does", () => {
+    saveCharacter("Tester", "#d8ae31", { ...sefSet, outfit: "ashka", grimoire: "pyromancer" });
+    saveCharacter("Antoine", "#5bd831", sefSet);
     expect(readCharacter()).toEqual({
       name: "Antoine",
       color: "#5bd831",
       symbol: "A",
-      class: "windwalker",
+      loadout: sefSet,
     });
+  });
+
+  it("keeps a class saved before loadouts as the grimoire it became", () => {
+    store.set("dofusjs.character", JSON.stringify({ name: "Old", color: "#000000", symbol: "O", class: "tidecaller" }));
+    expect(readCharacter()?.loadout).toEqual({ grimoire: "tidecaller" });
   });
 
   it("reads nothing when nothing was saved", () => {

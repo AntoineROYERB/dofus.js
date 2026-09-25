@@ -21,10 +21,10 @@ type Character struct {
 	Name   string `json:"name"`
 	Color  string `json:"color"`
 	Symbol string `json:"symbol"`
-	// Class is the id of the class this character was built from, which is
-	// what decides its starting stats and its spell bar. Empty only for a
-	// character a test seats by hand.
-	Class          string    `json:"class"`
+	// Loadout is what this character wears and carries: it decides its
+	// element, its starting stats, its spell bar and its rune. Empty only for
+	// a character a test seats by hand.
+	Loadout        Loadout   `json:"loadout"`
 	Position       *Position `json:"position"`
 	ActionPoints   int       `json:"actionPoints"`
 	MovementPoints int       `json:"movementPoints"`
@@ -315,54 +315,6 @@ type SpellEffect struct {
 	// OnSelf applies the effect to the caster instead of to what it hit, which
 	// is how a spell buffs or shields its own caster.
 	OnSelf bool `json:"onSelf"`
-}
-
-// Class is one playable archetype: the numbers a character starts with, the
-// spells on its bar, and the opponent that stands for it in solo play. Classes
-// are content, loaded from config/classes.json, not code.
-type Class struct {
-	ID      string `json:"id"`
-	Name    string `json:"name"`
-	Element string `json:"element"`
-	// Symbol is a short glyph shown beside the class name in the picker.
-	Symbol  string       `json:"symbol"`
-	Palette ClassPalette `json:"palette"`
-	Lore    string       `json:"lore"`
-
-	Health         int `json:"health"`
-	ActionPoints   int `json:"actionPoints"`
-	MovementPoints int `json:"movementPoints"`
-
-	// Passive is the class's standing rule, as the picker shows it.
-	Passive string `json:"passive"`
-	// MeleeBonus is the extra damage, in percent, the class deals to a target
-	// standing right next to it.
-	MeleeBonus int `json:"meleeBonus"`
-	// PushResist is how many cells shorter every push against the class is.
-	PushResist int `json:"pushResist"`
-
-	// Spells are catalogue ids, in bar order.
-	Spells   []string      `json:"spells"`
-	Opponent ClassOpponent `json:"opponent"`
-	// UnlockedBy names the class whose opponent has to be beaten in solo play
-	// before this one's can be challenged. Empty means open from the start.
-	UnlockedBy string `json:"unlockedBy"`
-}
-
-// ClassPalette is hex, never CSS class names, for the same reason as a
-// spell's colour: the client's Tailwind build would purge names it only
-// learns about at runtime. Primary also dyes the class's computer opponent,
-// so like a player's colour it should stay clear of the board's vermilion.
-type ClassPalette struct {
-	Primary   string `json:"primary"`
-	Secondary string `json:"secondary"`
-}
-
-// ClassOpponent is the named computer player a class is embodied by in solo
-// mode: one line when the challenge is offered, one when it is beaten.
-type ClassOpponent struct {
-	Name  string   `json:"name"`
-	Lines []string `json:"lines"`
 }
 
 // RoomSummary is one line in the lobby list.

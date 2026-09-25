@@ -30,7 +30,7 @@ func (g *Game) CastSpell(userID string, spellID int, target types.Position) erro
 		// Whatever cell was clicked, a spell on yourself lands on yourself.
 		target = standing
 	}
-	// The catalogue holds every class's spells; a caster may only use the ones
+	// The catalogue holds every loadout's spells; a caster may only use the ones
 	// on their own bar.
 	state, onBar := caster.Spells[key]
 	if !onBar {
@@ -203,9 +203,11 @@ func (g *Game) strikeLocked(userID string, spell types.Spell, cells []types.Posi
 	// around you rather than at you.
 	spareCaster := spell.Targeting == types.TargetSelf || spell.Special == types.SpecialLeap
 	bonus := 0
-	if class, ok := g.catalogue.Class(g.players[userID].Character.Class); ok {
-		bonus = class.MeleeBonus
+	caster := g.players[userID].Character
+	if kit, ok := g.kitOf(caster); ok {
+		bonus = kit.Grimoire.MeleeBonus
 	}
+	finisher, hasFinisher := g.runeOf(caster, types.RuneFinisher)
 
 	for _, cell := range cells {
 		id, ok := g.playerAtLocked(cell)
@@ -231,6 +233,10 @@ func (g *Game) strikeLocked(userID string, spell types.Spell, cells []types.Posi
 		}
 		if bonus > 0 && id != userID && Distance(*g.players[userID].Character.Position, cell) == 1 {
 			amount = amount * (100 + bonus) / 100
+		}
+		// An Opportunist rune presses a wounded target harder.
+		if hasFinisher && id != userID && hit.Character.Health*100 < hit.Character.MaxHealth*finisher.Threshold {
+			amount = amount * (100 + finisher.Value) / 100
 		}
 		if _, rule, ok := g.groundAtLocked(cell); ok {
 			amount = rule.DamageTaken(spell.Element, amount)

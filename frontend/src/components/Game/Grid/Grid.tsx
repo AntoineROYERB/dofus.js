@@ -9,6 +9,7 @@ import { blockedBy, reachable, sightBlockedBy } from "../../../utils/board";
 import { Tile } from "./Tile";
 import { castOrigin, outOfSight } from "../../../utils/spellUtils";
 import { BurnMarker } from "./BurnMarker";
+import { TalismanOrbit, TalismanState } from "../TalismanOrbit";
 import {
   isSolidTerrain,
   relayOf,
@@ -23,13 +24,15 @@ import { GroundLayer } from "./GroundLayer";
 import { IslandLegend } from "./IslandLegend";
 import { groundIndex, stepCostOf } from "../../../utils/ground";
 import { useContent } from "../../../hooks/useContent";
+import { kitOf } from "../../../utils/loadoutUtils";
+import { attackKindOf, useFxManifest } from "../../../utils/fxManifest";
 import { Character } from "./Character";
 import { Socle } from "./Socle";
 import { CharacterTooltip } from "./CharacterTooltip";
 import { HitFeedback } from "./HitFeedback";
 import { StatFeedback } from "./StatFeedback";
 import { SpellFXLayer } from "./SpellFXLayer";
-import { BOARD } from "../../../constants";
+import { BOARD, SPRITE } from "../../../constants";
 import { useCharacterAnimations } from "../../../hooks/useCharacterAnimations";
 import { useHitFeedback } from "../../../hooks/useHitFeedback";
 import { useGridInteraction } from "../../../hooks/useGridInteraction";
@@ -93,6 +96,7 @@ export const Grid: React.FC<GridProps> = ({
   const stepCost = React.useMemo(() => stepCostOf(ground), [ground]);
   // What each terrain of the island is called, and the rule a player reads.
   const { content } = useContent();
+  const fxManifest = useFxManifest();
   const terrainLibrary = React.useMemo(
     () => new Map((content?.terrains ?? []).map((t) => [t.id, t])),
     [content]
@@ -726,6 +730,35 @@ export const Grid: React.FC<GridProps> = ({
               scale={tileSize.width / 256}
               color={players?.[playerId]?.character.color}
               opacity={renderData.opacity}
+              outfit={kitOf(players?.[playerId]?.character.loadout, content)?.outfit.sprite}
+              attack={attackKindOf(renderData.spellId, fxManifest)}
+            />
+          );
+        })}
+        {/*
+          Each fighter's talisman circling it at chest height: the gauge of
+          its ultimate, dull until it can be cast, bright once it can.
+        */}
+        {Object.entries(characterRenderState).map(([playerId, renderData]) => {
+          const player = players?.[playerId];
+          const kit = kitOf(player?.character.loadout, content);
+          if (!renderData || !player?.character.isAlive || !kit || isPositioningPhase) return null;
+          const ultimate = kit.talisman.ultimate;
+          const state: TalismanState = player.spells?.[ultimate]?.spent
+            ? "spent"
+            : (latestGameState?.turnNumber ?? 0) < RULES.ultimateFromTurn
+              ? "charging"
+              : "ready";
+          const tw = tileSize.width;
+          return (
+            <TalismanOrbit
+              key={`talisman-${playerId}`}
+              x={renderData.screenPosition.x}
+              y={renderData.screenPosition.y - (SPRITE.feet - SPRITE.headTop) * tw * 0.45}
+              radius={tw * 0.2}
+              size={Math.max(8, tw * 0.085)}
+              color={content?.spells[ultimate]?.color ?? "#e2521d"}
+              state={state}
             />
           );
         })}
@@ -968,6 +1001,7 @@ export const Grid: React.FC<GridProps> = ({
             direction="S"
             scale={tileSize.width / 256}
             color={currentPlayer?.character.color}
+            outfit={kitOf(currentPlayer?.character.loadout, content)?.outfit.sprite}
           />
         )}
       </div>

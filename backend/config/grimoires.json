@@ -1,0 +1,65 @@
+{
+  "grimoires": [
+    {
+      "id": "pyromancer",
+      "name": "Pyromancer",
+      "element": "Fire",
+      "symbol": "🔥",
+      "lore": "Sets things alight and lets them burn. Piles burns onto a target, then sets them all off at once, and leaves the ground on fire behind it.",
+      "passive": "Burns stack up to 3 times. Each one does 4 damage at the start of its victim's turn.",
+      "glyph": "fire/sigil",
+      "spells": [
+        "2",
+        "3",
+        "4"
+      ],
+      "health": 90
+    },
+    {
+      "id": "windwalker",
+      "name": "Windwalker",
+      "element": "Air",
+      "symbol": "🌀",
+      "lore": "Never where you aimed. Strikes from a relay far across the board, throws enemies around, and leaves a storm where they stood.",
+      "passive": "Relay: your air spells go out from your relay whenever it reaches, and hit 30% harder from there.",
+      "glyph": "air/sigil",
+      "spells": [
+        "6",
+        "8",
+        "9"
+      ],
+      "movementPoints": 5
+    },
+    {
+      "id": "tidecaller",
+      "name": "Tidecaller",
+      "element": "Water",
+      "symbol": "🌊",
+      "lore": "Slows the fight to a pace only one side can keep. Traps, ice and water decide where the enemy can stand, and its own water heals it.",
+      "passive": "Your water slows enemies by 1 MP and heals you 5 when you start a turn in it. Water puts fire out.",
+      "glyph": "water/sigil",
+      "spells": [
+        "12",
+        "13",
+        "14"
+      ],
+      "health": 105
+    },
+    {
+      "id": "stonewarden",
+      "name": "Stonewarden",
+      "element": "Earth",
+      "symbol": "🪨",
+      "lore": "Slow to start and terrible up close. Leaps into reach, drags enemies in, and walls off their way out.",
+      "passive": "+50% damage against a target right next to you.",
+      "glyph": "earth/sigil",
+      "spells": [
+        "16",
+        "18",
+        "19"
+      ],
+      "movementPoints": 4,
+      "meleeBonus": 50
+    }
+  ]
+}

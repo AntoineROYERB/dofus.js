@@ -173,7 +173,7 @@ func absorb(c types.Character, damage int) int {
 }
 
 // turnPoints gives the points a character starts its turn with, once its
-// effects have had their say over what its class deals it.
+// effects have had their say over what its grimoire deals it.
 func turnPoints(c types.Character, baseActionPoints, baseMovementPoints int) (actionPoints, movementPoints int) {
 	actionPoints = baseActionPoints + effectTotal(c, types.EffectAP)
 	movementPoints = baseMovementPoints + effectTotal(c, types.EffectMP)

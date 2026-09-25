@@ -1,0 +1,64 @@
+{
+  "champions": [
+    {
+      "id": "ashka",
+      "name": "Ashka the Kindled",
+      "lines": [
+        "Stand still. It is quicker for both of us.",
+        "Embers go out. Mine just took longer than most."
+      ],
+      "set": {
+        "outfit": "ashka",
+        "grimoire": "pyromancer",
+        "rune": "opportunist",
+        "talisman": "ashkas-heart"
+      },
+      "unlockedBy": ""
+    },
+    {
+      "id": "sef",
+      "name": "Sef of the Long Grass",
+      "lines": [
+        "You will not see me twice in the same place.",
+        "You caught the wind. Nobody has told me how."
+      ],
+      "set": {
+        "outfit": "sef",
+        "grimoire": "windwalker",
+        "rune": "second-skin",
+        "talisman": "sefs-feather"
+      },
+      "unlockedBy": "ashka"
+    },
+    {
+      "id": "mother-brine",
+      "name": "Mother Brine",
+      "lines": [
+        "Come closer, child. The water is warm.",
+        "The tide turns. Even for me, it seems."
+      ],
+      "set": {
+        "outfit": "mother-brine",
+        "grimoire": "tidecaller",
+        "rune": "momentum",
+        "talisman": "mother-brines-conch"
+      },
+      "unlockedBy": "sef"
+    },
+    {
+      "id": "old-grund",
+      "name": "Old Grund",
+      "lines": [
+        "Hide behind whatever you like. The rock does not mind.",
+        "Well. Mountains wear down too, I suppose."
+      ],
+      "set": {
+        "outfit": "old-grund",
+        "grimoire": "stonewarden",
+        "rune": "anchor",
+        "talisman": "old-grunds-stone"
+      },
+      "unlockedBy": "mother-brine"
+    }
+  ]
+}

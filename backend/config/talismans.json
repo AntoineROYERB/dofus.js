@@ -1,0 +1,28 @@
+{
+  "talismans": [
+    {
+      "id": "ashkas-heart",
+      "name": "Ashka's heart",
+      "ultimate": "5",
+      "sprite": "ashkas-heart"
+    },
+    {
+      "id": "sefs-feather",
+      "name": "Sef's feather",
+      "ultimate": "10",
+      "sprite": "sefs-feather"
+    },
+    {
+      "id": "mother-brines-conch",
+      "name": "Mother Brine's conch",
+      "ultimate": "15",
+      "sprite": "mother-brines-conch"
+    },
+    {
+      "id": "old-grunds-stone",
+      "name": "Old Grund's stone",
+      "ultimate": "20",
+      "sprite": "old-grunds-stone"
+    }
+  ]
+}

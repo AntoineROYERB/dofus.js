@@ -2,8 +2,8 @@
 export const mod = (n: number, m: number) => ((n % m) + m) % m;
 
 /**
- * The home screen's class line-up keeps an unbounded position, so turning
- * past the last class keeps sliding the same way. When the selected class
+ * The home screen's line-up of sets keeps an unbounded position, so turning
+ * past the last set keeps sliding the same way. When the selected set
  * changes from elsewhere, the line jumps to it within the same lap.
  */
 export const shownPosition = (

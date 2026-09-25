@@ -10,7 +10,7 @@ describe("mod", () => {
 
 describe("shownPosition", () => {
   it("keeps the unbounded position when it already shows the selection", () => {
-    // Turning right past the last of four classes keeps counting up.
+    // Turning right past the last of four sets keeps counting up.
     expect(shownPosition(4, 0, 4)).toBe(4);
     expect(shownPosition(-1, 3, 4)).toBe(-1);
   });

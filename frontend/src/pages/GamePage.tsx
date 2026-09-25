@@ -40,7 +40,13 @@ import {
   TutorialFacts,
   resumeIndex,
 } from "../utils/tutorialSteps";
-import { barSpells, unlockedBy } from "../utils/classUtils";
+import {
+  barSpells,
+  beatenChampions,
+  championOf,
+  settleLoadout,
+  unlockedBy,
+} from "../utils/loadoutUtils";
 import { unavailableReason } from "../utils/spellUtils";
 import { markDefeated, readDefeated } from "../utils/progressStorage";
 import { useContent } from "../hooks/useContent";
@@ -98,7 +104,7 @@ function GamePage() {
   const gameStatus: GameStatus =
     (gameState?.status as GameStatus) || GAME_STATUS.CREATING_PLAYER;
   const userHasCharacter = !!currentPlayer;
-  const { content } = useContent();
+  const { content, failed: contentFailed } = useContent();
 
   // The solo arc. A win over a computer opponent is written down once, and
   // whatever that win opens up is worked out against what was already open,
@@ -108,6 +114,7 @@ function GamePage() {
     unlocked: string[];
   } | null>(null);
   const bot = Object.values(gameState?.players ?? {}).find((p) => p.isBot);
+  const botChampion = championOf(bot?.character.loadout, content?.champions ?? [])?.id;
   const opponent = Object.values(gameState?.players ?? {}).find(
     (p) => p.userId !== userId
   );
@@ -206,21 +213,21 @@ function GamePage() {
       setSoloResult(null);
       return;
     }
-    if (!wonAgainstBot || !bot?.character.class || !content) return;
-    const classId = bot.character.class;
-    const before = readDefeated();
-    markDefeated(classId);
-    const beaten = content.classes.find((c) => c.id === classId);
+    if (!wonAgainstBot || !content) return;
+    // The computer plays a champion in that champion's own set, so the set
+    // says who was beaten.
+    const beaten = content.champions.find((c) => c.id === botChampion);
+    if (!beaten) return;
+    const before = beatenChampions(readDefeated(), content.champions);
+    markDefeated(beaten.id);
     setSoloResult({
-      farewell: beaten
-        ? { name: beaten.opponent.name, line: beaten.opponent.lines[1] ?? "" }
-        : undefined,
-      unlocked: before.has(classId)
+      farewell: { name: beaten.name, line: beaten.lines[1] ?? "" },
+      unlocked: before.has(beaten.id)
         ? []
-        : unlockedBy(content.classes, classId).map((c) => c.opponent.name),
+        : unlockedBy(content.champions, beaten.id).map((c) => c.name),
     });
-    // Once per result: the bot's snapshot changes every tick, its class does not.
-  }, [winner, wonAgainstBot, bot?.character.class, content]);
+    // Once per result: the bot's snapshot changes every tick, its set does not.
+  }, [winner, wonAgainstBot, botChampion, content]);
 
   // On the iOS app the phone buzzes as the turn comes round and as the fight
   // ends; a player can look away from the board without missing either.
@@ -246,15 +253,19 @@ function GamePage() {
     if (!connected || !roomId || !character) return;
     if (userHasCharacter || characterRequested.current) return;
 
+    // A saved loadout is sent whole once the content says what it resolves
+    // to; without the content the server is left to deal its default set.
+    if (!content && !contentFailed) return;
     characterRequested.current = true;
     const { messageId, timestamp } = generateMessageId();
+    const loadout = settleLoadout(character.loadout, content);
     sendGameAction({
       type: "create_character",
       messageId,
       timestamp,
-      character,
+      character: { ...character, loadout },
     });
-  }, [connected, roomId, character, userHasCharacter, sendGameAction]);
+  }, [connected, roomId, character, userHasCharacter, sendGameAction, content, contentFailed]);
 
   const act = (action: GameAction) => sendGameAction(action);
 

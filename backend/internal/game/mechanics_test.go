@@ -74,10 +74,10 @@ func damageOf(g *Game, spell int) int {
 	return g.spells[strconv.Itoa(spell)].Damage
 }
 
-// withBonus is damage raised by the Stonewarden's melee bonus.
+// withBonus is damage raised by the Stonewarden grimoire's melee bonus.
 func withBonus(damage int) int {
-	class, _ := Content().Class("stonewarden")
-	return damage * (100 + class.MeleeBonus) / 100
+	grimoire, _ := Content().Grimoire("stonewarden")
+	return damage * (100 + grimoire.MeleeBonus) / 100
 }
 
 func character(g *Game, id string) types.Character {
@@ -114,11 +114,13 @@ func withAP(g *Game, id string, ap int) {
 	g.players[id] = p
 }
 
-func asClass(g *Game, id, class string) {
+// asChampion dresses a seated character in a champion's whole set.
+func asChampion(g *Game, id, champion string) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
+	c, _ := g.catalogue.Champion(champion)
 	p := g.players[id]
-	p.Character.Class = class
+	p.Character.Loadout = c.Set
 	g.players[id] = p
 }
 
@@ -385,10 +387,10 @@ func TestGaleThrowsAndCollisionsHurt(t *testing.T) {
 
 func TestStonewardenIsHardToThrow(t *testing.T) {
 	g := duel(t, types.Position{}, types.Position{Y: 2})
-	asClass(g, "b", "stonewarden")
+	asChampion(g, "b", "old-grund") // who carries the Anchor rune
 	cast(t, g, "a", spellGale, types.Position{Y: 2})
-	class, _ := Content().Class("stonewarden")
-	if want := (types.Position{Y: 2 + 3 - class.PushResist}); pos(g, "b") != want {
+	anchor, _ := Content().Rune("anchor")
+	if want := (types.Position{Y: 2 + 3 - anchor.Effect.Value}); pos(g, "b") != want {
 		t.Errorf("b was thrown to %+v, want %+v", pos(g, "b"), want)
 	}
 }
@@ -621,7 +623,7 @@ func TestMaelstromStripsBuffsAndDragsTheEnemyBack(t *testing.T) {
 
 func TestEarthleapLandsAndShakesTheNeighbours(t *testing.T) {
 	g := duel(t, types.Position{}, types.Position{Y: 4})
-	asClass(g, "a", "stonewarden")
+	asChampion(g, "a", "old-grund")
 
 	if err := g.CastSpell("a", spellEarthleap, types.Position{Y: 4}); !errors.Is(err, ErrCellNotFree) {
 		t.Errorf("leap onto the enemy = %v, want ErrCellNotFree", err)
@@ -644,7 +646,7 @@ func TestStonewardenHitsHarderUpClose(t *testing.T) {
 	plain := StartingHealth - health(t, g, "b")
 
 	g = duel(t, types.Position{}, types.Position{Y: 1})
-	asClass(g, "a", "stonewarden")
+	asChampion(g, "a", "old-grund")
 	cast(t, g, "a", spellHammer, types.Position{Y: 1})
 	bonus := StartingHealth - health(t, g, "b")
 
@@ -698,7 +700,7 @@ func TestPillarRaisesCoverButNeverWallsTheBoardOff(t *testing.T) {
 
 func TestEarthquakeOpensFissuresAroundItsCaster(t *testing.T) {
 	g := duel(t, types.Position{}, types.Position{X: 1})
-	asClass(g, "a", "stonewarden")
+	asChampion(g, "a", "old-grund")
 	onTurn(g, UltimateFromTurn)
 	cast(t, g, "a", spellEarthquake, types.Position{X: 1})
 
@@ -780,7 +782,7 @@ func TestADeathOnATrapEndsTheFight(t *testing.T) {
 func TestBotLeapsIntoReach(t *testing.T) {
 	g := duel(t, types.Position{}, types.Position{Y: 5})
 	setBar(g, "a", "16", "17")
-	asClass(g, "a", "stonewarden")
+	asChampion(g, "a", "old-grund")
 
 	action := DecideBotAction(g.Snapshot(), "a")
 	if action.Kind != BotCast || action.SpellID != spellEarthleap {

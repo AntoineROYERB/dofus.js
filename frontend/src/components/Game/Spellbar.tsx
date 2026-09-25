@@ -3,7 +3,7 @@ import { Player } from "../../types/game";
 import { Spell, SpellBook, SpellState } from "../../types/message";
 import { SpellGlyph } from "./SpellGlyph";
 import { SpellTooltip } from "./SpellTooltip";
-import { barSpells } from "../../utils/classUtils";
+import { barSpells } from "../../utils/loadoutUtils";
 import { RULES } from "../../utils/terrain";
 import { BOARD } from "../../constants";
 import { spec, spellSummary, unavailableReason } from "../../utils/spellUtils";

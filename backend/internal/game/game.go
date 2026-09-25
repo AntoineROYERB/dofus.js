@@ -38,7 +38,7 @@ var (
 	ErrTooManyCasts        = errors.New("that spell cannot be cast again this turn")
 	ErrBlocked             = errors.New("that cell is blocked")
 	ErrNoRoute             = errors.New("there is no way through to that cell")
-	ErrUnknownClass        = errors.New("unknown class")
+	ErrUnknownChampion     = errors.New("unknown champion")
 	ErrUnknownBotMode      = errors.New("unknown opponent mode")
 	ErrUnknownIsland       = errors.New("unknown island")
 	ErrNobodyAsleep        = errors.New("no opponent is standing still")
@@ -123,7 +123,7 @@ type Options struct {
 	// Clock reads wall-clock time. Zero means the real one; a replay supplies
 	// one driven by the recorded command timestamps.
 	Clock func() time.Time
-	// Content is the spells and classes the match is played with. Nil means
+	// Content is the spells and loadout items the match is played with. Nil means
 	// the catalogue installed with ApplyContent. A recording's rules
 	// fingerprint covers it, so a replay has to run under the same content.
 	Content *content.Catalogue
@@ -320,8 +320,8 @@ func (g *Game) Winner() (string, bool) {
 // ---------------------------------------------------------------------------
 
 // AddPlayer registers a character for a connection. Every stat is set here,
-// from the class: the client only chooses a name, a colour, a symbol and
-// which class to play.
+// from the loadout: the client only chooses a name, a colour, a symbol and
+// what its character wears and carries.
 func (g *Game) AddPlayer(userID, userName string, look types.CharacterAppearance) error {
 	g.mu.Lock()
 	defer g.mu.Unlock()
@@ -335,7 +335,7 @@ func (g *Game) AddPlayer(userID, userName string, look types.CharacterAppearance
 	if !namePattern.MatchString(look.Name) {
 		return ErrInvalidName
 	}
-	class, err := g.classLocked(look.Class)
+	kit, err := g.catalogue.Kit(look.Loadout)
 	if err != nil {
 		return err
 	}
@@ -344,12 +344,13 @@ func (g *Game) AddPlayer(userID, userName string, look types.CharacterAppearance
 	if symbol == "" {
 		symbol = look.Name[:1]
 	}
-	// The class is written down resolved, so a recording says what was played
-	// rather than leaving "the default" to be worked out again on replay.
-	look.Class = class.ID
+	// The loadout is written down resolved, so a recording says what was
+	// played rather than leaving "the default" to be worked out again on
+	// replay.
+	look.Loadout = kit.Loadout
 	g.recordLocked(userID, CmdJoin, joinPayload{UserName: userName, Character: look})
 
-	g.players[userID] = newPlayer(userID, userName, class, types.Character{
+	g.players[userID] = newPlayer(userID, userName, kit, types.Character{
 		Name:   look.Name,
 		Color:  look.Color,
 		Symbol: symbol,
@@ -358,43 +359,61 @@ func (g *Game) AddPlayer(userID, userName string, look types.CharacterAppearance
 	return nil
 }
 
-// classLocked resolves a class id, empty meaning the default class.
-func (g *Game) classLocked(id string) (types.Class, error) {
+// championLocked resolves a champion id, empty meaning the first champion.
+func (g *Game) championLocked(id string) (types.Champion, error) {
 	if id == "" {
-		return g.catalogue.DefaultClass(), nil
+		return g.catalogue.DefaultChampion(), nil
 	}
-	class, ok := g.catalogue.Class(id)
+	champion, ok := g.catalogue.Champion(id)
 	if !ok {
-		return types.Class{}, ErrUnknownClass
+		return types.Champion{}, ErrUnknownChampion
 	}
-	return class, nil
+	return champion, nil
 }
 
-// newPlayer deals a fresh character of a class: its stats, and a bar holding
-// its spells and nothing else.
-func newPlayer(userID, userName string, class types.Class, look types.Character) types.Player {
-	look.Class = class.ID
-	look.ActionPoints = class.ActionPoints
-	look.MovementPoints = class.MovementPoints
-	look.Health = class.Health
-	look.MaxHealth = class.Health
+// newPlayer deals a fresh character carrying a kit: the grimoire's stats, and
+// a bar holding the basic attack, the grimoire's spells and the ultimate.
+func newPlayer(userID, userName string, kit types.Kit, look types.Character) types.Player {
+	look.Loadout = kit.Loadout
+	look.ActionPoints = kit.Grimoire.ActionPoints
+	look.MovementPoints = kit.Grimoire.MovementPoints
+	look.Health = kit.Grimoire.Health
+	look.MaxHealth = kit.Grimoire.Health
 	look.IsAlive = true
 	return types.Player{
 		UserID:    userID,
 		UserName:  userName,
 		Connected: true,
-		Spells:    freshSpellState(class.Spells),
-		SpellBar:  append([]string(nil), class.Spells...),
+		Spells:    freshSpellState(kit.Bar),
+		SpellBar:  append([]string(nil), kit.Bar...),
 		Character: look,
 	}
 }
 
-// baseStats is what a character's class deals it before any effect has its
-// say. A character with no class — only ever one a test seats by hand — gets
-// the balance defaults.
+// kitOf resolves what a character carries. A character with no loadout —
+// only ever one a test seats by hand — has no kit.
+func (g *Game) kitOf(c types.Character) (types.Kit, bool) {
+	if c.Loadout.IsZero() {
+		return types.Kit{}, false
+	}
+	kit, err := g.catalogue.Kit(c.Loadout)
+	return kit, err == nil
+}
+
+// runeOf is the rune a character carries, if it carries one of that kind.
+func (g *Game) runeOf(c types.Character, kind string) (types.RuneEffect, bool) {
+	kit, ok := g.kitOf(c)
+	if !ok || kit.Rune.Effect.Kind != kind {
+		return types.RuneEffect{}, false
+	}
+	return kit.Rune.Effect, true
+}
+
+// baseStats is what a character's grimoire deals it before any effect has its
+// say. A character with no kit gets the balance defaults.
 func (g *Game) baseStats(c types.Character) (health, actionPoints, movementPoints int) {
-	if class, ok := g.catalogue.Class(c.Class); ok {
-		return class.Health, class.ActionPoints, class.MovementPoints
+	if kit, ok := g.kitOf(c); ok {
+		return kit.Grimoire.Health, kit.Grimoire.ActionPoints, kit.Grimoire.MovementPoints
 	}
 	return StartingHealth, StartingActionPoints, StartingMovementPoints
 }
@@ -589,6 +608,10 @@ func (g *Game) startTurnForLocked(userID string) (alive bool) {
 	}
 
 	p.Character.ActionPoints, p.Character.MovementPoints = g.turnPoints(p.Character)
+	// A Momentum rune gets its carrier moving on the first turn of the fight.
+	if rune, ok := g.runeOf(p.Character, types.RuneOpeningMP); ok && g.turnNumber == 1 {
+		p.Character.MovementPoints += rune.Value
+	}
 	if slowed && p.Character.MovementPoints > 0 {
 		p.Character.MovementPoints = max(0, p.Character.MovementPoints-WaterSlow)
 	}
@@ -739,6 +762,7 @@ func (g *Game) ChooseInitialPosition(userID string, pos types.Position) error {
 func (g *Game) beginPlayLocked() {
 	g.status = types.StatusPlaying
 	g.turnNumber = 1
+	g.raiseOpeningShieldsLocked()
 	g.turnIdx = 0
 	g.applyTurnFlagsLocked()
 	g.turnEndsAt = g.now().Add(g.turnDuration)
@@ -748,6 +772,22 @@ func (g *Game) beginPlayLocked() {
 			Actor: g.players[g.turnOrder[0]].Character.Name,
 			Kind:  types.LogTurn, Text: "starts their turn",
 		})
+	}
+}
+
+// raiseOpeningShieldsLocked gives everyone carrying a Second-skin rune its
+// shield as the fight starts, in seat order so a replay deals them the same.
+func (g *Game) raiseOpeningShieldsLocked() {
+	for _, id := range g.sortedPlayerIDsLocked() {
+		p := g.players[id]
+		rune, ok := g.runeOf(p.Character, types.RuneOpeningShield)
+		if !ok || !p.Character.IsAlive {
+			continue
+		}
+		p.Character.Effects = append(p.Character.Effects, types.Effect{
+			Kind: types.EffectShield, Value: rune.Value, TurnsLeft: rune.Duration, Source: id,
+		})
+		g.players[id] = p
 	}
 }
 

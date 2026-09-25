@@ -127,3 +127,56 @@ export const recoloredSheet = (
   cache.set(key, canvas);
   return canvas;
 };
+
+/**
+ * The trims every outfit is drawn with — the two panels of its cape — in the
+ * colours the artist left for the player: a crimson, and its purple shadow.
+ * Nothing else on any outfit uses them, so they can be swapped exactly.
+ */
+export const OUTFIT_TRIMS = { light: 0x9c304d, dark: 0x674085 } as const;
+
+/**
+ * An outfit's sheet with its trims in the player's colour, and everything
+ * else as drawn: the outfit's own colours tell its element, and never change.
+ * The shadow trim keeps the player's hue a step darker, so the cape still
+ * folds.
+ */
+export const accentedSheet = (
+  image: HTMLImageElement,
+  spriteSheet: string,
+  color: string
+): HTMLCanvasElement => {
+  const key = `${spriteSheet}|accent|${color}`;
+  const cached = cache.get(key);
+  if (cached) return cached;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = image.naturalWidth;
+  canvas.height = image.naturalHeight;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return canvas;
+  ctx.drawImage(image, 0, 0);
+
+  const n = parseInt(color.slice(1), 16);
+  const [s, l] = rgbToSl((n >> 16) & 255, (n >> 8) & 255, n & 255);
+  const hue = hueOf(color) / 360;
+  const light = hslToRgb(hue, s, Math.min(l, 0.55));
+  const dark = hslToRgb(hue, s, Math.min(l, 0.55) * 0.62);
+
+  const frame = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const data = frame.data;
+  for (let i = 0; i < data.length; i += 4) {
+    if (data[i + 3] < 10) continue;
+    const packed = (data[i] << 16) | (data[i + 1] << 8) | data[i + 2];
+    const rgb =
+      packed === OUTFIT_TRIMS.light ? light : packed === OUTFIT_TRIMS.dark ? dark : null;
+    if (!rgb) continue;
+    data[i] = rgb[0];
+    data[i + 1] = rgb[1];
+    data[i + 2] = rgb[2];
+  }
+  ctx.putImageData(frame, 0, 0);
+
+  cache.set(key, canvas);
+  return canvas;
+};

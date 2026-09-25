@@ -2,7 +2,7 @@ import React from "react";
 import { Player } from "../../types/game";
 import { EffectBadges } from "./EffectBadges";
 import { effectTotal } from "../../utils/effectUtils";
-import { ClassTag } from "./ClassTag";
+import { KitTag } from "./KitTag";
 import { useContent } from "../../hooks/useContent";
 
 interface FighterPanelProps {
@@ -73,9 +73,9 @@ export const FighterPanel: React.FC<FighterPanelProps> = ({
           Fighter
         </span>
         {connected ? (
-          <ClassTag
-            classId={character.class}
-            classes={content?.classes}
+          <KitTag
+            loadout={character.loadout}
+            content={content}
             className="short:hidden"
           />
         ) : (

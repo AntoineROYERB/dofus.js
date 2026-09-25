@@ -10,21 +10,21 @@ import (
 	"game-server/internal/types"
 )
 
-// Balance, measured. Every class is played against every class by the
-// server's own bot, over enough seeded matches that one lucky critical does
-// not decide the result, and the shipped numbers have to land inside the
-// design's bands. Retuning a spell in spells.json is a change this test gets
+// Balance, measured. Every champion is played against every champion, each
+// in its set, by the server's own bot, over enough seeded matches that one
+// lucky critical does not decide the result, and the shipped numbers have to
+// land inside the design's bands. Retuning a spell in spells.json is a change this test gets
 // a say in, which is the difference between balance as a property and balance
 // as an opinion.
 const (
-	// matchesPerPairing is per ordered pair of classes; initiative is rolled
+	// matchesPerPairing is per ordered pair of champions; initiative is rolled
 	// from the seed, so each side starts about half of them.
 	matchesPerPairing = 60
-	// maxWinRate is the most any class may win against any other.
+	// maxWinRate is the most any champion may win against any other.
 	maxWinRate = 0.65
-	// The design is "five or six turns". Each class's own band is a little
+	// The design is "five or six turns". Each champion's own band is a little
 	// wider than that, because the bot is a blunt instrument — it never
-	// retreats and never heals on purpose, so a sustain class drags on — but a
+	// retreats and never heals on purpose, so a sustain kit drags on — but a
 	// three-turn median is the bug this exists to catch.
 	minMedianTurns        = 4
 	maxMedianTurns        = 8
@@ -41,9 +41,14 @@ func shippedContent(t *testing.T) content.Catalogue {
 	t.Helper()
 	balance := config.LoadBalance("../../config/balance.json")
 	cat, err := content.Load(content.Paths{
-		Spells:  "../../config/spells.json",
-		Classes: "../../config/classes.json",
-		Islands: "../../config/islands.json",
+		Spells:    "../../config/spells.json",
+		Islands:   "../../config/islands.json",
+		Outfits:   "../../config/outfits.json",
+		Grimoires: "../../config/grimoires.json",
+		Runes:     "../../config/runes.json",
+		Talismans: "../../config/talismans.json",
+		Champions: "../../config/champions.json",
+		Cosmetics: "../../config/cosmetics.json",
 	}, balance, ContentBounds())
 	if err != nil {
 		t.Fatalf("the shipped content does not load:\n%v", err)
@@ -52,21 +57,21 @@ func shippedContent(t *testing.T) content.Catalogue {
 }
 
 type matchResult struct {
-	winner string // class id, "" for a draw
+	winner string // champion id, "" for a draw
 	turns  int
 }
 
-// simulateMatch plays two bots of the given classes against each other.
+// simulateMatch plays two champions against each other, each in its set.
 func simulateMatch(t *testing.T, cat content.Catalogue, seed int64, a, b string) matchResult {
 	t.Helper()
 	g := NewWithOptions(Options{Seed: seed, TurnDuration: time.Hour, Content: &cat})
 	ids := map[string]string{}
-	for _, class := range []string{a, b} {
-		id, err := g.AddBotOfClass(class, BotFights)
+	for _, champion := range []string{a, b} {
+		id, err := g.AddBotChampion(champion, BotFights)
 		if err != nil {
-			t.Fatalf("AddBotOfClass(%s): %v", class, err)
+			t.Fatalf("AddBotChampion(%s): %v", champion, err)
 		}
-		ids[id] = class
+		ids[id] = champion
 	}
 	if g.Status() != types.StatusPlaying {
 		t.Fatalf("%s vs %s: status %q once both bots joined, want the fight to start on its own", a, b, g.Status())
@@ -94,7 +99,7 @@ func simulateMatch(t *testing.T, cat content.Catalogue, seed int64, a, b string)
 	return result
 }
 
-func TestClassBalanceUnderSimulation(t *testing.T) {
+func TestChampionBalanceUnderSimulation(t *testing.T) {
 	cat := shippedContent(t)
 	n := matchesPerPairing
 	if testing.Short() {
@@ -104,15 +109,15 @@ func TestClassBalanceUnderSimulation(t *testing.T) {
 	wins := map[[2]string]int{}
 	played := map[[2]string]int{}
 	var lengths []int
-	perClassLengths := map[string][]int{}
+	perChampionLengths := map[string][]int{}
 
-	for i, a := range cat.Classes {
-		for j, b := range cat.Classes {
+	for i, a := range cat.Champions {
+		for j, b := range cat.Champions {
 			for k := 0; k < n; k++ {
 				seed := int64(1_000_000 + i*10_000 + j*1_000 + k)
 				r := simulateMatch(t, cat, seed, a.ID, b.ID)
 				lengths = append(lengths, r.turns)
-				perClassLengths[a.ID] = append(perClassLengths[a.ID], r.turns)
+				perChampionLengths[a.ID] = append(perChampionLengths[a.ID], r.turns)
 				if a.ID == b.ID {
 					continue // a mirror says nothing about who is stronger
 				}
@@ -129,8 +134,8 @@ func TestClassBalanceUnderSimulation(t *testing.T) {
 		}
 	}
 
-	for _, a := range cat.Classes {
-		for _, b := range cat.Classes {
+	for _, a := range cat.Champions {
+		for _, b := range cat.Champions {
 			if a.ID == b.ID {
 				continue
 			}
@@ -144,11 +149,11 @@ func TestClassBalanceUnderSimulation(t *testing.T) {
 		}
 	}
 
-	for _, class := range cat.Classes {
-		median := medianOf(perClassLengths[class.ID])
-		t.Logf("%-12s median fight %d turns", class.ID, median)
+	for _, champion := range cat.Champions {
+		median := medianOf(perChampionLengths[champion.ID])
+		t.Logf("%-12s median fight %d turns", champion.ID, median)
 		if median < minMedianTurns || median > maxMedianTurns {
-			t.Errorf("%s's fights last a median %d turns, want %d to %d", class.ID, median, minMedianTurns, maxMedianTurns)
+			t.Errorf("%s's fights last a median %d turns, want %d to %d", champion.ID, median, minMedianTurns, maxMedianTurns)
 		}
 	}
 	if median := medianOf(lengths); median < minOverallMedianTurns || median > maxOverallMedianTurns {

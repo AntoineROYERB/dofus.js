@@ -114,7 +114,7 @@ func TestMalformedIslandsAreRefused(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			data := mutateIslands(t, tc.mutate)
-			_, err := Parse(sources(validSpells(t), validClasses(t), data), config.DefaultBalance, testBounds)
+			_, err := Parse(sources(validSpells(t), data), config.DefaultBalance, testBounds)
 			assertProblem(t, err, "config/islands.json", tc.field, tc.reason)
 		})
 	}
@@ -130,7 +130,7 @@ func TestANewIslandIsOnlyData(t *testing.T) {
 			"palette": "water", "lineage": []any{"poulpinet"}, "boss": "", "armour": "tidewalker", "fights": 3,
 		})
 	})
-	cat, err := Parse(sources(validSpells(t), validClasses(t), data), config.DefaultBalance, testBounds)
+	cat, err := Parse(sources(validSpells(t), data), config.DefaultBalance, testBounds)
 	if err != nil {
 		t.Fatalf("a new island was refused:\n%v", err)
 	}

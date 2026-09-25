@@ -6,15 +6,15 @@ import (
 	"game-server/internal/types"
 )
 
-// Spells and classes are content, not code: they live in config/spells.json
-// and config/classes.json, and internal/content checks them before anything
-// here sees them.
+// Spells and what a fighter carries are content, not code: they live in
+// config/spells.json and the loadout files beside it, and internal/content
+// checks them before anything here sees them.
 //
 // The design they were written to still holds. Each spell answers one
 // question — when would you pick this instead of the obvious one? — because
 // the first catalogue was four flat damage spells, Fireball beat all of them
 // on ratio, range and blast at once, and a match was over in three turns.
-// Each element carries an identity, and each class is built around one: Fire
+// Each element carries an identity, and each grimoire is built around one: Fire
 // is raw damage, Air trades immediate damage for damage over time and
 // movement, Water controls and sustains, Earth defends and reaches what cover
 // hides. Roughly 20 damage a turn leaves a fight running five or six turns,

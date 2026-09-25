@@ -3,6 +3,8 @@ import { GameState } from "../../../types/message";
 import { CastEvent, Element, Signature, SpellFx } from "../../../vfx/spellFx";
 import { Spell } from "../../../types/message";
 import { calculateImpactedCells } from "../../../utils/spellUtils";
+import { useFxManifest } from "../../../utils/fxManifest";
+import { SheetFx } from "../../../vfx/sheetFx";
 
 /** Which spells are drawn as themselves rather than as their element. */
 const signatureOf = (spell: Spell): Signature | undefined => {
@@ -59,6 +61,13 @@ export const SpellFXLayer: React.FC<SpellFXLayerProps> = ({
   const groundRef = useRef<HTMLCanvasElement>(null);
   const airRef = useRef<HTMLCanvasElement>(null);
   const fxRef = useRef<SpellFx | null>(null);
+  // The grimoire's sheets, for every spell the manifest draws. Null until the
+  // manifest arrives, and then those spells play their sheets instead of the
+  // procedural animation; the marks they leave are still the procedural ones.
+  const manifest = useFxManifest();
+  const sheetsRef = useRef<SheetFx | null>(null);
+  const geometryRef = useRef({ tileSize, centerX, centerY });
+  const landings = useRef<number[]>([]);
   const frameRef = useRef<number | null>(null);
   /** Null until the first state arrives, which is what marks a fresh join. */
   const seenSeq = useRef<number | null>(null);
@@ -73,6 +82,10 @@ export const SpellFXLayer: React.FC<SpellFXLayerProps> = ({
       }
       const now = performance.now();
       fx.frame(now);
+      const sheets = sheetsRef.current;
+      const ground = groundRef.current?.getContext("2d");
+      const air = airRef.current?.getContext("2d");
+      if (sheets && ground && air) sheets.frame(now, ground, air);
 
       const board = boardRef.current;
       if (board) {
@@ -80,7 +93,7 @@ export const SpellFXLayer: React.FC<SpellFXLayerProps> = ({
         board.style.transform = x || y ? `translate3d(${x}px, ${y}px, 0)` : "";
       }
 
-      if (fx.busy) {
+      if (fx.busy || sheetsRef.current?.busy) {
         frameRef.current = requestAnimationFrame(step);
       } else {
         frameRef.current = null;
@@ -97,8 +110,21 @@ export const SpellFXLayer: React.FC<SpellFXLayerProps> = ({
       if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
       frameRef.current = null;
       fxRef.current = null;
+      for (const id of landings.current) window.clearTimeout(id);
+      landings.current = [];
     };
   }, []);
+
+  useEffect(() => {
+    if (!manifest) return;
+    const sheets = new SheetFx(manifest);
+    sheets.resize(geometryRef.current);
+    for (const spell of Object.values(manifest.spells)) sheets.preload(spell);
+    sheetsRef.current = sheets;
+    return () => {
+      sheetsRef.current = null;
+    };
+  }, [manifest]);
 
   // The canvas follows the board's own size, and every scar is repainted from
   // grid coordinates so a resize cannot move the history of the fight.
@@ -112,7 +138,9 @@ export const SpellFXLayer: React.FC<SpellFXLayerProps> = ({
       const width = container.clientWidth;
       const height = container.clientHeight;
       if (!width || !height) return;
-      fx.resize(width, height, { tileSize, centerX, centerY });
+      geometryRef.current = { tileSize, centerX, centerY };
+      fx.resize(width, height, geometryRef.current);
+      sheetsRef.current?.resize(geometryRef.current);
       draw();
     };
 
@@ -155,6 +183,9 @@ export const SpellFXLayer: React.FC<SpellFXLayerProps> = ({
     // sitting on a board that is meant to come back clean.
     if (seenSeq.current !== null && highest < seenSeq.current) {
       fx.reset();
+      sheetsRef.current?.reset();
+      for (const id of landings.current) window.clearTimeout(id);
+      landings.current = [];
       seenSeq.current = null;
     }
 
@@ -174,14 +205,34 @@ export const SpellFXLayer: React.FC<SpellFXLayerProps> = ({
     }
 
     const since = seenSeq.current;
+    const sheets = sheetsRef.current;
     for (const entry of log) {
       if (entry.seq <= since) continue;
       const event = toEvent(entry);
-      if (event) fx.play(event);
+      if (!event) continue;
+      const drawn = sheets && manifest?.spells[String(entry.spellId)];
+      if (!sheets || !drawn) {
+        fx.play(event);
+        continue;
+      }
+      // The grimoire's sheets play the cast, and the paper takes its marks
+      // the moment the spell lands.
+      const landsIn = sheets.play({
+        spell: drawn,
+        origin: event.via ?? event.origin,
+        target: event.target,
+        area: event.area ?? [event.target],
+      });
+      const id = window.setTimeout(() => {
+        landings.current = landings.current.filter((t) => t !== id);
+        fxRef.current?.restore(event);
+        draw();
+      }, landsIn);
+      landings.current.push(id);
     }
     seenSeq.current = Math.max(since, highest);
     draw();
-  }, [latestGameState, draw]);
+  }, [latestGameState, draw, manifest]);
 
   return (
     <>

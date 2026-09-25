@@ -30,14 +30,21 @@ type Config struct {
 	// Balance is what BalanceFile resolved to — loaded once, here, rather
 	// than wherever a room happens to be created.
 	Balance Balance
-	// SpellsFile, ClassesFile and IslandsFile hold the game's content: every
-	// spell, every class with its stats, spell bar and solo opponent, and the
-	// islands of the campaign with what they are made of. Unlike the
-	// balance file there is no fallback — a missing or invalid file stops the
-	// server at startup (see internal/content).
-	SpellsFile  string
-	ClassesFile string
-	IslandsFile string
+	// SpellsFile, IslandsFile and the loadout files hold the game's content:
+	// every spell, the islands of the campaign with what they are made of,
+	// and what a character wears and carries into a fight — outfits,
+	// grimoires, runes, talismans — with the champions who hold full sets and
+	// the cosmetics that change nothing. Unlike the balance file there is no
+	// fallback — a missing or invalid file stops the server at startup (see
+	// internal/content).
+	SpellsFile    string
+	IslandsFile   string
+	OutfitsFile   string
+	GrimoiresFile string
+	RunesFile     string
+	TalismansFile string
+	ChampionsFile string
+	CosmeticsFile string
 	// DatabaseURL, when set, switches match persistence from the in-memory
 	// store to Postgres. Empty means no database: the game must run
 	// without one, so this is a deliberate default, not a missing
@@ -64,8 +71,13 @@ func Load() Config {
 		StaticDir:      envString("STATIC_DIR", ""),
 		BalanceFile:    envString("BALANCE_FILE", "config/balance.json"),
 		SpellsFile:     envString("SPELLS_FILE", "config/spells.json"),
-		ClassesFile:    envString("CLASSES_FILE", "config/classes.json"),
 		IslandsFile:    envString("ISLANDS_FILE", "config/islands.json"),
+		OutfitsFile:    envString("OUTFITS_FILE", "config/outfits.json"),
+		GrimoiresFile:  envString("GRIMOIRES_FILE", "config/grimoires.json"),
+		RunesFile:      envString("RUNES_FILE", "config/runes.json"),
+		TalismansFile:  envString("TALISMANS_FILE", "config/talismans.json"),
+		ChampionsFile:  envString("CHAMPIONS_FILE", "config/champions.json"),
+		CosmeticsFile:  envString("COSMETICS_FILE", "config/cosmetics.json"),
 		DatabaseURL:    envString("DATABASE_URL", ""),
 		LogFormat:      envString("LOG_FORMAT", "json"),
 		LogLevel:       envString("LOG_LEVEL", "info"),

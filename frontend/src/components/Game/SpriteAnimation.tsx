@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from "react";
-import { targetHueFor, recoloredSheet } from "../../utils/spriteRecolor";
+import { accentedSheet, targetHueFor, recoloredSheet } from "../../utils/spriteRecolor";
 
 export type Direction = "N" | "NE" | "E" | "SE" | "S" | "SW" | "W" | "NW";
 
@@ -13,6 +13,11 @@ interface SpriteAnimationProps {
   scale?: number;
   /** The fighter's chosen colour. Drawn in the sheet's own stock colour if omitted. */
   color?: string;
+  /**
+   * For an outfit, which keeps its own colours: the player's colour, for its
+   * trims only. Ignored when `color` is given.
+   */
+  accent?: string;
 }
 
 const SpriteAnimation: React.FC<SpriteAnimationProps> = ({
@@ -24,6 +29,7 @@ const SpriteAnimation: React.FC<SpriteAnimationProps> = ({
   directionMap,
   scale = 1,
   color,
+  accent,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   // Kept across runs so a resize or a change of direction does not restart the
@@ -109,7 +115,9 @@ const SpriteAnimation: React.FC<SpriteAnimationProps> = ({
 
       source = color
         ? recoloredSheet(playerImage, spriteSheet, targetHueFor(color))
-        : playerImage;
+        : accent
+          ? accentedSheet(playerImage, spriteSheet, accent)
+          : playerImage;
 
       animate();
     };
@@ -134,6 +142,7 @@ const SpriteAnimation: React.FC<SpriteAnimationProps> = ({
     directionMap,
     scale,
     color,
+    accent,
   ]);
 
   return (

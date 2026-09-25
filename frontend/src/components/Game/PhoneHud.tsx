@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { GameStatus, GAME_STATUS, Player } from "../../types/game";
 import { GameState, Spell, SpellBook } from "../../types/message";
-import { barSpells } from "../../utils/classUtils";
+import { barSpells } from "../../utils/loadoutUtils";
 import { spellSummary, unavailableReason } from "../../utils/spellUtils";
 import { FOLDED_COUNT, needsFolding, ringLayout, slotOffset } from "../../utils/spellArc";
 import { effectTotal } from "../../utils/effectUtils";
