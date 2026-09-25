@@ -147,13 +147,13 @@ const Sheet: React.FC<{
 );
 
 /**
- * The island a solo match is fought on, from `?island=ice` on the lobby's URL.
- * Until the campaign map picks the island, this is how a fight on one is
- * opened; without it the match is a plain arena, as it always was.
+ * The island a solo match starts on, from `?island=ice` on the lobby's URL.
+ * Until the campaign map picks the island, the lobby lets you pick it; this
+ * is only where that choice starts. Empty is a plain arena.
  */
-const soloIsland = (): string | undefined => {
-  if (typeof window === "undefined") return undefined;
-  return new URLSearchParams(window.location.search).get("island")?.trim() || undefined;
+const islandFromUrl = (): string => {
+  if (typeof window === "undefined") return "";
+  return new URLSearchParams(window.location.search).get("island")?.trim() ?? "";
 };
 
 const LobbyPage: React.FC = () => {
@@ -168,6 +168,8 @@ const LobbyPage: React.FC = () => {
   const character = readCharacter();
   const { content, failed: contentFailed } = useContent();
   const classes = content?.classes ?? [];
+  const islands = content?.islands ?? [];
+  const [island, setIsland] = useState(islandFromUrl);
   // Read on every render: coming back from a won match has to show the rung
   // it opened without a reload.
   const defeated = readDefeated();
@@ -233,7 +235,7 @@ const LobbyPage: React.FC = () => {
       withBot: true,
       ...(botClass ? { botClass } : {}),
       ...(still ? { botMode: "dummy" as const } : {}),
-      ...(soloIsland() ? { island: soloIsland() } : {}),
+      ...(island ? { island } : {}),
     });
   };
 
@@ -453,6 +455,32 @@ const LobbyPage: React.FC = () => {
           <p className="mt-2 text-center text-[13px] italic text-graphite">
             “{next.opponent.lines[0]}”
           </p>
+        )}
+
+        {/*
+          Where the fight is. Until the campaign map chooses for you, this is
+          how a fight on an island — and its ground — is opened.
+        */}
+        {islands.length > 0 && (
+          <div className="mt-3 flex flex-wrap items-center gap-1.5" role="radiogroup" aria-label="Fight on">
+            <span className="mr-1 font-mono text-[9.5px] uppercase tracking-label text-muted">Fight on</span>
+            {[{ id: "", name: "Arena" }, ...islands].map((i) => (
+              <button
+                key={i.id || "arena"}
+                type="button"
+                role="radio"
+                aria-checked={island === i.id}
+                onClick={() => setIsland(i.id)}
+                className={`border px-2 py-0.5 font-mono text-[10px] uppercase tracking-label transition-colors ${
+                  island === i.id
+                    ? "border-ink bg-ink text-paper"
+                    : "border-hairline text-graphite hover:border-ink"
+                }`}
+              >
+                {i.name}
+              </button>
+            ))}
+          </div>
         )}
 
         {classes.length > 1 && (

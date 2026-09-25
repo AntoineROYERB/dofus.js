@@ -136,6 +136,29 @@ const Marks: React.FC<{
   return null;
 };
 
+/** One terrain drawn on a single small cell, for a legend. */
+export const GroundSwatch: React.FC<{ kind: string; size?: number }> = ({ kind, size = 34 }) => {
+  const look = LOOK[kind];
+  if (!look) return null;
+  const w = size;
+  const h = size / 2;
+  // Room above the cell for what stands up off it: rock, grass.
+  const top = h * 0.7;
+  const cell: GroundCell = { position: { x: 0, y: 0 }, kind, wind: kind === "air_current" ? { x: 1, y: 0 } : undefined };
+  return (
+    <svg width={w} height={h + top} viewBox={`0 ${-top} ${w} ${h + top}`} aria-hidden="true" className="flex-none">
+      <polygon
+        points={points(diamondCorners({ x: w / 2, y: h / 2 }, { width: w, height: h }))}
+        fill={look.wash}
+        opacity={Math.max(look.opacity, 0.55)}
+        stroke="#1b201c"
+        strokeOpacity={0.25}
+      />
+      <Marks cell={cell} cx={w / 2} cy={h / 2} w={w} h={h} ink={look.ink} />
+    </svg>
+  );
+};
+
 export const GroundLayer: React.FC<GroundLayerProps> = ({ ground, tileSize, centerX, centerY }) => {
   if (ground.length === 0) return null;
   return (

@@ -20,6 +20,7 @@ import {
 } from "../../../utils/terrain";
 import { TerrainLayer } from "./TerrainLayer";
 import { GroundLayer } from "./GroundLayer";
+import { IslandLegend } from "./IslandLegend";
 import { groundIndex, stepCostOf } from "../../../utils/ground";
 import { useContent } from "../../../hooks/useContent";
 import { Character } from "./Character";
@@ -96,6 +97,7 @@ export const Grid: React.FC<GridProps> = ({
     () => new Map((content?.terrains ?? []).map((t) => [t.id, t])),
     [content]
   );
+  const island = content?.islands.find((i) => i.id === latestGameState?.island);
   const terrainAt = React.useMemo(() => terrainIndex(terrain), [terrain]);
   const relay = React.useMemo(() => relayOf(terrain, userId), [terrain, userId]);
   // The spell catalogue is broadcast with the game state; the client keeps no copy.
@@ -567,6 +569,8 @@ export const Grid: React.FC<GridProps> = ({
       ref={containerRef}
       className="w-full h-full relative overflow-hidden touch-none"
     >
+      {/* Outside the zoom layer: the legend stays put while the board is pinched. */}
+      <IslandLegend island={island} ground={ground} terrains={terrainLibrary} />
       <div
         ref={zoomLayerRef}
         className="absolute inset-0"
