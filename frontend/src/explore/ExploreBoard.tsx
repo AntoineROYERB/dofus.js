@@ -65,8 +65,12 @@ export const ExploreBoard: React.FC<{ color?: string; daylight?: Daylight }> = (
   const rise = tile.height * LEVEL_RISE;
   const flat = isoToScreen(walker.at.x, walker.at.y, tile, centreX, centreY);
   // Up a terrace, the figure stands as high as the ground under it, and the
-  // camera follows the figure rather than the cell.
-  const hero = { x: flat.x, y: flat.y - heightAt(walker.at) * rise };
+  // camera follows the figure rather than the cell — to the nearest whole
+  // pixel of art. The paper can only move by whole pixels of art, so a camera
+  // following the figure's exact position leaves it wobbling by up to one of
+  // them about the middle of the screen, a little differently every frame.
+  const snap = (v: number, centre: number) => centre + Math.round((v - centre) / px) * px;
+  const hero = { x: snap(flat.x, centreX), y: snap(flat.y - heightAt(walker.at) * rise, centreY) };
   const pan = useMemo(
     () => followPan(hero, { x: centreX, y: centreY }, 1),
     // eslint-disable-next-line react-hooks/exhaustive-deps

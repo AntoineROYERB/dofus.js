@@ -510,7 +510,10 @@ export const paintWorld = (behind: HTMLCanvasElement, front: HTMLCanvasElement, 
     return s.x > -TW && s.x < w + TW && s.y > -TH * 3 && s.y < h + TH * 5;
   });
   const here = groundAt({ x: Math.round(walker.x), y: Math.round(walker.y) });
-  const heroFeet = at(walker, heightAt(walker));
+  // On a whole pixel of art: the camera holds it there (see ExploreBoard), so
+  // the figure stands still on the screen while the paper steps under it.
+  const feet = at(walker, heightAt(walker));
+  const heroFeet = { x: Math.round(feet.x), y: Math.round(feet.y) };
 
   const g = begin(behind, w, h);
   const f = begin(front, w, h);
@@ -738,18 +741,22 @@ export const paintWorld = (behind: HTMLCanvasElement, front: HTMLCanvasElement, 
   }
   snap(g, w, h, phase);
 
-  // Liquids move: a highlight crossing each cell, bubbles in the acid.
+  // Liquids move: a highlight crossing each cell, bubbles in the acid. Each
+  // one's phase is drawn from where it is on the paper, not on the screen:
+  // otherwise every step of the camera deals it a new one, and the water
+  // flickers back to the start of its ripple on every frame of a walk.
   for (const l of liquids) {
     const P = paletteOf(l.look, phase);
-    const t = (time * (l.look === "ice" ? 0.2 : 1.2) + cellNoise(l.x, l.y, 3) * 5) % 5;
+    const wx = Math.round(l.x - ox), wy = Math.round(l.y - oy);
+    const t = (time * (l.look === "ice" ? 0.2 : 1.2) + cellNoise(wx, wy, 3) * 5) % 5;
     if (t < 1.4) {
       g.fillStyle = P.liquid[3];
-      g.fillRect(Math.round(l.x - 6 + t * 6), Math.round(l.y - 2 + cellNoise(l.x, 1, 4) * 4), 3, 1);
+      g.fillRect(Math.round(l.x - 6 + t * 6), Math.round(l.y - 2 + cellNoise(wx, 1, 4) * 4), 3, 1);
     }
-    if (l.look === "acid" && cellNoise(l.x, l.y, 8) < 0.5) {
-      const b = (time * 0.8 + cellNoise(l.x, l.y, 9)) % 1;
+    if (l.look === "acid" && cellNoise(wx, wy, 8) < 0.5) {
+      const b = (time * 0.8 + cellNoise(wx, wy, 9)) % 1;
       g.fillStyle = P.liquid[3];
-      g.fillRect(Math.round(l.x + (cellNoise(l.x, 2, 1) - 0.5) * 20), Math.round(l.y - b * 6), 2, 2);
+      g.fillRect(Math.round(l.x + (cellNoise(wx, 2, 1) - 0.5) * 20), Math.round(l.y - b * 6), 2, 2);
     }
   }
 
@@ -866,9 +873,11 @@ export const paintWorld = (behind: HTMLCanvasElement, front: HTMLCanvasElement, 
     f.drawImage(dark, 0, 0);
     for (const gl of glows) {
       f.fillStyle = gl.c;
+      // Sparks, like ripples, are seeded from the paper, not the screen.
+      const wx = Math.round(gl.x - ox), wy = Math.round(gl.y - oy);
       for (let k = 0; k < 6; k++) {
-        if (Math.sin(time * 2 + k + gl.x) < 0.2) continue;
-        const a = cellNoise(k, gl.x | 0, 1) * TAU, r = cellNoise(k, gl.y | 0, 2) * gl.r * 0.6;
+        if (Math.sin(time * 2 + k + wx) < 0.2) continue;
+        const a = cellNoise(k, wx, 1) * TAU, r = cellNoise(k, wy, 2) * gl.r * 0.6;
         f.fillRect(Math.round(gl.x + Math.cos(a) * r), Math.round(gl.y + Math.sin(a) * r * 0.6), 1, 1);
       }
     }
