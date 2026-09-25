@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Daylight, ExploreBoard } from "../explore/ExploreBoard";
+import { setWorldContent } from "../explore/islands";
+import { useContent } from "../hooks/useContent";
 import { readCharacter } from "../utils/characterStorage";
 
 /**
@@ -27,6 +29,9 @@ const ExplorePage: React.FC = () => {
   const navigate = useNavigate();
   const character = readCharacter();
   const [daylight, setDaylight] = useState<Daylight>(readDaylight);
+  // The islands — who lives where, what colours they are — are the server's.
+  const { content, failed } = useContent();
+  if (content) setWorldContent(content);
   const toggleDaylight = () => {
     const next: Daylight = daylight === "day" ? "clock" : "day";
     setDaylight(next);
@@ -67,7 +72,13 @@ const ExplorePage: React.FC = () => {
       </div>
 
       <div className="relative min-h-0 flex-1">
-        <ExploreBoard color={character?.color} daylight={daylight} />
+        {content ? (
+          <ExploreBoard color={character?.color} daylight={daylight} />
+        ) : (
+          <p className="absolute inset-0 flex items-center justify-center font-mono text-[11px] uppercase tracking-label text-muted">
+            {failed ? "The world could not be reached. Try again in a moment." : "Unrolling the map…"}
+          </p>
+        )}
       </div>
     </div>
   );

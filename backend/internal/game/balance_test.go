@@ -40,7 +40,11 @@ const (
 func shippedContent(t *testing.T) content.Catalogue {
 	t.Helper()
 	balance := config.LoadBalance("../../config/balance.json")
-	cat, err := content.Load("../../config/spells.json", "../../config/classes.json", balance, ContentBounds())
+	cat, err := content.Load(content.Paths{
+		Spells:  "../../config/spells.json",
+		Classes: "../../config/classes.json",
+		Islands: "../../config/islands.json",
+	}, balance, ContentBounds())
 	if err != nil {
 		t.Fatalf("the shipped content does not load:\n%v", err)
 	}

@@ -144,7 +144,11 @@ tick, so its moves are watchable rather than instant.
 once at startup — unknown fields, unknown spell ids, AP costs a class cannot
 pay, ranges off the board, criticals weaker than the hit — and a bad file
 stops the server with the file, the field and the problem, instead of shipping
-a fight that breaks on the first cast. Adding a class is a `classes.json` edit.
+a fight that breaks on the first cast. Adding a class is a `classes.json` edit,
+and adding an island is an `islands.json` one: an island is a recipe over four
+fixed elements and a small library of terrains (at most two per island), with a
+palette, the bestiary monsters that live there, its boss and the armour it
+unlocks.
 Balance is a test rather than an opinion: every class is played against every
 class by the server's own bot over seeded matches, and CI fails if any class
 wins more than 65% of a matchup or fights stop lasting four to eight turns. The
@@ -176,8 +180,8 @@ look is a change to those two files.
 backend/
   cmd/server/          entry point: config, HTTP, graceful shutdown
   internal/config/     environment-driven settings
-  config/              balance.json, spells.json, classes.json — the game's numbers
-  internal/content/    loads and validates spells and classes
+  config/              balance.json, spells.json, classes.json, islands.json — the game's numbers
+  internal/content/    loads and validates spells, classes and islands
   internal/game/       rules, lobby, computer opponent, balance simulation
   internal/websocket/  hub, sessions, per-connection pumps, handlers
   internal/types/      wire format shared by every layer
@@ -208,6 +212,7 @@ Copy `.env.example` to `.env`. Everything has a working default.
 | `BALANCE_FILE` | `config/balance.json` | Default health, action points and movement points, for every class that does not set its own. Edit `backend/config/balance.json` to retune every fight at once. A missing file falls back to built-in defaults. |
 | `SPELLS_FILE` | `config/spells.json` | Every spell, keyed by id, and one colour per element. Beyond cost, range, damage and area, a spell says what it is for (`role`), whether it is an `ultimate`, what it may be aimed at (`targeting`), how far it pushes or pulls (`push`), what `terrain` or `zone` it leaves, and which `special` it runs. Validated at startup: the server refuses to start on a bad file. |
 | `CLASSES_FILE` | `config/classes.json` | Every class, in picker order: name, element, symbol, palette, lore, the passive line the picker shows, optional health/AP/MP overrides, the melee bonus and push resistance it fights with, its spell bar (1 to 8 ids; the shipped classes carry five), the named solo opponent with its two lines, and which class unlocks it. Validated at startup like `SPELLS_FILE`. |
+| `ISLANDS_FILE` | `config/islands.json` | The world of the campaign: the terrain library (id, name, icon, the one rule a player reads), the bestiary (each sprite sheet with its rank: monster, boss or legend), the armours, the palettes the world is painted in, and the islands in campaign order — the first is the Prairie in the middle of the world. An island names its element, 1 or 2 terrains, a palette, its lineage, its boss, the armour it unlocks and how many fights it has. Validated at startup like `SPELLS_FILE`. |
 | `LOG_FORMAT` | `json` | Server log format: `json` for an aggregator, `text` for a terminal |
 | `LOG_LEVEL` | `info` | Minimum log level: `debug`, `info`, `warn` or `error` |
 | `METRICS_ADDR` | `127.0.0.1:9090` | Listen address for `/metrics` (Prometheus), served on its own loopback-only listener — see [Performance](#performance). Empty disables it. |

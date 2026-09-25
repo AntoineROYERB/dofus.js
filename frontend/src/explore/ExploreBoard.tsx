@@ -28,11 +28,11 @@ const pixelScaleFor = (width: number, height: number): number => {
  * straight in a boss's region — the map is large, and checking how one of
  * its far corners looks should not take a five-minute walk.
  */
-const startCell = (() => {
+const startCell = (): Position => {
   const asked = typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("at");
   const [x, y] = (asked ?? "").split(",").map(Number);
   return Number.isInteger(x) && Number.isInteger(y) && walkable({ x, y }) ? { x, y } : SPAWN;
-})();
+};
 
 /**
  * What time it is in the world. By default the world stays in daylight; asked
@@ -41,13 +41,16 @@ const startCell = (() => {
  */
 export type Daylight = "day" | "clock";
 
+/** Draws the world; hand it its islands with setWorldContent before mounting it. */
 export const ExploreBoard: React.FC<{ color?: string; daylight?: Daylight }> = ({ color, daylight = "day" }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   // Only the container's size is taken from here: the tile is set by the pixel grid.
   const { size, measured } = useTileSize(containerRef, 15, 1);
   const px = pixelScaleFor(size.width, size.height);
   const tile = useMemo(() => ({ width: ART_TILE * px, height: (ART_TILE / 2) * px }), [px]);
-  const walker = useWalker(startCell);
+  // The ground is only known once the islands are, so this is asked on mount.
+  const [start] = useState(startCell);
+  const walker = useWalker(start);
   const [hovered, setHovered] = useState<Position | null>(null);
 
   const centreX = size.width / 2;
@@ -62,8 +65,12 @@ export const ExploreBoard: React.FC<{ color?: string; daylight?: Daylight }> = (
   const rise = tile.height * LEVEL_RISE;
   const flat = isoToScreen(walker.at.x, walker.at.y, tile, centreX, centreY);
   // Up a terrace, the figure stands as high as the ground under it, and the
-  // camera follows the figure rather than the cell.
-  const hero = { x: flat.x, y: flat.y - heightAt(walker.at) * rise };
+  // camera follows the figure rather than the cell — to the nearest whole
+  // pixel of art. The paper can only move by whole pixels of art, so a camera
+  // following the figure's exact position leaves it wobbling by up to one of
+  // them about the middle of the screen, a little differently every frame.
+  const snap = (v: number, centre: number) => centre + Math.round((v - centre) / px) * px;
+  const hero = { x: snap(flat.x, centreX), y: snap(flat.y - heightAt(walker.at) * rise, centreY) };
   const pan = useMemo(
     () => followPan(hero, { x: centreX, y: centreY }, 1),
     // eslint-disable-next-line react-hooks/exhaustive-deps

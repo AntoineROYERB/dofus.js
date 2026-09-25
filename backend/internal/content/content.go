@@ -1,4 +1,4 @@
-// Package content loads the game's spells and classes from JSON and refuses
+// Package content loads the game's spells, classes and islands from JSON and refuses
 // anything it would be wrong to serve.
 //
 // The spell list used to be a Go map literal, which made adding a spell a code
@@ -43,6 +43,15 @@ type Catalogue struct {
 	Spells map[string]types.Spell
 	// Classes are in file order, which is picker order and unlock order.
 	Classes []types.Class
+
+	// The world, from islands.json. Islands are in file order, which is
+	// campaign order: the first is the Prairie in the middle, where the walk
+	// begins, and the rest ring it.
+	Terrains []types.Terrain
+	Bestiary []types.Monster
+	Armours  []types.Armour
+	Palettes map[string]types.IslandPalette
+	Islands  []types.Island
 }
 
 // Class looks a class up by id.
@@ -72,56 +81,93 @@ func (p *Problem) Error() string {
 	return fmt.Sprintf("%s: %s: %s", p.File, p.Field, p.Problem)
 }
 
-// Load reads and validates the two content files from disk. The balance fills
-// in the stats a class does not set itself.
-func Load(spellsPath, classesPath string, balance config.Balance, bounds Bounds) (Catalogue, error) {
-	spells, err := os.ReadFile(spellsPath)
-	if err != nil {
-		return Catalogue{}, fmt.Errorf("reading %s: %w", spellsPath, err)
+// Paths are where the content files are on disk.
+type Paths struct {
+	Spells  string
+	Classes string
+	Islands string
+}
+
+// Source is one content file's bytes, and the name to report problems under.
+type Source struct {
+	Name string
+	Data []byte
+}
+
+// Sources are the content files, read.
+type Sources struct {
+	Spells  Source
+	Classes Source
+	Islands Source
+}
+
+// Load reads and validates the content files from disk. The balance fills in
+// the stats a class does not set itself.
+func Load(paths Paths, balance config.Balance, bounds Bounds) (Catalogue, error) {
+	var src Sources
+	for _, f := range []struct {
+		path string
+		into *Source
+	}{{paths.Spells, &src.Spells}, {paths.Classes, &src.Classes}, {paths.Islands, &src.Islands}} {
+		data, err := os.ReadFile(f.path)
+		if err != nil {
+			return Catalogue{}, fmt.Errorf("reading %s: %w", f.path, err)
+		}
+		*f.into = Source{Name: f.path, Data: data}
 	}
-	classes, err := os.ReadFile(classesPath)
-	if err != nil {
-		return Catalogue{}, fmt.Errorf("reading %s: %w", classesPath, err)
-	}
-	return Parse(spellsPath, spells, classesPath, classes, balance, bounds)
+	return Parse(src, balance, bounds)
 }
 
 // Shipped is the content compiled into the binary: the files in config/ as
 // they were when it was built.
 func Shipped(balance config.Balance, bounds Bounds) (Catalogue, error) {
-	read := func(name string) ([]byte, error) { return fs.ReadFile(shipped.Files, name) }
-	spells, err := read(shipped.SpellsFile)
-	if err != nil {
-		return Catalogue{}, err
+	var src Sources
+	for _, f := range []struct {
+		name string
+		into *Source
+	}{{shipped.SpellsFile, &src.Spells}, {shipped.ClassesFile, &src.Classes}, {shipped.IslandsFile, &src.Islands}} {
+		data, err := fs.ReadFile(shipped.Files, f.name)
+		if err != nil {
+			return Catalogue{}, err
+		}
+		*f.into = Source{Name: path.Join("config", f.name), Data: data}
 	}
-	classes, err := read(shipped.ClassesFile)
-	if err != nil {
-		return Catalogue{}, err
-	}
-	return Parse(path.Join("config", shipped.SpellsFile), spells,
-		path.Join("config", shipped.ClassesFile), classes, balance, bounds)
+	return Parse(src, balance, bounds)
 }
 
 // Parse decodes and validates content already in memory. The names are only
 // used to say where a problem is. Every problem found is reported, joined,
 // rather than just the first: fixing a file one error per restart is tedious.
-func Parse(spellsName string, spellsData []byte, classesName string, classesData []byte, balance config.Balance, bounds Bounds) (Catalogue, error) {
+func Parse(src Sources, balance config.Balance, bounds Bounds) (Catalogue, error) {
 	var sf spellsFile
-	if err := decodeStrict(spellsData, &sf); err != nil {
-		return Catalogue{}, &Problem{File: spellsName, Field: "(document)", Problem: err.Error()}
+	if err := decodeStrict(src.Spells.Data, &sf); err != nil {
+		return Catalogue{}, &Problem{File: src.Spells.Name, Field: "(document)", Problem: err.Error()}
 	}
 	var cf classesFile
-	if err := decodeStrict(classesData, &cf); err != nil {
-		return Catalogue{}, &Problem{File: classesName, Field: "(document)", Problem: err.Error()}
+	if err := decodeStrict(src.Classes.Data, &cf); err != nil {
+		return Catalogue{}, &Problem{File: src.Classes.Name, Field: "(document)", Problem: err.Error()}
+	}
+	var wf islandsFile
+	if err := decodeStrict(src.Islands.Data, &wf); err != nil {
+		return Catalogue{}, &Problem{File: src.Islands.Name, Field: "(document)", Problem: err.Error()}
 	}
 
 	v := &validator{}
-	spells := v.spells(spellsName, sf, bounds)
-	classes := v.classes(classesName, cf, spells, balance)
+	spells := v.spells(src.Spells.Name, sf, bounds)
+	classes := v.classes(src.Classes.Name, cf, spells, balance)
+	v.world(src.Islands.Name, wf)
 	if len(v.problems) > 0 {
 		return Catalogue{}, errors.Join(v.problems...)
 	}
-	return Catalogue{Spells: spells, Classes: classes}, nil
+	return Catalogue{
+		Spells:   spells,
+		Classes:  classes,
+		Terrains: wf.Terrains,
+		Bestiary: wf.Bestiary,
+		Armours:  wf.Armours,
+		Palettes: wf.Palettes,
+		Islands:  wf.Islands,
+	}, nil
 }
 
 // decodeStrict refuses fields the schema does not know. A misspelt key would

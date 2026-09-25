@@ -220,9 +220,74 @@ export type CharacterClass = {
   unlockedBy: string;
 };
 
+/**
+ * One kind of special cell, from the terrain library in config/islands.json.
+ * Its rule lives on the server; this is what a player is told about it.
+ */
+export type Terrain = {
+  id: string;
+  name: string;
+  icon: string;
+  /** The one sentence a player reads on tapping a cell of it. */
+  rule: string;
+  /** Drawn in the open world as a still pool: lagoon, ice, acid, lava. */
+  liquid: boolean;
+};
+
+/** One sheet of the bestiary, by the name of its sprite. */
+export type Monster = { id: string; name: string; rank: "monster" | "boss" | "legend" };
+
+export type Armour = { id: string; name: string; element: string };
+
+/**
+ * The colours an island's ground is painted in. The palette's id is also the
+ * look of its scenery: an island painted "ice" gets frosted ground.
+ */
+export type IslandPalette = {
+  ground: string[];
+  path: string;
+  stone: string[];
+  wood: string[];
+  leaves: string[];
+  pine: string[];
+  grass: string;
+  flowers: string[];
+  shadow: string;
+  earth: string[];
+  outline: string;
+  liquid: string[];
+  /** The island's own glow: magma, runes, crystals. */
+  accent: string;
+  /** The liquid gives its own light, and keeps its colour at night. */
+  glow: boolean;
+};
+
+/** One chapter of the campaign: a recipe over the elements and the terrains. */
+export type Island = {
+  id: string;
+  name: string;
+  element: string;
+  /** Terrain ids, one or two. */
+  terrains: string[];
+  palette: string;
+  /** Who lives there: bestiary sheets. */
+  lineage: string[];
+  /** Who rules it; empty for an island with nobody to beat. */
+  boss: string;
+  /** What finishing it unlocks. */
+  armour: string;
+  fights: number;
+};
+
 export type ContentResponse = {
   classes: CharacterClass[];
   spells: SpellBook;
+  terrains: Terrain[];
+  bestiary: Monster[];
+  armours: Armour[];
+  palettes: { [id: string]: IslandPalette };
+  /** In campaign order: the first is the Prairie in the middle of the world. */
+  islands: Island[];
 };
 
 export interface GameState {

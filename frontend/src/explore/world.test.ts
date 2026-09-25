@@ -1,5 +1,5 @@
 import {
-  BOSSES,
+  bossOf,
   canStep,
   findPath,
   groundAt,
@@ -8,16 +8,22 @@ import {
   isRock,
   lairOf,
   levelOf,
-  LINEAGES,
+  lineageOf,
   MAX_LEVEL,
   neighbours,
   regionAt,
-  RING,
+  ringOf,
   SPAWN,
   walkable,
   WORLD_RADIUS,
 } from "./world";
 import { Position } from "../types/game";
+import { setWorldContent } from "./islands";
+import { shippedWorld } from "./shippedWorld.testing";
+
+// Some cases are worked out while the suites are declared, so the islands go
+// in before anything else runs.
+setWorldContent(shippedWorld());
 
 const everyCell = (): Position[] => {
   const cells: Position[] = [];
@@ -265,7 +271,7 @@ describe("regions", () => {
 
   it("give every boss of the ring a region of its own", () => {
     const seen = new Set(everyCell().map((c) => groundAt(c).region));
-    for (const r of RING) expect(seen.has(r)).toBe(true);
+    for (const r of ringOf()) expect(seen.has(r)).toBe(true);
   });
 
   // A boss has to be reachable, or its region is scenery around a locked door.
@@ -281,11 +287,11 @@ describe("regions", () => {
         }
       }
     }
-    for (const r of RING) {
+    for (const r of ringOf()) {
       const lair = lairOf(r) as Position;
       const g = groundAt(lair);
       expect(g.boss).toBe(true);
-      expect(g.creature).toBe(BOSSES[r]);
+      expect(g.creature).toBe(bossOf(r));
       expect(walkable(lair)).toBe(false);
       const approach = [
         { x: lair.x + 1, y: lair.y },
@@ -301,7 +307,7 @@ describe("regions", () => {
     for (const c of everyCell()) {
       const g = groundAt(c);
       if (!g.creature || g.boss) continue;
-      expect(LINEAGES[g.region]).toContain(g.creature);
+      expect(lineageOf(g.region)).toContain(g.creature);
       expect(walkable(c)).toBe(false);
     }
   });

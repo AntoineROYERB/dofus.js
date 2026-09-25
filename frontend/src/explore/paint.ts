@@ -3,7 +3,9 @@ import { BOARD } from "../constants";
 import { Direction } from "../components/Game/SpriteAnimation";
 import { cellNoise, clamp01 } from "./noise";
 import { inFrontOf } from "./viewport";
-import { Ground, groundAt, heightAt, inWorld, MAX_LEVEL, Region } from "./world";
+import { Ground, groundAt, heightAt, inWorld, MAX_LEVEL } from "./world";
+import { atlas } from "./islands";
+import { IslandPalette } from "../types/message";
 import { artOf, creatureSheet, CREATURE_FEET, FRAMES, HERO_FEET, HERO_FRAME, heroSheet, ROWS } from "./sprites";
 
 /**
@@ -59,72 +61,14 @@ export type Scene = {
   hero: { pose: "idle" | "walk"; direction: Direction; color?: string };
 };
 
-/* ---------- palettes, one per region, taken from its boss ---------- */
+/* ---------- palettes, one per island, from the server's catalogue ---------- */
 
-type Palette = {
-  ground: string[];
-  path: string;
-  stone: string[];
-  wood: string[];
-  leaves: string[];
-  pine: string[];
-  grass: string;
-  flowers: string[];
-  shadow: string;
-  earth: string[];
-  outline: string;
-  liquid: string[];
-  /** The region's own glow: magma, runes, crystals. */
-  accent: string;
-};
-
-const PALETTES: Record<Region, Palette> = {
-  prairie: {
-    ground: ["#6ea552", "#80b85e", "#94c96c"], path: "#c2a676", stone: ["#7f7a72", "#9b958b", "#b8b1a4", "#d6cfc0"],
-    wood: ["#5e412a", "#86603e"], leaves: ["#3b7236", "#5a9e46", "#80c25a", "#a8dc78"], pine: ["#2c5a44", "#3e7a58", "#5d9c6c"],
-    grass: "#3f6e34", flowers: ["#e0564a", "#f2c94c", "#ffffff"], shadow: "#4f7e40", earth: ["#6a4a3a", "#8a6048"],
-    outline: "#1b201c", liquid: ["#2a6aa0", "#3a8ac0", "#5aaad8", "#b4e2f4"], accent: "#f2c94c",
-  },
-  earth: {
-    ground: ["#5a5654", "#666260", "#726e6a"], path: "#8a7a6a", stone: ["#2e2c30", "#45424a", "#5e5a62", "#7a7680"],
-    wood: ["#3a3230", "#544a44"], leaves: ["#4a5a3a", "#5e7044", "#76884e", "#92a05a"], pine: ["#34443a", "#44584a", "#5a705e"],
-    grass: "#4a5a40", flowers: ["#f0a040", "#e06a2a", "#ffd070"], shadow: "#403c3c", earth: ["#2a2628", "#3a3436"],
-    outline: "#120e10", liquid: ["#2a4a6a", "#36607e", "#4a7a96", "#9ab8c8"], accent: "#e2701e",
-  },
-  water: {
-    ground: ["#3a4656", "#445264", "#506072"], path: "#6a7a86", stone: ["#1e2a3e", "#2c3c54", "#3e526c", "#566e88"],
-    wood: ["#3a3a44", "#50505a"], leaves: ["#1e4a4a", "#28605c", "#347a70", "#4a9486"], pine: ["#1a3a44", "#244c56", "#306270"],
-    grass: "#2e5a5a", flowers: ["#5ae0e0", "#9af0f0", "#e0f8f8"], shadow: "#2a3444", earth: ["#1a2230", "#242e40"],
-    outline: "#070c14", liquid: ["#0c1e36", "#12304e", "#1c4a6a", "#5ae0e0"], accent: "#5ae0e0",
-  },
-  ice: {
-    ground: ["#e6eef6", "#eef4fa", "#f8fbfe"], path: "#c8d4e6", stone: ["#7a90b8", "#94aad0", "#b4c6e4", "#d4e0f2"],
-    wood: ["#5a5a6a", "#7a7a8a"], leaves: ["#8aa8d8", "#a8c2e8", "#c8daf4", "#eef4fc"], pine: ["#3a5a86", "#4e70a0", "#6a8cbc"],
-    grass: "#a8bcd8", flowers: ["#8ab4f0", "#ffffff", "#c6dcfa"], shadow: "#c0cee4", earth: ["#4a5a7a", "#627496"],
-    outline: "#16223a", liquid: ["#8ab4e0", "#a8ccee", "#c6e0f6", "#eef6fe"], accent: "#8ab4f0",
-  },
-  air: {
-    ground: ["#4a3a52", "#56445e", "#62506a"], path: "#7a6a82", stone: ["#2e2436", "#42344c", "#584866", "#72607e"],
-    wood: ["#2a1e28", "#3e2c38"], leaves: ["#3a2a44", "#4a3656", "#5c4468", "#72567e"], pine: ["#2a2234", "#3a2e46", "#4c3e5a"],
-    grass: "#6a5474", flowers: ["#e0306a", "#ff6a9a", "#c38ff0"], shadow: "#2e2436", earth: ["#241a2a", "#342638"],
-    outline: "#0c0810", liquid: ["#2a2a5a", "#3a3a72", "#4e4e8a", "#a0a0e0"], accent: "#e03aa0",
-  },
-  acid: {
-    ground: ["#2e4a2a", "#385632", "#42623a"], path: "#5a5a32", stone: ["#2a3426", "#3a4834", "#4e5e44", "#667a58"],
-    wood: ["#2a2418", "#403624"], leaves: ["#2a4a22", "#38602a", "#4a7a34", "#62943e"], pine: ["#1e3a26", "#284a30", "#365e3c"],
-    grass: "#1e3a1a", flowers: ["#e6c040", "#9ce04a", "#c4f26a"], shadow: "#22361e", earth: ["#22261a", "#2e3424"],
-    outline: "#0a100a", liquid: ["#2e6a14", "#4e9a1e", "#7ec82e", "#c4f26a"], accent: "#9ce04a",
-  },
-  fire: {
-    ground: ["#3a3238", "#463c42", "#52464c"], path: "#5a4a4a", stone: ["#2e2a32", "#423c46", "#58505c", "#706874"],
-    wood: ["#2a2226", "#403438"], leaves: ["#3a3036", "#4a3c40", "#5a4a4e", "#6a585a"], pine: ["#2a2e30", "#383e40", "#4a5254"],
-    grass: "#6a5a50", flowers: ["#e2521d", "#ffb03a", "#8c2d4c"], shadow: "#241e24", earth: ["#2a2024", "#3a2c30"],
-    outline: "#0e0b10", liquid: ["#8a1e10", "#c8401a", "#e2701e", "#ffc04a"], accent: "#ffb03a",
-  },
-};
-
-/** Liquids that give their own light keep their colour at any hour. */
-const GLOWING_LIQUID: Partial<Record<Region, boolean>> = { fire: true, acid: true };
+/**
+ * An island's colours. They are content, in config/islands.json; the id of an
+ * island's palette is also its look, which is what the scenery below switches
+ * on — so an island reusing the "ice" palette is frosted too.
+ */
+type Palette = Omit<IslandPalette, "glow">;
 
 const SKY: Record<Phase, string[]> = {
   day: ["#7fb8e6", "#95c6ec", "#aad3f0", "#c0def2", "#d6e9f4", "#e8f2f6"],
@@ -150,17 +94,18 @@ const shift = (c: string, phase: Phase): string => {
 };
 
 const phased = new Map<string, Palette>();
-const paletteOf = (region: Region, phase: Phase): Palette => {
-  const key = `${region}:${phase}`;
+const paletteOf = (look: string, phase: Phase): Palette => {
+  const key = `${look}:${phase}`;
   let p = phased.get(key);
   if (!p) {
-    const base = PALETTES[region];
+    const base = atlas().palettes[look];
     const s = (c: string) => shift(c, phase);
     p = {
       ground: base.ground.map(s), path: s(base.path), stone: base.stone.map(s), wood: base.wood.map(s),
       leaves: base.leaves.map(s), pine: base.pine.map(s), grass: s(base.grass), flowers: base.flowers.map(s),
       shadow: s(base.shadow), earth: base.earth.map(s),
-      liquid: GLOWING_LIQUID[region] ? base.liquid : base.liquid.map(s),
+      // A liquid that gives its own light keeps its colour at any hour.
+      liquid: base.glow ? base.liquid : base.liquid.map(s),
       accent: base.accent, outline: base.outline,
     };
     phased.set(key, p);
@@ -175,8 +120,8 @@ const snapPaletteOf = (phase: Phase) => {
   let s = snapPalettes.get(phase);
   if (!s) {
     const all = new Set<string>([...SKY[phase], ...CLOUD[phase], ...EXTRA]);
-    for (const r of Object.keys(PALETTES) as Region[]) {
-      const p = paletteOf(r, phase);
+    for (const look of Object.keys(atlas().palettes)) {
+      const p = paletteOf(look, phase);
       [...p.ground, p.path, ...p.stone, ...p.wood, ...p.leaves, ...p.pine, p.grass, ...p.flowers, p.shadow, ...p.earth, p.outline, ...p.liquid, p.accent].forEach((c) => all.add(c));
     }
     // A colour, at 6 bits a channel, remembers which palette entry it snapped to.
@@ -383,13 +328,13 @@ const standingOf = (c: Position, gr: Ground, phase: Phase): Standing => {
   g.lineCap = "round";
   g.lineJoin = "round";
   const s = { x: BOX_W / 2, y: BOX_H - 24 };
-  const P = paletteOf(gr.region, phase);
+  const P = paletteOf(gr.look, phase);
   const seed = c.x * 131 + c.y * 17;
   const alt = cellNoise(c.x, c.y, 15) >= 0.55;
   const glow: Standing["glow"] = [];
 
   if (gr.obstacle === "rock") {
-    if (gr.region === "acid" && cellNoise(c.x, c.y, 16) < 0.4) {
+    if (gr.look === "acid" && cellNoise(c.x, c.y, 16) < 0.4) {
       // A sword of someone who faced the Mother Gloop, rusting where it fell.
       const tilt = (cellNoise(c.x, c.y, 2) - 0.5) * 6;
       g.fillStyle = P.stone[3];
@@ -400,14 +345,14 @@ const standingOf = (c: Position, gr: Ground, phase: Phase): Standing => {
       g.fillRect(Math.round(s.x + tilt), s.y - 24, 2, 5);
     } else {
       boulder(g, s, seed, P);
-      if (gr.region === "earth") {
+      if (gr.look === "earth") {
         g.fillStyle = P.accent;
         for (let t = 0; t < 5; t++) g.fillRect(s.x - 4 + t, s.y - 8 - (t % 2), 1, 1);
         glow.push({ x: s.x, y: s.y - 8, c: P.accent });
       }
     }
   } else if (gr.obstacle === "tree") {
-    switch (gr.region) {
+    switch (gr.look) {
       case "prairie":
         if (alt) tiers(g, s, P, false);
         else {
@@ -530,7 +475,19 @@ const heroFrame = (sheet: CanvasImageSource, key: string, frame: number, row: nu
  * — trees, creatures, and the edge of any terrace high enough to hide the
  * walker's feet — and the dark, at night.
  */
+/** What is drawn from one atlas is thrown away when the islands change. */
+let paintedFor = 0;
+const forgetOtherIslands = () => {
+  const { version } = atlas();
+  if (version === paintedFor) return;
+  phased.clear();
+  snapPalettes.clear();
+  standingCache.clear();
+  paintedFor = version;
+};
+
 export const paintWorld = (behind: HTMLCanvasElement, front: HTMLCanvasElement, scene: Scene) => {
+  forgetOtherIslands();
   const { px, phase, time, walker } = scene;
   const w = Math.max(1, Math.ceil(scene.width / px));
   const h = Math.max(1, Math.ceil(scene.height / px));
@@ -553,7 +510,10 @@ export const paintWorld = (behind: HTMLCanvasElement, front: HTMLCanvasElement, 
     return s.x > -TW && s.x < w + TW && s.y > -TH * 3 && s.y < h + TH * 5;
   });
   const here = groundAt({ x: Math.round(walker.x), y: Math.round(walker.y) });
-  const heroFeet = at(walker, heightAt(walker));
+  // On a whole pixel of art: the camera holds it there (see ExploreBoard), so
+  // the figure stands still on the screen while the paper steps under it.
+  const feet = at(walker, heightAt(walker));
+  const heroFeet = { x: Math.round(feet.x), y: Math.round(feet.y) };
 
   const g = begin(behind, w, h);
   const f = begin(front, w, h);
@@ -574,10 +534,10 @@ export const paintWorld = (behind: HTMLCanvasElement, front: HTMLCanvasElement, 
   }
 
   const glows: { x: number; y: number; c: string; r: number }[] = [];
-  const liquids: { x: number; y: number; region: Region }[] = [];
+  const liquids: { x: number; y: number; look: string }[] = [];
 
   /** A wall of coursed stone under a coping, in the region's stone. */
-  const face = (ctx: Ctx, q: Position[], side: "R" | "L", c: Position, drop: number, P: Palette, region: Region, salt = 0) => {
+  const face = (ctx: Ctx, q: Position[], side: "R" | "L", c: Position, drop: number, P: Palette, look: string, salt = 0) => {
     const tone = side === "R" ? 1 : 2;
     const hx = (k: number) => cellNoise(c.x * 7 + k, c.y * 13 + salt, 11 + (side === "R" ? 0 : 50));
     const cap = Math.min(0.22, 0.18 / Math.max(drop, 0.25));
@@ -593,7 +553,7 @@ export const paintWorld = (behind: HTMLCanvasElement, front: HTMLCanvasElement, 
     for (let k = 0; k < caps.length - 1; k++) {
       fill(ctx, [quad(q, caps[k], -0.04), quad(q, caps[k + 1], -0.04), quad(q, caps[k + 1], cap), quad(q, caps[k], cap)], P.stone[3], P.outline);
     }
-    if (region === "earth" && hx(40) < 0.6 && drop >= 0.5) {
+    if (look === "earth" && hx(40) < 0.6 && drop >= 0.5) {
       // The Monolith's magma shows in the walls too.
       ctx.strokeStyle = P.accent;
       ctx.lineWidth = 1;
@@ -622,7 +582,7 @@ export const paintWorld = (behind: HTMLCanvasElement, front: HTMLCanvasElement, 
   /** One cell's ground: its top, the cliffs below it, its stair, its ink. */
   const groundCell = (ctx: Ctx, c: Position, redraw: boolean): { s: Position; k: Corners; gr: Ground } => {
     const gr = groundAt(c);
-    const P = paletteOf(gr.region, phase);
+    const P = paletteOf(gr.look, phase);
     const lv = floorOf(c);
     const s = at(c, lv);
     const k = cornersOf(s);
@@ -648,8 +608,8 @@ export const paintWorld = (behind: HTMLCanvasElement, front: HTMLCanvasElement, 
         ctx.stroke();
       }
       if (!redraw) {
-        liquids.push({ x: s.x, y: s.y, region: gr.region });
-        if (GLOWING_LIQUID[gr.region]) glows.push({ x: s.x, y: s.y, c: P.liquid[2], r: 36 });
+        liquids.push({ x: s.x, y: s.y, look: gr.look });
+        if (atlas().palettes[gr.look].glow) glows.push({ x: s.x, y: s.y, c: P.liquid[2], r: 36 });
       }
       if (gr.ford) {
         for (let i = 0; i < 3; i++) {
@@ -670,9 +630,9 @@ export const paintWorld = (behind: HTMLCanvasElement, front: HTMLCanvasElement, 
     const qR = [k.R, k.B, { x: k.B.x, y: k.B.y + (lv - right) * RISE }, { x: k.R.x, y: k.R.y + (lv - right) * RISE }];
     const qL = [k.L, k.B, { x: k.B.x, y: k.B.y + (lv - left) * RISE }, { x: k.L.x, y: k.L.y + (lv - left) * RISE }];
     if (right === -99) underside(ctx, qR, c, P);
-    else if (right < lv) face(ctx, qR, "R", c, lv - right, P, gr.region);
+    else if (right < lv) face(ctx, qR, "R", c, lv - right, P, gr.look);
     if (left === -99) underside(ctx, qL, c, P);
-    else if (left < lv) face(ctx, qL, "L", c, lv - left, P, gr.region);
+    else if (left < lv) face(ctx, qL, "L", c, lv - left, P, gr.look);
 
     // Contours at the back edges; the front ones are the walls' own crests.
     ctx.strokeStyle = P.outline;
@@ -715,7 +675,7 @@ export const paintWorld = (behind: HTMLCanvasElement, front: HTMLCanvasElement, 
     if (!gr.obstacle && !gr.ford && !gr.stair && !gr.path) {
       const lean = Math.sin(time * 1.3 - (c.x + c.y) * 0.35) > 0.4 ? 1 : 0;
       ctx.fillStyle = P.grass;
-      if (cellNoise(c.x, c.y, 60) < (gr.region === "ice" ? 0.25 : 0.6)) {
+      if (cellNoise(c.x, c.y, 60) < (gr.look === "ice" ? 0.25 : 0.6)) {
         for (let t = 0; t < 4; t++) {
           const gx = Math.round(s.x + (cellNoise(c.x, c.y, 62 + t) - 0.5) * TW * 0.5);
           const gy = Math.round(s.y + (cellNoise(c.x, c.y, 64 + t) - 0.5) * TH * 0.45);
@@ -730,7 +690,7 @@ export const paintWorld = (behind: HTMLCanvasElement, front: HTMLCanvasElement, 
           ctx.fillRect(Math.round(s.x + (cellNoise(c.x, c.y, 92 + t) - 0.5) * TW * 0.4), Math.round(s.y + (cellNoise(c.x, c.y, 95 + t) - 0.5) * TH * 0.3) - 2, 2, 2);
         }
       }
-      if (gr.region === "earth" && cellNoise(c.x, c.y, 30) < 0.3) {
+      if (gr.look === "earth" && cellNoise(c.x, c.y, 30) < 0.3) {
         // Magma running through the Monolith's ground.
         ctx.fillStyle = P.accent;
         let vx = Math.round(s.x - 10 + cellNoise(c.x, c.y, 31) * 6), vy = Math.round(s.y - 2);
@@ -741,7 +701,7 @@ export const paintWorld = (behind: HTMLCanvasElement, front: HTMLCanvasElement, 
         }
         if (!redraw) glows.push({ x: s.x, y: s.y, c: P.accent, r: 22 });
       }
-      if (gr.region === "air" && cellNoise(c.x, c.y, 33) < 0.035) {
+      if (gr.look === "air" && cellNoise(c.x, c.y, 33) < 0.035) {
         // A rune circle traced on the Swarm's ground.
         ctx.strokeStyle = P.accent;
         ctx.beginPath();
@@ -781,18 +741,22 @@ export const paintWorld = (behind: HTMLCanvasElement, front: HTMLCanvasElement, 
   }
   snap(g, w, h, phase);
 
-  // Liquids move: a highlight crossing each cell, bubbles in the acid.
+  // Liquids move: a highlight crossing each cell, bubbles in the acid. Each
+  // one's phase is drawn from where it is on the paper, not on the screen:
+  // otherwise every step of the camera deals it a new one, and the water
+  // flickers back to the start of its ripple on every frame of a walk.
   for (const l of liquids) {
-    const P = paletteOf(l.region, phase);
-    const t = (time * (l.region === "ice" ? 0.2 : 1.2) + cellNoise(l.x, l.y, 3) * 5) % 5;
+    const P = paletteOf(l.look, phase);
+    const wx = Math.round(l.x - ox), wy = Math.round(l.y - oy);
+    const t = (time * (l.look === "ice" ? 0.2 : 1.2) + cellNoise(wx, wy, 3) * 5) % 5;
     if (t < 1.4) {
       g.fillStyle = P.liquid[3];
-      g.fillRect(Math.round(l.x - 6 + t * 6), Math.round(l.y - 2 + cellNoise(l.x, 1, 4) * 4), 3, 1);
+      g.fillRect(Math.round(l.x - 6 + t * 6), Math.round(l.y - 2 + cellNoise(wx, 1, 4) * 4), 3, 1);
     }
-    if (l.region === "acid" && cellNoise(l.x, l.y, 8) < 0.5) {
-      const b = (time * 0.8 + cellNoise(l.x, l.y, 9)) % 1;
+    if (l.look === "acid" && cellNoise(wx, wy, 8) < 0.5) {
+      const b = (time * 0.8 + cellNoise(wx, wy, 9)) % 1;
       g.fillStyle = P.liquid[3];
-      g.fillRect(Math.round(l.x + (cellNoise(l.x, 2, 1) - 0.5) * 20), Math.round(l.y - b * 6), 2, 2);
+      g.fillRect(Math.round(l.x + (cellNoise(wx, 2, 1) - 0.5) * 20), Math.round(l.y - b * 6), 2, 2);
     }
   }
 
@@ -815,7 +779,7 @@ export const paintWorld = (behind: HTMLCanvasElement, front: HTMLCanvasElement, 
   const drawStanding = (ctx: Ctx, c: Position) => {
     const gr = groundAt(c);
     const s = at(c, gr.level);
-    const P = paletteOf(gr.region, phase);
+    const P = paletteOf(gr.look, phase);
     if (gr.obstacle === "creature" && gr.creature) {
       const sheet = creatureSheet(gr.creature);
       const a = artOf(gr.creature);
@@ -846,7 +810,7 @@ export const paintWorld = (behind: HTMLCanvasElement, front: HTMLCanvasElement, 
   const hero = heroSheet(scene.hero.pose, scene.hero.color);
   if (hero) {
     const fr = Math.floor(time * (scene.hero.pose === "walk" ? 10 : 12)) % hero.frames;
-    const P = paletteOf(here.region, phase);
+    const P = paletteOf(here.look, phase);
     g.fillStyle = P.shadow;
     g.beginPath();
     g.ellipse(heroFeet.x, heroFeet.y + 1, 10, 4, 0, 0, TAU);
@@ -892,7 +856,7 @@ export const paintWorld = (behind: HTMLCanvasElement, front: HTMLCanvasElement, 
     dark.width = w;
     dark.height = h;
     const d = dark.getContext("2d") as Ctx;
-    d.fillStyle = here.region === "fire" ? "rgba(6,4,8,.78)" : "rgba(6,10,26,.62)";
+    d.fillStyle = here.look === "fire" ? "rgba(6,4,8,.78)" : "rgba(6,10,26,.62)";
     d.fillRect(0, 0, w, h);
     d.globalCompositeOperation = "destination-out";
     const hole = (x: number, y: number, r: number) => {
@@ -909,9 +873,11 @@ export const paintWorld = (behind: HTMLCanvasElement, front: HTMLCanvasElement, 
     f.drawImage(dark, 0, 0);
     for (const gl of glows) {
       f.fillStyle = gl.c;
+      // Sparks, like ripples, are seeded from the paper, not the screen.
+      const wx = Math.round(gl.x - ox), wy = Math.round(gl.y - oy);
       for (let k = 0; k < 6; k++) {
-        if (Math.sin(time * 2 + k + gl.x) < 0.2) continue;
-        const a = cellNoise(k, gl.x | 0, 1) * TAU, r = cellNoise(k, gl.y | 0, 2) * gl.r * 0.6;
+        if (Math.sin(time * 2 + k + wx) < 0.2) continue;
+        const a = cellNoise(k, wx, 1) * TAU, r = cellNoise(k, wy, 2) * gl.r * 0.6;
         f.fillRect(Math.round(gl.x + Math.cos(a) * r), Math.round(gl.y + Math.sin(a) * r * 0.6), 1, 1);
       }
     }
