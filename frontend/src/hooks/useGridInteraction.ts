@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { Position, Player } from "../types/game";
 import { Spell } from "../types/message";
 import { screenToIso, generateIsometricCoordinates } from "../utils/isoUtils";
-import { findPath } from "../utils/board";
+import { findPath, pathCost, StepCost } from "../utils/board";
 import { calculateImpactedCells } from "../utils/spellUtils";
 
 interface UseGridInteractionProps {
@@ -16,6 +16,8 @@ interface UseGridInteractionProps {
   selectedSpell: Spell | undefined;
   /** What the board refuses, cover and characters alike. */
   blocked: (p: Position) => boolean;
+  /** What a step onto each cell costs: shallow water costs two. */
+  stepCost?: StepCost;
   players: { [id: string]: Player } | undefined;
   initialPositions: Position[];
   /** The board's current pinch-zoom, so a tap under a scaled/panned finger still finds the right cell. */
@@ -32,6 +34,7 @@ export const useGridInteraction = ({
   isCurrentTurn,
   selectedSpell,
   blocked,
+  stepCost,
   players,
   initialPositions,
   zoom,
@@ -84,9 +87,9 @@ export const useGridInteraction = ({
       const path =
         movementPoints === undefined
           ? null
-          : findPath(characterPosition, hoveredPosition, blocked);
+          : findPath(characterPosition, hoveredPosition, blocked, stepCost);
       setPathCells(
-        path && movementPoints !== undefined && path.length <= movementPoints
+        path && movementPoints !== undefined && pathCost(path, stepCost) <= movementPoints
           ? path
           : [],
       );
@@ -107,6 +110,7 @@ export const useGridInteraction = ({
     selectedSpell,
     isPositioningPhase,
     blocked,
+    stepCost,
   ]);
 
   // Mouse and click handlers

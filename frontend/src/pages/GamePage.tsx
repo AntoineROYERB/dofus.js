@@ -12,7 +12,8 @@ import { MainButton } from "../components/Game/Button";
 import { GameOverModal } from "../components/Game/GameOverModal";
 import { useWebSocket } from "../context/WebSocketContext";
 import { readCharacter } from "../utils/characterStorage";
-import { blockedBy, findPath } from "../utils/board";
+import { blockedBy, findPath, pathCost } from "../utils/board";
+import { stepCostOf } from "../utils/ground";
 import { RotateHint } from "../components/Game/RotateHint";
 import { SideRail } from "../components/Game/SideRail";
 import { useRejectionBanner } from "../hooks/useRejectionBanner";
@@ -417,12 +418,14 @@ function GamePage() {
     const occupied = Object.values(gameState?.players ?? {})
       .map((p) => p.character.position)
       .filter((p): p is Position => !!p && p !== from);
+    const cost = stepCostOf(gameState?.ground);
     const path = findPath(
       from,
       position,
-      blockedBy(gameState?.obstacles, occupied, gameState?.terrain)
+      blockedBy(gameState?.obstacles, occupied, gameState?.terrain, gameState?.ground),
+      cost
     );
-    if (path && path.length > 0 && path.length <= currentCharacter.movementPoints) {
+    if (path && path.length > 0 && pathCost(path, cost) <= currentCharacter.movementPoints) {
       const { messageId, timestamp } = generateMessageId();
       act({ type: "move", messageId, timestamp, position });
     }

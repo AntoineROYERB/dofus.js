@@ -16,7 +16,7 @@ func TestPathIsTheShortestWalkOnEmptyGround(t *testing.T) {
 	clear := func(types.Position) bool { return false }
 	from, to := types.Position{X: 0, Y: 0}, types.Position{X: 2, Y: 3}
 
-	path := FindPath(from, to, clear)
+	path := FindPath(from, to, clear, nil)
 	if len(path) != Distance(from, to) {
 		t.Fatalf("path length = %d, want %d on open ground", len(path), Distance(from, to))
 	}
@@ -42,7 +42,7 @@ func TestPathGoesAroundCover(t *testing.T) {
 	blocked := func(p types.Position) bool { return wall[p] }
 	from, to := types.Position{X: 0, Y: 0}, types.Position{X: 2, Y: 0}
 
-	path := FindPath(from, to, blocked)
+	path := FindPath(from, to, blocked, nil)
 	if path == nil {
 		t.Fatal("no path found around a wall that can be walked round")
 	}
@@ -62,14 +62,14 @@ func TestNoPathWhenTheTargetIsWalledOff(t *testing.T) {
 	// (7,0)'s only neighbours on the board are (6,0) and (7,-1); seal both.
 	blocked := func(p types.Position) bool { return wall[p] }
 
-	if path := FindPath(types.Position{X: 0, Y: 0}, corner, blocked); path != nil {
+	if path := FindPath(types.Position{X: 0, Y: 0}, corner, blocked, nil); path != nil {
 		t.Errorf("found a path of %d steps into a sealed corner", len(path))
 	}
 }
 
 func TestReachableStopsAtTheMovementPoints(t *testing.T) {
 	clear := func(types.Position) bool { return false }
-	reached := Reachable(types.Position{X: 0, Y: 0}, 2, clear)
+	reached := Reachable(types.Position{X: 0, Y: 0}, 2, clear, nil)
 
 	for cell, cost := range reached {
 		if cost > 2 {
@@ -114,7 +114,7 @@ func TestGeneratedObstaclesLeaveTheBoardWhole(t *testing.T) {
 			}
 		}
 	}
-	if reach := Reachable(reserved[0], free, func(p types.Position) bool { return blocked[p] }); len(reach)+1 != free {
+	if reach := Reachable(reserved[0], free, func(p types.Position) bool { return blocked[p] }, nil); len(reach)+1 != free {
 		t.Errorf("%d of %d free cells are reachable", len(reach)+1, free)
 	}
 }

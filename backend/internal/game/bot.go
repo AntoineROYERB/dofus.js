@@ -104,7 +104,7 @@ func DecideBotAction(state types.GameState, botID string) BotAction {
 		if dest, ok := board.stepIntoRange(from, target, mp, ready, walkable); ok {
 			return BotAction{Kind: BotMove, Target: dest}
 		}
-		if dest, ok := stepToward(from, target, mp, walkable); ok {
+		if dest, ok := stepToward(from, target, mp, walkable, board.enterCost); ok {
 			return BotAction{Kind: BotMove, Target: dest}
 		}
 	}
@@ -121,6 +121,7 @@ type botBoard struct {
 	botID      string
 	obstacles  map[types.Position]bool
 	terrain    map[types.Position]types.TerrainCell
+	ground     map[types.Position]types.GroundCell
 	relay      *types.Position
 	meleeBonus int
 }
@@ -131,6 +132,10 @@ func readBoard(state types.GameState, botID string) botBoard {
 		botID:     botID,
 		obstacles: make(map[types.Position]bool, len(state.Obstacles)),
 		terrain:   make(map[types.Position]types.TerrainCell, len(state.Terrain)),
+		ground:    make(map[types.Position]types.GroundCell, len(state.Ground)),
+	}
+	for _, cell := range state.Ground {
+		b.ground[cell.Position] = cell
 	}
 	for _, o := range state.Obstacles {
 		b.obstacles[o] = true
@@ -160,7 +165,7 @@ func (b botBoard) occupied(pos types.Position) bool {
 // blocked reports what the board refuses to a walker: cover, solid ground and
 // characters.
 func (b botBoard) blocked(pos types.Position) bool {
-	if !InGrid(pos) || b.obstacles[pos] || isSolidTerrain(b.terrain[pos].Kind) {
+	if !InGrid(pos) || b.obstacles[pos] || isSolidTerrain(b.terrain[pos].Kind) || b.groundRule(pos, GroundRule.Solid) {
 		return true
 	}
 	return b.occupied(pos)
@@ -168,10 +173,31 @@ func (b botBoard) blocked(pos types.Position) bool {
 
 // blocksSight is the same, with smoke instead of solid ground.
 func (b botBoard) blocksSight(pos types.Position) bool {
-	if b.obstacles[pos] || b.terrain[pos].Kind == types.TerrainSmoke {
+	if b.obstacles[pos] || b.terrain[pos].Kind == types.TerrainSmoke || b.groundRule(pos, GroundRule.BlocksSight) {
 		return true
 	}
 	return b.occupied(pos)
+}
+
+// groundRule asks the rule of the island's ground on a cell something, false
+// where there is none.
+func (b botBoard) groundRule(pos types.Position, ask func(GroundRule) bool) bool {
+	cell, ok := b.ground[pos]
+	if !ok {
+		return false
+	}
+	rule, ok := groundRules[cell.Kind]
+	return ok && ask(rule)
+}
+
+// enterCost is what the server charges for a step onto a cell.
+func (b botBoard) enterCost(pos types.Position) int {
+	if cell, ok := b.ground[pos]; ok {
+		if rule, ok := groundRules[cell.Kind]; ok {
+			return rule.EnterCost()
+		}
+	}
+	return 1
 }
 
 func (b botBoard) free(pos types.Position) bool {
@@ -467,7 +493,7 @@ func reaches(from, target types.Position, spell types.Spell, blocked func(types.
 // apart with no line between them, and a bot that only ever shortens the
 // distance stands there forever.
 func (b botBoard) stepIntoRange(from, target types.Position, mp int, ready []types.Spell, blocked func(types.Position) bool) (types.Position, bool) {
-	reachable := Reachable(from, mp, blocked)
+	reachable := Reachable(from, mp, blocked, b.enterCost)
 	cells := make([]types.Position, 0, len(reachable))
 	for cell := range reachable {
 		cells = append(cells, cell)
@@ -514,7 +540,7 @@ func nearestEnemy(state types.GameState, botID string, from types.Position) (typ
 // bounced off cover. Closest is measured as a walk too, not as the crow
 // flies: a cell on the far side of a wall is near on paper and nowhere near
 // on foot.
-func stepToward(from, target types.Position, mp int, blocked func(types.Position) bool) (types.Position, bool) {
+func stepToward(from, target types.Position, mp int, blocked func(types.Position) bool, cost func(types.Position) int) (types.Position, bool) {
 	walk := walkingDistances(target, blocked)
 	measure := func(p types.Position) int {
 		if d, ok := walk[p]; ok {
@@ -531,7 +557,7 @@ func stepToward(from, target types.Position, mp int, blocked func(types.Position
 	// Reachable returns a map, and several cells are usually the same distance
 	// from the target. Walking it in a fixed order is what stops the bot from
 	// stepping somewhere else on a replay.
-	reachable := Reachable(from, mp, blocked)
+	reachable := Reachable(from, mp, blocked, cost)
 	cells := make([]types.Position, 0, len(reachable))
 	for cell := range reachable {
 		cells = append(cells, cell)
@@ -686,7 +712,9 @@ func (g *Game) PlayBotStep() (acted bool) {
 		return false
 	}
 
-	action := DecideBotAction(g.Snapshot(), id)
+	// The bot sees what a player in its place would: nobody hidden in tall
+	// grass beyond arm's reach.
+	action := DecideBotAction(g.SnapshotFor(id), id)
 	switch action.Kind {
 	case BotCast:
 		if err := g.CastSpell(id, action.SpellID, action.Target); err == nil {
@@ -742,6 +770,9 @@ func (g *Game) ExpireTurnIfDue() bool {
 		current = g.turnOrder[g.turnIdx]
 	}
 	g.recordLocked(current, CmdTimeout, nil)
+	if g.groundAtTurnEndLocked(current) {
+		return true
+	}
 	g.advanceTurnLocked()
 	return true
 }

@@ -56,7 +56,7 @@ func isSolidTerrain(kind string) bool {
 // solidLocked reports whether nobody can stand on or walk through a cell,
 // whoever is or is not on it.
 func (g *Game) solidLocked(pos types.Position) bool {
-	if !InGrid(pos) || g.obstacles[pos] {
+	if !InGrid(pos) || g.obstacles[pos] || g.solidGroundLocked(pos) {
 		return true
 	}
 	cell, ok := g.terrain[pos]
@@ -83,7 +83,7 @@ func (g *Game) terrainKindLocked(pos types.Position) string {
 // never takes on water or ice: water puts fire out, not the other way round.
 // A trap needs a cell nobody is standing on.
 func (g *Game) placeTerrainLocked(pos types.Position, kind, owner string) bool {
-	if !InGrid(pos) || g.obstacles[pos] {
+	if !InGrid(pos) || g.obstacles[pos] || g.solidGroundLocked(pos) {
 		return false
 	}
 	existing, has := g.terrain[pos]
@@ -130,6 +130,11 @@ func (g *Game) staysConnectedLocked(extra ...types.Position) bool {
 	}
 	for p, cell := range g.terrain {
 		if isSolidTerrain(cell.Kind) {
+			blocked[p] = true
+		}
+	}
+	for p := range g.ground {
+		if g.solidGroundLocked(p) {
 			blocked[p] = true
 		}
 	}
@@ -318,7 +323,7 @@ func (g *Game) shoveLocked(id string, dir types.Position, n int, pullTo *types.P
 		}
 		g.setPositionLocked(id, next)
 		moved++
-		if g.enterCellLocked(id) {
+		if g.arriveLocked(id, dir) {
 			return
 		}
 	}
@@ -399,7 +404,7 @@ func (g *Game) zonesActOnLocked(id string) {
 			if *p.Character.Position != z.Center && g.freeLocked(z.Center) {
 				g.setPositionLocked(id, z.Center)
 				g.effectLogLocked(id, "is dragged into the maelstrom", 0)
-				g.enterCellLocked(id)
+				g.arriveLocked(id, types.Position{})
 				p = g.players[id]
 			}
 			stripBuffs(&p.Character)

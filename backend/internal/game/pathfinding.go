@@ -27,12 +27,15 @@ func Neighbours(p types.Position) []types.Position {
 
 // FindPath walks from one cell to another around whatever `blocked` refuses,
 // returning the steps after the start. It returns nil when there is no way
-// through.
+// through. `cost` is what a step onto a cell costs, nil meaning one point
+// everywhere; the walk found is the cheapest, which on uneven ground is not
+// always the shortest.
 //
 // Movement used to cost the straight-line Manhattan distance, which is only
 // right on an empty board: with something in the way, the real walk is longer
 // and sometimes impossible.
-func FindPath(from, to types.Position, blocked func(types.Position) bool) []types.Position {
+func FindPath(from, to types.Position, blocked func(types.Position) bool, cost func(types.Position) int) []types.Position {
+	cost = orUnitCost(cost)
 	if from == to {
 		return []types.Position{}
 	}
@@ -41,7 +44,7 @@ func FindPath(from, to types.Position, blocked func(types.Position) bool) []type
 	}
 
 	cameFrom := map[types.Position]types.Position{}
-	cost := map[types.Position]int{from: 0}
+	spent := map[types.Position]int{from: 0}
 	open := &frontier{{pos: from, priority: Distance(from, to)}}
 	heap.Init(open)
 
@@ -54,11 +57,11 @@ func FindPath(from, to types.Position, blocked func(types.Position) bool) []type
 			if blocked(next) {
 				continue
 			}
-			stepCost := cost[current] + 1
-			if known, seen := cost[next]; seen && stepCost >= known {
+			stepCost := spent[current] + cost(next)
+			if known, seen := spent[next]; seen && stepCost >= known {
 				continue
 			}
-			cost[next] = stepCost
+			spent[next] = stepCost
 			cameFrom[next] = current
 			heap.Push(open, node{pos: next, priority: stepCost + Distance(next, to)})
 		}
@@ -67,30 +70,52 @@ func FindPath(from, to types.Position, blocked func(types.Position) bool) []type
 }
 
 // Reachable lists every cell a character can walk to with the movement points
-// it has left, and how many steps each one costs.
-func Reachable(from types.Position, movementPoints int, blocked func(types.Position) bool) map[types.Position]int {
+// it has left, and how many points the cheapest walk there costs. `cost` is
+// as for FindPath.
+func Reachable(from types.Position, movementPoints int, blocked func(types.Position) bool, cost func(types.Position) int) map[types.Position]int {
+	cost = orUnitCost(cost)
 	reached := map[types.Position]int{from: 0}
-	queue := []types.Position{from}
+	open := &frontier{{pos: from, priority: 0}}
 
-	for len(queue) > 0 {
-		current := queue[0]
-		queue = queue[1:]
-		if reached[current] == movementPoints {
-			continue
+	for open.Len() > 0 {
+		n := heap.Pop(open).(node)
+		if n.priority > reached[n.pos] {
+			continue // a cheaper way here was already found
 		}
-		for _, next := range Neighbours(current) {
+		for _, next := range Neighbours(n.pos) {
 			if blocked(next) {
 				continue
 			}
-			if _, seen := reached[next]; seen {
+			spent := n.priority + cost(next)
+			if spent > movementPoints {
 				continue
 			}
-			reached[next] = reached[current] + 1
-			queue = append(queue, next)
+			if known, seen := reached[next]; seen && known <= spent {
+				continue
+			}
+			reached[next] = spent
+			heap.Push(open, node{pos: next, priority: spent})
 		}
 	}
 	delete(reached, from)
 	return reached
+}
+
+// pathCost is what walking a path costs, step by step.
+func pathCost(path []types.Position, cost func(types.Position) int) int {
+	cost = orUnitCost(cost)
+	total := 0
+	for _, p := range path {
+		total += cost(p)
+	}
+	return total
+}
+
+func orUnitCost(cost func(types.Position) int) func(types.Position) int {
+	if cost == nil {
+		return func(types.Position) int { return 1 }
+	}
+	return cost
 }
 
 func rebuild(cameFrom map[types.Position]types.Position, from, to types.Position) []types.Position {

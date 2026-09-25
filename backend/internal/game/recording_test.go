@@ -145,6 +145,34 @@ func TestReplayReproducesEveryMatch(t *testing.T) {
 	}
 }
 
+// TestReplayReproducesEveryIsland is the same on every island, so every
+// terrain's rule is held to replaying identically: the ground is dealt from
+// the seed, and everything it does is a function of the commands.
+func TestReplayReproducesEveryIsland(t *testing.T) {
+	for i, island := range Content().Islands {
+		seed := int64(20 + i)
+		t.Run(island.ID, func(t *testing.T) {
+			g, trace := playRandomMatchOn(t, seed, i%2 == 0, island.ID)
+			rec := g.Recording()
+			if rec.Island != island.ID {
+				t.Fatalf("recording says island %q, want %q", rec.Island, island.ID)
+			}
+			if len(g.Snapshot().Ground) == 0 && len(Content().Islands[i].Terrains) > 0 {
+				t.Fatalf("a fight on %s was dealt no ground", island.ID)
+			}
+			for n := range trace {
+				replayed, err := ReplayPrefix(rec, n)
+				if err != nil {
+					t.Fatalf("replaying the first %d commands: %v", n, err)
+				}
+				if got := snapshotJSON(t, replayed); got != trace[n] {
+					t.Fatalf("snapshot after %d commands differs\n original: %s\nreplayed: %s", n, trace[n], got)
+				}
+			}
+		})
+	}
+}
+
 func matchName(seed int64, withBot bool) string {
 	kind := "duel"
 	if withBot {
@@ -162,10 +190,17 @@ func matchName(seed int64, withBot bool) string {
 // every accepted command, keyed by how many commands had been accepted.
 func playRandomMatch(t *testing.T, seed int64, withBot bool) (*Game, map[int]string) {
 	t.Helper()
+	return playRandomMatchOn(t, seed, withBot, "")
+}
+
+// playRandomMatchOn is playRandomMatch fought on an island, with its ground.
+func playRandomMatchOn(t *testing.T, seed int64, withBot bool, island string) (*Game, map[int]string) {
+	t.Helper()
 
 	clock := newFakeClock(epoch)
 	g := NewWithOptions(Options{
-		Seed: seed,
+		Island: island,
+		Seed:   seed,
 		// Short enough that letting the clock run is a real possibility, which
 		// is what puts timeout commands in the log.
 		TurnDuration: 3 * time.Second,

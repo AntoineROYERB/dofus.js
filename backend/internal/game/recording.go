@@ -74,7 +74,11 @@ type Recording struct {
 	// stats and the whole spell catalogue. A recording made under one balance
 	// is not valid under another, and Replay says so rather than quietly
 	// producing a different fight.
-	Rules    string    `json:"rules"`
+	Rules string `json:"rules"`
+	// Island is what the match was fought on, which decided the ground it was
+	// dealt. Absent on a plain arena, and on every recording made before
+	// islands had ground.
+	Island   string    `json:"island,omitempty"`
 	Commands []Command `json:"commands"`
 }
 
@@ -141,6 +145,8 @@ func rulesFingerprint(cat content.Catalogue) string {
 		InitialPositionChoices int                    `json:"initialPositionChoices"`
 		ObstacleCount          int                    `json:"obstacleCount"`
 		Terrain                map[string]int         `json:"terrain"`
+		Ground                 map[string]int         `json:"ground"`
+		IslandGround           map[string][]string    `json:"islandGround"`
 		Spells                 map[string]types.Spell `json:"spells"`
 		Classes                []types.Class          `json:"classes"`
 	}{
@@ -164,8 +170,19 @@ func rulesFingerprint(cat content.Catalogue) string {
 			"conductBonus":       ConductBonus,
 			"relayBonus":         RelayBonus,
 		},
-		Spells:  cat.Spells,
-		Classes: cat.Classes,
+		// So are the island's ground and what each island deals.
+		Ground: map[string]int{
+			"grassSightRange":   GrassSightRange,
+			"shallowWaterCost":  ShallowWaterCost,
+			"shallowWaterBonus": ShallowWaterBonus,
+			"iceSlide":          IceSlide,
+			"acidPercent":       AcidPercent,
+			"lavaBurnPercent":   LavaBurnPercent,
+			"airCurrentPush":    AirCurrentPush,
+		},
+		IslandGround: islandGround(cat),
+		Spells:       cat.Spells,
+		Classes:      cat.Classes,
 	}
 	// encoding/json sorts map keys, so the same catalogue always hashes the
 	// same way whatever order it was built in.
@@ -175,6 +192,16 @@ func rulesFingerprint(cat content.Catalogue) string {
 	}
 	sum := sha256.Sum256(encoded)
 	return hex.EncodeToString(sum[:])
+}
+
+// islandGround is which terrains each island deals: the part of an island a
+// fight depends on. Its palette or its lineage does not change a replay.
+func islandGround(cat content.Catalogue) map[string][]string {
+	out := make(map[string][]string, len(cat.Islands))
+	for _, island := range cat.Islands {
+		out[island.ID] = island.Terrains
+	}
+	return out
 }
 
 // ---------------------------------------------------------------------------
@@ -220,6 +247,7 @@ func (g *Game) Recording() Recording {
 		StartedAt:      g.startedAt.UnixMilli(),
 		TurnDurationMS: g.turnDuration.Milliseconds(),
 		Rules:          rulesFingerprint(g.catalogue),
+		Island:         g.island,
 		Commands:       append([]Command(nil), g.commands...),
 	}
 }
@@ -272,6 +300,7 @@ func newReplayGame(rec Recording) (*Game, *int64, error) {
 		Seed:         rec.Seed,
 		TurnDuration: time.Duration(rec.TurnDurationMS) * time.Millisecond,
 		Clock:        func() time.Time { return time.UnixMilli(at) },
+		Island:       rec.Island,
 	})
 	return g, &at, nil
 }

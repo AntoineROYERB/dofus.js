@@ -49,8 +49,9 @@ func NewLobby(turnDuration time.Duration) *Lobby {
 	return &Lobby{rooms: make(map[string]*Room), turnDuration: turnDuration}
 }
 
-// Create opens a new room and returns it.
-func (l *Lobby) Create(name string) (*Room, error) {
+// Create opens a new room and returns it. island is what the fight is played
+// on, empty for a plain arena; the caller checks it is one the catalogue has.
+func (l *Lobby) Create(name, island string) (*Room, error) {
 	if !roomNamePattern.MatchString(name) {
 		return nil, ErrInvalidRoom
 	}
@@ -66,7 +67,7 @@ func (l *Lobby) Create(name string) (*Room, error) {
 	room := &Room{
 		ID:   id,
 		Name: name,
-		Game: NewWithOptions(Options{Seed: NewSeed(), TurnDuration: l.turnDuration}),
+		Game: NewWithOptions(Options{Seed: NewSeed(), TurnDuration: l.turnDuration, Island: island}),
 	}
 
 	l.mu.Lock()
