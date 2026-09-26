@@ -179,14 +179,18 @@ func TestShippedChampionsKeepTheirElementalIdentity(t *testing.T) {
 	}
 
 	// A basic attack an outfit carries may be on no champion's bar: those are
-	// won in the portals (ADR 2). Every other spell is some champion's.
+	// won in the portals (ADR 2). So may an ultimate a talisman carries: the
+	// legendaries' are loot. Every other spell is some champion's.
 	worn := map[string]bool{}
 	for _, o := range cat.Outfits {
 		worn[o.BasicAttack] = true
 	}
+	for _, tl := range cat.Talismans {
+		worn[tl.Ultimate] = true
+	}
 	for id := range cat.Spells {
 		if holders[id] == 0 && !worn[id] {
-			t.Errorf("spell %s (%s) is on no champion's bar and no outfit's", id, cat.Spells[id].Name)
+			t.Errorf("spell %s (%s) is on no champion's bar, no outfit's and no talisman's", id, cat.Spells[id].Name)
 		}
 	}
 }
@@ -213,9 +217,19 @@ func TestEveryShippedSpellDoesMoreThanDamage(t *testing.T) {
 		if plain[id] {
 			continue
 		}
-		if spell.Effect == nil && spell.Terrain == "" && spell.Zone == nil && spell.Push == 0 &&
-			spell.GrantMP == 0 && spell.Special == "" && !spell.Relayed && !spell.Conducts {
-			t.Errorf("spell %s (%s) only deals damage", id, spell.Name)
+		// An infused spell is judged as each element casts it.
+		casts := []types.Spell{spell}
+		for element := range spell.Infusions {
+			casts = append(casts, spell.Infused(element))
+		}
+		if len(casts) > 1 {
+			casts = casts[1:]
+		}
+		for _, cast := range casts {
+			if cast.Effect == nil && cast.Terrain == "" && cast.Zone == nil && cast.Push == 0 &&
+				cast.GrantMP == 0 && cast.Special == "" && !cast.Relayed && !cast.Conducts {
+				t.Errorf("spell %s (%s) only deals damage in %s", id, cast.Name, cast.Element)
+			}
 		}
 	}
 }

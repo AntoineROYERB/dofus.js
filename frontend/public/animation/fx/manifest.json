@@ -744,6 +744,26 @@
         "earth/projectile",
         "earth/impact"
       ]
+    },
+    "29": {
+      "name": "Couperet du Roi",
+      "hero": "AttackMelee",
+      "fx": []
+    },
+    "30": {
+      "name": "Rayon Tricéphale",
+      "hero": "AttackRanged",
+      "fx": []
+    },
+    "31": {
+      "name": "Tambours du Tonnerre",
+      "hero": "AttackRanged",
+      "fx": []
+    },
+    "32": {
+      "name": "Gueule des Profondeurs",
+      "hero": null,
+      "fx": []
     }
   },
   "basic": {

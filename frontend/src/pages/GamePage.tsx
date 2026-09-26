@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { generateMessageId } from "../utils/messageUtils";
 import { GameBoard } from "../components/Game/GameBoard";
@@ -44,10 +44,11 @@ import {
   barSpells,
   beatenChampions,
   championOf,
+  kitOf,
   settleLoadout,
   unlockedBy,
 } from "../utils/loadoutUtils";
-import { unavailableReason } from "../utils/spellUtils";
+import { infusedBook, unavailableReason } from "../utils/spellUtils";
 import { markDefeated, readDefeated } from "../utils/progressStorage";
 import { useContent } from "../hooks/useContent";
 import { hapticGameOver, hapticTurnStart } from "../lib/native";
@@ -105,6 +106,13 @@ function GamePage() {
     (gameState?.status as GameStatus) || GAME_STATUS.CREATING_PLAYER;
   const userHasCharacter = !!currentPlayer;
   const { content, failed: contentFailed } = useContent();
+  // The catalogue as this player casts it: a legendary's ultimate takes on
+  // the element they wear.
+  const myElement = kitOf(currentCharacter?.loadout, content)?.element;
+  const spellBook = useMemo(
+    () => infusedBook(gameState?.spells, myElement),
+    [gameState?.spells, myElement]
+  );
 
   // The solo arc. A win over a computer opponent is written down once, and
   // whatever that win opens up is worked out against what was already open,
@@ -179,7 +187,7 @@ function GamePage() {
   };
   // Whether anything on the bar could be cast at all: the same rules the bar
   // itself greys a slot with, so the tour and the slot never disagree.
-  const canCast = barSpells(currentPlayer, gameState?.spells).some(
+  const canCast = barSpells(currentPlayer, spellBook).some(
     (spell) =>
       !unavailableReason(
         spell,
@@ -311,7 +319,7 @@ function GamePage() {
   // does it. Keystrokes aimed at the chat are left alone.
   useEffect(() => {
     // The same order the bar draws its slots in, so key 3 is the third slot.
-    const catalogue = barSpells(currentPlayer, gameState?.spells);
+    const catalogue = barSpells(currentPlayer, spellBook);
     if (catalogue.length === 0) return;
 
     const onKeyDown = (event: KeyboardEvent) => {
@@ -351,7 +359,7 @@ function GamePage() {
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [
-    gameState?.spells,
+    spellBook,
     currentPlayer,
     isMyTurn,
     handleEndTurnClick,
@@ -407,7 +415,7 @@ function GamePage() {
       const { messageId, timestamp } = generateMessageId();
       // A spell cast on yourself lands on yourself, whichever cell was clicked.
       const onSelf =
-        gameState?.spells?.[String(selectedSpellId)]?.targeting === "self";
+        spellBook?.[String(selectedSpellId)]?.targeting === "self";
       act({
         type: "cast_spell",
         messageId,
@@ -580,7 +588,7 @@ function GamePage() {
         <div className="pointer-events-none absolute inset-0 mb-[env(safe-area-inset-bottom)] mr-[env(safe-area-inset-right)]">
           <SpellArc
             player={currentPlayer}
-            spells={gameState?.spells ?? null}
+            spells={spellBook}
             selectedSpellId={selectedSpellId}
             onSelectSpell={handleSpellClick}
             main={main}
@@ -658,7 +666,7 @@ function GamePage() {
             handleSpellClick={handleSpellClick}
             selectedSpellId={selectedSpellId}
             currentPlayer={currentPlayer}
-            spells={gameState?.spells ?? null}
+            spells={spellBook}
             turnNumber={gameState?.turnNumber ?? 0}
             hasRelay={!!relayOf(gameState?.terrain, userId)}
             onPeek={() => setPeeks((n) => n + 1)}

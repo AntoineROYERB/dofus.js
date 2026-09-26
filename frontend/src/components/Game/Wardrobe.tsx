@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { infusedBook } from "../../utils/spellUtils";
 import { ContentResponse, Loadout, SpellBook } from "../../types/message";
 import { CharacterShowcase, ShowcaseCast } from "./CharacterShowcase";
 import {
@@ -219,7 +220,8 @@ const WardrobeSheet: React.FC<Omit<WardrobeProps, "content" | "failed"> & { cont
   const kit = kitOf(draft, content);
   if (!draft || !kit) return null;
 
-  const spells: SpellBook = content.spells;
+  // A legendary's ultimate reads as it would be cast in the outfit worn.
+  const spells: SpellBook = infusedBook(content.spells, kit.element) ?? content.spells;
   const spellName = (id: string) => spells[id]?.name ?? id;
   const ultimateColor = (id: string) => spells[id]?.color ?? "#d1462f";
   const champion = championOf(draft, content.champions);

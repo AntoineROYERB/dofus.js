@@ -2,6 +2,7 @@ import {
   areaPattern,
   calculateImpactedCells,
   castOrigin,
+  infused,
   outOfSight,
   spec,
   spellSummary,
@@ -280,5 +281,31 @@ describe("outOfSight", () => {
         null
       )
     ).toBe(false);
+  });
+});
+
+describe("infused", () => {
+  const ray = makeSpell({
+    element: "Water",
+    damage: 6,
+    description: "three rays",
+    infusions: {
+      Water: { description: "ice", areaOfEffect: "cross", terrain: "ice" },
+      Earth: { description: "cage", special: "cage" },
+    },
+  });
+
+  it("lays the wearer's element over the spell", () => {
+    const water = infused(ray, "Water");
+    expect(water.areaOfEffect).toBe("cross");
+    expect(water.terrain).toBe("ice");
+    expect(water.description).toBe("ice");
+    expect(water.damage).toBe(6);
+    expect(infused(ray, "Earth").special).toBe("cage");
+  });
+
+  it("leaves a spell alone for an element it has nothing for", () => {
+    expect(infused(ray, "Fire")).toBe(ray);
+    expect(infused(ray, undefined)).toBe(ray);
   });
 });

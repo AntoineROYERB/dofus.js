@@ -36,18 +36,18 @@ var knownTerrain = map[string]bool{
 	types.TerrainIce: true, types.TerrainTrap: true,
 }
 
-var knownZones = map[string]bool{types.ZoneStorm: true, types.ZoneMaelstrom: true}
+var knownZones = map[string]bool{types.ZoneStorm: true, types.ZoneMaelstrom: true, types.ZoneDrums: true}
 
 var knownSpecials = map[string]bool{
 	types.SpecialDetonate: true, types.SpecialLeap: true, types.SpecialRelay: true,
 	types.SpecialPillar: true, types.SpecialCrater: true, types.SpecialQuake: true,
-	types.SpecialSwap: true,
+	types.SpecialSwap: true, types.SpecialFlank: true, types.SpecialCage: true,
 }
 
 // Specials that act on the cell they are aimed at, which therefore has to be
 // free.
 var specialsNeedingAnEmptyCell = map[string]bool{
-	types.SpecialLeap: true, types.SpecialRelay: true, types.SpecialPillar: true,
+	types.SpecialLeap: true, types.SpecialPillar: true,
 }
 
 var (
@@ -176,6 +176,10 @@ func (v *validator) spells(file string, sf spellsFile, bounds Bounds) map[string
 			Special:          s.Special,
 			Relayed:          s.Relayed,
 			Conducts:         s.Conducts,
+			Hits:             s.Hits,
+			TerrainTurns:     s.TerrainTurns,
+			Legend:           s.Legend,
+			Infusions:        s.Infusions,
 		}
 	}
 	return spells
@@ -210,6 +214,11 @@ func (v *validator) mechanics(file, key string, s spellEntry, bounds Bounds) {
 	if specialsNeedingAnEmptyCell[s.Special] && s.Targeting != types.TargetEmpty {
 		v.add(file, field("targeting"), "the %s special acts on the cell it is aimed at, so targeting must be %q", s.Special, types.TargetEmpty)
 	}
+	// A relay set on a free cell stands where it is aimed; one set by a spell
+	// aimed at anything stands there only if the spell has left it free.
+	if s.Special == types.SpecialRelay && s.Targeting == types.TargetSelf {
+		v.add(file, field("targeting"), "the relay special stands on the cell it is aimed at, so targeting must not be %q", types.TargetSelf)
+	}
 	if s.Special == types.SpecialSwap && s.Targeting != "" && s.Targeting != types.TargetAny {
 		v.add(file, field("targeting"), "the swap special is aimed at its caster's relay, so targeting must be %q", types.TargetAny)
 	}
@@ -224,6 +233,18 @@ func (v *validator) mechanics(file, key string, s spellEntry, bounds Bounds) {
 	}
 	if s.GrantMP < 0 {
 		v.add(file, field("grantMP"), "is %d, must not be negative", s.GrantMP)
+	}
+	if s.Hits < 0 {
+		v.add(file, field("hits"), "is %d, must not be negative (0 means once)", s.Hits)
+	}
+	if s.TerrainTurns < 0 {
+		v.add(file, field("terrainTurns"), "is %d, must not be negative (0 means for good)", s.TerrainTurns)
+	}
+	if s.Legend != "" && !itemID.MatchString(strings.ReplaceAll(s.Legend, "_", "-")) {
+		v.add(file, field("legend"), "%q is not a sprite name", s.Legend)
+	}
+	for _, element := range sortedStrings(s.Infusions) {
+		v.infusion(file, fmt.Sprintf("spells[%q].infusions[%q]", key, element), element, s, s.Infusions[element])
 	}
 	if s.Zone != nil {
 		if !knownZones[s.Zone.Kind] {
@@ -240,6 +261,42 @@ func (v *validator) mechanics(file, key string, s spellEntry, bounds Bounds) {
 		if s.MaxCastsPerTurn != 1 {
 			v.add(file, field("maxCastsPerTurn"), "is %d on an ultimate, set it to 1", s.MaxCastsPerTurn)
 		}
+	}
+}
+
+// infusion checks what an element adds to a spell, on its own terms and as
+// part of the spell it changes.
+func (v *validator) infusion(file, field, element string, s spellEntry, in types.Infusion) {
+	if !knownElements[element] {
+		v.add(file, field, "unknown element %q (known: %s)", element, knownList(knownElements))
+	}
+	if strings.TrimSpace(in.Description) == "" {
+		v.add(file, field+".description", "must not be empty: the spell's card shows it to whoever wears %s", element)
+	}
+	if in.AreaOfEffect != "" && !knownAreas[in.AreaOfEffect] {
+		v.add(file, field+".areaOfEffect", "unknown area %q (known: %s)", in.AreaOfEffect, knownList(knownAreas))
+	}
+	if in.Terrain != "" && !knownTerrain[in.Terrain] {
+		v.add(file, field+".terrain", "unknown terrain %q (known: %s)", in.Terrain, knownList(knownTerrain))
+	}
+	if in.Special != "" && !knownSpecials[in.Special] {
+		v.add(file, field+".special", "unknown special %q (known: %s)", in.Special, knownList(knownSpecials))
+	}
+	if in.Effect != nil {
+		v.effect(file, field+".effect", *in.Effect)
+	}
+	damage, crit := s.Damage, s.CriticalDamage
+	if in.Damage != 0 {
+		damage = in.Damage
+	}
+	if in.CriticalDamage != 0 {
+		crit = in.CriticalDamage
+	}
+	if damage < 0 || crit < damage {
+		v.add(file, field+".criticalDamage", "is %d, must be at least the damage %d", crit, damage)
+	}
+	if in.TerrainTurns < 0 {
+		v.add(file, field+".terrainTurns", "is %d, must not be negative", in.TerrainTurns)
 	}
 }
 

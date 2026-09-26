@@ -90,6 +90,28 @@ export type Spell = {
   relayed: boolean;
   /** Double damage on a target standing in water. */
   conducts: boolean;
+  /** How many times it strikes, each with its own roll; absent is once. */
+  hits?: number;
+  /** How many of its caster's turns its terrain lasts; absent is for good. */
+  terrainTurns?: number;
+  /** The legendary who appears on the board to cast it. */
+  legend?: string;
+  /** What each element adds to it, keyed by element. */
+  infusions?: Record<string, Infusion>;
+};
+
+/** What an element adds to a spell: every field set replaces the spell's. */
+export type Infusion = {
+  description: string;
+  damage?: number;
+  criticalDamage?: number;
+  areaOfEffect?: Spell["areaOfEffect"];
+  effect?: SpellEffect;
+  push?: number;
+  terrain?: SpreadTerrain;
+  terrainTurns?: number;
+  special?: SpellSpecial;
+  conducts?: boolean;
 };
 
 export type SpellSpecial =
@@ -100,7 +122,11 @@ export type SpellSpecial =
   | "crater"
   | "quake"
   /** The caster and their relay change places. */
-  | "swap";
+  | "swap"
+  /** A menhir on each side of the target, across the cast. */
+  | "flank"
+  /** Rocks round the target for a while, open towards the caster. */
+  | "cage";
 
 /** Terrain a spell spreads over its area. */
 export type SpreadTerrain = "fire" | "smoke" | "water" | "ice" | "trap";
@@ -121,9 +147,11 @@ export type TerrainCell = {
   owner: string;
   /** What a relay's pylon has left before it breaks. */
   health?: number;
+  /** Counts down at the start of its owner's turns; absent is for good. */
+  turnsLeft?: number;
 };
 
-export type ZoneKind = "storm" | "maelstrom";
+export type ZoneKind = "storm" | "maelstrom" | "drums";
 
 export type Zone = {
   kind: ZoneKind;
@@ -132,6 +160,12 @@ export type Zone = {
   cells: Position[];
   /** Counts down at the start of each of its owner's turns. */
   turnsLeft: number;
+  /** The element it was cast in, for zones that act differently in each. */
+  element?: string;
+  /** The character it moves with, when it does. */
+  follows?: string;
+  /** The spell that left it. */
+  spellId?: number;
 };
 
 export type SpellEffect = {
@@ -191,6 +225,8 @@ export type LogEntry = {
   target?: Position;
   /** The relay an air spell went out from, when it did. */
   via?: Position;
+  /** The element a spell was infused with, when it was. */
+  infusion?: string;
 };
 
 export type SpellBook = { [spellId: string]: Spell };

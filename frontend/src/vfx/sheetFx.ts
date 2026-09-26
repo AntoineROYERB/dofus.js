@@ -39,7 +39,35 @@ export type SheetCast = {
   via?: Position;
   /** The caster traded places with their pylon: `target` is where they went. */
   swap?: boolean;
+  /** The legendary who appears to cast it, and where. */
+  legend?: LegendCast;
 };
+
+/** A legendary stepping onto the board to cast its ultimate. */
+export type LegendCast = {
+  /** Its attack sheet, under animation/legendaries/ (lossless WebP). */
+  file: string;
+  frames: number;
+  /** The cell it stands on, and the one it faces. */
+  at: Position;
+  facing: Position;
+};
+
+/*
+ * The bestiary's legendaries: 160-pixel frames, one row per direction in
+ * this order, feet on the shadow at 116. They are drawn larger than a
+ * fighter, one art pixel to a 90th of a tile, played at 24 frames a second
+ * as the bestiary plays them, and fade in and out around the attack.
+ */
+const LEGEND_ROOT = "/animation/legendaries/";
+const LEGEND_ART = 160;
+const LEGEND_FEET = 116;
+const LEGEND_ROWS = ["NW", "W", "SW", "S", "SE", "E", "NE", "N"];
+const LEGEND_FPS = 24;
+const LEGEND_FADE_IN = 140;
+const LEGEND_FADE_OUT = 320;
+/** How far into its attack the blow lands, from 0 to 1. */
+const LEGEND_STRIKE = 0.55;
 
 /*
  * A spell sent through Sef's relay, from the sky to the ground: lightning
@@ -74,6 +102,7 @@ export class SheetFx {
   private images = new Map<string, HTMLImageElement>();
   private sprites: Sprite[] = [];
   private drawings: Drawing[] = [];
+  private legendImages = new Map<string, HTMLImageElement>();
   private geometry: Geometry = { tileSize: { width: 0, height: 0 }, centerX: 0, centerY: 0 };
   /** Sheet pixels to screen pixels; one tile's width is 256 unless told. */
   private spriteScale: number | null = null;
@@ -136,6 +165,7 @@ export class SheetFx {
    */
   play(cast: SheetCast, now = performance.now()): number {
     if (cast.swap) return this.playSwap(cast, now);
+    if (cast.legend) return this.playLegend(cast, cast.legend, now);
     const via = cast.via;
     if (!via || (via.x === cast.origin.x && via.y === cast.origin.y)) {
       return this.playFrom(cast, now, true);
@@ -211,6 +241,63 @@ export class SheetFx {
       spell: { ...cast.spell, fx: cast.spell.fx.filter((k) => k !== "air/lightning") },
     };
     return at + this.playFrom(rest, now + at, false);
+  }
+
+  /**
+   * A legendary's ultimate: the legendary steps onto the board, plays its
+   * own attack towards the target, and where the blow lands the spell's
+   * sheets play in the element its caster wears.
+   */
+  private playLegend(cast: SheetCast, legend: LegendCast, now: number): number {
+    let image = this.legendImages.get(legend.file);
+    if (!image) {
+      image = new Image();
+      image.src = LEGEND_ROOT + legend.file;
+      this.legendImages.set(legend.file, image);
+    }
+    const img = image;
+    const attack = (legend.frames / LEGEND_FPS) * 1000;
+    const row = (): number => {
+      const a = this.screen(legend.at);
+      const b = this.screen(legend.facing);
+      const names = ["E", "SE", "S", "SW", "W", "NW", "N", "NE"];
+      const octant = ((Math.round(Math.atan2(b.y - a.y, b.x - a.x) / (Math.PI / 4)) % 8) + 8) % 8;
+      return Math.max(0, LEGEND_ROWS.indexOf(names[octant]));
+    };
+    this.drawings.push({
+      born: now,
+      dur: LEGEND_FADE_IN + attack + LEGEND_FADE_OUT,
+      draw: (ctx, t) => {
+        if (!img.complete || img.naturalWidth === 0) return;
+        const k = this.geometry.tileSize.width / 90;
+        const c = this.screen(legend.at);
+        const playing = Math.max(0, t - LEGEND_FADE_IN);
+        const frame = Math.min(legend.frames - 1, Math.floor((playing / 1000) * LEGEND_FPS));
+        const alpha =
+          t < LEGEND_FADE_IN
+            ? t / LEGEND_FADE_IN
+            : playing > attack
+              ? Math.max(0, 1 - (playing - attack) / LEGEND_FADE_OUT)
+              : 1;
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(
+          img,
+          frame * LEGEND_ART,
+          row() * LEGEND_ART,
+          LEGEND_ART,
+          LEGEND_ART,
+          Math.round(c.x - (LEGEND_ART / 2) * k),
+          Math.round(c.y - LEGEND_FEET * k),
+          Math.round(LEGEND_ART * k),
+          Math.round(LEGEND_ART * k)
+        );
+        ctx.restore();
+      },
+    });
+    const strike = LEGEND_FADE_IN + attack * LEGEND_STRIKE;
+    return strike + this.playFrom({ ...cast, legend: undefined }, now + strike, false);
   }
 
   /**

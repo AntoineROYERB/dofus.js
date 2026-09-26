@@ -538,6 +538,219 @@
       "criticalChance": 15,
       "criticalDamage": 7,
       "effect": null
+    },
+    "29": {
+      "name": "King's Cleaver",
+      "icon": "🗡️",
+      "element": "Fire",
+      "role": "Ultimate",
+      "description": "The Ashen King appears and brings his greatsword down on a line of three cells: 16 damage. What else it does depends on the element you wear.",
+      "APCost": 6,
+      "range": 5,
+      "damage": 16,
+      "areaOfEffect": "line",
+      "needsLineOfSight": true,
+      "maxCastsPerTurn": 1,
+      "cooldown": 0,
+      "criticalChance": 10,
+      "criticalDamage": 22,
+      "ultimate": true,
+      "legend": "legend_roi_cendre",
+      "effect": null,
+      "infusions": {
+        "Fire": {
+          "description": "The line catches fire for good, and everyone on it takes 2 burns.",
+          "terrain": "fire",
+          "effect": {
+            "kind": "burn",
+            "value": 2,
+            "duration": 3,
+            "onSelf": false
+          }
+        },
+        "Air": {
+          "description": "Judgement of Lightning: everyone on the line is thrown 2 cells back, and the blade stays planted where it fell as your pylon.",
+          "push": 2,
+          "special": "relay"
+        },
+        "Water": {
+          "description": "A blade of water: everyone on the line is thrown 2 cells back, and the line turns to ice for good.",
+          "push": 2,
+          "terrain": "ice"
+        },
+        "Earth": {
+          "description": "The ground splits: a menhir rises on each side of where the blade fell, and everyone on the line loses 2 MP next turn.",
+          "special": "flank",
+          "effect": {
+            "kind": "mp",
+            "value": -2,
+            "duration": 1,
+            "onSelf": false
+          }
+        }
+      }
+    },
+    "30": {
+      "name": "Three-Headed Ray",
+      "icon": "🐉",
+      "element": "Water",
+      "role": "Ultimate",
+      "description": "Aurorion appears and its three heads fire at one cell anywhere within 8: three rays of 6 damage, each with its own chance to crit. What else they do depends on the element you wear.",
+      "APCost": 6,
+      "range": 8,
+      "damage": 6,
+      "areaOfEffect": "none",
+      "needsLineOfSight": false,
+      "maxCastsPerTurn": 1,
+      "cooldown": 0,
+      "criticalChance": 15,
+      "criticalDamage": 9,
+      "ultimate": true,
+      "hits": 3,
+      "legend": "legend_aurorion",
+      "effect": null,
+      "infusions": {
+        "Fire": {
+          "description": "Every ray sets its target alight: three burns, as many as a fighter can carry.",
+          "effect": {
+            "kind": "burn",
+            "value": 1,
+            "duration": 3,
+            "onSelf": false
+          }
+        },
+        "Air": {
+          "description": "Every ray throws its target a cell back, and running into something hurts each time.",
+          "push": 1
+        },
+        "Water": {
+          "description": "The rays freeze a cross of cells for good, and hold the target where it stands for a turn.",
+          "areaOfEffect": "cross",
+          "terrain": "ice",
+          "effect": {
+            "kind": "root",
+            "value": 1,
+            "duration": 1,
+            "onSelf": false
+          }
+        },
+        "Earth": {
+          "description": "A crystal prison: rocks rise on every side of the target but yours, for two of your turns.",
+          "special": "cage"
+        }
+      }
+    },
+    "31": {
+      "name": "Thunder Drums",
+      "icon": "🥁",
+      "element": "Air",
+      "role": "Ultimate",
+      "description": "Fulgor appears and beats his drums on a cell within 7: 8 damage now, 8 more at the start of your next turn and 14 at the one after, to whoever stands there. What else each beat does depends on the element you wear.",
+      "APCost": 6,
+      "range": 7,
+      "damage": 8,
+      "areaOfEffect": "none",
+      "needsLineOfSight": false,
+      "maxCastsPerTurn": 1,
+      "cooldown": 0,
+      "criticalChance": 10,
+      "criticalDamage": 11,
+      "ultimate": true,
+      "legend": "legend_fulgor",
+      "effect": null,
+      "zone": {
+        "kind": "drums",
+        "duration": 2
+      },
+      "infusions": {
+        "Fire": {
+          "description": "Every beat sets a burn, and the last sets them all off at once.",
+          "effect": {
+            "kind": "burn",
+            "value": 1,
+            "duration": 3,
+            "onSelf": false
+          }
+        },
+        "Air": {
+          "description": "The beats follow whoever the first one struck, wherever they go, a little softer: 6, 6 and 10.",
+          "damage": 6,
+          "criticalDamage": 8
+        },
+        "Water": {
+          "description": "The drums flood a cross of cells for good, and lightning through water hits 50% harder.",
+          "areaOfEffect": "cross",
+          "terrain": "water",
+          "conducts": true
+        },
+        "Earth": {
+          "description": "Every beat takes a movement point off the next turn, and the last splits the ground open around the cell.",
+          "effect": {
+            "kind": "mp",
+            "value": -1,
+            "duration": 1,
+            "onSelf": false
+          }
+        }
+      }
+    },
+    "32": {
+      "name": "Maw of the Deep",
+      "icon": "🪱",
+      "element": "Earth",
+      "role": "Ultimate",
+      "description": "Sahr'Khan carries you under the sand to a free cell within 6. You burst out: 14 damage to everyone next to you, thrown 2 cells away. What else it does depends on the element you wear.",
+      "APCost": 6,
+      "range": 6,
+      "damage": 14,
+      "areaOfEffect": "none",
+      "needsLineOfSight": false,
+      "maxCastsPerTurn": 1,
+      "cooldown": 0,
+      "criticalChance": 10,
+      "criticalDamage": 19,
+      "ultimate": true,
+      "targeting": "empty",
+      "special": "leap",
+      "push": 2,
+      "legend": "legend_sahrkhan",
+      "effect": null,
+      "infusions": {
+        "Fire": {
+          "description": "The sand around you catches fire for good, and everyone you burst out beside takes a burn.",
+          "terrain": "fire",
+          "effect": {
+            "kind": "burn",
+            "value": 1,
+            "duration": 3,
+            "onSelf": false
+          }
+        },
+        "Air": {
+          "description": "A storm of spice: smoke round where you come out for two of your turns, nothing seen through it.",
+          "terrain": "smoke",
+          "terrainTurns": 2
+        },
+        "Water": {
+          "description": "Quicksand: water round where you come out, for good, and everyone you burst out beside is held for a turn.",
+          "terrain": "water",
+          "effect": {
+            "kind": "root",
+            "value": 1,
+            "duration": 1,
+            "onSelf": false
+          }
+        },
+        "Earth": {
+          "description": "The worm stays around you: a shield that soaks 10 from every hit until your next turn.",
+          "effect": {
+            "kind": "shield",
+            "value": 10,
+            "duration": 1,
+            "onSelf": true
+          }
+        }
+      }
     }
   }
 }

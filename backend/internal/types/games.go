@@ -163,6 +163,9 @@ type TerrainCell struct {
 	// Health is what a relay has left before it breaks. Absent on every
 	// other kind.
 	Health int `json:"health,omitempty"`
+	// TurnsLeft counts down at the start of each of its owner's turns, and
+	// the cell clears when it runs out. Absent on terrain left for good.
+	TurnsLeft int `json:"turnsLeft,omitempty"`
 }
 
 // Terrain kinds.
@@ -188,12 +191,23 @@ type Zone struct {
 	Cells  []Position `json:"cells"`
 	// TurnsLeft counts down at the start of each of its owner's turns.
 	TurnsLeft int `json:"turnsLeft"`
+	// Element is the one it was cast in, for zones that act differently in
+	// each.
+	Element string `json:"element,omitempty"`
+	// Follows is the character a zone moves with, when it does.
+	Follows string `json:"follows,omitempty"`
+	// SpellID is the spell that left it, for the client to draw what it does.
+	SpellID int `json:"spellId,omitempty"`
 }
 
 // Zone kinds.
 const (
 	ZoneStorm     = "storm"     // strikes every enemy inside at the start of their turn
 	ZoneMaelstrom = "maelstrom" // drags enemies back to its centre and strips their buffs
+	// ZoneDrums strikes its cells again at the start of each of its owner's
+	// turns, harder on the last beat. What else each beat does depends on the
+	// element it was cast in.
+	ZoneDrums = "drums"
 )
 
 // LogEntry is one line of the combat log. The client renders these; without
@@ -225,6 +239,8 @@ type LogEntry struct {
 	Target  *Position `json:"target,omitempty"`
 	// Via is the relay an air spell was cast from, when it was.
 	Via *Position `json:"via,omitempty"`
+	// Infusion is the element a spell was infused with, when it was.
+	Infusion string `json:"infusion,omitempty"`
 }
 
 // Log entry kinds.
@@ -285,6 +301,78 @@ type Spell struct {
 	Relayed bool `json:"relayed"`
 	// Conducts doubles the damage on a target standing in water.
 	Conducts bool `json:"conducts"`
+	// Hits is how many times the spell strikes, each with its own roll for a
+	// critical; after the first, it strikes whoever it hit, wherever they
+	// have been thrown. 0 means once.
+	Hits int `json:"hits,omitempty"`
+	// TerrainTurns is how many of its caster's turns the terrain it leaves
+	// lasts; 0 is for good.
+	TerrainTurns int `json:"terrainTurns,omitempty"`
+	// Legend names the legendary who appears on the board to cast it.
+	Legend string `json:"legend,omitempty"`
+	// Infusions change the spell with the element its caster wears. A
+	// legendary's ultimate keeps its shape and its damage in every hand; what
+	// the element adds is written here, one entry per element.
+	Infusions map[string]Infusion `json:"infusions,omitempty"`
+}
+
+// Infusion is what an element adds to a spell. Every field set replaces the
+// spell's own; a field left empty keeps it.
+type Infusion struct {
+	Description    string       `json:"description"`
+	Damage         int          `json:"damage,omitempty"`
+	CriticalDamage int          `json:"criticalDamage,omitempty"`
+	AreaOfEffect   string       `json:"areaOfEffect,omitempty"`
+	Effect         *SpellEffect `json:"effect,omitempty"`
+	Push           int          `json:"push,omitempty"`
+	Terrain        string       `json:"terrain,omitempty"`
+	TerrainTurns   int          `json:"terrainTurns,omitempty"`
+	Special        string       `json:"special,omitempty"`
+	Conducts       bool         `json:"conducts,omitempty"`
+}
+
+// Infused is the spell as it is cast by someone wearing an element: itself,
+// with that element's infusion laid over it. A spell with no infusion for
+// the element is returned as it is.
+func (s Spell) Infused(element string) Spell {
+	in, ok := s.Infusions[element]
+	if !ok {
+		return s
+	}
+	out := s
+	out.Element = element
+	if in.Description != "" {
+		out.Description = in.Description
+	}
+	if in.Damage != 0 {
+		out.Damage = in.Damage
+	}
+	if in.CriticalDamage != 0 {
+		out.CriticalDamage = in.CriticalDamage
+	}
+	if in.AreaOfEffect != "" {
+		out.AreaOfEffect = in.AreaOfEffect
+	}
+	if in.Effect != nil {
+		effect := *in.Effect
+		out.Effect = &effect
+	}
+	if in.Push != 0 {
+		out.Push = in.Push
+	}
+	if in.Terrain != "" {
+		out.Terrain = in.Terrain
+	}
+	if in.TerrainTurns != 0 {
+		out.TerrainTurns = in.TerrainTurns
+	}
+	if in.Special != "" {
+		out.Special = in.Special
+	}
+	if in.Conducts {
+		out.Conducts = true
+	}
+	return out
 }
 
 // Spell targeting.
@@ -302,6 +390,8 @@ const (
 	SpecialPillar   = "pillar"   // raises a permanent obstacle on the target cell
 	SpecialCrater   = "crater"   // digs a crater where the spell lands
 	SpecialSwap     = "swap"     // aimed at the caster's relay: the two change places
+	SpecialFlank    = "flank"    // raises a menhir on each side of the target, across the cast
+	SpecialCage     = "cage"     // walls the target in with rocks for a while, open towards the caster
 	SpecialQuake    = "quake"    // opens fissures around the caster
 )
 

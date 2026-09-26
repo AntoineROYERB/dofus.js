@@ -46,6 +46,12 @@ const (
 	// it: counted down at the start of its owner's turns, so the owner goes two
 	// turns without one.
 	RelayRecharge = 3
+	// CageTurns is how many of its caster's turns a cage of rocks stands.
+	CageTurns = 2
+	// DrumBeat is what each beat of the drums does to whoever stands under
+	// it, DrumFinale the last one.
+	DrumBeat   = 8
+	DrumFinale = 14
 )
 
 var (
@@ -187,6 +193,41 @@ func (g *Game) breakRelayLocked(pos types.Position) {
 		}
 		dealt := g.damageLocked(id, RelayBlast)
 		g.effectLogLocked(id, "is caught in the pylon's blast", dealt)
+	}
+}
+
+// raiseRockLocked raises a rock on a free cell, if walling it off would not cut
+// the board in two: for good, or for that many of its owner's turns.
+func (g *Game) raiseRockLocked(pos types.Position, owner string, turns int) {
+	if !g.freeLocked(pos) || !g.staysConnectedLocked(pos) {
+		return
+	}
+	if g.obstacles == nil {
+		g.obstacles = make(map[types.Position]bool)
+	}
+	g.obstacles[pos] = true
+	if g.terrain == nil {
+		g.terrain = make(map[types.Position]types.TerrainCell)
+	}
+	g.terrain[pos] = types.TerrainCell{Position: pos, Kind: types.TerrainPillar, Owner: owner, TurnsLeft: turns}
+}
+
+// ageTerrainLocked takes a turn off everything its owner left for a while,
+// at the start of that owner's turn, and clears what has run out.
+func (g *Game) ageTerrainLocked(owner string) {
+	for pos, cell := range g.terrain {
+		if cell.Owner != owner || cell.TurnsLeft <= 0 {
+			continue
+		}
+		cell.TurnsLeft--
+		if cell.TurnsLeft > 0 {
+			g.terrain[pos] = cell
+			continue
+		}
+		delete(g.terrain, pos)
+		if cell.Kind == types.TerrainPillar {
+			delete(g.obstacles, pos)
+		}
 	}
 }
 
@@ -455,6 +496,83 @@ func (g *Game) ageZonesLocked(owner string) {
 	g.zones = kept
 	if len(g.zones) == 0 {
 		g.zones = nil
+	}
+}
+
+// drumsLocked beats every drum its owner keeps up, at the start of the
+// owner's turn: whoever stands under a beat is struck, harder on the last.
+// The element the drums were cast in adds to each beat.
+func (g *Game) drumsLocked(owner string) {
+	for i := range g.zones {
+		z := g.zones[i]
+		if z.Kind != types.ZoneDrums || z.Owner != owner {
+			continue
+		}
+		finale := z.TurnsLeft <= 1
+		amount := DrumBeat
+		if finale {
+			amount = DrumFinale
+		}
+		if z.Element == "Air" {
+			// The storm keeps up with its target, and hits a little softer.
+			amount = amount * 3 / 4
+			if c := g.players[z.Follows].Character; c.IsAlive && c.Position != nil {
+				z.Center = *c.Position
+				z.Cells = []types.Position{z.Center}
+				g.zones[i] = z
+			}
+		}
+		center := z.Center
+		g.appendLogLocked(types.LogEntry{
+			Actor: g.players[owner].Character.Name, Kind: types.LogEffect, Text: "beats the drums",
+			SpellID: z.SpellID, Origin: &center, Target: &center, Infusion: z.Element,
+		})
+		for _, cell := range z.Cells {
+			id, ok := g.playerAtLocked(cell)
+			if !ok || id == owner || !g.players[id].Character.IsAlive {
+				continue
+			}
+			hit := amount
+			p := g.players[id]
+			switch z.Element {
+			case "Water":
+				if g.terrainKindLocked(cell) == types.TerrainWater {
+					hit = hit * (100 + ConductBonus) / 100
+				}
+			case "Fire":
+				if finale {
+					stacks, turns := takeBurn(&p.Character)
+					hit += stacks * turns * BurnDamagePerStack
+					g.players[id] = p
+				}
+			}
+			dealt := g.damageLocked(id, hit)
+			g.effectLogLocked(id, "is struck by the drums", dealt)
+			p = g.players[id]
+			if !p.Character.IsAlive {
+				continue
+			}
+			switch z.Element {
+			case "Fire":
+				if !finale {
+					addBurn(&p.Character, 1)
+				}
+			case "Earth":
+				applyEffect(&p.Character, types.Effect{Kind: types.EffectMP, Value: -1, TurnsLeft: 1, Source: "the drums"})
+			}
+			g.players[id] = p
+		}
+		if finale && z.Element == "Earth" {
+			for _, offset := range quakeFissures {
+				cell := types.Position{X: center.X + offset.X, Y: center.Y + offset.Y}
+				if g.freeLocked(cell) && g.staysConnectedLocked(cell) {
+					if g.terrain == nil {
+						g.terrain = make(map[types.Position]types.TerrainCell)
+					}
+					g.terrain[cell] = types.TerrainCell{Position: cell, Kind: types.TerrainFissure, Owner: owner}
+				}
+			}
+		}
 	}
 }
 

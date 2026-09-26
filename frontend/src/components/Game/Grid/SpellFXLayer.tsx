@@ -2,9 +2,10 @@ import React, { useEffect, useRef } from "react";
 import { GameState } from "../../../types/message";
 import { CastEvent, Element, Signature, SpellFx } from "../../../vfx/spellFx";
 import { Spell } from "../../../types/message";
-import { calculateImpactedCells } from "../../../utils/spellUtils";
+import { calculateImpactedCells, infused } from "../../../utils/spellUtils";
 import { useFxManifest } from "../../../utils/fxManifest";
-import { SheetFx } from "../../../vfx/sheetFx";
+import { LegendCast, SheetFx } from "../../../vfx/sheetFx";
+import { Position } from "../../../types/game";
 import { LASTING_SHEETS } from "../../../vfx/lastingSheets";
 
 /** Which spells are drawn as themselves rather than as their element. */
@@ -21,6 +22,46 @@ const signatureOf = (spell: Spell): Signature | undefined => {
   if (spell.zone?.kind === "maelstrom") return "maelstrom";
   if (spell.targeting === "self") return "self";
   return undefined;
+};
+
+/*
+ * The legendaries' attacks in the bestiary: the first is 20 frames, the
+ * second 24. The Ashen King casts Judgement of Lightning, his second, when
+ * his blade is infused with air; everyone else casts their first.
+ */
+const legendFor = (legend: string, element: string): { file: string; frames: number } =>
+  legend === "legend_roi_cendre" && element === "Air"
+    ? { file: `${legend}_attack2.webp`, frames: 24 }
+    : { file: `${legend}_attack.webp`, frames: 20 };
+
+/** What lands where a legendary's blow falls, in the element it was cast in. */
+const legendImpact = (element: string): string[] => {
+  const el = element.toLowerCase();
+  switch (el) {
+    case "fire":
+      return ["fire/combustion"];
+    case "air":
+      return ["air/lightning", "air/impact"];
+    default:
+      return [`${el}/impact`];
+  }
+};
+
+/**
+ * Where a legendary stands to cast: two cells behind the caster, away from
+ * the target, so it towers over them rather than on them — one cell at the
+ * edge of the board, and the caster's own cell with no room at all.
+ */
+const behind = (caster: Position, target: Position): Position => {
+  const dx = caster.x - target.x;
+  const dy = caster.y - target.y;
+  const step =
+    Math.abs(dx) >= Math.abs(dy) ? { x: Math.sign(dx), y: 0 } : { x: 0, y: Math.sign(dy) };
+  for (const n of [2, 1]) {
+    const p = { x: caster.x + step.x * n, y: caster.y + step.y * n };
+    if (Math.abs(p.x) + Math.abs(p.y) <= 7) return p;
+  }
+  return caster;
 };
 
 interface SpellFXLayerProps {
@@ -161,7 +202,8 @@ export const SpellFXLayer: React.FC<SpellFXLayerProps> = ({
     const toEvent = (entry: (typeof log)[number]): CastEvent | null => {
       if (entry.kind !== "cast") return null;
       if (entry.spellId === undefined || !entry.origin || !entry.target) return null;
-      const spell = spells[String(entry.spellId)];
+      const raw = spells[String(entry.spellId)];
+      const spell = raw && infused(raw, entry.infusion);
       const element = spell?.element;
       if (!spell || !isElement(element)) return null;
       return {
@@ -210,6 +252,17 @@ export const SpellFXLayer: React.FC<SpellFXLayerProps> = ({
     const sheets = sheetsRef.current;
     for (const entry of log) {
       if (entry.seq <= since) continue;
+      // A beat of Fulgor's drums: lightning on the cell, in its element.
+      if (entry.kind === "effect" && entry.spellId && entry.target && sheets) {
+        const element = entry.infusion ?? spells[String(entry.spellId)]?.element ?? "Air";
+        sheets.play({
+          spell: { name: "beat", hero: null, fx: ["air/lightning", ...legendImpact(element)] },
+          origin: entry.target,
+          target: entry.target,
+          area: [entry.target],
+        });
+        continue;
+      }
       const event = toEvent(entry);
       if (!event) continue;
       const drawn = sheets && manifest?.spells[String(entry.spellId)];
@@ -220,13 +273,28 @@ export const SpellFXLayer: React.FC<SpellFXLayerProps> = ({
       // The grimoire's sheets play the cast, from start to finish. It leaves
       // no ink of the procedural effects behind: what stays on the board is
       // the terrain the server keeps, drawn with the same sheets.
+      const raw = spells[String(entry.spellId)];
+      let legend: LegendCast | undefined;
+      let keys = drawn.fx;
+      if (raw?.legend) {
+        // The legendary steps in: behind its caster, or, for one that carries
+        // its caster under the ground, where they come out.
+        const leap = raw.special === "leap";
+        legend = {
+          ...legendFor(raw.legend, event.element),
+          at: leap ? event.target : behind(event.origin, event.target),
+          facing: leap ? event.origin : event.target,
+        };
+        keys = legendImpact(event.element);
+      }
       sheets.play({
-        spell: { ...drawn, fx: drawn.fx.filter((key) => !LASTING_SHEETS.has(key)) },
+        spell: { ...drawn, fx: keys.filter((key) => !LASTING_SHEETS.has(key)) },
         origin: event.origin,
         via: event.via,
         target: event.target,
         area: event.area ?? [event.target],
         swap: event.signature === "swap",
+        legend,
       });
     }
     seenSeq.current = Math.max(since, highest);

@@ -23,6 +23,30 @@
       "name": "Old Grund's stone",
       "ultimate": "20",
       "sprite": "old-grunds-stone"
+    },
+    {
+      "id": "ashen-crown",
+      "name": "The Ashen King's crown",
+      "ultimate": "29",
+      "sprite": "legend_roi_cendre"
+    },
+    {
+      "id": "aurorion-scale",
+      "name": "Aurorion's scale",
+      "ultimate": "30",
+      "sprite": "legend_aurorion"
+    },
+    {
+      "id": "fulgor-drumstick",
+      "name": "Fulgor's drumstick",
+      "ultimate": "31",
+      "sprite": "legend_fulgor"
+    },
+    {
+      "id": "sahrkhan-fang",
+      "name": "Sahr'Khan's fang",
+      "ultimate": "32",
+      "sprite": "legend_sahrkhan"
     }
   ]
 }

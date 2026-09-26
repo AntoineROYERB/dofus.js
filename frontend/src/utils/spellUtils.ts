@@ -1,4 +1,4 @@
-import { Spell, SpellState } from "../types/message";
+import { Spell, SpellBook, SpellState } from "../types/message";
 import { RULES, TERRAIN_INFO, ZONE_INFO } from "./terrain";
 import { Position } from "../types/game";
 import { distance, hasLineOfSight, neighbours } from "./board";
@@ -249,12 +249,18 @@ export const spellMechanics = (spell: Spell): string[] => {
   const out: string[] = [];
   if (spell.push > 0) out.push(`throws back ${spell.push}`);
   if (spell.push < 0) out.push(`drags in ${-spell.push}`);
-  if (spell.terrain) out.push(`leaves ${TERRAIN_INFO[spell.terrain].name.toLowerCase()}`);
+  if (spell.terrain) {
+    const turns = spell.terrainTurns ? ` · ${spell.terrainTurns} turns` : "";
+    out.push(`leaves ${TERRAIN_INFO[spell.terrain].name.toLowerCase()}${turns}`);
+  }
   if (spell.special === "crater") out.push("digs a crater");
   if (spell.special === "quake") out.push("opens fissures");
   if (spell.special === "pillar") out.push("raises a pillar");
   if (spell.special === "relay") out.push("raises your pylon");
   if (spell.special === "swap") out.push("swap with your pylon");
+  if (spell.special === "flank") out.push("menhirs either side");
+  if (spell.special === "cage") out.push("cages the target");
+  if (spell.hits && spell.hits > 1) out.push(`strikes ${spell.hits} times`);
   if (spell.special === "leap") out.push("leap");
   if (spell.special === "detonate") out.push("sets burns off");
   if (spell.zone) {
@@ -313,4 +319,38 @@ export const spellSummary = (spell: Spell): string => {
   if (spell.terrain) out.push(TERRAIN_INFO[spell.terrain].name.toLowerCase());
   if (spell.zone) out.push(`${ZONE_INFO[spell.zone.kind].name.toLowerCase()} ${spell.zone.duration}t`);
   return out.join(" · ");
+};
+
+/**
+ * A spell as it is cast by someone wearing an element: itself, with that
+ * element's infusion laid over it. Mirrors Spell.Infused on the server.
+ */
+export const infused = (spell: Spell, element: string | undefined): Spell => {
+  const infusion = element ? spell.infusions?.[element] : undefined;
+  if (!infusion || !element) return spell;
+  return {
+    ...spell,
+    element,
+    description: infusion.description || spell.description,
+    damage: infusion.damage || spell.damage,
+    criticalDamage: infusion.criticalDamage || spell.criticalDamage,
+    areaOfEffect: infusion.areaOfEffect || spell.areaOfEffect,
+    effect: infusion.effect ?? spell.effect,
+    push: infusion.push || spell.push,
+    terrain: infusion.terrain || spell.terrain,
+    terrainTurns: infusion.terrainTurns || spell.terrainTurns,
+    special: infusion.special || spell.special,
+    conducts: infusion.conducts || spell.conducts,
+  };
+};
+
+/** The whole catalogue as someone wearing an element would cast it. */
+export const infusedBook = (
+  book: SpellBook | null | undefined,
+  element: string | undefined
+): SpellBook | null => {
+  if (!book) return null;
+  const out: SpellBook = {};
+  for (const [id, spell] of Object.entries(book)) out[id] = infused(spell, element);
+  return out;
 };

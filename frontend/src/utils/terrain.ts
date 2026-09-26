@@ -84,4 +84,8 @@ export const ZONE_INFO: Record<ZoneKind, { name: string; text: string }> = {
     name: "Maelstrom",
     text: "Drags enemies inside back to its centre and strips their buffs.",
   },
+  drums: {
+    name: "Thunder drums",
+    text: "Struck again at the start of each of its owner's turns, harder on the last beat.",
+  },
 };

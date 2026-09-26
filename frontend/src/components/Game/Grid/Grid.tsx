@@ -7,7 +7,7 @@ import {
 } from "../../../utils/isoUtils";
 import { blockedBy, reachable, sightBlockedBy } from "../../../utils/board";
 import { Tile } from "./Tile";
-import { castOrigin, outOfSight } from "../../../utils/spellUtils";
+import { castOrigin, infused, outOfSight } from "../../../utils/spellUtils";
 import { BurnMarker } from "./BurnMarker";
 import { TalismanOrbit, TalismanState } from "../TalismanOrbit";
 import {
@@ -105,10 +105,11 @@ export const Grid: React.FC<GridProps> = ({
   const terrainAt = React.useMemo(() => terrainIndex(terrain), [terrain]);
   const relay = React.useMemo(() => relayOf(terrain, userId), [terrain, userId]);
   // The spell catalogue is broadcast with the game state; the client keeps no copy.
-  const selectedSpell =
-    selectedSpellId === null
-      ? undefined
-      : latestGameState?.spells?.[String(selectedSpellId)];
+  // A legendary's ultimate is previewed as this player's element casts it.
+  const myElement = kitOf(players?.[userId]?.character.loadout, content)?.element;
+  const rawSpell =
+    selectedSpellId === null ? undefined : latestGameState?.spells?.[String(selectedSpellId)];
+  const selectedSpell = rawSpell && infused(rawSpell, myElement);
   const currentPlayer = players?.[userId];
   const movementPoints = currentPlayer?.character.movementPoints;
   const characterPosition = currentPlayer?.character.position;

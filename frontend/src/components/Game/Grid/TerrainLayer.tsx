@@ -45,6 +45,13 @@ const INK_LIGHT = "#8fb4ea";
 const SOIL_DARK = "#2a1d10";
 const WIND = "#2e9e6a";
 const ENEMY = "#a3231b";
+/** The colour Fulgor's drums are marked in, by the element they were cast in. */
+const DRUM_INK: Record<string, string> = {
+  Fire: "#e2521d",
+  Air: "#6b4fd8",
+  Water: "#2f5fa8",
+  Earth: "#8a5a2b",
+};
 /** How long a pylon flashes when hit, and goes off when it breaks, in ms. */
 const PYLON_HIT = 400;
 const PYLON_SHATTER = 900;
@@ -687,6 +694,30 @@ export const TerrainLayer: React.FC<TerrainLayerProps> = ({
         if (s.manifest && zoneKey) {
           const onto = zone.kind === "storm" ? t : g;
           if (drawSheet(onto, s.manifest, zoneKey, c, tw, time, 0)) continue;
+        }
+        if (zone.kind === "drums") {
+          // Fulgor's drums: the cells the next beat falls on, marked in the
+          // element they were cast in, and a pip for every beat still to come.
+          const ink = DRUM_INK[zone.element ?? "Air"] ?? DRUM_INK.Air;
+          const beat = 0.5 + 0.5 * Math.sin(time * 6);
+          for (const cell of zone.cells) {
+            diamond(g, cell, 0.78 + 0.08 * beat);
+            g.strokeStyle = ink;
+            g.globalAlpha = 0.55 + 0.35 * beat;
+            g.lineWidth = 2;
+            g.setLineDash([tw * 0.06, tw * 0.04]);
+            g.stroke();
+            g.setLineDash([]);
+            g.globalAlpha = 1;
+          }
+          for (let i = 0; i < zone.turnsLeft; i++) {
+            const px = c.x + (i - (zone.turnsLeft - 1) / 2) * tw * 0.12;
+            t.fillStyle = ink;
+            t.beginPath();
+            t.arc(px, c.y - th * 0.9, Math.max(2, tw * 0.03), 0, TAU);
+            t.fill();
+          }
+          continue;
         }
         if (zone.kind === "maelstrom") {
           const reach = tw * 1.15;

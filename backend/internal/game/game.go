@@ -579,7 +579,9 @@ func (g *Game) startTurnForLocked(userID string) (alive bool) {
 	}
 	before := g.aliveLocked()
 
+	g.drumsLocked(userID)
 	g.ageZonesLocked(userID)
+	g.ageTerrainLocked(userID)
 	g.zonesActOnLocked(userID)
 	slowed := g.terrainAtTurnStartLocked(userID)
 	g.groundAtTurnStartLocked(userID)

@@ -161,6 +161,24 @@ An ultimate has its own fixed element and never names a grimoire's spell, so
 any talisman goes with any outfit. A talisman is exactly one ultimate, nothing
 more, so a boss's talisman is another choice, never a stronger one.
 
+**The legendaries' talismans are infused.** The four legendaries of the
+bestiary each drop a talisman whose ultimate keeps its shape, its cost and its
+damage in every hand, and takes on **the element of the outfit it is cast in**:
+the element adds one thing, drawn from its grimoires' language (burns, the
+pylon and pushes, ice, water and holds, rocks and lost movement). The
+legendary itself steps onto the board and plays its own attack.
+
+| Legendary | Ultimate | Core | Fire | Air | Water | Earth |
+|---|---|---|---|---|---|---|
+| The Ashen King | King's Cleaver | 16 on a line of 3 | Fire for good, 2 burns | Thrown 2 back, the blade stays as your pylon | Thrown 2 back, ice for good | A menhir each side, −2 MP |
+| Aurorion | Three-Headed Ray | Three rays of 6, anywhere within 8 | A burn per ray | Each ray throws 1 back | A cross of ice, held a turn | A cage of rocks for 2 turns |
+| Fulgor | Thunder Drums | 8 now, 8 and 14 at your next two turns | A burn per beat, the last sets them off | The beats follow their target, 6/6/10 | A cross of water, lightning hits 50% harder | −1 MP a beat, the last splits the ground |
+| Sahr'Khan | Maw of the Deep | Come out within 6: 14 around you, thrown 2 away | Fire around you, a burn | Smoke around you for 2 turns | Water around you, held a turn | A shield of 10 until your next turn |
+
+The champions' own ultimates keep their fixed element. An infusion only ever
+adds one effect to the same core, so the matrix of what can be balanced grows
+by riders, not by new spells.
+
 The six bosses' ultimates, a first proposal. Each uses its island's element and
 terrain, and is built from what the engine already has (pushes, pulls, root,
 MP loss, burns, terrain, pillars). Numbers are placeholders, to be tuned
