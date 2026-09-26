@@ -160,8 +160,8 @@ type TerrainCell struct {
 	// everyone else, a trap never catches the one who set it, and a relay only
 	// carries its owner's spells.
 	Owner string `json:"owner"`
-	// Health is what a relay has left before it breaks. Absent on every
-	// other kind.
+	// Health is what a relay or a Stonewarden's pillar has left before it
+	// breaks. Absent on every other kind.
 	Health int `json:"health,omitempty"`
 	// TurnsLeft counts down at the start of each of its owner's turns, and
 	// the cell clears when it runs out. Absent on terrain left for good.

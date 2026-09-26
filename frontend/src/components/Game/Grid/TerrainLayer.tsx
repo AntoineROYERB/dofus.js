@@ -12,6 +12,7 @@ import {
   gridPixel,
 } from "../../../vfx/pylon";
 import { RULES } from "../../../utils/terrain";
+import { CAIRN_RISE, STONE_FALL, drawCairn, stonesLeft } from "../../../vfx/rampart";
 import { FX_ROOT, FxManifest, FxSheet, sheetOf, useFxManifest } from "../../../utils/fxManifest";
 import {
   LASTING_SHEETS,
@@ -55,6 +56,7 @@ const DRUM_INK: Record<string, string> = {
 /** How long a pylon flashes when hit, and goes off when it breaks, in ms. */
 const PYLON_HIT = 400;
 const PYLON_SHATTER = 900;
+const EARTH = "#b45309";
 
 const TAU = Math.PI * 2;
 
@@ -281,6 +283,10 @@ export const TerrainLayer: React.FC<TerrainLayerProps> = ({
   const relayHitAt = useRef(new Map<string, number>());
   /** Pylons going off as they break, where and since when. */
   const shatters = useRef<{ at: Position; born: number }[]>([]);
+  /** The same for a Stonewarden's pillars, which crumble and flash when hit. */
+  const lastPillars = useRef(new Map<string, TerrainCell>());
+  const pillarHitAt = useRef(new Map<string, number>());
+  const crumbles = useRef<{ at: Position; born: number }[]>([]);
   const seeded = useRef(false);
   const state = useRef({ terrain, zones, tileSize, centerX, centerY, userId, relayActive, manifest });
   state.current = { terrain, zones, tileSize, centerX, centerY, userId, relayActive, manifest };
@@ -373,6 +379,21 @@ export const TerrainLayer: React.FC<TerrainLayerProps> = ({
       // A pylon that is gone while its owner has none left has broken; one
       // that has less health than a frame ago has just been hit. Moving one
       // is neither.
+      // A pillar that stood a frame ago and is gone has crumbled; one with
+      // less in it than a frame ago has just taken a blow.
+      const pillarsNow = new Map<string, TerrainCell>();
+      for (const cell of s.terrain) {
+        if (cell.kind === "pillar" && cell.health) {
+          pillarsNow.set(`${cell.position.x},${cell.position.y}`, cell);
+        }
+      }
+      for (const [k, was] of lastPillars.current) {
+        const still = pillarsNow.get(k);
+        if (!still && !settled) crumbles.current.push({ at: was.position, born: now });
+        else if (still && (still.health ?? 0) < (was.health ?? 0)) pillarHitAt.current.set(k, now);
+      }
+      lastPillars.current = pillarsNow;
+
       const relaysNow = new Map<string, TerrainCell>();
       for (const cell of s.terrain) if (cell.kind === "relay") relaysNow.set(cell.owner, cell);
       for (const [owner, was] of lastRelays.current) {
@@ -492,6 +513,41 @@ export const TerrainLayer: React.FC<TerrainLayerProps> = ({
         const { x, y } = cell.position;
         const c = at(cell.position);
         const mine = cell.owner === s.userId;
+        if (cell.kind === "pillar" && cell.health) {
+          // Old Grund's cairn: the square it wards, whose it is, then its
+          // stones, one fewer for every 3 it has soaked up, the last to go
+          // still tumbling down.
+          const k = `${x},${y}`;
+          const pillars = pillarBornAt.current;
+          if (!pillars.has(k)) pillars.set(k, settled ? -Infinity : now);
+          const ward = mine ? EARTH : ENEMY;
+          for (let dx = -1; dx <= 1; dx++) {
+            for (let dy = -1; dy <= 1; dy++) {
+              if (!dx && !dy) continue;
+              diamond(g, { x: x + dx, y: y + dy }, 0.86);
+              g.strokeStyle = ward;
+              g.globalAlpha = 0.45;
+              g.lineWidth = 1.2;
+              g.setLineDash([tw * 0.05, tw * 0.05]);
+              g.stroke();
+              g.setLineDash([]);
+              g.globalAlpha = 1;
+            }
+          }
+          const hitAt = pillarHitAt.current.get(k) ?? -Infinity;
+          drawCairn(
+            g,
+            c.x,
+            c.y,
+            gridPixel(tw),
+            time,
+            stonesLeft(cell.health),
+            Math.min(1, (now - hitAt) / STONE_FALL),
+            Math.min(1, (now - (pillars.get(k) ?? -Infinity)) / CAIRN_RISE),
+            now - hitAt < PYLON_HIT ? 1 : 0
+          );
+          continue;
+        }
         if (cell.kind === "pillar" && s.manifest) {
           const k = `${x},${y}`;
           const pillars = pillarBornAt.current;
@@ -778,6 +834,13 @@ export const TerrainLayer: React.FC<TerrainLayerProps> = ({
         }
       }
 
+      // The cairns that have crumbled.
+      crumbles.current = crumbles.current.filter((c) => now - c.born < PYLON_SHATTER);
+      for (const crumble of crumbles.current) {
+        const c = at(crumble.at);
+        drawPylonShatter(t, c.x, c.y, gridPixel(tw), (now - crumble.born) / PYLON_SHATTER, true);
+      }
+
       // Pylons going off, over everything.
       shatters.current = shatters.current.filter((s) => now - s.born < PYLON_SHATTER);
       for (const shatter of shatters.current) {
@@ -791,7 +854,10 @@ export const TerrainLayer: React.FC<TerrainLayerProps> = ({
       draw(now);
       const s = state.current;
       // Nothing on the board: one clear, then idle until something changes.
-      if (!reduced && (s.terrain.length > 0 || s.zones.length > 0 || shatters.current.length > 0)) {
+      if (!reduced && (s.terrain.length > 0 ||
+          s.zones.length > 0 ||
+          shatters.current.length > 0 ||
+          crumbles.current.length > 0)) {
         frame = requestAnimationFrame(loop);
       } else {
         frame = 0;

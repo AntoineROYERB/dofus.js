@@ -3,6 +3,7 @@ import { isoToScreen } from "../utils/isoUtils";
 import { FX_ROOT, FxManifest, FxSheet, FxSpell, sheetOf } from "../utils/fxManifest";
 import { Geometry } from "./spellFx";
 import { drawBolt, drawBurst, drawPylonCharge, gridPixel, pylonTop } from "./pylon";
+import { WALL_BURSTS_AT, WALL_LIFE, drawRampartWall } from "./rampart";
 
 /** The sheets are drawn at twelve frames a second, as in the grimoire. */
 const FPS = 12;
@@ -298,6 +299,28 @@ export class SheetFx {
     });
     const strike = LEGEND_FADE_IN + attack * LEGEND_STRIKE;
     return strike + this.playFrom({ ...cast, legend: undefined }, now + strike, false);
+  }
+
+  /**
+   * A wall of rock bursting up in front of a Stonewarden their cairn covers:
+   * between them and where the blow came from, up in time to take it, and
+   * blown apart the moment it lands, `landsIn` ms from now.
+   */
+  playRampart(at: Position, from: Position, landsIn: number, now = performance.now()) {
+    const dx = from.x - at.x;
+    const dy = from.y - at.y;
+    const step = Math.abs(dx) >= Math.abs(dy) ? { x: Math.sign(dx), y: 0 } : { x: 0, y: Math.sign(dy) };
+    this.drawings.push({
+      born: now + Math.max(0, landsIn - WALL_BURSTS_AT),
+      dur: WALL_LIFE,
+      draw: (ctx, _t, v) => {
+        const a = this.screen(at);
+        const b = this.screen({ x: at.x + step.x, y: at.y + step.y });
+        const x = a.x + (b.x - a.x) * 0.5;
+        const y = a.y + (b.y - a.y) * 0.5;
+        drawRampartWall(ctx, x, y, gridPixel(this.geometry.tileSize.width), v);
+      },
+    });
   }
 
   /**

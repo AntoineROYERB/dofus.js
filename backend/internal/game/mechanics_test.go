@@ -939,3 +939,71 @@ func TestBotHoldsItsUltimateUntilItUnlocks(t *testing.T) {
 		t.Errorf("action on turn 2 = %+v, want the Meteor", action)
 	}
 }
+
+func pillarHealth(g *Game, at types.Position) int {
+	for _, cell := range g.Snapshot().Terrain {
+		if cell.Position == at && cell.Kind == types.TerrainPillar {
+			return cell.Health
+		}
+	}
+	return 0
+}
+
+func TestAPillarTakesTheBlowsForTheOneBesideIt(t *testing.T) {
+	g := duel(t, types.Position{}, types.Position{Y: 3})
+	cast(t, g, "a", spellPillar, types.Position{X: 1})
+	mustEndTurn(t, g)
+
+	cast(t, g, "b", spellLightning, types.Position{})
+	lightning := damageOf(g, spellLightning)
+	if hp := hp(g, "a"); hp != StartingHealth {
+		t.Errorf("a's health = %d, want untouched: the pillar took the blow", hp)
+	}
+	if hp, want := pillarHealth(g, types.Position{X: 1}), PillarHealth-lightning; hp != want {
+		t.Fatalf("pillar health = %d, want %d", hp, want)
+	}
+
+	// What the pillar cannot hold gets through, and it crumbles.
+	g.mu.Lock()
+	cell := g.terrain[types.Position{X: 1}]
+	cell.Health = 3
+	g.terrain[types.Position{X: 1}] = cell
+	g.mu.Unlock()
+	cast(t, g, "b", spellLightning, types.Position{})
+	if rockAt(g, types.Position{X: 1}) {
+		t.Errorf("the pillar is still standing with nothing left in it")
+	}
+	if hp, want := hp(g, "a"), StartingHealth-(lightning-3); hp != want {
+		t.Errorf("a's health = %d, want %d: only the overflow", hp, want)
+	}
+}
+
+func TestAPillarGuardsItsCornersToo(t *testing.T) {
+	g := duel(t, types.Position{}, types.Position{Y: 3})
+	cast(t, g, "a", spellPillar, types.Position{X: 1, Y: -1})
+	mustEndTurn(t, g)
+	cast(t, g, "b", spellLightning, types.Position{})
+	if hp := hp(g, "a"); hp != StartingHealth {
+		t.Errorf("a's health = %d, want untouched: a corner of the square is inside it", hp)
+	}
+}
+
+func TestAPillarOnlyGuardsItsOwnerBesideIt(t *testing.T) {
+	g := duel(t, types.Position{}, types.Position{Y: 3})
+	cast(t, g, "a", spellPillar, types.Position{X: 2})
+	mustEndTurn(t, g)
+	cast(t, g, "b", spellLightning, types.Position{})
+	if hp, want := hp(g, "a"), StartingHealth-damageOf(g, spellLightning); hp != want {
+		t.Errorf("a's health = %d, want %d: two cells off, the pillar covers nothing", hp, want)
+	}
+}
+
+func TestEnemiesCanWearAPillarDown(t *testing.T) {
+	g := duel(t, types.Position{}, types.Position{X: -2, Y: 3})
+	cast(t, g, "a", spellPillar, types.Position{X: -2})
+	mustEndTurn(t, g)
+	cast(t, g, "b", spellLightning, types.Position{X: -2})
+	if hp, want := pillarHealth(g, types.Position{X: -2}), PillarHealth-damageOf(g, spellLightning); hp != want {
+		t.Errorf("pillar health = %d, want %d", hp, want)
+	}
+}

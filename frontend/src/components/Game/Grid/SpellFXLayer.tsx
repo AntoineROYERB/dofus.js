@@ -249,9 +249,23 @@ export const SpellFXLayer: React.FC<SpellFXLayerProps> = ({
     }
 
     const since = seenSeq.current;
+    // The cast a cairn's wall rises against: where it came from, and how long
+    // it takes to land, since the wall has to be up by then.
+    let lastOrigin: Position | undefined;
+    let lastLanding = 0;
+    const standing = (name: string): Position | undefined =>
+      Object.values(latestGameState?.players ?? {}).find((p) => p.character.name === name)?.character
+        .position ?? undefined;
     const sheets = sheetsRef.current;
     for (const entry of log) {
       if (entry.seq <= since) continue;
+      // A Stonewarden's cairn taking a blow for them: a wall of rock bursts up
+      // in front of them, facing where the blow came from, and explodes.
+      if (entry.kind === "effect" && entry.text === "is covered by their pillar" && sheets) {
+        const at = standing(entry.actor);
+        if (at) sheets.playRampart(at, lastOrigin ?? { x: at.x, y: at.y + 1 }, lastLanding);
+        continue;
+      }
       // A beat of Fulgor's drums: lightning on the cell, in its element.
       if (entry.kind === "effect" && entry.spellId && entry.target && sheets) {
         const element = entry.infusion ?? spells[String(entry.spellId)]?.element ?? "Air";
@@ -268,6 +282,8 @@ export const SpellFXLayer: React.FC<SpellFXLayerProps> = ({
       const drawn = sheets && manifest?.spells[String(entry.spellId)];
       if (!sheets || !drawn) {
         fx.play(event);
+        lastOrigin = event.via ?? event.origin;
+        lastLanding = 300;
         continue;
       }
       // The grimoire's sheets play the cast, from start to finish. It leaves
@@ -287,7 +303,8 @@ export const SpellFXLayer: React.FC<SpellFXLayerProps> = ({
         };
         keys = legendImpact(event.element);
       }
-      sheets.play({
+      lastOrigin = event.via ?? event.origin;
+      lastLanding = sheets.play({
         spell: { ...drawn, fx: keys.filter((key) => !LASTING_SHEETS.has(key)) },
         origin: event.origin,
         via: event.via,

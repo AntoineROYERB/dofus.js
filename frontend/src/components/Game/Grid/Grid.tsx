@@ -109,7 +109,13 @@ export const Grid: React.FC<GridProps> = ({
   const myElement = kitOf(players?.[userId]?.character.loadout, content)?.element;
   const rawSpell =
     selectedSpellId === null ? undefined : latestGameState?.spells?.[String(selectedSpellId)];
-  const selectedSpell = rawSpell && infused(rawSpell, myElement);
+  // Kept the same object between renders: an infused spell is a fresh copy,
+  // and everything below that is worked out from it would redo itself (and
+  // set state from it) on every render.
+  const selectedSpell = React.useMemo(
+    () => rawSpell && infused(rawSpell, myElement),
+    [rawSpell, myElement]
+  );
   const currentPlayer = players?.[userId];
   const movementPoints = currentPlayer?.character.movementPoints;
   const characterPosition = currentPlayer?.character.position;

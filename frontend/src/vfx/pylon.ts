@@ -290,8 +290,9 @@ export const drawPylonCharge = (
 };
 
 /**
- * What a pylon has left, over its orb: shown once it has been hit, so a
- * whole pylon stays a clean silhouette.
+ * What a pylon has left, over its orb — or a pillar, `lift` grid pixels over
+ * its cell: shown once it has been hit, so a whole one stays a clean
+ * silhouette.
  */
 export const drawPylonHealth = (
   ctx: CanvasRenderingContext2D,
@@ -300,13 +301,14 @@ export const drawPylonHealth = (
   u: number,
   health: number,
   max: number,
-  colour: string
+  colour: string,
+  lift = ORB + 9
 ) => {
   if (health >= max) return;
   const { row } = painter(ctx, x, y, u);
   const w = 14;
   const left = -w / 2;
-  const top = -ORB - 9;
+  const top = -lift;
   ctx.save();
   row(left - 1, top - 1, w + 2, C.stoneO);
   row(left - 1, top, w + 2, C.stoneO);
@@ -326,7 +328,9 @@ export const drawPylonShatter = (
   x: number,
   y: number,
   u: number,
-  v: number
+  v: number,
+  /** A pillar crumbling: stone rather than copper, and no charge let go. */
+  stone = false
 ) => {
   if (v <= 0 || v >= 1) return;
   const { px } = painter(ctx, x, y, u);
@@ -340,11 +344,20 @@ export const drawPylonShatter = (
     const dy = h0 + Math.sin(a) * speed * 0.5 * v - 30 * v + 60 * v * v;
     const ly = Math.min(dy, 2);
     ctx.globalAlpha = v < 0.7 ? 1 : (1 - v) / 0.3;
-    const c = i % 4 === 0 ? C.copperH : i % 4 === 1 ? C.copperD : i % 4 === 2 ? C.copperM : C.copper;
+    const c = stone
+      ? [C.stoneH, C.stoneO, C.stone, C.dust][i % 4]
+      : i % 4 === 0
+        ? C.copperH
+        : i % 4 === 1
+          ? C.copperD
+          : i % 4 === 2
+            ? C.copperM
+            : C.copper;
     px(dx, ly, c);
     if (i % 3 === 0) px(dx + 1, ly, c);
   }
   ctx.restore();
+  if (stone) return;
   // The charge it held, let go at once.
   drawBurst(ctx, x, y - ORB * u, u, v, 16);
   drawBurst(ctx, x, y, u, Math.min(0.99, v * 1.3), 20);

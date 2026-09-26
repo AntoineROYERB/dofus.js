@@ -252,12 +252,19 @@ func (g *Game) strikeLocked(userID string, spell types.Spell, cells []types.Posi
 	for _, cell := range cells {
 		// An enemy's pylon on a covered cell takes the hit as well; its owner's
 		// own spells go out through it and leave it alone.
-		if relay, ok := g.terrain[cell]; ok && relay.Kind == types.TerrainRelay && relay.Owner != userID {
+		// So does an enemy's pillar, which can be worn down before it is
+		// hidden behind.
+		if thing, ok := g.terrain[cell]; ok && thing.Owner != userID &&
+			(thing.Kind == types.TerrainRelay || (thing.Kind == types.TerrainPillar && thing.Health > 0)) {
 			amount := damage
 			if bonus > 0 && Distance(*caster.Position, cell) == 1 {
 				amount = amount * (100 + bonus) / 100
 			}
-			g.hitRelayLocked(cell, amount)
+			if thing.Kind == types.TerrainRelay {
+				g.hitRelayLocked(cell, amount)
+			} else {
+				g.hitPillarLocked(cell, amount)
+			}
 		}
 		id, ok := g.playerAtLocked(cell)
 		if !ok || (spareCaster && id == userID) {
@@ -292,7 +299,7 @@ func (g *Game) strikeLocked(userID string, spell types.Spell, cells []types.Posi
 		}
 		g.players[id] = hit
 
-		dealt += g.damageLocked(id, amount)
+		dealt += g.hitLocked(id, amount)
 		hits++
 		victims = append(victims, id)
 
@@ -378,7 +385,7 @@ func (g *Game) reshapeBoardLocked(userID string, spell types.Spell, target, orig
 		if g.terrain == nil {
 			g.terrain = make(map[types.Position]types.TerrainCell)
 		}
-		g.terrain[target] = types.TerrainCell{Position: target, Kind: types.TerrainPillar, Owner: userID}
+		g.terrain[target] = types.TerrainCell{Position: target, Kind: types.TerrainPillar, Owner: userID, Health: PillarHealth}
 	case types.SpecialCrater:
 		// Whoever was standing there has been thrown out of it by now, unless
 		// something stopped them; a crater is never dug under someone.

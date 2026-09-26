@@ -15,6 +15,8 @@ export const RULES = {
   relayHealth: 12,
   /** What a breaking pylon does to each of its owner's enemies beside it. */
   relayBlast: 10,
+  /** What a Stonewarden's pillar soaks up for its owner before it crumbles. */
+  pillarHealth: 15,
   /** Extra damage, in percent, water adds to lightning and storms. */
   conductBonus: 50,
 } as const;
@@ -72,7 +74,10 @@ export const TERRAIN_INFO: Record<TerrainKind, { name: string; text: string }> =
   },
   crater: { name: "Crater", text: "Nobody can walk through it." },
   fissure: { name: "Fissure", text: "Nobody can walk through it." },
-  pillar: { name: "Pillar", text: "Raised by a Stonewarden. Nothing walks through it or sees past it." },
+  pillar: {
+    name: "Cairn",
+    text: `Raised by a Stonewarden. Nothing walks through it or sees past it. Takes the blows aimed at its owner in the eight cells around it, a stone for every 3, until it has soaked up ${RULES.pillarHealth}.`,
+  },
 };
 
 export const ZONE_INFO: Record<ZoneKind, { name: string; text: string }> = {
