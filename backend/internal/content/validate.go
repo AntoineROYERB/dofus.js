@@ -41,6 +41,7 @@ var knownZones = map[string]bool{types.ZoneStorm: true, types.ZoneMaelstrom: tru
 var knownSpecials = map[string]bool{
 	types.SpecialDetonate: true, types.SpecialLeap: true, types.SpecialRelay: true,
 	types.SpecialPillar: true, types.SpecialCrater: true, types.SpecialQuake: true,
+	types.SpecialSwap: true,
 }
 
 // Specials that act on the cell they are aimed at, which therefore has to be
@@ -208,6 +209,9 @@ func (v *validator) mechanics(file, key string, s spellEntry, bounds Bounds) {
 	}
 	if specialsNeedingAnEmptyCell[s.Special] && s.Targeting != types.TargetEmpty {
 		v.add(file, field("targeting"), "the %s special acts on the cell it is aimed at, so targeting must be %q", s.Special, types.TargetEmpty)
+	}
+	if s.Special == types.SpecialSwap && s.Targeting != "" && s.Targeting != types.TargetAny {
+		v.add(file, field("targeting"), "the swap special is aimed at its caster's relay, so targeting must be %q", types.TargetAny)
 	}
 	if s.Special == types.SpecialQuake && s.Targeting != types.TargetSelf {
 		v.add(file, field("targeting"), "the quake special opens fissures around its caster, so targeting must be %q", types.TargetSelf)

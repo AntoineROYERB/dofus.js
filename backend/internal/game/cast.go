@@ -60,8 +60,18 @@ func (g *Game) CastSpell(userID string, spellID int, target types.Position) erro
 	if spell.Targeting == types.TargetEmpty && !g.freeLocked(target) {
 		return ErrCellNotFree
 	}
-	if spell.Special == types.SpecialPillar && !g.staysConnectedLocked(target) {
+	if (spell.Special == types.SpecialPillar || spell.Special == types.SpecialRelay) && !g.staysConnectedLocked(target) {
 		return ErrWouldWallIn
+	}
+	if spell.Special == types.SpecialSwap {
+		// Aimed at the pylon itself, wherever it stands.
+		relay, ok := g.relayOfLocked(userID)
+		if !ok {
+			return ErrNoRelay
+		}
+		if target != relay {
+			return ErrNotYourRelay
+		}
 	}
 	g.recordLocked(userID, CmdCast, castPayload{SpellID: spellID, Target: target})
 
@@ -122,7 +132,7 @@ func (g *Game) CastSpell(userID string, spellID int, target types.Position) erro
 		mpChange += spell.GrantMP
 	}
 
-	g.reshapeBoardLocked(userID, spell, target, origin, affected, victims)
+	g.reshapeBoardLocked(userID, spell, target, origin, via != nil, affected, victims)
 
 	castOrigin, castTarget := standing, target
 	entry := types.LogEntry{
@@ -210,6 +220,15 @@ func (g *Game) strikeLocked(userID string, spell types.Spell, cells []types.Posi
 	finisher, hasFinisher := g.runeOf(caster, types.RuneFinisher)
 
 	for _, cell := range cells {
+		// An enemy's pylon on a covered cell takes the hit as well; its owner's
+		// own spells go out through it and leave it alone.
+		if relay, ok := g.terrain[cell]; ok && relay.Kind == types.TerrainRelay && relay.Owner != userID {
+			amount := damage
+			if bonus > 0 && Distance(*caster.Position, cell) == 1 {
+				amount = amount * (100 + bonus) / 100
+			}
+			g.hitRelayLocked(cell, amount)
+		}
 		id, ok := g.playerAtLocked(cell)
 		if !ok || (spareCaster && id == userID) {
 			continue
@@ -267,7 +286,10 @@ func (g *Game) strikeLocked(userID string, spell types.Spell, cells []types.Posi
 // reshapeBoardLocked is everything a cast changes about the board once its
 // damage is dealt: the terrain it spreads, the characters it moves, the
 // ground it digs or raises, and the zone it leaves.
-func (g *Game) reshapeBoardLocked(userID string, spell types.Spell, target, origin types.Position, cells []types.Position, victims []string) {
+//
+// A push that goes out through a relay draws its victims towards the relay
+// instead: the pylon calls the wind in, and whoever it carries slams into it.
+func (g *Game) reshapeBoardLocked(userID string, spell types.Spell, target, origin types.Position, relayed bool, cells []types.Position, victims []string) {
 	if spell.Terrain != "" {
 		for _, cell := range cells {
 			if spell.Special == types.SpecialCrater && cell == target {
@@ -284,7 +306,9 @@ func (g *Game) reshapeBoardLocked(userID string, spell types.Spell, target, orig
 				continue
 			}
 			at := *hit.Character.Position
-			if spell.Push > 0 {
+			if spell.Push > 0 && relayed {
+				g.shoveLocked(id, stepTowards(at, origin), spell.Push, nil)
+			} else if spell.Push > 0 {
 				g.shoveLocked(id, stepTowards(origin, at), spell.Push, nil)
 			} else {
 				caster := *g.players[userID].Character.Position
@@ -298,7 +322,16 @@ func (g *Game) reshapeBoardLocked(userID string, spell types.Spell, target, orig
 		if old, ok := g.relayOfLocked(userID); ok {
 			delete(g.terrain, old)
 		}
-		g.placeTerrainLocked(target, types.TerrainRelay, userID)
+		g.setRelayLocked(target, userID, RelayHealth)
+	case types.SpecialSwap:
+		if relay, ok := g.relayOfLocked(userID); ok {
+			standing := *g.players[userID].Character.Position
+			cell := g.terrain[relay]
+			delete(g.terrain, relay)
+			g.setPositionLocked(userID, relay)
+			g.setRelayLocked(standing, userID, cell.Health)
+			g.arriveLocked(userID, types.Position{})
+		}
 	case types.SpecialPillar:
 		if g.obstacles == nil {
 			g.obstacles = make(map[types.Position]bool)

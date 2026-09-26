@@ -33,11 +33,24 @@ const (
 	// spell and to a storm.
 	ConductBonus = 50
 	// RelayBonus is the extra damage, in percent, a spell deals when it goes
-	// out through its caster's relay: the wind has had room to build.
-	RelayBonus = 30
+	// out through its caster's relay: the wind has had room to build. Air
+	// spells are weak without it, and this is what makes up for it.
+	RelayBonus = 75
+	// RelayHealth is what a relay takes before it breaks: two blows of a
+	// character driven into it, or one strong spell and one blow.
+	RelayHealth = 12
+	// RelayBlast is what a breaking relay does to each of its owner's enemies
+	// standing next to it.
+	RelayBlast = 10
+	// RelayRecharge is the cooldown a broken relay puts on the spell that sets
+	// it: counted down at the start of its owner's turns, so the owner goes two
+	// turns without one.
+	RelayRecharge = 3
 )
 
 var (
+	ErrNoRelay          = errors.New("you have no pylon out")
+	ErrNotYourRelay     = errors.New("aim at your own pylon")
 	ErrUltimateNotReady = errors.New("ultimates unlock on turn 2")
 	ErrUltimateSpent    = errors.New("that ultimate has already been used this fight")
 	ErrCellNotFree      = errors.New("that spell needs a free cell")
@@ -50,7 +63,13 @@ var (
 var quakeFissures = []types.Position{{X: 2, Y: 0}, {X: -2, Y: 0}, {X: 0, Y: 2}, {X: 0, Y: -2}}
 
 func isSolidTerrain(kind string) bool {
-	return kind == types.TerrainCrater || kind == types.TerrainFissure
+	return kind == types.TerrainCrater || kind == types.TerrainFissure || kind == types.TerrainRelay
+}
+
+// terrainBlocksSight reports whether what a spell left on a cell hides what is
+// behind it: smoke, and a relay's pylon.
+func terrainBlocksSight(kind string) bool {
+	return kind == types.TerrainSmoke || kind == types.TerrainRelay
 }
 
 // solidLocked reports whether nobody can stand on or walk through a cell,
@@ -118,6 +137,57 @@ func (g *Game) relayOfLocked(owner string) (types.Position, bool) {
 		}
 	}
 	return types.Position{}, false
+}
+
+// setRelayLocked stands a player's relay on a cell, whole.
+func (g *Game) setRelayLocked(pos types.Position, owner string, health int) {
+	if g.terrain == nil {
+		g.terrain = make(map[types.Position]types.TerrainCell)
+	}
+	g.terrain[pos] = types.TerrainCell{Position: pos, Kind: types.TerrainRelay, Owner: owner, Health: health}
+}
+
+// hitRelayLocked takes health off the relay on a cell, and breaks it once it
+// has none left.
+func (g *Game) hitRelayLocked(pos types.Position, amount int) {
+	cell, ok := g.terrain[pos]
+	if !ok || cell.Kind != types.TerrainRelay || amount <= 0 {
+		return
+	}
+	cell.Health -= amount
+	if cell.Health > 0 {
+		g.terrain[pos] = cell
+		return
+	}
+	g.breakRelayLocked(pos)
+}
+
+// breakRelayLocked brings a relay down. It goes off as it breaks, hurting
+// every one of its owner's enemies next to it, and its owner cannot set
+// another for a while.
+func (g *Game) breakRelayLocked(pos types.Position) {
+	cell := g.terrain[pos]
+	delete(g.terrain, pos)
+	owner, ok := g.players[cell.Owner]
+	if !ok {
+		return
+	}
+	g.effectLogLocked(cell.Owner, "loses their pylon", 0)
+	for key, st := range owner.Spells {
+		if spell, ok := g.spells[key]; ok && spell.Special == types.SpecialRelay {
+			st.CooldownLeft = max(st.CooldownLeft, RelayRecharge)
+			owner.Spells[key] = st
+		}
+	}
+	g.players[cell.Owner] = owner
+	for _, n := range Neighbours(pos) {
+		id, ok := g.playerAtLocked(n)
+		if !ok || id == cell.Owner || !g.players[id].Character.IsAlive {
+			continue
+		}
+		dealt := g.damageLocked(id, RelayBlast)
+		g.effectLogLocked(id, "is caught in the pylon's blast", dealt)
+	}
 }
 
 // staysConnectedLocked reports whether every free cell of the board could
@@ -317,7 +387,12 @@ func (g *Game) shoveLocked(id string, dir types.Position, n int, pullTo *types.P
 		if !g.freeLocked(next) {
 			if pullTo == nil {
 				dealt := g.damageLocked(id, CollisionDamage)
-				g.effectLogLocked(id, "slams into something", dealt)
+				if g.terrainKindLocked(next) == types.TerrainRelay {
+					g.effectLogLocked(id, "slams into a pylon", dealt)
+					g.hitRelayLocked(next, CollisionDamage)
+				} else {
+					g.effectLogLocked(id, "slams into something", dealt)
+				}
 			}
 			break
 		}

@@ -98,7 +98,9 @@ export type SpellSpecial =
   | "relay"
   | "pillar"
   | "crater"
-  | "quake";
+  | "quake"
+  /** The caster and their relay change places. */
+  | "swap";
 
 /** Terrain a spell spreads over its area. */
 export type SpreadTerrain = "fire" | "smoke" | "water" | "ice" | "trap";
@@ -117,6 +119,8 @@ export type TerrainCell = {
   kind: TerrainKind;
   /** Who made it: water heals only its owner, traps never catch theirs. */
   owner: string;
+  /** What a relay's pylon has left before it breaks. */
+  health?: number;
 };
 
 export type ZoneKind = "storm" | "maelstrom";

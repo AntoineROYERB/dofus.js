@@ -18,15 +18,6 @@ export const ZONE_SHEETS: Record<string, string> = {
   storm: "air/tempest",
   maelstrom: "water/maelstrom",
 };
-/**
- * A relay is a lightning rod: the air circle, small, with a bolt crackling
- * down onto it every few seconds. Its circle is every air spell's own, so it
- * is not one of the sheets a cast leaves out.
- */
-export const RELAY_SHEET = "air/sigil";
-export const RELAY_STRIKE = "air/lightning";
-/** Seconds between two crackles on a relay. */
-export const RELAY_CRACKLE = 2.8;
 /** A pillar comes up once, in the grimoire's sheet, and stays on its last frame. */
 export const PILLAR_SHEET = "earth/pillar";
 /**

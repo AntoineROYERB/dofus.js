@@ -320,7 +320,11 @@ func TestMalformedSpellsAreRefused(t *testing.T) {
 		}, `spells["fire"]`, "positive integer"},
 		{"no role", func(s map[string]any) { spell(s, "1")["role"] = "" }, `spells["1"].role`, "must not be empty"},
 		{"unknown targeting", func(s map[string]any) { spell(s, "1")["targeting"] = "ally" }, `spells["1"].targeting`, `unknown targeting "ally"`},
-		{"self spell with a range", func(s map[string]any) { spell(s, "9")["range"] = 3 }, `spells["9"].range`, "must be 0"},
+		{"self spell with a range", func(s map[string]any) { spell(s, "20")["range"] = 3 }, `spells["20"].range`, "must be 0"},
+		{"swap not aimed at a cell", func(s map[string]any) {
+			spell(s, "9")["targeting"] = "self"
+			spell(s, "9")["range"] = 0
+		}, `spells["9"].targeting`, "must be \"any\""},
 		{"unknown terrain", func(s map[string]any) { spell(s, "2")["terrain"] = "lava" }, `spells["2"].terrain`, `unknown terrain "lava"`},
 		{"unknown special", func(s map[string]any) { spell(s, "3")["special"] = "teleport" }, `spells["3"].special`, `unknown special "teleport"`},
 		{"leap aimed at any cell", func(s map[string]any) { spell(s, "16")["targeting"] = "any" }, `spells["16"].targeting`, "must be \"empty\""},

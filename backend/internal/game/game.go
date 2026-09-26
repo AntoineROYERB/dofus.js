@@ -870,7 +870,7 @@ func (g *Game) Move(userID string, to types.Position) error {
 // blocksSightLocked reports whether a cell stops a line of sight: cover,
 // smoke, or a living character standing in the way.
 func (g *Game) blocksSightLocked(pos types.Position) bool {
-	if g.obstacles[pos] || g.terrainKindLocked(pos) == types.TerrainSmoke || g.groundBlocksSightLocked(pos) {
+	if g.obstacles[pos] || terrainBlocksSight(g.terrainKindLocked(pos)) || g.groundBlocksSightLocked(pos) {
 		return true
 	}
 	id, ok := g.playerAtLocked(pos)

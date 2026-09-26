@@ -171,9 +171,9 @@ func (b botBoard) blocked(pos types.Position) bool {
 	return b.occupied(pos)
 }
 
-// blocksSight is the same, with smoke instead of solid ground.
+// blocksSight is the same, with smoke and pylons instead of solid ground.
 func (b botBoard) blocksSight(pos types.Position) bool {
-	if b.obstacles[pos] || b.terrain[pos].Kind == types.TerrainSmoke || b.groundRule(pos, GroundRule.BlocksSight) {
+	if b.obstacles[pos] || terrainBlocksSight(b.terrain[pos].Kind) || b.groundRule(pos, GroundRule.BlocksSight) {
 		return true
 	}
 	return b.occupied(pos)

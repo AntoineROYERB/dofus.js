@@ -153,7 +153,9 @@ export const SpellTooltip: React.FC<SpellTooltipProps> = ({
         <Badge icon="📏">
           {spell.targeting === "self"
             ? "self"
-            : spell.targeting === "empty"
+            : spell.special === "swap"
+              ? "your pylon"
+              : spell.targeting === "empty"
               ? `free cell ≤ ${spell.range}`
               : spell.range}
         </Badge>
@@ -170,7 +172,10 @@ export const SpellTooltip: React.FC<SpellTooltipProps> = ({
         {!spell.ultimate && spell.cooldown === 0 && spell.maxCastsPerTurn > 0 && (
           <Badge icon="🔁">{spell.maxCastsPerTurn}/turn</Badge>
         )}
-        {spell.range > 0 && spell.targeting !== "empty" && spell.needsLineOfSight === false && (
+        {spell.range > 0 &&
+          spell.targeting !== "empty" &&
+          spell.special !== "swap" &&
+          spell.needsLineOfSight === false && (
           <Badge icon="👁">ignores line of sight</Badge>
         )}
         {ELEMENT_ICON[spell.element] && (

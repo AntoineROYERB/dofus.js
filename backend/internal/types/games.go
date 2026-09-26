@@ -160,6 +160,9 @@ type TerrainCell struct {
 	// everyone else, a trap never catches the one who set it, and a relay only
 	// carries its owner's spells.
 	Owner string `json:"owner"`
+	// Health is what a relay has left before it breaks. Absent on every
+	// other kind.
+	Health int `json:"health,omitempty"`
 }
 
 // Terrain kinds.
@@ -169,7 +172,7 @@ const (
 	TerrainWater   = "water"   // slows enemies, heals its owner; puts out fire
 	TerrainIce     = "ice"     // whoever steps on it slides to the far side
 	TerrainTrap    = "trap"    // springs on the first enemy to step on it
-	TerrainRelay   = "relay"   // its owner's air spells can be cast from here
+	TerrainRelay   = "relay"   // a pylon: its owner's air spells go out from it; solid, hides what is behind it, breaks
 	TerrainCrater  = "crater"  // nobody can walk through it
 	TerrainFissure = "fissure" // nobody can walk through it
 	// TerrainPillar marks a raised pillar. The pillar itself is an obstacle;
@@ -298,6 +301,7 @@ const (
 	SpecialRelay    = "relay"    // sets the caster's relay on the target cell
 	SpecialPillar   = "pillar"   // raises a permanent obstacle on the target cell
 	SpecialCrater   = "crater"   // digs a crater where the spell lands
+	SpecialSwap     = "swap"     // aimed at the caster's relay: the two change places
 	SpecialQuake    = "quake"    // opens fissures around the caster
 )
 

@@ -124,6 +124,10 @@ export function castOrigin(
   if (spell.targeting === "self") {
     return cell.x === caster.x && cell.y === caster.y ? caster : null;
   }
+  // Transfer is aimed at your own pylon, wherever it stands, and nowhere else.
+  if (spell.special === "swap") {
+    return relay && cell.x === relay.x && cell.y === relay.y ? caster : null;
+  }
   const reaches = (from: Position) =>
     distance(from, cell) <= spell.range &&
     (!spell.needsLineOfSight || hasLineOfSight(from, cell, sightBlocked));
@@ -189,6 +193,7 @@ const shapes: Record<Spell["areaOfEffect"], string | null> = {
 export const spec = (spell: Spell): string => {
   const parts = [`${spell.APCost} AP`];
   if (spell.targeting === "self") parts.push("on yourself");
+  else if (spell.special === "swap") parts.push("on your pylon");
   else if (spell.targeting === "empty") parts.push(`a free cell within ${spell.range}`);
   else parts.push(`range ${spell.range}`);
   if (spell.relayed) parts.push("or from your relay");
@@ -213,7 +218,9 @@ export const unavailableReason = (
   spell: Spell,
   state: SpellState | undefined,
   actionPoints: number,
-  turnNumber: number
+  turnNumber: number,
+  /** Whether the caster has a pylon out; unknown counts as yes. */
+  hasRelay = true
 ): string | null => {
   if (spell.ultimate && state?.spent) return "already used this fight";
   if (spell.ultimate && turnNumber < RULES.ultimateFromTurn) {
@@ -232,6 +239,7 @@ export const unavailableReason = (
     return "no casts left this turn";
   }
   if (actionPoints < spell.APCost) return "not enough action points";
+  if (spell.special === "swap" && !hasRelay) return "no pylon out";
   return null;
 };
 
@@ -245,14 +253,15 @@ export const spellMechanics = (spell: Spell): string[] => {
   if (spell.special === "crater") out.push("digs a crater");
   if (spell.special === "quake") out.push("opens fissures");
   if (spell.special === "pillar") out.push("raises a pillar");
-  if (spell.special === "relay") out.push("sets your relay");
+  if (spell.special === "relay") out.push("raises your pylon");
+  if (spell.special === "swap") out.push("swap with your pylon");
   if (spell.special === "leap") out.push("leap");
   if (spell.special === "detonate") out.push("sets burns off");
   if (spell.zone) {
     out.push(`${ZONE_INFO[spell.zone.kind].name.toLowerCase()} · ${spell.zone.duration} turns`);
   }
   if (spell.grantMP > 0) out.push(`+${spell.grantMP} MP now`);
-  if (spell.relayed) out.push(`+${RULES.relayBonus}% through your relay`);
+  if (spell.relayed) out.push(`+${RULES.relayBonus}% through your pylon`);
   if (spell.conducts) out.push(`+${RULES.conductBonus}% in water`);
   return out;
 };
@@ -286,7 +295,10 @@ export const spellSummary = (spell: Spell): string => {
       out.push("leap");
       break;
     case "relay":
-      out.push("sets relay");
+      out.push("raises pylon");
+      break;
+    case "swap":
+      out.push("swap");
       break;
     case "pillar":
       out.push("wall");

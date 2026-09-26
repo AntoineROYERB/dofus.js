@@ -14,6 +14,7 @@ const signatureOf = (spell: Spell): Signature | undefined => {
   if (spell.element === "Water" && spell.push > 0) return "cannon";
   if (spell.element === "Earth" && spell.range === 1) return "hammer";
   if (spell.special === "relay") return "relay";
+  if (spell.special === "swap") return "swap";
   if (spell.special === "quake") return "quake";
   if (spell.special === "crater") return "meteor";
   if (spell.zone?.kind === "storm") return "tempest";
@@ -225,6 +226,7 @@ export const SpellFXLayer: React.FC<SpellFXLayerProps> = ({
         via: event.via,
         target: event.target,
         area: event.area ?? [event.target],
+        swap: event.signature === "swap",
       });
     }
     seenSeq.current = Math.max(since, highest);

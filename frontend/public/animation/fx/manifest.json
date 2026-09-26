@@ -567,8 +567,7 @@
       "name": "Paratonnerre",
       "hero": "AttackRanged",
       "fx": [
-        "air/sigil",
-        "air/lightning"
+        "air/sigil"
       ]
     },
     "7": {
@@ -588,11 +587,10 @@
       ]
     },
     "9": {
-      "name": "Vent arrière",
+      "name": "Transfert",
       "hero": null,
       "fx": [
-        "air/sigil",
-        "air/tailwind"
+        "air/sigil"
       ]
     },
     "10": {

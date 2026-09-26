@@ -18,7 +18,7 @@ const (
 	spellUpdraft      = 6
 	spellLightning    = 7
 	spellGale         = 8
-	spellTailwind     = 9
+	spellTransfer     = 9
 	spellTempest      = 10
 	spellHydroCannon  = 11
 	spellBubbleTrap   = 12
@@ -395,11 +395,125 @@ func TestStonewardenIsHardToThrow(t *testing.T) {
 	}
 }
 
-func TestTailwindGivesMovementRightAway(t *testing.T) {
-	g := duel(t, types.Position{}, types.Position{Y: 3})
-	cast(t, g, "a", spellTailwind, types.Position{X: 5, Y: 0}) // the cell clicked does not matter
-	if mp := character(g, "a").MovementPoints; mp != StartingMovementPoints+3 {
-		t.Errorf("movement points = %d, want %d", mp, StartingMovementPoints+3)
+func relayHealth(g *Game, at types.Position) int {
+	for _, cell := range g.Snapshot().Terrain {
+		if cell.Position == at && cell.Kind == types.TerrainRelay {
+			return cell.Health
+		}
+	}
+	return 0
+}
+
+func TestAPylonBlocksTheWayAndTheView(t *testing.T) {
+	g := duel(t, types.Position{}, types.Position{Y: 4})
+	cast(t, g, "a", spellUpdraft, types.Position{Y: 2})
+	if err := g.CastSpell("a", spellKindle, types.Position{Y: 4}); !errors.Is(err, ErrNoLineOfSight) {
+		t.Errorf("Kindle past the pylon = %v, want ErrNoLineOfSight", err)
+	}
+	mustEndTurn(t, g)
+	if err := g.Move("b", types.Position{Y: 2}); err == nil {
+		t.Errorf("b walked onto the pylon")
+	}
+}
+
+func TestEnemySpellsWearAPylonDown(t *testing.T) {
+	g := duel(t, types.Position{}, types.Position{X: 2, Y: 3})
+	cast(t, g, "a", spellUpdraft, types.Position{X: 2})
+	if hp := relayHealth(g, types.Position{X: 2}); hp != RelayHealth {
+		t.Fatalf("a new pylon has %d health, want %d", hp, RelayHealth)
+	}
+	mustEndTurn(t, g)
+
+	cast(t, g, "b", spellLightning, types.Position{X: 2})
+	if hp, want := relayHealth(g, types.Position{X: 2}), RelayHealth-damageOf(g, spellLightning); hp != want {
+		t.Fatalf("pylon health = %d, want %d", hp, want)
+	}
+	cast(t, g, "b", spellLightning, types.Position{X: 2})
+	if kind := terrainAt(g, types.Position{X: 2}); kind != "" {
+		t.Fatalf("terrain = %q, want the pylon broken", kind)
+	}
+	if hp := hp(g, "a"); hp != StartingHealth {
+		t.Errorf("a's health = %d: the blast only hurts its owner's enemies", hp)
+	}
+
+	// Its owner goes two turns without setting another.
+	mustEndTurn(t, g)
+	if err := g.CastSpell("a", spellUpdraft, types.Position{X: 2}); !errors.Is(err, ErrSpellOnCooldown) {
+		t.Errorf("Updraft the turn after = %v, want ErrSpellOnCooldown", err)
+	}
+	mustEndTurn(t, g)
+	mustEndTurn(t, g)
+	if err := g.CastSpell("a", spellUpdraft, types.Position{X: 2}); !errors.Is(err, ErrSpellOnCooldown) {
+		t.Errorf("Updraft two turns after = %v, want ErrSpellOnCooldown", err)
+	}
+	mustEndTurn(t, g)
+	mustEndTurn(t, g)
+	cast(t, g, "a", spellUpdraft, types.Position{X: 2})
+}
+
+func TestABreakingPylonHurtsTheEnemiesBesideIt(t *testing.T) {
+	g := duel(t, types.Position{}, types.Position{X: 3})
+	cast(t, g, "a", spellUpdraft, types.Position{X: 2})
+	mustEndTurn(t, g)
+	cast(t, g, "b", spellHammer, types.Position{X: 2})
+	if kind := terrainAt(g, types.Position{X: 2}); kind != "" {
+		t.Fatalf("terrain = %q, want the pylon broken by the hammer", kind)
+	}
+	if hp := hp(g, "b"); hp != StartingHealth-RelayBlast {
+		t.Errorf("b's health = %d, want %d: caught in the blast", hp, StartingHealth-RelayBlast)
+	}
+}
+
+func TestGaleThroughAPylonDrawsTheTargetIntoIt(t *testing.T) {
+	g := duel(t, types.Position{}, types.Position{Y: 5})
+	cast(t, g, "a", spellUpdraft, types.Position{Y: 3})
+	cast(t, g, "a", spellGale, types.Position{Y: 5})
+	if at := pos(g, "b"); at != (types.Position{Y: 4}) {
+		t.Errorf("b was drawn to %+v, want (0,4) against the pylon", at)
+	}
+	gale := damageOf(g, spellGale) * (100 + RelayBonus) / 100
+	if hp, want := hp(g, "b"), StartingHealth-gale-CollisionDamage; hp != want {
+		t.Errorf("b's health = %d, want %d: the relayed gale and the slam", hp, want)
+	}
+	if hp, want := relayHealth(g, types.Position{Y: 3}), RelayHealth-CollisionDamage; hp != want {
+		t.Errorf("pylon health = %d, want %d: the slam wears it too", hp, want)
+	}
+
+	// A slam that breaks the pylon sets it off on whoever slammed into it.
+	g = duel(t, types.Position{}, types.Position{Y: 5})
+	cast(t, g, "a", spellUpdraft, types.Position{Y: 3})
+	g.mu.Lock()
+	cell := g.terrain[types.Position{Y: 3}]
+	cell.Health = CollisionDamage
+	g.terrain[types.Position{Y: 3}] = cell
+	g.mu.Unlock()
+	cast(t, g, "a", spellGale, types.Position{Y: 5})
+	if kind := terrainAt(g, types.Position{Y: 3}); kind != "" {
+		t.Fatalf("terrain = %q, want the pylon broken", kind)
+	}
+	if hp, want := hp(g, "b"), StartingHealth-gale-CollisionDamage-RelayBlast; hp != want {
+		t.Errorf("b's health = %d, want %d with the blast", hp, want)
+	}
+}
+
+func TestTransferSwapsYouAndYourPylon(t *testing.T) {
+	g := duel(t, types.Position{}, types.Position{Y: 4})
+	if err := g.CastSpell("a", spellTransfer, types.Position{X: 3}); !errors.Is(err, ErrNoRelay) {
+		t.Fatalf("Transfer with no pylon = %v, want ErrNoRelay", err)
+	}
+	cast(t, g, "a", spellUpdraft, types.Position{X: 3})
+	if err := g.CastSpell("a", spellTransfer, types.Position{X: 2}); !errors.Is(err, ErrNotYourRelay) {
+		t.Fatalf("Transfer aimed beside the pylon = %v, want ErrNotYourRelay", err)
+	}
+	cast(t, g, "a", spellTransfer, types.Position{X: 3})
+	if at := pos(g, "a"); at != (types.Position{X: 3}) {
+		t.Errorf("a is at %+v, want on the pylon's cell", at)
+	}
+	if kind := terrainAt(g, types.Position{}); kind != types.TerrainRelay {
+		t.Errorf("terrain where a stood = %q, want the pylon", kind)
+	}
+	if hp := relayHealth(g, types.Position{}); hp != RelayHealth {
+		t.Errorf("pylon health = %d, want %d: moving it does not mend or hurt it", hp, RelayHealth)
 	}
 }
 

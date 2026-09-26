@@ -2,7 +2,7 @@ import { Position } from "../types/game";
 import { isoToScreen } from "../utils/isoUtils";
 import { FX_ROOT, FxManifest, FxSheet, FxSpell, sheetOf } from "../utils/fxManifest";
 import { Geometry } from "./spellFx";
-import { RELAY_STRIKE } from "./lastingSheets";
+import { drawBolt, drawBurst, drawPylonCharge, gridPixel, pylonTop } from "./pylon";
 
 /** The sheets are drawn at twelve frames a second, as in the grimoire. */
 const FPS = 12;
@@ -37,10 +37,29 @@ export type SheetCast = {
    * first, as lightning does a rod, then bounces from it to its target.
    */
   via?: Position;
+  /** The caster traded places with their pylon: `target` is where they went. */
+  swap?: boolean;
 };
 
-/** When the relay's bolt has struck, in ms from its start, and the spell leaves. */
-const STRIKE_LANDS = 200;
+/*
+ * A spell sent through Sef's relay, from the sky to the ground: lightning
+ * falls on the pylon's orb, the charge runs down its mast, then an arc leaps
+ * from the orb to the target. How long each takes, in ms.
+ */
+const RELAY_STRIKE = 260;
+const RELAY_CHARGE = 340;
+const RELAY_ARC = 300;
+const RELAY_BURST = 420;
+/** How high above the pylon the lightning starts, in grid pixels. */
+const SKY = 150;
+
+/** Something drawn by code rather than from a sheet, for a while. */
+type Drawing = {
+  born: number;
+  dur: number;
+  /** `t` is the time since it started, in ms; `v` the same from 0 to 1. */
+  draw: (ctx: CanvasRenderingContext2D, t: number, v: number) => void;
+};
 
 /**
  * Plays the armour grimoire's spell sheets on the board, over the procedural
@@ -54,6 +73,7 @@ const STRIKE_LANDS = 200;
 export class SheetFx {
   private images = new Map<string, HTMLImageElement>();
   private sprites: Sprite[] = [];
+  private drawings: Drawing[] = [];
   private geometry: Geometry = { tileSize: { width: 0, height: 0 }, centerX: 0, centerY: 0 };
   /** Sheet pixels to screen pixels; one tile's width is 256 unless told. */
   private spriteScale: number | null = null;
@@ -115,39 +135,114 @@ export class SheetFx {
    * moment its marks belong on the paper.
    */
   play(cast: SheetCast, now = performance.now()): number {
+    if (cast.swap) return this.playSwap(cast, now);
     const via = cast.via;
     if (!via || (via.x === cast.origin.x && via.y === cast.origin.y)) {
       return this.playFrom(cast, now, true);
     }
-    // The caster's circle, then a bolt thrown to the relay: it strikes the
-    // relay like a lightning rod, and the spell goes on from there.
+    // The caster's circle, then the lightning Sef calls down on the relay.
     const sigil = cast.spell.fx.find((k) => k.endsWith("/sigil"));
     const sigilSheet = sigil && sheetOf(this.manifest, sigil);
     if (sigilSheet) this.add(sigilSheet, now, LOOP_FOR, cast.origin, cast.origin);
+    const target = cast.target;
+    // Measured when drawn, so a resize mid-cast keeps the bolt on its cells.
+    const u = () => gridPixel(this.geometry.tileSize.width);
+    const top = () => {
+      const c = this.screen(via);
+      return pylonTop(c.x, c.y, u());
+    };
+    const chest = (): [number, number] => {
+      const c = this.screen(target);
+      return [c.x, c.y - 16 * u()];
+    };
+
     let at = SIGIL_LEAD;
-    const element = (sigil ?? cast.spell.fx[0] ?? "air/").split("/")[0];
-    const bolt = sheetOf(this.manifest, `${element}/projectile`);
-    if (bolt) {
-      const cells = Math.abs(via.x - cast.origin.x) + Math.abs(via.y - cast.origin.y);
-      const flight = Math.max(MIN_FLIGHT, (cells / CELLS_PER_SECOND) * 1000);
-      this.add(bolt, now + at, flight, cast.origin, via, this.rowFacing(bolt, cast.origin, via));
-      at += flight;
+    this.drawings.push({
+      born: now + at,
+      dur: RELAY_STRIKE,
+      draw: (ctx, t) => {
+        const [x, y] = top();
+        drawBolt(ctx, [x + 6 * u(), y - SKY * u()], [x, y], u(), Math.floor(t / 50), 1, 4.5);
+      },
+    });
+    this.drawings.push({
+      born: now + at + RELAY_STRIKE * 0.8,
+      dur: RELAY_BURST,
+      draw: (ctx, _t, v) => {
+        const [x, y] = top();
+        drawBurst(ctx, x, y, u(), v, 10);
+      },
+    });
+    at += RELAY_STRIKE;
+
+    this.drawings.push({
+      born: now + at,
+      dur: RELAY_CHARGE,
+      draw: (ctx, _t, v) => {
+        const c = this.screen(via);
+        drawPylonCharge(ctx, c.x, c.y, u(), v);
+      },
+    });
+    at += RELAY_CHARGE;
+
+    if (via.x !== target.x || via.y !== target.y) {
+      this.drawings.push({
+        born: now + at,
+        dur: RELAY_ARC,
+        draw: (ctx, t) => drawBolt(ctx, top(), chest(), u(), 100 + Math.floor(t / 50)),
+      });
+      this.drawings.push({
+        born: now + at + RELAY_ARC * 0.85,
+        dur: RELAY_BURST,
+        draw: (ctx, _t, v) => {
+          const [x, y] = chest();
+          drawBurst(ctx, x, y, u(), v, 12);
+        },
+      });
+      at += RELAY_ARC;
     }
-    const strike = sheetOf(this.manifest, RELAY_STRIKE);
-    if (strike) this.add(strike, now + at, (strike.frames / FPS) * 1000, via, via);
-    at += STRIKE_LANDS;
-    // The bounce: unless the spell throws something of its own, the same bolt
-    // leaves the relay for the target.
-    const throws = cast.spell.fx.some((k) => !!sheetOf(this.manifest, k)?.directions?.length);
-    const same = via.x === cast.target.x && via.y === cast.target.y;
-    if (bolt && !throws && !same) {
-      const cells = Math.abs(cast.target.x - via.x) + Math.abs(cast.target.y - via.y);
-      const flight = Math.max(MIN_FLIGHT, (cells / CELLS_PER_SECOND) * 1000);
-      this.add(bolt, now + at, flight, via, cast.target, this.rowFacing(bolt, via, cast.target));
-      at += flight;
-    }
-    const rest = { ...cast, origin: via, via: undefined };
+
+    // Then what the spell does where it lands. The arc is its lightning, so
+    // a lightning sheet falling from the sky would only say it twice.
+    const rest = {
+      ...cast,
+      origin: via,
+      via: undefined,
+      spell: { ...cast.spell, fx: cast.spell.fx.filter((k) => k !== "air/lightning") },
+    };
     return at + this.playFrom(rest, now + at, false);
+  }
+
+  /**
+   * Sef and the pylon trading places: the circle where Sef stood, then one
+   * bolt between the two cells, the way the charge would run from the orb.
+   */
+  private playSwap(cast: SheetCast, now: number): number {
+    const sigil = cast.spell.fx.find((k) => k.endsWith("/sigil"));
+    const sigilSheet = sigil && sheetOf(this.manifest, sigil);
+    if (sigilSheet) this.add(sigilSheet, now, LOOP_FOR, cast.origin, cast.origin);
+    const u = () => gridPixel(this.geometry.tileSize.width);
+    const chest = (p: Position): [number, number] => {
+      const c = this.screen(p);
+      return [c.x, c.y - 16 * u()];
+    };
+    const at = SIGIL_LEAD * 0.5;
+    this.drawings.push({
+      born: now + at,
+      dur: RELAY_ARC,
+      draw: (ctx, t) => drawBolt(ctx, chest(cast.origin), chest(cast.target), u(), 200 + Math.floor(t / 50)),
+    });
+    for (const end of [cast.origin, cast.target]) {
+      this.drawings.push({
+        born: now + at + RELAY_ARC * 0.6,
+        dur: RELAY_BURST,
+        draw: (ctx, _t, v) => {
+          const [x, y] = chest(end);
+          drawBurst(ctx, x, y, u(), v, 10);
+        },
+      });
+    }
+    return at + RELAY_ARC;
   }
 
   private playFrom(cast: SheetCast, now: number, withSigil: boolean): number {
@@ -188,10 +283,11 @@ export class SheetFx {
 
   reset() {
     this.sprites = [];
+    this.drawings = [];
   }
 
   get busy() {
-    return this.sprites.length > 0;
+    return this.sprites.length > 0 || this.drawings.length > 0;
   }
 
   /**
@@ -201,6 +297,16 @@ export class SheetFx {
   frame(now: number, ground: CanvasRenderingContext2D, air: CanvasRenderingContext2D) {
     const scale = this.spriteScale ?? this.geometry.tileSize.width / 256;
     if (scale <= 0) return;
+    for (let i = this.drawings.length - 1; i >= 0; i--) {
+      const d = this.drawings[i];
+      const t = now - d.born;
+      if (t < 0) continue;
+      if (t >= d.dur) {
+        this.drawings.splice(i, 1);
+        continue;
+      }
+      d.draw(air, t, t / d.dur);
+    }
     for (let i = this.sprites.length - 1; i >= 0; i--) {
       const s = this.sprites[i];
       const t = now - s.born;

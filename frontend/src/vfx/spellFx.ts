@@ -32,6 +32,7 @@ export type Signature =
   | "quake"
   | "leap"
   | "relay"
+  | "swap"
   | "self"
   | "cannon"
   | "hammer"
@@ -628,6 +629,7 @@ export class SpellFx {
     if (
       event.signature === "leap" ||
       event.signature === "relay" ||
+      event.signature === "swap" ||
       event.signature === "self" ||
       event.signature === "pillar"
     ) {

@@ -387,7 +387,7 @@ export const SpellArc: React.FC<SpellArcProps> = ({
             <SpellButton
               key={spell.id}
               spell={spell}
-              blocked={unavailableReason(spell, state, actionPoints, turnNumber)}
+              blocked={unavailableReason(spell, state, actionPoints, turnNumber, hasRelay)}
               locked={spell.ultimate && !state?.spent && turnNumber < RULES.ultimateFromTurn}
               spent={spell.ultimate && !!state?.spent}
               throughRelay={spell.relayed && hasRelay}
@@ -461,7 +461,8 @@ export const SpellArc: React.FC<SpellArcProps> = ({
             peek,
             player?.spells?.[String(peek.id)],
             actionPoints,
-            turnNumber
+            turnNumber,
+            hasRelay
           )}
         />
       )}

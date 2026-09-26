@@ -43,6 +43,12 @@ describe("spec", () => {
 });
 
 describe("unavailableReason", () => {
+  it("greys Transfer out while there is no pylon to trade places with", () => {
+    const transfer = makeSpell({ damage: 0, targeting: "self", special: "swap", APCost: 1 });
+    expect(unavailableReason(transfer, undefined, 6, 1, false)).toBe("no pylon out");
+    expect(unavailableReason(transfer, undefined, 6, 1, true)).toBeNull();
+  });
+
   it("is null when the spell can be cast", () => {
     expect(unavailableReason(spell(), undefined, 6, 1)).toBeNull();
   });
@@ -111,7 +117,7 @@ describe("spellSummary", () => {
     ).toBe("9 dmg · −1 MP");
     expect(
       spellSummary(makeSpell({ damage: 0, targeting: "empty", special: "relay" }))
-    ).toBe("sets relay");
+    ).toBe("raises pylon");
     expect(spellSummary(makeSpell({ damage: 5, areaOfEffect: "wall", terrain: "fire" }))).toBe(
       "5 dmg · fire"
     );
@@ -119,6 +125,16 @@ describe("spellSummary", () => {
 });
 
 describe("castOrigin", () => {
+  it("aims Transfer at your own pylon and nowhere else", () => {
+    const transfer = makeSpell({ damage: 0, range: 14, special: "swap", needsLineOfSight: false });
+    const caster = { x: 0, y: 0 };
+    const pylon = { x: 4, y: 2 };
+    const open = () => false;
+    expect(castOrigin(transfer, pylon, caster, open, pylon)).toEqual(caster);
+    expect(castOrigin(transfer, { x: 3, y: 2 }, caster, open, pylon)).toBeNull();
+    expect(castOrigin(transfer, pylon, caster, open, null)).toBeNull();
+  });
+
   const caster = { x: -4, y: 0 };
 
   it("prefers the relay whenever it reaches, for a relayed spell", () => {

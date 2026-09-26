@@ -4,13 +4,18 @@ import { TerrainCell, Zone } from "../../../types/message";
 import { isoToScreen } from "../../../utils/isoUtils";
 import { TEAR_SIDES, diamondCorners } from "../../../utils/tearSides";
 import { prefersReducedMotion } from "../../../utils/motion";
+import {
+  PYLON_RISE,
+  drawPylon,
+  drawPylonHealth,
+  drawPylonShatter,
+  gridPixel,
+} from "../../../vfx/pylon";
+import { RULES } from "../../../utils/terrain";
 import { FX_ROOT, FxManifest, FxSheet, sheetOf, useFxManifest } from "../../../utils/fxManifest";
 import {
   LASTING_SHEETS,
   PILLAR_SHEET,
-  RELAY_CRACKLE,
-  RELAY_SHEET,
-  RELAY_STRIKE,
   TERRAIN_SHEETS,
   ZONE_SHEETS,
 } from "../../../vfx/lastingSheets";
@@ -40,6 +45,9 @@ const INK_LIGHT = "#8fb4ea";
 const SOIL_DARK = "#2a1d10";
 const WIND = "#2e9e6a";
 const ENEMY = "#a3231b";
+/** How long a pylon flashes when hit, and goes off when it breaks, in ms. */
+const PYLON_HIT = 400;
+const PYLON_SHATTER = 900;
 
 const TAU = Math.PI * 2;
 
@@ -201,9 +209,7 @@ const drawSheet = (
   time: number,
   phase: number,
   /** For a sheet that plays once: how long ago it started, in ms. */
-  age?: number,
-  /** Drawn smaller or larger than a cell's own size. */
-  size = 1
+  age?: number
 ): boolean => {
   const sheet = sheetOf(manifest, key);
   if (!sheet) return false;
@@ -213,7 +219,7 @@ const drawSheet = (
     age !== undefined
       ? Math.min(sheet.frames - 1, Math.floor((age / 1000) * SHEET_FPS))
       : Math.floor(time * SHEET_FPS + phase * sheet.frames) % sheet.frames;
-  const scale = (tw / 256) * size;
+  const scale = tw / 256;
   ctx.imageSmoothingEnabled = false;
   ctx.drawImage(
     image,
@@ -260,6 +266,14 @@ export const TerrainLayer: React.FC<TerrainLayerProps> = ({
   const bornAt = useRef(new Map<string, number>());
   /** The same, for pillars, which grow once when they are raised. */
   const pillarBornAt = useRef(new Map<string, number>());
+  /** And for relays, whose pylon comes up out of the ground. */
+  const relayBornAt = useRef(new Map<string, number>());
+  /** Each player's pylon on the last frame, to see one lose health or break. */
+  const lastRelays = useRef(new Map<string, TerrainCell>());
+  /** When each pylon was last hit, for the flash that shows it. */
+  const relayHitAt = useRef(new Map<string, number>());
+  /** Pylons going off as they break, where and since when. */
+  const shatters = useRef<{ at: Position; born: number }[]>([]);
   const seeded = useRef(false);
   const state = useRef({ terrain, zones, tileSize, centerX, centerY, userId, relayActive, manifest });
   state.current = { terrain, zones, tileSize, centerX, centerY, userId, relayActive, manifest };
@@ -348,6 +362,23 @@ export const TerrainLayer: React.FC<TerrainLayerProps> = ({
         // -Infinity settles a hole immediately: it was already there.
         if (!born.has(k)) born.set(k, seeded.current && !reduced ? now : -Infinity);
       }
+
+      // A pylon that is gone while its owner has none left has broken; one
+      // that has less health than a frame ago has just been hit. Moving one
+      // is neither.
+      const relaysNow = new Map<string, TerrainCell>();
+      for (const cell of s.terrain) if (cell.kind === "relay") relaysNow.set(cell.owner, cell);
+      for (const [owner, was] of lastRelays.current) {
+        if (!relaysNow.has(owner) && !settled) shatters.current.push({ at: was.position, born: now });
+      }
+      for (const [owner, cell] of relaysNow) {
+        const was = lastRelays.current.get(owner);
+        const same = was && was.position.x === cell.position.x && was.position.y === cell.position.y;
+        if (same && (cell.health ?? 0) < (was.health ?? 0)) {
+          relayHitAt.current.set(`${cell.position.x},${cell.position.y}`, now);
+        }
+      }
+      lastRelays.current = relaysNow;
       seeded.current = true;
 
       for (const cell of s.terrain) {
@@ -462,37 +493,16 @@ export const TerrainLayer: React.FC<TerrainLayerProps> = ({
             continue;
           }
         }
-        let drawn = false;
-        if (cell.kind === "relay" && s.manifest) {
-          // A lightning rod: a small circle of wind on the ground, and now and
-          // then a bolt crackling down onto it, because it draws lightning —
-          // an air spell sent through it strikes it first, then bounces on.
-          drawn = drawSheet(g, s.manifest, RELAY_SHEET, c, tw, time, hash(x, y, 7), undefined, 0.7);
-          if (drawn) {
-            const cycle = (time + hash(x, y, 9) * RELAY_CRACKLE) % RELAY_CRACKLE;
-            const bolt = sheetOf(s.manifest, RELAY_STRIKE);
-            if (bolt && cycle < bolt.frames / SHEET_FPS) {
-              drawSheet(t, s.manifest, RELAY_STRIKE, c, tw, time, 0, cycle * 1000, 0.45);
-            }
-          }
-        } else {
-          const key = TERRAIN_SHEETS[cell.kind];
-          // Smoke hides whoever stands in it; everything else lies under them.
-          const onto = cell.kind === "smoke" ? t : g;
-          drawn = !!s.manifest && !!key && drawSheet(onto, s.manifest, key, c, tw, time, hash(x, y, 7));
-        }
-        if (drawn) {
-          // Whose it is still has to read: a relay or a trap is only a threat
-          // when it is the other side's, and water heals only its owner.
-          if (cell.kind === "relay" || cell.kind === "trap" || (cell.kind === "water" && !mine)) {
-            diamond(g, cell.position, 0.9);
-            g.strokeStyle = mine ? (cell.kind === "relay" ? WIND : INK) : ENEMY;
-            g.globalAlpha = 0.7;
-            g.lineWidth = 1.5;
-            g.stroke();
-            g.globalAlpha = 1;
-          }
-          if (cell.kind === "relay" && mine && s.relayActive) {
+        if (cell.kind === "relay") {
+          // Sef's copper pylon: whose it is on the ground under it, then the
+          // pylon itself, coming up out of the ground the moment it is placed.
+          diamond(g, cell.position, 0.9);
+          g.strokeStyle = mine ? WIND : ENEMY;
+          g.globalAlpha = 0.7;
+          g.lineWidth = 1.5;
+          g.stroke();
+          g.globalAlpha = 1;
+          if (mine && s.relayActive) {
             for (let k = 0; k < 2; k++) {
               const p = (time * 0.9 + k / 2) % 1;
               g.strokeStyle = `rgba(46,158,106,${0.8 * (1 - p)})`;
@@ -501,6 +511,37 @@ export const TerrainLayer: React.FC<TerrainLayerProps> = ({
               g.ellipse(c.x, c.y, tw * (0.3 + p * 0.7), th * (0.3 + p * 0.7), 0, 0, TAU);
               g.stroke();
             }
+          }
+          const k = `${x},${y}`;
+          const relays = relayBornAt.current;
+          if (!relays.has(k)) relays.set(k, settled ? -Infinity : now);
+          const rise = (now - (relays.get(k) ?? -Infinity)) / PYLON_RISE;
+          const lit = Math.max(0, 1 - (now - (relayHitAt.current.get(k) ?? -Infinity)) / PYLON_HIT);
+          drawPylon(g, c.x, c.y, gridPixel(tw), time, rise, lit);
+          drawPylonHealth(
+            t,
+            c.x,
+            c.y,
+            gridPixel(tw),
+            cell.health ?? RULES.relayHealth,
+            RULES.relayHealth,
+            mine ? WIND : ENEMY
+          );
+          continue;
+        }
+        const key = TERRAIN_SHEETS[cell.kind];
+        // Smoke hides whoever stands in it; everything else lies under them.
+        const onto = cell.kind === "smoke" ? t : g;
+        if (s.manifest && key && drawSheet(onto, s.manifest, key, c, tw, time, hash(x, y, 7))) {
+          // Whose it is still has to read: a trap is only a threat when it is
+          // the other side's, and water heals only its owner.
+          if (cell.kind === "trap" || (cell.kind === "water" && !mine)) {
+            diamond(g, cell.position, 0.9);
+            g.strokeStyle = mine ? INK : ENEMY;
+            g.globalAlpha = 0.7;
+            g.lineWidth = 1.5;
+            g.stroke();
+            g.globalAlpha = 1;
           }
           continue;
         }
@@ -616,38 +657,6 @@ export const TerrainLayer: React.FC<TerrainLayerProps> = ({
             t.stroke();
             break;
           }
-          case "relay": {
-            const color = mine ? WIND : ENEMY;
-            diamond(g, cell.position, 0.9);
-            g.fillStyle = mine ? "rgba(46,158,106,.22)" : "rgba(163,35,27,.1)";
-            g.fill();
-            g.strokeStyle = color;
-            g.lineWidth = 1.5;
-            g.stroke();
-            if (mine && s.relayActive) {
-              // Rings rolling out from it: this is where the spell will leave from.
-              for (let k = 0; k < 2; k++) {
-                const p = (time * 0.9 + k / 2) % 1;
-                g.strokeStyle = `rgba(46,158,106,${0.8 * (1 - p)})`;
-                g.lineWidth = 2.5;
-                g.beginPath();
-                g.ellipse(c.x, c.y, tw * (0.3 + p * 0.7), th * (0.3 + p * 0.7), 0, 0, TAU);
-                g.stroke();
-              }
-            }
-            const tall = mine && s.relayActive ? 11 : 8;
-            for (let i = 0; i < tall; i++) {
-              const rx = tw * (0.08 + i * 0.045);
-              const yy = c.y - i * th * 0.2;
-              const rot = time * (mine && s.relayActive ? 7 : 4) + i;
-              t.strokeStyle = i % 2 ? "rgba(170,200,185,.9)" : color;
-              t.lineWidth = 2;
-              t.beginPath();
-              t.ellipse(c.x + Math.sin(time * 3 + i) * 2, yy, rx, rx * 0.3, 0, rot, rot + 4.6);
-              t.stroke();
-            }
-            break;
-          }
           case "pillar":
             // Drawn by the tile itself, as raised cover.
             break;
@@ -737,6 +746,13 @@ export const TerrainLayer: React.FC<TerrainLayerProps> = ({
           }
         }
       }
+
+      // Pylons going off, over everything.
+      shatters.current = shatters.current.filter((s) => now - s.born < PYLON_SHATTER);
+      for (const shatter of shatters.current) {
+        const c = at(shatter.at);
+        drawPylonShatter(t, c.x, c.y, gridPixel(tw), (now - shatter.born) / PYLON_SHATTER);
+      }
     };
 
     const loop = (now: number) => {
@@ -744,7 +760,7 @@ export const TerrainLayer: React.FC<TerrainLayerProps> = ({
       draw(now);
       const s = state.current;
       // Nothing on the board: one clear, then idle until something changes.
-      if (!reduced && (s.terrain.length > 0 || s.zones.length > 0)) {
+      if (!reduced && (s.terrain.length > 0 || s.zones.length > 0 || shatters.current.length > 0)) {
         frame = requestAnimationFrame(loop);
       } else {
         frame = 0;

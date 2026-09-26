@@ -774,7 +774,6 @@ export const Grid: React.FC<GridProps> = ({
               screenPosition={renderData.screenPosition}
               tileSize={tileSize}
               stacks={burn.value}
-              turnsLeft={burn.turnsLeft}
             />
           );
         })}

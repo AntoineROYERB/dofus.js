@@ -10,7 +10,11 @@ export const RULES = {
   trapDamage: 10,
   waterHealing: 5,
   /** Extra damage, in percent, an air spell deals through its relay. */
-  relayBonus: 30,
+  relayBonus: 75,
+  /** What a relay's pylon takes before it breaks. */
+  relayHealth: 12,
+  /** What a breaking pylon does to each of its owner's enemies beside it. */
+  relayBlast: 10,
   /** Extra damage, in percent, water adds to lightning and storms. */
   conductBonus: 50,
 } as const;
@@ -23,7 +27,11 @@ const key = (p: Position) => `${p.x},${p.y}`;
 
 /** Ground nobody can walk through, whoever is standing where. */
 export const isSolidTerrain = (kind: TerrainKind | undefined): boolean =>
-  kind === "crater" || kind === "fissure";
+  kind === "crater" || kind === "fissure" || kind === "relay";
+
+/** What a spell left that hides what is behind it: smoke, and a pylon. */
+export const terrainBlocksSight = (kind: TerrainKind | undefined): boolean =>
+  kind === "smoke" || kind === "relay";
 
 /** The board's terrain, looked up by cell. */
 export const terrainIndex = (
@@ -59,8 +67,8 @@ export const TERRAIN_INFO: Record<TerrainKind, { name: string; text: string }> =
     text: `The first enemy to step here takes ${RULES.trapDamage} and cannot move again this turn.`,
   },
   relay: {
-    name: "Relay",
-    text: `Its owner's air spells go out from here whenever it reaches, ${RULES.relayBonus}% harder.`,
+    name: "Pylon",
+    text: `Its owner's air spells go out from here whenever it reaches, ${RULES.relayBonus}% harder. Blocks the way and the view. Breaks after ${RULES.relayHealth} damage, and hurts every enemy beside it ${RULES.relayBlast}.`,
   },
   crater: { name: "Crater", text: "Nobody can walk through it." },
   fissure: { name: "Fissure", text: "Nobody can walk through it." },
