@@ -653,6 +653,7 @@ export const Grid: React.FC<GridProps> = ({
               canCastAtHovered={hoveredCastable}
               isObstacle={isObstacle}
               isPillar={isObstacle && terrainAt.get(`${x},${y}`)?.kind === "pillar"}
+              pillarSheet={!!fxManifest}
               isInRange={isInRange}
               showMovementWash={showMovementWash}
               movementCost={walkable.get(`${x},${y}`)}

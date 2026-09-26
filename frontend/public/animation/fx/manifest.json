@@ -564,11 +564,11 @@
       ]
     },
     "6": {
-      "name": "Étendard",
+      "name": "Paratonnerre",
       "hero": "AttackRanged",
       "fx": [
         "air/sigil",
-        "air/banner"
+        "air/lightning"
       ]
     },
     "7": {

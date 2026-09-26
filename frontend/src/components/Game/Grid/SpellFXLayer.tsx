@@ -5,6 +5,7 @@ import { Spell } from "../../../types/message";
 import { calculateImpactedCells } from "../../../utils/spellUtils";
 import { useFxManifest } from "../../../utils/fxManifest";
 import { SheetFx } from "../../../vfx/sheetFx";
+import { LASTING_SHEETS } from "../../../vfx/lastingSheets";
 
 /** Which spells are drawn as themselves rather than as their element. */
 const signatureOf = (spell: Spell): Signature | undefined => {
@@ -197,7 +198,7 @@ export const SpellFXLayer: React.FC<SpellFXLayerProps> = ({
        */
       for (const entry of log) {
         const event = toEvent(entry);
-        if (event) fx.restore(event);
+        if (event && !manifest?.spells[String(entry.spellId)]) fx.restore(event);
       }
       seenSeq.current = highest;
       draw();
@@ -215,20 +216,16 @@ export const SpellFXLayer: React.FC<SpellFXLayerProps> = ({
         fx.play(event);
         continue;
       }
-      // The grimoire's sheets play the cast, and the paper takes its marks
-      // the moment the spell lands.
-      const landsIn = sheets.play({
-        spell: drawn,
-        origin: event.via ?? event.origin,
+      // The grimoire's sheets play the cast, from start to finish. It leaves
+      // no ink of the procedural effects behind: what stays on the board is
+      // the terrain the server keeps, drawn with the same sheets.
+      sheets.play({
+        spell: { ...drawn, fx: drawn.fx.filter((key) => !LASTING_SHEETS.has(key)) },
+        origin: event.origin,
+        via: event.via,
         target: event.target,
         area: event.area ?? [event.target],
       });
-      const id = window.setTimeout(() => {
-        landings.current = landings.current.filter((t) => t !== id);
-        fxRef.current?.restore(event);
-        draw();
-      }, landsIn);
-      landings.current.push(id);
     }
     seenSeq.current = Math.max(since, highest);
     draw();

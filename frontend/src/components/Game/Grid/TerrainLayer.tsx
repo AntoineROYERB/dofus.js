@@ -4,6 +4,16 @@ import { TerrainCell, Zone } from "../../../types/message";
 import { isoToScreen } from "../../../utils/isoUtils";
 import { TEAR_SIDES, diamondCorners } from "../../../utils/tearSides";
 import { prefersReducedMotion } from "../../../utils/motion";
+import { FX_ROOT, FxManifest, FxSheet, sheetOf, useFxManifest } from "../../../utils/fxManifest";
+import {
+  LASTING_SHEETS,
+  PILLAR_SHEET,
+  RELAY_CRACKLE,
+  RELAY_SHEET,
+  RELAY_STRIKE,
+  TERRAIN_SHEETS,
+  ZONE_SHEETS,
+} from "../../../vfx/lastingSheets";
 
 interface TerrainLayerProps {
   terrain: TerrainCell[];
@@ -163,6 +173,62 @@ const tearEdges = (
 
 const reduced = prefersReducedMotion();
 
+/** The sheets' own pace, as in the grimoire. */
+const SHEET_FPS = 12;
+
+const sheetImages = new Map<string, HTMLImageElement>();
+const sheetImage = (sheet: FxSheet): HTMLImageElement => {
+  let image = sheetImages.get(sheet.file);
+  if (!image) {
+    image = new Image();
+    image.src = FX_ROOT + sheet.file;
+    sheetImages.set(sheet.file, image);
+  }
+  return image;
+};
+
+/**
+ * Draws one looping sheet on a cell, each cell a little out of step with its
+ * neighbours so a wall of fire does not flicker as one. False while the sheet
+ * has not loaded, so the caller can draw something in the meantime.
+ */
+const drawSheet = (
+  ctx: CanvasRenderingContext2D,
+  manifest: FxManifest,
+  key: string,
+  c: Position,
+  tw: number,
+  time: number,
+  phase: number,
+  /** For a sheet that plays once: how long ago it started, in ms. */
+  age?: number,
+  /** Drawn smaller or larger than a cell's own size. */
+  size = 1
+): boolean => {
+  const sheet = sheetOf(manifest, key);
+  if (!sheet) return false;
+  const image = sheetImage(sheet);
+  if (!image.complete || image.naturalWidth === 0) return false;
+  const frame =
+    age !== undefined
+      ? Math.min(sheet.frames - 1, Math.floor((age / 1000) * SHEET_FPS))
+      : Math.floor(time * SHEET_FPS + phase * sheet.frames) % sheet.frames;
+  const scale = (tw / 256) * size;
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(
+    image,
+    frame * sheet.frameWidth,
+    0,
+    sheet.frameWidth,
+    sheet.frameHeight,
+    Math.round(c.x - sheet.anchor[0] * scale),
+    Math.round(c.y - sheet.anchor[1] * scale),
+    sheet.frameWidth * scale,
+    sheet.frameHeight * scale
+  );
+  return true;
+};
+
 /**
  * What spells have left on the board, drawn every frame from the server's
  * snapshot. The ground layer lies under the fighters — fire, water, ice,
@@ -181,6 +247,7 @@ export const TerrainLayer: React.FC<TerrainLayerProps> = ({
 }) => {
   const groundRef = useRef<HTMLCanvasElement>(null);
   const topRef = useRef<HTMLCanvasElement>(null);
+  const manifest = useFxManifest();
   /**
    * When each hole was torn, so an impact can be played once and then left
    * alone. The server says nothing about a crater's age — terrain stays for
@@ -191,9 +258,11 @@ export const TerrainLayer: React.FC<TerrainLayerProps> = ({
    * the whole fight's worth of explosions replay at once.
    */
   const bornAt = useRef(new Map<string, number>());
+  /** The same, for pillars, which grow once when they are raised. */
+  const pillarBornAt = useRef(new Map<string, number>());
   const seeded = useRef(false);
-  const state = useRef({ terrain, zones, tileSize, centerX, centerY, userId, relayActive });
-  state.current = { terrain, zones, tileSize, centerX, centerY, userId, relayActive };
+  const state = useRef({ terrain, zones, tileSize, centerX, centerY, userId, relayActive, manifest });
+  state.current = { terrain, zones, tileSize, centerX, centerY, userId, relayActive, manifest };
 
   useEffect(() => {
     const ground = groundRef.current;
@@ -265,6 +334,8 @@ export const TerrainLayer: React.FC<TerrainLayerProps> = ({
        * the server lets sight cross a crater and refuses to let legs cross it
        * — exactly what a hole does, and nothing a painted black disc says.
        */
+      // Whatever is on the board on the first frame was already there.
+      const settled = !seeded.current || reduced;
       const holes = new Set<string>();
       for (const cell of s.terrain) {
         if (cell.kind === "crater") holes.add(`${cell.position.x},${cell.position.y}`);
@@ -375,10 +446,64 @@ export const TerrainLayer: React.FC<TerrainLayerProps> = ({
         t.globalAlpha = 1;
       }
 
-      for (const cell of s.terrain) {
+      // Back to front, so a tall sheet on a nearer cell covers a farther one.
+      const byDepth = [...s.terrain].sort(
+        (a, b) => a.position.x + a.position.y - (b.position.x + b.position.y)
+      );
+      for (const cell of byDepth) {
         const { x, y } = cell.position;
         const c = at(cell.position);
         const mine = cell.owner === s.userId;
+        if (cell.kind === "pillar" && s.manifest) {
+          const k = `${x},${y}`;
+          const pillars = pillarBornAt.current;
+          if (!pillars.has(k)) pillars.set(k, settled ? -Infinity : now);
+          if (drawSheet(g, s.manifest, PILLAR_SHEET, c, tw, time, 0, now - (pillars.get(k) ?? -Infinity))) {
+            continue;
+          }
+        }
+        let drawn = false;
+        if (cell.kind === "relay" && s.manifest) {
+          // A lightning rod: a small circle of wind on the ground, and now and
+          // then a bolt crackling down onto it, because it draws lightning —
+          // an air spell sent through it strikes it first, then bounces on.
+          drawn = drawSheet(g, s.manifest, RELAY_SHEET, c, tw, time, hash(x, y, 7), undefined, 0.7);
+          if (drawn) {
+            const cycle = (time + hash(x, y, 9) * RELAY_CRACKLE) % RELAY_CRACKLE;
+            const bolt = sheetOf(s.manifest, RELAY_STRIKE);
+            if (bolt && cycle < bolt.frames / SHEET_FPS) {
+              drawSheet(t, s.manifest, RELAY_STRIKE, c, tw, time, 0, cycle * 1000, 0.45);
+            }
+          }
+        } else {
+          const key = TERRAIN_SHEETS[cell.kind];
+          // Smoke hides whoever stands in it; everything else lies under them.
+          const onto = cell.kind === "smoke" ? t : g;
+          drawn = !!s.manifest && !!key && drawSheet(onto, s.manifest, key, c, tw, time, hash(x, y, 7));
+        }
+        if (drawn) {
+          // Whose it is still has to read: a relay or a trap is only a threat
+          // when it is the other side's, and water heals only its owner.
+          if (cell.kind === "relay" || cell.kind === "trap" || (cell.kind === "water" && !mine)) {
+            diamond(g, cell.position, 0.9);
+            g.strokeStyle = mine ? (cell.kind === "relay" ? WIND : INK) : ENEMY;
+            g.globalAlpha = 0.7;
+            g.lineWidth = 1.5;
+            g.stroke();
+            g.globalAlpha = 1;
+          }
+          if (cell.kind === "relay" && mine && s.relayActive) {
+            for (let k = 0; k < 2; k++) {
+              const p = (time * 0.9 + k / 2) % 1;
+              g.strokeStyle = `rgba(46,158,106,${0.8 * (1 - p)})`;
+              g.lineWidth = 2.5;
+              g.beginPath();
+              g.ellipse(c.x, c.y, tw * (0.3 + p * 0.7), th * (0.3 + p * 0.7), 0, 0, TAU);
+              g.stroke();
+            }
+          }
+          continue;
+        }
         switch (cell.kind) {
           case "fire": {
             // Warm and bright, never dark: the flames have to read on paper,
@@ -549,6 +674,11 @@ export const TerrainLayer: React.FC<TerrainLayerProps> = ({
 
       for (const zone of s.zones) {
         const c = at(zone.center);
+        const zoneKey = ZONE_SHEETS[zone.kind];
+        if (s.manifest && zoneKey) {
+          const onto = zone.kind === "storm" ? t : g;
+          if (drawSheet(onto, s.manifest, zoneKey, c, tw, time, 0)) continue;
+        }
         if (zone.kind === "maelstrom") {
           const reach = tw * 1.15;
           for (let arm = 0; arm < 5; arm++) {
@@ -634,6 +764,20 @@ export const TerrainLayer: React.FC<TerrainLayerProps> = ({
     });
     observer.observe(container);
 
+    // A sheet that arrives while the board is idle has to be drawn once more.
+    if (manifest) {
+      for (const key of LASTING_SHEETS) {
+        const sheet = key && sheetOf(manifest, key);
+        if (!sheet) continue;
+        const image = sheetImage(sheet);
+        if (image.complete) continue;
+        const again = () => {
+          if (running && !frame) frame = requestAnimationFrame(loop);
+        };
+        image.addEventListener("load", again, { once: true });
+      }
+    }
+
     frame = requestAnimationFrame(loop);
 
     return () => {
@@ -643,7 +787,7 @@ export const TerrainLayer: React.FC<TerrainLayerProps> = ({
     };
     // Restarted whenever the board's contents change, so an idle board can
     // stop drawing without missing the next spell.
-  }, [containerRef, terrain, zones, tileSize, centerX, centerY, relayActive]);
+  }, [containerRef, terrain, zones, tileSize, centerX, centerY, relayActive, manifest]);
 
   return (
     <>

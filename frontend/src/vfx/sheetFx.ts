@@ -2,6 +2,7 @@ import { Position } from "../types/game";
 import { isoToScreen } from "../utils/isoUtils";
 import { FX_ROOT, FxManifest, FxSheet, FxSpell, sheetOf } from "../utils/fxManifest";
 import { Geometry } from "./spellFx";
+import { RELAY_STRIKE } from "./lastingSheets";
 
 /** The sheets are drawn at twelve frames a second, as in the grimoire. */
 const FPS = 12;
@@ -31,7 +32,15 @@ export type SheetCast = {
   target: Position;
   /** Every cell the spell covered. */
   area: Position[];
+  /**
+   * The relay it went out from, when it did: the spell strikes the relay
+   * first, as lightning does a rod, then bounces from it to its target.
+   */
+  via?: Position;
 };
+
+/** When the relay's bolt has struck, in ms from its start, and the spell leaves. */
+const STRIKE_LANDS = 200;
 
 /**
  * Plays the armour grimoire's spell sheets on the board, over the procedural
@@ -106,13 +115,49 @@ export class SheetFx {
    * moment its marks belong on the paper.
    */
   play(cast: SheetCast, now = performance.now()): number {
+    const via = cast.via;
+    if (!via || (via.x === cast.origin.x && via.y === cast.origin.y)) {
+      return this.playFrom(cast, now, true);
+    }
+    // The caster's circle, then a bolt thrown to the relay: it strikes the
+    // relay like a lightning rod, and the spell goes on from there.
+    const sigil = cast.spell.fx.find((k) => k.endsWith("/sigil"));
+    const sigilSheet = sigil && sheetOf(this.manifest, sigil);
+    if (sigilSheet) this.add(sigilSheet, now, LOOP_FOR, cast.origin, cast.origin);
+    let at = SIGIL_LEAD;
+    const element = (sigil ?? cast.spell.fx[0] ?? "air/").split("/")[0];
+    const bolt = sheetOf(this.manifest, `${element}/projectile`);
+    if (bolt) {
+      const cells = Math.abs(via.x - cast.origin.x) + Math.abs(via.y - cast.origin.y);
+      const flight = Math.max(MIN_FLIGHT, (cells / CELLS_PER_SECOND) * 1000);
+      this.add(bolt, now + at, flight, cast.origin, via, this.rowFacing(bolt, cast.origin, via));
+      at += flight;
+    }
+    const strike = sheetOf(this.manifest, RELAY_STRIKE);
+    if (strike) this.add(strike, now + at, (strike.frames / FPS) * 1000, via, via);
+    at += STRIKE_LANDS;
+    // The bounce: unless the spell throws something of its own, the same bolt
+    // leaves the relay for the target.
+    const throws = cast.spell.fx.some((k) => !!sheetOf(this.manifest, k)?.directions?.length);
+    const same = via.x === cast.target.x && via.y === cast.target.y;
+    if (bolt && !throws && !same) {
+      const cells = Math.abs(cast.target.x - via.x) + Math.abs(cast.target.y - via.y);
+      const flight = Math.max(MIN_FLIGHT, (cells / CELLS_PER_SECOND) * 1000);
+      this.add(bolt, now + at, flight, via, cast.target, this.rowFacing(bolt, via, cast.target));
+      at += flight;
+    }
+    const rest = { ...cast, origin: via, via: undefined };
+    return at + this.playFrom(rest, now + at, false);
+  }
+
+  private playFrom(cast: SheetCast, now: number, withSigil: boolean): number {
     const sheets = cast.spell.fx
       .map((key) => ({ key, sheet: sheetOf(this.manifest, key) }))
       .filter((s): s is { key: string; sheet: FxSheet } => !!s.sheet);
 
-    let landsAt = SIGIL_LEAD;
+    let landsAt = withSigil ? SIGIL_LEAD : 0;
     const sigil = sheets.find((s) => s.key.endsWith("/sigil"));
-    if (sigil) this.add(sigil.sheet, now, LOOP_FOR, cast.origin, cast.origin);
+    if (sigil && withSigil) this.add(sigil.sheet, now, LOOP_FOR, cast.origin, cast.origin);
 
     // Whatever has a row per direction flies from the caster to the target.
     const flying = sheets.filter((s) => s.sheet.directions && s.sheet.directions.length > 0);
@@ -121,8 +166,9 @@ export class SheetFx {
       if (same) continue;
       const cells = Math.abs(cast.target.x - cast.origin.x) + Math.abs(cast.target.y - cast.origin.y);
       const flight = Math.max(MIN_FLIGHT, (cells / CELLS_PER_SECOND) * 1000);
-      this.add(f.sheet, now + SIGIL_LEAD, flight, cast.origin, cast.target, this.rowFacing(f.sheet, cast.origin, cast.target));
-      landsAt = Math.max(landsAt, SIGIL_LEAD + flight);
+      const lead = withSigil ? SIGIL_LEAD : 0;
+      this.add(f.sheet, now + lead, flight, cast.origin, cast.target, this.rowFacing(f.sheet, cast.origin, cast.target));
+      landsAt = Math.max(landsAt, lead + flight);
     }
 
     // Everything else happens where the spell lands: a looping sheet on the

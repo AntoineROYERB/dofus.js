@@ -63,6 +63,11 @@ interface TileProps {
   /** Cover a Stonewarden raised, drawn taller and in earth. */
   isPillar?: boolean;
   /**
+   * The pillar is drawn by the terrain layer, from the armour grimoire's
+   * sheet, so the cell itself lies flat under it.
+   */
+  pillarSheet?: boolean;
+  /**
    * For a cell inside the area you may act in: which of its four edges face
    * out of that area, up-left, up-right, down-right, down-left. Undefined for
    * a cell outside it.
@@ -106,6 +111,7 @@ const TileView: React.FC<TileProps> = ({
   isPathCell,
   isObstacle,
   isPillar = false,
+  pillarSheet = false,
   zoneEdges,
 }) => {
   const { width: w, height: h } = tileSize;
@@ -294,7 +300,8 @@ const TileView: React.FC<TileProps> = ({
   // Cover stands above the ground rather than lying flat on it, so a wall
   // reads as something to walk around and not as a differently coloured floor.
   const block = isPillar ? BOARD.pillar : BOARD.block;
-  const rise = isObstacle ? h * block.rise * grown : 0;
+  const raised = isObstacle && !(isPillar && pillarSheet);
+  const rise = raised ? h * block.rise * grown : 0;
 
   return (
     <div
@@ -312,7 +319,7 @@ const TileView: React.FC<TileProps> = ({
         cursor: interactive ? "pointer" : "default",
         // Clipping to the diamond keeps clicks off the corners of the box, but
         // it would also cut off the raised faces of cover.
-        clipPath: isObstacle ? undefined : "polygon(50% 0, 100% 50%, 50% 100%, 0 50%)",
+        clipPath: raised ? undefined : "polygon(50% 0, 100% 50%, 50% 100%, 0 50%)",
       }}
       onClick={interactive ? () => onCellClick?.({ x, y }) : undefined}
       onKeyDown={
@@ -333,7 +340,7 @@ const TileView: React.FC<TileProps> = ({
         preserveAspectRatio="none"
         style={{ pointerEvents: "none", overflow: "visible" }}
       >
-        {isObstacle ? (
+        {raised ? (
           <g>
             <polygon
               points={`0,${h / 2} ${w / 2},${h} ${w / 2},${h - rise} 0,${h / 2 - rise}`}
