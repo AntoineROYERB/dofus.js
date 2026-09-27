@@ -77,15 +77,33 @@ Use the token name, never the hex value, in components.
 | `vermilion` | $\color{#d1462f}\blacksquare$ #d1462f | **What your action is about to hit, and the one call to action on a screen.** Nothing else. |
 | `pa` | $\color{#2f6fd1}\blacksquare$ #2f6fd1 | Action points, wherever they are shown or changed |
 | `pm` | $\color{#2f9e44}\blacksquare$ #2f9e44 | Movement points, where you can walk, where you may start |
-| `amber` / `amber-wash` | $\color{#b5790a}\blacksquare$ #b5790a / $\color{#f7ecd6}\blacksquare$ #f7ecd6 | Your own turn and your own fighter's highlight |
-| `foe` (BOARD) | $\color{#a3231b}\blacksquare$ #a3231b | Where the opponent may start: a cell to keep off, never a target |
+| `amber` / `amber-wash` | $\color{#b5790a}\blacksquare$ #b5790a / $\color{#f7ecd6}\blacksquare$ #f7ecd6 | Your own turn, your own fighter's highlight, and the ring under your fighter |
+| `foe` (BOARD) | $\color{#a3231b}\blacksquare$ #a3231b | What is the other side's: where they may start, and the ring under their fighters. A cell to keep off, never a target |
 
-**A player does not pick a colour.** A fighter is its class and what it
-wears, so its colour is its class's own (`palette.primary` in
-`classes.json`). That colour identifies whose socle, ring, turn and line is
-whose, and nothing more. It never tints the fighter's sprite. Class colours
-are kept away from vermilion, so a player's colour is never mistaken for a
-target.
+**A player does not pick a colour.** Whose fighter is whose is told by side,
+not by player: the ring under your fighter and your dot in the turn order are
+`amber` (`BOARD.socle.mine`), and the other side's are `foe` red
+(`BOARD.socle.theirs`). Two fighters in the same outfit therefore never share
+a ring. Nothing tints a fighter's sprite: an outfit keeps its own trims.
+
+**Elements have one colour and one icon each**, and they show wherever an
+element does: spells, grimoires, sets, the wardrobe, the drums and wards they
+leave on the board. The colours come from the grimoires' own sigils, and are
+kept clear of vermilion and of the `pa` blue and `pm` green, so a number over
+a fighter never reads as both damage and a stat. They are defined in
+`frontend/src/utils/elements.ts` (with each element's pixel icon: a flame, a
+gust, a drop, a stone) and, for the spells the server paints,
+`backend/config/spells.json` ("elements"); keep the two in step.
+
+| Element | Hex | Its sigil |
+| --- | --- | --- |
+| Fire | $\color{#e0791a}\blacksquare$ #e0791a | Ember |
+| Air | $\color{#4fa3c7}\blacksquare$ #4fa3c7 | Sky |
+| Water | $\color{#1f8a8a}\blacksquare$ #1f8a8a | Lagoon |
+| Earth | $\color{#a8702a}\blacksquare$ #a8702a | Ochre |
+
+A rune belongs to no element: its sign is lit in a violet
+($\color{#a88cf0}\blacksquare$ #a88cf0) that no element uses.
 
 ### 3.2 Type
 
@@ -132,7 +150,7 @@ strokes, grey blocks for cover, and **only two inks during a turn** — green
   `blind` wash: vermilion faded almost to grey.
 - A knocked-out fighter's ring turns into a broken line. The state is never
   shown by colour alone.
-- Island ground (section 6.4) is drawn **under** everything else and quieter
+- Island ground (section 6.5) is drawn **under** everything else and quieter
   than it: a wash and a few marks per cell. Solid ground (rock) stands up off
   the board like cover. Flat ground stays flat.
 - The island's terrains are always listed in the board's top-left corner,
@@ -197,31 +215,51 @@ All sheets are PNGs drawn on the same grid: **art pixels in blocks of 4** on
 - The feet sit at **0.70** of the frame height and the top of the head at
   **0.281** (`SPRITE` in `constants.ts`). Anything hung over a fighter, such as
   a health bar or a burn marker, hangs from the head, never from the frame.
-- **One outfit per element**, in `public/animation/outfits/<element>/`:
+- **One sheet per element**, in `public/animation/outfits/<element>/`:
 
-  | Outfit | Element | Weapon |
+  | Sheet | Element | Weapon |
   | --- | --- | --- |
   | The Heart-Bearer | fire | a caged-heart lantern on a pole |
   | The Winged Knight | air | a pennant lance |
   | The Drowned Queen | water | a trident |
   | The Rock | earth | a spiked flail |
 
-  A new outfit is a complete set of the four sheets on this grid, and nothing
-  else: the animation code reads it unchanged.
-- **Outfits are never recoloured.** The player's colour, which is the class
-  colour, shows on the socle, the ring, the name tag and the turn order. The
-  bare hero sheet is the only sprite ever dyed, and only for a class with no
-  outfit.
-- **What a fighter wears is chosen in the wardrobe**, a piece per slot (head,
-  chest, legs, boots, weapon), and up to four sets can be saved there. The
-  wardrobe belongs to the frame. It shows pieces by name, with what the mix
-  adds up to (stats, the element resisted, the terrain mastered), until
-  pieces can be seen on the sprite (section 11.5).
+  Each element has **three outfits** (`outfits.json`): its champion's and two
+  more. They share the element's sheet for now (section 11.5) and differ by
+  their attack, which is the outfit's basic attack: each of the three fights
+  a different way. A new sheet is a complete set of the four sheets on this
+  grid, and nothing else: the animation code reads it unchanged.
+- **Outfits are never recoloured.** Whose fighter is whose shows on the ring
+  and in the turn order (section 3.1), never on the armour. The bare hero
+  sheet is the only sprite ever dyed, and only for a fighter with no outfit.
+- **What a fighter takes into a fight is chosen in the wardrobe**, a slot at
+  a time: the element first (its grimoire, three spells and the rule they
+  share), an outfit of that element, a rune and a talisman. The wardrobe
+  belongs to the frame. The outfit shelf only shows the element's own
+  outfits, and under each one its attack: a strip of cells from the fighter
+  to what it hits, in the element's colour, and the few facts that set it
+  apart. Trying one on plays it on the stand.
 - The melee attack swings the weapon, and the ranged attack throws something
   of the element. Which spell plays which is listed in the effects manifest
   (section 7).
 
-### 6.2 The bestiary
+### 6.2 Talismans and runes
+
+Talismans and runes are drawn in code (`frontend/src/vfx/relics.ts`), on the
+fighters' own grid: one pixel of theirs is a 64th of a cell, so a talisman
+circling a fighter is drawn at the same pixel size as the fighter.
+
+- **A talisman is a shard of whoever it came from**, in colours taken from
+  that sprite: Ashka's heart, Sef's feather, Mother Brine's conch, Old
+  Grund's stone, and a piece of each legendary (the Ashen King's halo, a
+  crystal of Aurorion's wing, one of Fulgor's orbs, Sahr'Khan's coil).
+- It circles its fighter as the gauge of the ultimate it carries: grey and
+  still while charging; a dithered halo and its element stirring round it
+  (embers, wind, bubbles, dust) once ready; gone once cast.
+- **A rune is a carved stone**, its shape and sign its own (a cut, a
+  pebble's run, a shield, an anchor), the sign lit in the runes' violet.
+
+### 6.3 The bestiary
 
 - `public/bestiary/<name>.png`: **24 frames × 8 directions**. A monster is 64
   art pixels, a boss 128 and a legend 160, and the feet sit at **0.78** of the
@@ -230,7 +268,7 @@ All sheets are PNGs drawn on the same grid: **art pixels in blocks of 4** on
   are recolours of the same shapes. Every sheet belongs to an island's lineage
   or boss in `islands.json`.
 
-### 6.3 What a new sprite must pass
+### 6.4 What a new sprite must pass
 
 1. It sits on the 4-pixel block grid at 256 per 64 art pixels. The one
    exception is the bestiary, which is drawn at art size.
@@ -240,7 +278,7 @@ All sheets are PNGs drawn on the same grid: **art pixels in blocks of 4** on
    from its light alone.
 4. Its feet land on the documented anchor in every direction.
 
-### 6.4 Terrain in a fight
+### 6.5 Terrain in a fight
 
 Each terrain of the library needs:
 - a **wash** that tells it apart from the other six at a glance;
@@ -333,24 +371,17 @@ one needs a decision before it is fixed.
    **ground and cover** to pixel art on the same 64 px grid, and keep the
    **marks** (range, path, target) crisp vector ink on top, since they are
    the frame reaching into the world.
-2. **Two elements share the stat colours.** Air spells are $\color{#16a34a}\blacksquare$ #16a34a and
-   movement points $\color{#2f9e44}\blacksquare$ #2f9e44, both green. Water spells are $\color{#2563eb}\blacksquare$ #2563eb and
-   action points $\color{#2f6fd1}\blacksquare$ #2f6fd1, both blue. A green number over a fighter can
-   therefore mean "air damage" or "MP". The proposal is to move the element
-   colours in `spells.json` onto the outfits' own glows: fire $\color{#e2521d}\blacksquare$ #e2521d,
-   water $\color{#1fb5c9}\blacksquare$ #1fb5c9 (cyan), earth $\color{#8a5a14}\blacksquare$ #8a5a14, air $\color{#8fa9c9}\blacksquare$ #8fa9c9 (pale sky). The
-   element colours are content, so this is a data change.
-3. **Mirror matches.** The colour picker is gone: a player's colour is their
-   class's, and it shows on the socle, the ring, the name tag and the turn
-   order, never on the armour. Two fighters of the same class therefore share
-   a colour and an outfit. The proposal is to keep your own fighter in its
-   class colour and draw a same-class opponent's ring in the foe red
-   ($\color{#a3231b}\blacksquare$ #a3231b), with the name tag doing the rest.
-4. **The effects are drawn but not wired.** The sheets and manifest in
-   `public/animation/fx/` follow section 7, but the fight still draws its
-   older procedural effects. This decision is about when to switch, and
-   whether the procedural ones stay as a fallback.
-5. **Equipment is not visible on the sprite.** Mixing pieces from five slots
-   does not change how a fighter looks. Showing it needs layered sheets
-   (head, chest, legs, boots, weapon) on the same grid, which is a large art
-   job. Until then the fighter wears its class outfit.
+2. ~~**Two elements share the stat colours.**~~ **Decided:** the elements
+   have colours of their own, taken from the grimoires' sigils rather than
+   the outfits' glows, and clear of `pa` and `pm` (section 3.1).
+3. ~~**Mirror matches.**~~ **Decided:** rings are coloured by side, `amber`
+   for yours and `foe` red for theirs, so two fighters in the same outfit
+   never share a ring (section 3.1).
+4. ~~**The effects are drawn but not wired.**~~ **Decided:** a spell plays
+   the grimoire's sheets, and what it leaves on the board is drawn with them;
+   the procedural effects stay only as the fallback for a spell with no
+   sheet.
+5. **Outfits of one element look alike.** The three outfits of an element
+   share its sheet, so they differ in a fight only by the attack they play.
+   Telling them apart on the board needs a sheet each on the same grid, which
+   is an art job.
