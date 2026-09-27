@@ -1,0 +1,42 @@
+{
+  "runes": [
+    {
+      "id": "opportunist",
+      "name": "Opportunist",
+      "description": "20% more damage against a target below 30% of its health.",
+      "effect": {
+        "kind": "finisher",
+        "value": 20,
+        "threshold": 30
+      }
+    },
+    {
+      "id": "momentum",
+      "name": "Momentum",
+      "description": "2 more movement points on your first turn.",
+      "effect": {
+        "kind": "openingMP",
+        "value": 2
+      }
+    },
+    {
+      "id": "second-skin",
+      "name": "Second skin",
+      "description": "The fight starts with a shield that soaks 3 damage from every hit until your first turn is over.",
+      "effect": {
+        "kind": "openingShield",
+        "value": 3,
+        "duration": 1
+      }
+    },
+    {
+      "id": "anchor",
+      "name": "Anchor",
+      "description": "Hard to move: pushes carry you 2 cells less.",
+      "effect": {
+        "kind": "pushResist",
+        "value": 2
+      }
+    }
+  ]
+}

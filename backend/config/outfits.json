@@ -1,0 +1,148 @@
+{
+  "outfits": [
+    {
+      "id": "ashka",
+      "name": "Ashka's outfit",
+      "element": "Fire",
+      "basicAttack": "1",
+      "weapon": "the fire-heart pole",
+      "palette": {
+        "primary": "#d8ae31",
+        "secondary": "#faf3dd"
+      },
+      "sprite": "fire"
+    },
+    {
+      "id": "sef",
+      "name": "Sef's outfit",
+      "element": "Air",
+      "basicAttack": "7",
+      "weapon": "the pennant lance",
+      "palette": {
+        "primary": "#5bd831",
+        "secondary": "#e7f9e0"
+      },
+      "sprite": "air"
+    },
+    {
+      "id": "mother-brine",
+      "name": "Mother Brine's outfit",
+      "element": "Water",
+      "basicAttack": "11",
+      "weapon": "the trident",
+      "palette": {
+        "primary": "#315bd8",
+        "secondary": "#e0e7f9"
+      },
+      "sprite": "water"
+    },
+    {
+      "id": "old-grund",
+      "name": "Old Grund's outfit",
+      "element": "Earth",
+      "basicAttack": "17",
+      "weapon": "the flail",
+      "palette": {
+        "primary": "#31d8ae",
+        "secondary": "#dcf8f1"
+      },
+      "sprite": "earth"
+    },
+    {
+      "id": "heart-bearer-lantern",
+      "name": "The Heart-Bearer, lantern in hand",
+      "element": "Fire",
+      "basicAttack": "21",
+      "weapon": "the caged heart",
+      "palette": {
+        "primary": "#d8ae31",
+        "secondary": "#faf3dd"
+      },
+      "sprite": "fire"
+    },
+    {
+      "id": "heart-bearer-ablaze",
+      "name": "The Heart-Bearer, heart ablaze",
+      "element": "Fire",
+      "basicAttack": "22",
+      "weapon": "the caged heart",
+      "palette": {
+        "primary": "#d8ae31",
+        "secondary": "#faf3dd"
+      },
+      "sprite": "fire"
+    },
+    {
+      "id": "winged-knight-lance",
+      "name": "The Winged Knight, lance lowered",
+      "element": "Air",
+      "basicAttack": "23",
+      "weapon": "the pennant lance",
+      "palette": {
+        "primary": "#5bd831",
+        "secondary": "#e7f9e0"
+      },
+      "sprite": "air"
+    },
+    {
+      "id": "winged-knight-wings",
+      "name": "The Winged Knight, wings spread",
+      "element": "Air",
+      "basicAttack": "24",
+      "weapon": "its steel wings",
+      "palette": {
+        "primary": "#5bd831",
+        "secondary": "#e7f9e0"
+      },
+      "sprite": "air"
+    },
+    {
+      "id": "drowned-queen-trident",
+      "name": "The Drowned Queen, trident raised",
+      "element": "Water",
+      "basicAttack": "25",
+      "weapon": "the trident",
+      "palette": {
+        "primary": "#315bd8",
+        "secondary": "#e0e7f9"
+      },
+      "sprite": "water"
+    },
+    {
+      "id": "drowned-queen-orb",
+      "name": "The Drowned Queen, orb in hand",
+      "element": "Water",
+      "basicAttack": "26",
+      "weapon": "the trident",
+      "palette": {
+        "primary": "#315bd8",
+        "secondary": "#e0e7f9"
+      },
+      "sprite": "water"
+    },
+    {
+      "id": "rock-flail",
+      "name": "The Rock, flail swinging",
+      "element": "Earth",
+      "basicAttack": "27",
+      "weapon": "the spiked flail",
+      "palette": {
+        "primary": "#31d8ae",
+        "secondary": "#dcf8f1"
+      },
+      "sprite": "earth"
+    },
+    {
+      "id": "rock-stone",
+      "name": "The Rock, stone in fist",
+      "element": "Earth",
+      "basicAttack": "28",
+      "weapon": "the ground itself",
+      "palette": {
+        "primary": "#31d8ae",
+        "secondary": "#dcf8f1"
+      },
+      "sprite": "earth"
+    }
+  ]
+}

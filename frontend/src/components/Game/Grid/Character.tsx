@@ -2,6 +2,7 @@ import React from "react";
 import SpriteAnimation, { Direction } from "../SpriteAnimation";
 import { Position } from "../../../types/game";
 import { SPRITE } from "../../../constants";
+import { AttackKind, outfitSheet } from "../../../utils/fxManifest";
 
 interface CharacterProps {
   screenPosition: Position;
@@ -12,7 +13,21 @@ interface CharacterProps {
   color?: string;
   /** Fades from 1 to 0 over a death or a rematch's reset. Otherwise fully opaque. */
   opacity?: number;
+  /**
+   * The sheets of the outfit it wears, under public/animation/outfits/. An
+   * outfit is drawn in its own colours — they tell its element — and has two
+   * attacks of its own: a swing of its weapon and a throw.
+   */
+  outfit?: string;
+  /** For an attack in an outfit: which of its two poses the spell strikes. */
+  attack?: AttackKind;
 }
+
+/**
+ * Where the feet fall in an outfit's attack frame: its bigger frame keeps the
+ * figure lower than the idle one does (the grimoire's anchor is 192,246).
+ */
+const OUTFIT_ATTACK_FEET = 246 / 384;
 
 const animationConfig = {
   idle: {
@@ -72,10 +87,34 @@ export const Character: React.FC<CharacterProps> = ({
   scale,
   color,
   opacity = 1,
+  outfit,
+  attack = "ranged",
 }) => {
   // No dedicated death sheet — the idle pose sinking and fading away reads
-  // fine on its own, and it is what "die" borrows for its frames.
-  const config = animationConfig[animation === "die" ? "idle" : animation];
+  // fine on its own, and it is what "die" borrows for its frames. A spell
+  // that strikes no pose — a gust of wind at your own feet — keeps it idle.
+  const pose =
+    animation === "die" || (animation === "attack" && outfit && attack === "none")
+      ? "idle"
+      : animation;
+  const base = animationConfig[pose];
+  // An outfit's sheets share the original ones' layout, so only the file
+  // changes: idle, walk, and its melee or its ranged attack.
+  const config = outfit
+    ? {
+        ...base,
+        spriteSheet: outfitSheet(
+          outfit,
+          pose === "walk"
+            ? "Walk"
+            : pose === "attack"
+              ? attack === "melee"
+                ? "AttackMelee"
+                : "AttackRanged"
+              : "Idle"
+        ),
+      }
+    : base;
   const isDying = animation === "die";
 
   return (
@@ -86,7 +125,7 @@ export const Character: React.FC<CharacterProps> = ({
         // The feet, not the middle of the frame: SPRITE.feet is where a
         // sprite's ink ends, and it is what everything hung on a fighter
         // measures from.
-        top: `${screenPosition.y - config.frameHeight * scale * SPRITE.feet}px`,
+        top: `${screenPosition.y - config.frameHeight * scale * (outfit && pose === "attack" ? OUTFIT_ATTACK_FEET : SPRITE.feet)}px`,
         width: `${config.frameWidth * scale}px`,
         height: `${config.frameHeight * scale}px`,
         pointerEvents: "none",
@@ -99,7 +138,12 @@ export const Character: React.FC<CharacterProps> = ({
         transition: isDying ? "opacity 80ms linear, transform 80ms linear" : undefined,
       }}
     >
-      <SpriteAnimation {...config} direction={direction} scale={scale} color={color} />
+      <SpriteAnimation
+        {...config}
+        direction={direction}
+        scale={scale}
+        color={outfit ? undefined : color}
+      />
     </div>
   );
 };

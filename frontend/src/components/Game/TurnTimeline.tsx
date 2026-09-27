@@ -3,7 +3,7 @@ import { Player } from "../../types/game";
 import { GameState } from "../../types/message";
 import { EffectBadges } from "./EffectBadges";
 import { TurnClock } from "./TurnClock";
-import { ClassTag } from "./ClassTag";
+import { KitTag } from "./KitTag";
 import { useContent } from "../../hooks/useContent";
 
 interface TurnTimelineProps {
@@ -102,10 +102,10 @@ export const TurnTimeline: React.FC<TurnTimelineProps> = ({
               >
                 {player.character.name}
               </b>
-              {/* An opponent's class is the first thing worth knowing about them. */}
-              <ClassTag
-                classId={player.character.class}
-                classes={content?.classes}
+              {/* An opponent's kit is the first thing worth knowing about them. */}
+              <KitTag
+                loadout={player.character.loadout}
+                content={content}
                 className="hidden sm:inline-flex short:hidden"
               />
               <span className="hidden font-mono text-[9.5px] text-muted sm:inline">

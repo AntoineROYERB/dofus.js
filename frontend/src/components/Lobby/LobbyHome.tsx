@@ -1,9 +1,11 @@
 import React from "react";
 import { CharacterAppearance } from "../../types/game";
-import { CharacterClass } from "../../types/message";
+import { Champion, ContentResponse, Loadout } from "../../types/message";
 import { CharacterShowcase } from "../Game/CharacterShowcase";
-import { ClassTag } from "../Game/ClassTag";
-import { ClassCarousel } from "./ClassCarousel";
+import { KitTag } from "../Game/KitTag";
+import { SetCarousel } from "./SetCarousel";
+import { kitOf } from "../../utils/loadoutUtils";
+import { ElementGlyph } from "../Game/ElementGlyph";
 
 /*
  * The lobby as a phone game's home screen: your fighter in the middle, the
@@ -40,6 +42,7 @@ const ICONS = {
   games: "M4 5h7v6H4zM13 5h7v6h-7zM4 13h7v6H4zM13 13h7v6h-7z",
   history: "M3 12a9 9 0 1 0 3-6.7M3 4v5h5M12 7v5l3 2",
   help: "M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14M12 17.5v.01M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z",
+  gear: "M9 4l3 2 3-2 5 3-2 4-2-1v10H8V10l-2 1-2-4z",
 } as const;
 
 /** A square tile on the side rails: an icon over a mono label. */
@@ -68,17 +71,20 @@ export const HomeTile: React.FC<{
 
 interface LobbyHomeProps {
   character: CharacterAppearance;
-  classes: CharacterClass[];
+  content: ContentResponse | null;
+  /** What the character wears and carries, once the content has settled it. */
+  loadout: Loadout | undefined;
   connected: boolean;
   notice: string | null;
-  /** The computer opponent Play will start a fight against. */
-  opponent?: CharacterClass;
+  /** The champion Play will start a fight against. */
+  opponent?: Champion;
   beaten: number;
   openRooms: number;
   onPlay: () => void;
   onRename: () => void;
-  /** Turning the line-up in the middle picks the player's class. */
-  onSelectClass: (cls: CharacterClass) => void;
+  /** Turning the line-up in the middle puts on a champion's set. */
+  onSelectSet: (champion: Champion) => void;
+  onOpenWardrobe: () => void;
   onOpenOpponents: () => void;
   onOpenRooms: () => void;
   onOpenHistory: () => void;
@@ -87,7 +93,8 @@ interface LobbyHomeProps {
 
 export const LobbyHome: React.FC<LobbyHomeProps> = ({
   character,
-  classes,
+  content,
+  loadout,
   connected,
   notice,
   opponent,
@@ -95,7 +102,8 @@ export const LobbyHome: React.FC<LobbyHomeProps> = ({
   openRooms,
   onPlay,
   onRename,
-  onSelectClass,
+  onSelectSet,
+  onOpenWardrobe,
   onOpenOpponents,
   onOpenRooms,
   onOpenHistory,
@@ -115,17 +123,12 @@ export const LobbyHome: React.FC<LobbyHomeProps> = ({
     {/*
       Centre stage: the fighter. It is laid over the whole screen rather than
       in the grid's middle column, whose position shifts with the width of the
-      cards beside it — a longer class name used to nudge the stand sideways.
+      cards beside it — a longer name used to nudge the stand sideways.
       Its padding clears the side rails and the bottom row, the same on both
       sides so the stand sits on the screen's own centre line.
     */}
     <div className="absolute inset-0 flex flex-col items-center px-[calc(max(env(safe-area-inset-left),env(safe-area-inset-right),16px)+80px)] pb-[calc(max(10px,env(safe-area-inset-bottom))+70px)] pt-[max(10px,env(safe-area-inset-top))]">
       <p className={`mt-1 flex flex-none items-center gap-2 px-3 py-1 font-display text-[17px] font-bold leading-tight tracking-tight ${HAIRLINE}`}>
-        <span
-          aria-hidden
-          className="h-2.5 w-2.5 flex-none transition-colors duration-300"
-          style={{ backgroundColor: character.color }}
-        />
         {character.name}
       </p>
       {notice && (
@@ -137,11 +140,12 @@ export const LobbyHome: React.FC<LobbyHomeProps> = ({
         </p>
       )}
       <div className="flex min-h-0 w-full flex-1 items-end justify-center">
-        {classes.length > 0 ? (
-          <ClassCarousel
-            classes={classes}
-            selectedId={character.class}
-            onSelect={onSelectClass}
+        {content && loadout && content.champions.length > 0 ? (
+          <SetCarousel
+            content={content}
+            loadout={loadout}
+            color={character.color}
+            onSelect={onSelectSet}
           />
         ) : (
           <CharacterShowcase
@@ -162,8 +166,7 @@ export const LobbyHome: React.FC<LobbyHomeProps> = ({
       >
         <span
           aria-hidden
-          className="grid h-9 w-9 flex-none place-items-center font-display text-[18px] font-bold text-white"
-          style={{ backgroundColor: character.color }}
+          className="grid h-9 w-9 flex-none place-items-center bg-ink font-display text-[18px] font-bold text-white"
         >
           {character.symbol}
         </span>
@@ -172,7 +175,7 @@ export const LobbyHome: React.FC<LobbyHomeProps> = ({
             {character.name}
           </span>
           <span className="flex items-center gap-1.5">
-            <ClassTag classId={character.class} classes={classes} />
+            <KitTag loadout={loadout} content={content} />
           </span>
         </span>
       </button>
@@ -181,7 +184,7 @@ export const LobbyHome: React.FC<LobbyHomeProps> = ({
       <div className="col-start-3 row-start-1 flex items-center gap-2 self-start justify-self-end">
         <span className={`px-2.5 py-1.5 font-mono text-[10px] uppercase tracking-label text-graphite ${HAIRLINE}`}>
           <b className="font-semibold tabular-nums text-ink">
-            {beaten}/{classes.length}
+            {beaten}/{content?.champions.length ?? 0}
           </b>{" "}
           beaten
         </span>
@@ -204,6 +207,7 @@ export const LobbyHome: React.FC<LobbyHomeProps> = ({
         className="col-start-1 row-start-2 flex flex-col gap-3 self-center"
       >
         <HomeTile icon="swords" label="Rivals" onClick={onOpenOpponents} />
+        <HomeTile icon="gear" label="Gear" onClick={onOpenWardrobe} />
         <HomeTile icon="history" label="History" onClick={onOpenHistory} />
       </nav>
       <nav
@@ -229,14 +233,18 @@ export const LobbyHome: React.FC<LobbyHomeProps> = ({
           aria-hidden
           className="grid h-11 w-11 flex-none place-items-center border border-hairline bg-board text-[22px]"
         >
-          {opponent?.symbol ?? "⚔"}
+          {kitOf(opponent?.set, content) ? (
+            <ElementGlyph element={kitOf(opponent?.set, content)?.element} size={24} />
+          ) : (
+            "⚔"
+          )}
         </span>
         <span className="min-w-0">
           <span className="block font-mono text-[9px] uppercase tracking-label text-muted">
-            Solo · {opponent?.name ?? "computer"}
+            Solo · {kitOf(opponent?.set, content)?.grimoire.name ?? "computer"}
           </span>
           <span className="block max-w-[260px] truncate font-display text-[16px] font-bold leading-tight">
-            {opponent?.opponent.name ?? "Computer opponent"}
+            {opponent?.name ?? "Computer opponent"}
           </span>
         </span>
         <span className="ml-1 font-mono text-[9px] uppercase tracking-label text-vermilion">

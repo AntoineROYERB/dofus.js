@@ -147,8 +147,8 @@ func readBoard(state types.GameState, botID string) botBoard {
 			b.relay = &relay
 		}
 	}
-	if class, ok := Content().Class(state.Players[botID].Character.Class); ok {
-		b.meleeBonus = class.MeleeBonus
+	if kit, err := Content().Kit(state.Players[botID].Character.Loadout); err == nil && !state.Players[botID].Character.Loadout.IsZero() {
+		b.meleeBonus = kit.Grimoire.MeleeBonus
 	}
 	return b
 }
@@ -171,9 +171,9 @@ func (b botBoard) blocked(pos types.Position) bool {
 	return b.occupied(pos)
 }
 
-// blocksSight is the same, with smoke instead of solid ground.
+// blocksSight is the same, with smoke and pylons instead of solid ground.
 func (b botBoard) blocksSight(pos types.Position) bool {
-	if b.obstacles[pos] || b.terrain[pos].Kind == types.TerrainSmoke || b.groundRule(pos, GroundRule.BlocksSight) {
+	if b.obstacles[pos] || terrainBlocksSight(b.terrain[pos].Kind) || b.groundRule(pos, GroundRule.BlocksSight) {
 		return true
 	}
 	return b.occupied(pos)
@@ -261,7 +261,7 @@ func (b botBoard) estimate(caster, target types.Position, spell types.Spell) int
 	if b.meleeBonus > 0 && Distance(caster, target) == 1 {
 		amount = amount * (100 + b.meleeBonus) / 100
 	}
-	// Where the target ends up counts too. A class that hits hardest up close
+	// Where the target ends up counts too. A kit that hits hardest up close
 	// wants it dragged in; anyone else wants it thrown off their doorstep.
 	switch {
 	case spell.Push > 0 && Distance(caster, target) == 1 && b.meleeBonus == 0:
@@ -451,8 +451,8 @@ func (b botBoard) layTerrain(from, target types.Position, ready []types.Spell) (
 
 // readySpells lists the spells on the bot's bar it could cast this turn if the
 // target were in reach: affordable, off cooldown, with casts left, and — for
-// an ultimate — unlocked and unused. The catalogue carries every class's
-// spells, so the bar is the only place a bot of any class looks.
+// an ultimate — unlocked and unused. The catalogue carries every loadout's
+// spells, so the bar is the only place a bot of any loadout looks.
 func readySpells(state types.GameState, me types.Player) []types.Spell {
 	var ready []types.Spell
 	for _, key := range sortedKeys(state.Spells) {
@@ -617,16 +617,16 @@ func sortPositions(list []types.Position) {
 // Game integration
 // ---------------------------------------------------------------------------
 
-// AddBot drops a server-played opponent of the default class into the room,
+// AddBot drops the first champion, in its set, into the room as an opponent,
 // one that fights.
 func (g *Game) AddBot() (string, error) {
-	return g.AddBotOfClass("", BotFights)
+	return g.AddBotChampion("", BotFights)
 }
 
-// AddBotOfClass drops a server-played opponent into the room, already ready
-// to start. It plays the class it is given, under that class's opponent's
-// name and colours; empty means the default class.
-func (g *Game) AddBotOfClass(classID string, mode BotMode) (string, error) {
+// AddBotChampion drops a server-played opponent into the room, already ready
+// to start. It plays the champion it is given, in that champion's set and
+// under its name and colours; empty means the first champion.
+func (g *Game) AddBotChampion(championID string, mode BotMode) (string, error) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
@@ -636,17 +636,21 @@ func (g *Game) AddBotOfClass(classID string, mode BotMode) (string, error) {
 	if len(g.players) >= MaxPlayersPerRoom {
 		return "", ErrRoomFull
 	}
-	class, err := g.classLocked(classID)
+	champion, err := g.championLocked(championID)
+	if err != nil {
+		return "", err
+	}
+	kit, err := g.catalogue.Kit(champion.Set)
 	if err != nil {
 		return "", err
 	}
 
 	id := fmt.Sprintf("%s%d", BotIDPrefix, len(g.players)+1)
-	g.recordLocked(id, CmdAddBot, addBotPayload{Class: class.ID, Mode: string(mode)})
-	name := class.Opponent.Name
-	p := newPlayer(id, name, class, types.Character{
+	g.recordLocked(id, CmdAddBot, addBotPayload{Champion: champion.ID, Mode: string(mode)})
+	name := champion.Name
+	p := newPlayer(id, name, kit, types.Character{
 		Name:   name,
-		Color:  class.Palette.Primary,
+		Color:  kit.Outfit.Palette.Primary,
 		Symbol: strings.ToUpper(string([]rune(name)[:1])),
 	})
 	p.IsBot = true

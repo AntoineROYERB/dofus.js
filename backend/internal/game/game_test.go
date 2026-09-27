@@ -408,12 +408,13 @@ func TestServerOwnsCharacterStats(t *testing.T) {
 	if err := g.AddPlayer("a", "User-a", look("Alice")); err != nil {
 		t.Fatalf("AddPlayer: %v", err)
 	}
-	// No class asked for: the first one in classes.json, with its numbers.
-	class := Content().DefaultClass()
+	// No loadout asked for: the first champion's set, with its grimoire's numbers.
+	set := Content().DefaultChampion().Set
+	grimoire, _ := Content().Grimoire(set.Grimoire)
 	c := g.Snapshot().Players["a"].Character
-	if c.Class != class.ID || c.Health != class.Health || c.MaxHealth != class.Health ||
-		c.ActionPoints != class.ActionPoints || c.MovementPoints != class.MovementPoints || !c.IsAlive {
-		t.Errorf("stats = %+v, want the default class %+v", c, class)
+	if c.Loadout != set || c.Health != grimoire.Health || c.MaxHealth != grimoire.Health ||
+		c.ActionPoints != grimoire.ActionPoints || c.MovementPoints != grimoire.MovementPoints || !c.IsAlive {
+		t.Errorf("stats = %+v, want the default set %+v", c, set)
 	}
 }
 

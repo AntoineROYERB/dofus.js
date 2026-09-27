@@ -6,7 +6,7 @@ isometric board on top of them.
 
 ### ▶ [Play it here](https://dofusjs.onrender.com)
 
-No account, no install. Pick a name and a class, challenge the computer, and you
+No account, no install. Pick a name and a set, challenge the computer, and you
 have a whole match to yourself. The server sleeps after 15 minutes on the free
 tier, so the first connection can take a minute to come back — the board loads
 instantly either way.
@@ -45,8 +45,9 @@ answering with a Meteor that leaves a crater behind.</sub></p>
 keeps the screen to itself and every control sits within reach of a thumb.</sub></p>
 
 On a phone, hold it sideways. The lobby becomes a home screen: your fighter in
-the middle, arrows (or a swipe) to slide through the classes with the others
-waiting faded on either side, a tap on your name to rename, and one big Play
+the middle, arrows (or a swipe) to slide through the champions' sets with the
+others waiting faded on either side, a Gear tile that opens the wardrobe, a tap
+on your name to rename, and one big Play
 button under the right thumb. In a fight the board takes the whole screen and
 the controls float over its corners — turn order top left, your HP, AP and MP
 bottom left, and your spells in an arc around the End turn button bottom
@@ -65,7 +66,7 @@ their own under the board instead.
 docker compose up --build
 ```
 
-Then open <http://localhost>. Pick a name, a colour and a class, and either
+Then open <http://localhost>. Pick a name, a colour and a set, and either
 **challenge the computer** or open a game and wait for someone to join. Two
 browser tabs are enough for a real 1v1.
 
@@ -81,13 +82,18 @@ moment you leave the tour, by finishing it or by skipping it. Walk out halfway
 and it picks back up at the step you were on. **Replay tutorial**, in the log
 rail, opens a fresh tutorial fight from the first step.
 
-There are four classes, one per element: the **Pyromancer** (burns that stack
-and then go off at once), the **Windwalker** (reach, through a relay it sets
-across the board, and displacement), the **Tidecaller** (control: traps, ice
-and water) and the **Stonewarden** (a brawler that leaps into reach and walls
-off the way out). Each carries five spells of its own element, every one with
-its own job, and one **ultimate** — cast once a fight, from turn 2. In solo
-play each class is a named opponent, and beating one unlocks the next.
+There are no classes. Your character **wears an outfit** — its element, and the
+basic attack of the weapon drawn in it — and **carries a grimoire** (three
+spells of that element and the passive they share), **a rune** (one
+improvement that works whatever the element) and **a talisman**, which circles
+you and carries your **ultimate**, cast once a fight from turn 2. The
+**wardrobe** changes each piece on its own. Four grimoires ship, one per
+element: the **Pyromancer** (burns that stack and then go off at once), the
+**Windwalker** (reach, through a relay it sets across the board, and
+displacement), the **Tidecaller** (control: traps, ice and water) and the
+**Stonewarden** (a brawler that leaps into reach and walls off the way out).
+In solo play four champions fight in a full set each, and beating one unlocks
+the next.
 
 Spells change the board and what they leave stays for the rest of the fight:
 fire that burns whoever walks in, smoke nothing is seen through, water that
@@ -139,12 +145,17 @@ lock. Broadcasts are scoped to a room, so two matches never see each other.
 walking away. The computer opponent runs on the same clock, one action per
 tick, so its moves are watchable rather than instant.
 
-**Content is data, and data is checked.** Spells and classes live in
-`backend/config/spells.json` and `classes.json`, not in Go. They are validated
-once at startup — unknown fields, unknown spell ids, AP costs a class cannot
-pay, ranges off the board, criticals weaker than the hit — and a bad file
-stops the server with the file, the field and the problem, instead of shipping
-a fight that breaks on the first cast. Adding a class is a `classes.json` edit,
+**Content is data, and data is checked.** Spells and what a fighter carries
+live in `backend/config/`, not in Go. There are no classes: a character wears
+an outfit (its element, look and basic attack) and carries a grimoire (three
+spells and a passive), a rune (one non-elemental improvement) and a talisman
+(the ultimate) — see [ADR 2](docs/adr/0002-outfit-grimoire-rune-talisman.md).
+Every file is validated once at startup — unknown fields, unknown spell ids,
+AP costs a grimoire cannot pay, a grimoire of another element than its outfit,
+a rune that names an element, ranges off the board, criticals weaker than the
+hit — and a bad file stops the server with the file, the field and the
+problem, instead of shipping a fight that breaks on the first cast. Adding an
+outfit or a grimoire is a JSON edit,
 and adding an island is an `islands.json` one: an island is a recipe over four
 fixed elements and a small library of terrains (at most two per island), with a
 palette, the bestiary monsters that live there, its boss and the armour it
@@ -164,10 +175,11 @@ each terrain's name and rule from the catalogue. The ground's numbers are part
 of the rules fingerprint, and a recorded fight on every island replays exactly.
 Until the campaign map chooses the island, `/lobby?island=ice` opens solo
 fights on one.
-Balance is a test rather than an opinion: every class is played against every
-class by the server's own bot over seeded matches, and CI fails if any class
+Balance is a test rather than an opinion: every champion is played against
+every champion, each in its set, by the server's own bot over seeded matches,
+and CI fails if any champion
 wins more than 65% of a matchup or fights stop lasting four to eight turns. The
-shipped kits sit between 40% and 60%, over fights of five turns.
+shipped sets sit between 40% and 60%, over fights of five turns.
 
 **Rendering is hand-written.** No game engine: the isometric projection, the
 back-to-front draw order, the screen-to-grid hit test and the sprite-sheet
@@ -195,8 +207,8 @@ look is a change to those two files.
 backend/
   cmd/server/          entry point: config, HTTP, graceful shutdown
   internal/config/     environment-driven settings
-  config/              balance.json, spells.json, classes.json, islands.json — the game's numbers
-  internal/content/    loads and validates spells, classes and islands
+  config/              balance.json, spells.json, islands.json and the loadout files — the game's numbers
+  internal/content/    loads and validates spells, loadout items and islands
   internal/game/       rules, lobby, computer opponent, balance simulation
   internal/websocket/  hub, sessions, per-connection pumps, handlers
   internal/types/      wire format shared by every layer
@@ -204,7 +216,7 @@ frontend/src/
   pages/               landing, lobby, board
   components/Game/     board, tiles, characters, spell bar, turn order, log,
                        the phone HUD (spell arc, fighter status) and spell cards
-  components/Lobby/    the phone home screen: class line-up, rename dialog
+  components/Lobby/    the phone home screen: line-up of sets, rename dialog
   components/Chat/     the rail's chat section
   hooks/               animation loop, grid interaction, tile sizing
   lib/native.ts        what the iOS app does that a browser cannot (haptics)
@@ -224,9 +236,14 @@ Copy `.env.example` to `.env`. Everything has a working default.
 | `ALLOWED_ORIGINS` | `*` | Origins allowed to open a WebSocket, comma separated. **Pin this for a public deployment.** An entry naming a scheme (`https://example.com`, `capacitor://localhost`) matches that origin exactly; a bare hostname (`example.com`) matches the host whatever the scheme. |
 | `TURN_SECONDS` | `45` | How long a player gets before their turn passes on |
 | `STATIC_DIR` | unset | When set, the Go binary also serves the built frontend |
-| `BALANCE_FILE` | `config/balance.json` | Default health, action points and movement points, for every class that does not set its own. Edit `backend/config/balance.json` to retune every fight at once. A missing file falls back to built-in defaults. |
+| `BALANCE_FILE` | `config/balance.json` | Default health, action points and movement points, for every grimoire that does not set its own. Edit `backend/config/balance.json` to retune every fight at once. A missing file falls back to built-in defaults. |
 | `SPELLS_FILE` | `config/spells.json` | Every spell, keyed by id, and one colour per element. Beyond cost, range, damage and area, a spell says what it is for (`role`), whether it is an `ultimate`, what it may be aimed at (`targeting`), how far it pushes or pulls (`push`), what `terrain` or `zone` it leaves, and which `special` it runs. Validated at startup: the server refuses to start on a bad file. |
-| `CLASSES_FILE` | `config/classes.json` | Every class, in picker order: name, element, symbol, palette, lore, the passive line the picker shows, optional health/AP/MP overrides, the melee bonus and push resistance it fights with, its spell bar (1 to 8 ids; the shipped classes carry five), the named solo opponent with its two lines, and which class unlocks it. Validated at startup like `SPELLS_FILE`. |
+| `OUTFITS_FILE` | `config/outfits.json` | Every outfit: name, element, the basic attack of the weapon drawn in it (a spell id of its element), the weapon's name, a palette and the sprite sheets it is drawn with. No stats: an outfit is looks and one basic attack. |
+| `GRIMOIRES_FILE` | `config/grimoires.json` | Every grimoire: name, element, symbol, lore, exactly three spells of its element (no ultimate), the passive line, the melee bonus, and optional health/AP/MP overrides of the balance. |
+| `RUNES_FILE` | `config/runes.json` | Every rune: name, the sentence a player reads, and one effect from a closed vocabulary (`finisher`, `openingMP`, `openingShield`, `pushResist`). A rune never names an element. |
+| `TALISMANS_FILE` | `config/talismans.json` | Every talisman: name, the ultimate it carries (a spell id that is an ultimate) and the orbiting sprite. |
+| `CHAMPIONS_FILE` | `config/champions.json` | The named solo opponents, in challenge order: name, two lines, the full set they fight in and give away, and which champion unlocks them. The first champion's set is what a character gets when it names no loadout. |
+| `COSMETICS_FILE` | `config/cosmetics.json` | Looks with no effect in a fight: kind (pet, aura, wings, title), name, sprite. The schema has no field a fight could read. |
 | `ISLANDS_FILE` | `config/islands.json` | The world of the campaign: the terrain library (id, name, icon, the one rule a player reads), the bestiary (each sprite sheet with its rank: monster, boss or legend), the armours, the palettes the world is painted in, and the islands in campaign order — the first is the Prairie in the middle of the world. An island names its element, 1 or 2 terrains, a palette, its lineage, its boss, the armour it unlocks and how many fights it has. Validated at startup like `SPELLS_FILE`. |
 | `LOG_FORMAT` | `json` | Server log format: `json` for an aggregator, `text` for a terminal |
 | `LOG_LEVEL` | `info` | Minimum log level: `debug`, `info`, `warn` or `error` |
@@ -375,8 +392,8 @@ cd frontend && CAP_SERVER_URL=http://192.168.1.20:5173 npx cap sync ios
 cd frontend && npx cap sync ios
 ```
 
-**When the landing page has no classes.** The classes and spells are fetched
-from the server, not shipped in the page, so a class picker that is missing
+**When the landing page has no sets.** The loadout items and spells are
+fetched from the server, not shipped in the page, so a set picker that is missing
 while the name and the colours are there means that request failed — and the
 WebSocket is about to fail the same way. The usual cause is an app running the
 bundled `dist` with no `VITE_WS_URL` baked in: its origin is then
@@ -453,8 +470,8 @@ The README's screenshots and GIFs are shot by a script, against a real server,
 so they cannot drift from the game: see `frontend/scripts/shoot-readme.mjs`
 for the two commands.
 
-The phone layout's decisions — the spell arc's slots and folding, the class
-line-up, what the confirm bubble offers and where it opens, the board's tile
+The phone layout's decisions — the spell arc's slots and folding, the line-up
+of sets, what the confirm bubble offers and where it opens, the board's tile
 fit, the native helpers — live in plain modules, so they are tested without
 a DOM.
 

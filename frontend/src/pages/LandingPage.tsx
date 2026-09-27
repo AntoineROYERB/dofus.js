@@ -6,43 +6,43 @@ import { AboutDialog } from "../components/AboutDialog";
 import { HowToPlayDialog } from "../components/HowToPlayDialog";
 import { NAME_RULE, readCharacter, saveCharacter } from "../utils/characterStorage";
 import { armTutorialMatch } from "../utils/tutorialStorage";
-import { ClassPicker } from "../components/Game/ClassPicker";
+import { SetPicker } from "../components/Game/SetPicker";
+import { Wardrobe } from "../components/Game/Wardrobe";
+import { kitOf, settleLoadout } from "../utils/loadoutUtils";
+import { Loadout } from "../types/message";
 import { useContent } from "../hooks/useContent";
 import { PLAYER_COLORS } from "../constants";
 import { isNativeApp } from "../lib/native";
 
 /**
  * One column, in the same order at every size: what the game is called, the
- * character you are about to name, the three things to choose, and the way in.
+ * character you are about to name, the two things to choose, and the way in.
  * Everything else — the pitch, the stack, the numbers — is behind "What is
  * this?", because none of it is needed to start playing.
  */
 const LandingPage: React.FC = () => {
   // Coming back to change a character starts from the one already saved.
   const [saved] = useState(readCharacter);
-  const [selectedColor, setSelectedColor] = useState(
-    saved?.color ?? PLAYER_COLORS[0]
-  );
+  // A player no longer picks a colour: the one saved travels on unused.
+  const selectedColor = saved?.color ?? PLAYER_COLORS[0];
   const [characterName, setCharacterName] = useState(saved?.name ?? "");
   const [isNameValid, setIsNameValid] = useState(!!saved);
   const [aboutOpen, setAboutOpen] = useState(false);
   const [howToPlayOpen, setHowToPlayOpen] = useState(false);
   const navigate = useNavigate();
 
-  // Classes come from the server. Until they arrive — or if they never do —
-  // the way in stays open, and the server deals its default class.
-  const { content } = useContent();
-  const [selectedClass, setSelectedClass] = useState<string | null>(
-    () => readCharacter()?.class ?? null
-  );
-  const classes = content?.classes ?? [];
-  const chosenClass =
-    classes.find((c) => c.id === selectedClass)?.id ?? classes[0]?.id;
+  // What a character can wear and carry comes from the server. Until it
+  // arrives — or if it never does — the way in stays open, and the server
+  // deals the first champion's set.
+  const { content, failed: contentFailed } = useContent();
+  const [picked, setPicked] = useState<Loadout | null>(null);
+  const [wardrobeOpen, setWardrobeOpen] = useState(false);
+  const chosenLoadout = picked ?? settleLoadout(saved?.loadout, content);
 
   const handleJoinMatch = () => {
     if (!isNameValid) return;
     // Stored rather than passed through router state so it survives a reload.
-    saveCharacter(characterName, selectedColor, chosenClass);
+    saveCharacter(characterName, selectedColor, chosenLoadout);
     navigate("/lobby");
   };
 
@@ -53,7 +53,7 @@ const LandingPage: React.FC = () => {
     saveCharacter(
       NAME_RULE.test(typed) ? typed : "Rookie",
       selectedColor,
-      chosenClass
+      chosenLoadout
     );
     armTutorialMatch();
     setHowToPlayOpen(false);
@@ -81,7 +81,7 @@ const LandingPage: React.FC = () => {
 
   // The app opens on its home screen, the way a phone game does: the form is
   // for making a fighter, and one already exists — the home screen renames it
-  // and changes its class in place.
+  // and dresses it in place.
   if (isNativeApp && saved) {
     return <Navigate to="/lobby" replace />;
   }
@@ -116,6 +116,7 @@ const LandingPage: React.FC = () => {
 
           <CharacterShowcase
             color={selectedColor}
+            outfit={kitOf(chosenLoadout, content)?.outfit.sprite}
             className="w-full max-w-[270px] sm:max-w-[330px] short:max-w-[230px]"
           />
           {isNativeApp && (
@@ -127,18 +128,16 @@ const LandingPage: React.FC = () => {
           <CharacterCreationForm
             characterName={characterName}
             setCharacterName={setCharacterName}
-            selectedColor={selectedColor}
-            setSelectedColor={setSelectedColor}
             isNameValid={isNameValid}
             setIsNameValid={setIsNameValid}
             onSubmit={handleJoinMatch}
           />
-          {content && classes.length > 0 && (
-            <ClassPicker
-              classes={classes}
-              spells={content.spells}
-              selected={chosenClass ?? null}
-              onSelect={setSelectedClass}
+          {content && chosenLoadout && (
+            <SetPicker
+              content={content}
+              loadout={chosenLoadout}
+              onSelect={setPicked}
+              onOpenWardrobe={() => setWardrobeOpen(true)}
             />
           )}
           <button
@@ -152,6 +151,20 @@ const LandingPage: React.FC = () => {
         </div>
       </main>
 
+      {wardrobeOpen && (
+        <Wardrobe
+          content={content}
+          failed={contentFailed}
+          loadout={chosenLoadout}
+          color={selectedColor}
+          name={characterName.trim() || "Your fighter"}
+          onSave={(loadout) => {
+            setPicked(loadout);
+            setWardrobeOpen(false);
+          }}
+          onCancel={() => setWardrobeOpen(false)}
+        />
+      )}
       <AboutDialog open={aboutOpen} onClose={() => setAboutOpen(false)} />
       <HowToPlayDialog
         open={howToPlayOpen}

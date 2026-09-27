@@ -260,7 +260,9 @@ export const SpellCard: React.FC<SpellCardProps> = ({ spell, blocked }) => {
             value={
               spell.targeting === "self"
                 ? "self"
-                : spell.targeting === "empty"
+                : spell.special === "swap"
+                  ? "your pylon, wherever it stands"
+                  : spell.targeting === "empty"
                   ? `a free cell within ${spell.range}`
                   : `${spell.range} cells`
             }
@@ -307,7 +309,7 @@ export const SpellCard: React.FC<SpellCardProps> = ({ spell, blocked }) => {
                   : "no limit"
             }
           />
-          {spell.range > 0 && spell.targeting !== "empty" && (
+          {spell.range > 0 && spell.targeting !== "empty" && spell.special !== "swap" && (
             <Fact
               label="Line of sight"
               value={spell.needsLineOfSight ? "needed" : "ignored"}

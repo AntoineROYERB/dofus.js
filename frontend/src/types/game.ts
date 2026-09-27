@@ -1,4 +1,4 @@
-import { Effect, SpellState } from "./message";
+import { Effect, Loadout, SpellState } from "./message";
 
 export type Position = {
   x: number;
@@ -9,8 +9,8 @@ export type Character = {
   name: string;
   color: string;
   symbol: string;
-  /** The class id this character was built from; empty on old recordings. */
-  class?: string;
+  /** What this character wears and carries; absent on old recordings. */
+  loadout?: Loadout;
   position?: Position;
   actionPoints: number;
   movementPoints: number;
@@ -63,8 +63,11 @@ export type CharacterAppearance = {
   name: string;
   color: string;
   symbol: string;
-  /** A class id. Left out, the server deals the first class. */
-  class?: string;
+  /**
+   * What the character wears and carries. Left out, or only partly known,
+   * the server deals the first champion's set.
+   */
+  loadout?: Partial<Loadout>;
 };
 
 /**
@@ -106,8 +109,8 @@ export interface CreateRoomAction extends ActionEnvelope {
   name: string;
   /** Open the room with a server-played opponent already in it. */
   withBot?: boolean;
-  /** Which class's opponent the computer plays. */
-  botClass?: string;
+  /** Which champion the computer plays, in that champion's set. */
+  botChampion?: string;
   /** How it behaves: "fight", the default, or "dummy", which stands still. */
   botMode?: "fight" | "dummy";
   /** The island to fight on, which decides the ground. Empty is a plain arena. */

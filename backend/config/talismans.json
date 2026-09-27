@@ -1,0 +1,52 @@
+{
+  "talismans": [
+    {
+      "id": "ashkas-heart",
+      "name": "Ashka's heart",
+      "ultimate": "5",
+      "sprite": "ashkas-heart"
+    },
+    {
+      "id": "sefs-feather",
+      "name": "Sef's feather",
+      "ultimate": "10",
+      "sprite": "sefs-feather"
+    },
+    {
+      "id": "mother-brines-conch",
+      "name": "Mother Brine's conch",
+      "ultimate": "15",
+      "sprite": "mother-brines-conch"
+    },
+    {
+      "id": "old-grunds-stone",
+      "name": "Old Grund's stone",
+      "ultimate": "20",
+      "sprite": "old-grunds-stone"
+    },
+    {
+      "id": "ashen-crown",
+      "name": "Shard of the Ashen Halo",
+      "ultimate": "29",
+      "sprite": "legend_roi_cendre"
+    },
+    {
+      "id": "aurorion-scale",
+      "name": "Aurorion's crystal",
+      "ultimate": "30",
+      "sprite": "legend_aurorion"
+    },
+    {
+      "id": "fulgor-drumstick",
+      "name": "Fulgor's orb",
+      "ultimate": "31",
+      "sprite": "legend_fulgor"
+    },
+    {
+      "id": "sahrkhan-fang",
+      "name": "Sahr'Khan's coil",
+      "ultimate": "32",
+      "sprite": "legend_sahrkhan"
+    }
+  ]
+}

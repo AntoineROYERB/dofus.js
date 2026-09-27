@@ -64,9 +64,9 @@ func handleCreateRoom(h *Hub, c *Client, data []byte) {
 	// rather than leaving the player alone in a solo room with nobody in it.
 	botMode := game.BotFights
 	if in.WithBot {
-		if in.BotClass != "" {
-			if _, ok := game.Content().Class(in.BotClass); !ok {
-				h.reject(c, "create_room", in.MessageID, game.ErrUnknownClass)
+		if in.BotChampion != "" {
+			if _, ok := game.Content().Champion(in.BotChampion); !ok {
+				h.reject(c, "create_room", in.MessageID, game.ErrUnknownChampion)
 				return
 			}
 		}
@@ -92,7 +92,7 @@ func handleCreateRoom(h *Hub, c *Client, data []byte) {
 	}
 
 	if in.WithBot {
-		if botID, err := room.Game.AddBotOfClass(in.BotClass, botMode); err != nil {
+		if botID, err := room.Game.AddBotChampion(in.BotChampion, botMode); err != nil {
 			slog.Warn("could not add bot", "component", "handler", "match_id", room.ID, "error", err)
 		} else {
 			slog.Info("bot added", "component", "handler", "match_id", room.ID, "bot_id", botID, "bot_mode", string(botMode))

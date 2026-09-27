@@ -11,7 +11,7 @@ import {
  * WebSocketProvider.tsx: the same VITE_WS_URL, the same "same origin unless
  * told otherwise" default, just http(s) instead of ws(s) and no /ws suffix.
  */
-const apiBaseUrl = (): string => {
+export const apiBaseUrl = (): string => {
   const raw = import.meta.env.VITE_WS_URL?.trim();
   if (raw) {
     let url = raw.replace(/^ws:\/\//, "http://").replace(/^wss:\/\//, "https://");
@@ -50,4 +50,4 @@ export const fetchMatchRecording = (id: string): Promise<MatchRecording> =>
   getJSON<MatchRecording>(`/api/matches/${encodeURIComponent(id)}/recording`);
 
 export const fetchContent = (): Promise<ContentResponse> =>
-  getJSON<ContentResponse>("/api/classes");
+  getJSON<ContentResponse>("/api/content");

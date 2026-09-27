@@ -21,10 +21,10 @@ type Character struct {
 	Name   string `json:"name"`
 	Color  string `json:"color"`
 	Symbol string `json:"symbol"`
-	// Class is the id of the class this character was built from, which is
-	// what decides its starting stats and its spell bar. Empty only for a
-	// character a test seats by hand.
-	Class          string    `json:"class"`
+	// Loadout is what this character wears and carries: it decides its
+	// element, its starting stats, its spell bar and its rune. Empty only for
+	// a character a test seats by hand.
+	Loadout        Loadout   `json:"loadout"`
 	Position       *Position `json:"position"`
 	ActionPoints   int       `json:"actionPoints"`
 	MovementPoints int       `json:"movementPoints"`
@@ -160,6 +160,12 @@ type TerrainCell struct {
 	// everyone else, a trap never catches the one who set it, and a relay only
 	// carries its owner's spells.
 	Owner string `json:"owner"`
+	// Health is what a relay or a Stonewarden's pillar has left before it
+	// breaks. Absent on every other kind.
+	Health int `json:"health,omitempty"`
+	// TurnsLeft counts down at the start of each of its owner's turns, and
+	// the cell clears when it runs out. Absent on terrain left for good.
+	TurnsLeft int `json:"turnsLeft,omitempty"`
 }
 
 // Terrain kinds.
@@ -169,7 +175,7 @@ const (
 	TerrainWater   = "water"   // slows enemies, heals its owner; puts out fire
 	TerrainIce     = "ice"     // whoever steps on it slides to the far side
 	TerrainTrap    = "trap"    // springs on the first enemy to step on it
-	TerrainRelay   = "relay"   // its owner's air spells can be cast from here
+	TerrainRelay   = "relay"   // a pylon: its owner's air spells go out from it; solid, hides what is behind it, breaks
 	TerrainCrater  = "crater"  // nobody can walk through it
 	TerrainFissure = "fissure" // nobody can walk through it
 	// TerrainPillar marks a raised pillar. The pillar itself is an obstacle;
@@ -185,12 +191,23 @@ type Zone struct {
 	Cells  []Position `json:"cells"`
 	// TurnsLeft counts down at the start of each of its owner's turns.
 	TurnsLeft int `json:"turnsLeft"`
+	// Element is the one it was cast in, for zones that act differently in
+	// each.
+	Element string `json:"element,omitempty"`
+	// Follows is the character a zone moves with, when it does.
+	Follows string `json:"follows,omitempty"`
+	// SpellID is the spell that left it, for the client to draw what it does.
+	SpellID int `json:"spellId,omitempty"`
 }
 
 // Zone kinds.
 const (
 	ZoneStorm     = "storm"     // strikes every enemy inside at the start of their turn
 	ZoneMaelstrom = "maelstrom" // drags enemies back to its centre and strips their buffs
+	// ZoneDrums strikes its cells again at the start of each of its owner's
+	// turns, harder on the last beat. What else each beat does depends on the
+	// element it was cast in.
+	ZoneDrums = "drums"
 )
 
 // LogEntry is one line of the combat log. The client renders these; without
@@ -222,6 +239,8 @@ type LogEntry struct {
 	Target  *Position `json:"target,omitempty"`
 	// Via is the relay an air spell was cast from, when it was.
 	Via *Position `json:"via,omitempty"`
+	// Infusion is the element a spell was infused with, when it was.
+	Infusion string `json:"infusion,omitempty"`
 }
 
 // Log entry kinds.
@@ -282,6 +301,78 @@ type Spell struct {
 	Relayed bool `json:"relayed"`
 	// Conducts doubles the damage on a target standing in water.
 	Conducts bool `json:"conducts"`
+	// Hits is how many times the spell strikes, each with its own roll for a
+	// critical; after the first, it strikes whoever it hit, wherever they
+	// have been thrown. 0 means once.
+	Hits int `json:"hits,omitempty"`
+	// TerrainTurns is how many of its caster's turns the terrain it leaves
+	// lasts; 0 is for good.
+	TerrainTurns int `json:"terrainTurns,omitempty"`
+	// Legend names the legendary who appears on the board to cast it.
+	Legend string `json:"legend,omitempty"`
+	// Infusions change the spell with the element its caster wears. A
+	// legendary's ultimate keeps its shape and its damage in every hand; what
+	// the element adds is written here, one entry per element.
+	Infusions map[string]Infusion `json:"infusions,omitempty"`
+}
+
+// Infusion is what an element adds to a spell. Every field set replaces the
+// spell's own; a field left empty keeps it.
+type Infusion struct {
+	Description    string       `json:"description"`
+	Damage         int          `json:"damage,omitempty"`
+	CriticalDamage int          `json:"criticalDamage,omitempty"`
+	AreaOfEffect   string       `json:"areaOfEffect,omitempty"`
+	Effect         *SpellEffect `json:"effect,omitempty"`
+	Push           int          `json:"push,omitempty"`
+	Terrain        string       `json:"terrain,omitempty"`
+	TerrainTurns   int          `json:"terrainTurns,omitempty"`
+	Special        string       `json:"special,omitempty"`
+	Conducts       bool         `json:"conducts,omitempty"`
+}
+
+// Infused is the spell as it is cast by someone wearing an element: itself,
+// with that element's infusion laid over it. A spell with no infusion for
+// the element is returned as it is.
+func (s Spell) Infused(element string) Spell {
+	in, ok := s.Infusions[element]
+	if !ok {
+		return s
+	}
+	out := s
+	out.Element = element
+	if in.Description != "" {
+		out.Description = in.Description
+	}
+	if in.Damage != 0 {
+		out.Damage = in.Damage
+	}
+	if in.CriticalDamage != 0 {
+		out.CriticalDamage = in.CriticalDamage
+	}
+	if in.AreaOfEffect != "" {
+		out.AreaOfEffect = in.AreaOfEffect
+	}
+	if in.Effect != nil {
+		effect := *in.Effect
+		out.Effect = &effect
+	}
+	if in.Push != 0 {
+		out.Push = in.Push
+	}
+	if in.Terrain != "" {
+		out.Terrain = in.Terrain
+	}
+	if in.TerrainTurns != 0 {
+		out.TerrainTurns = in.TerrainTurns
+	}
+	if in.Special != "" {
+		out.Special = in.Special
+	}
+	if in.Conducts {
+		out.Conducts = true
+	}
+	return out
 }
 
 // Spell targeting.
@@ -298,6 +389,9 @@ const (
 	SpecialRelay    = "relay"    // sets the caster's relay on the target cell
 	SpecialPillar   = "pillar"   // raises a permanent obstacle on the target cell
 	SpecialCrater   = "crater"   // digs a crater where the spell lands
+	SpecialSwap     = "swap"     // aimed at the caster's relay: the two change places
+	SpecialFlank    = "flank"    // raises a menhir on each side of the target, across the cast
+	SpecialCage     = "cage"     // walls the target in with rocks for a while, open towards the caster
 	SpecialQuake    = "quake"    // opens fissures around the caster
 )
 
@@ -315,54 +409,6 @@ type SpellEffect struct {
 	// OnSelf applies the effect to the caster instead of to what it hit, which
 	// is how a spell buffs or shields its own caster.
 	OnSelf bool `json:"onSelf"`
-}
-
-// Class is one playable archetype: the numbers a character starts with, the
-// spells on its bar, and the opponent that stands for it in solo play. Classes
-// are content, loaded from config/classes.json, not code.
-type Class struct {
-	ID      string `json:"id"`
-	Name    string `json:"name"`
-	Element string `json:"element"`
-	// Symbol is a short glyph shown beside the class name in the picker.
-	Symbol  string       `json:"symbol"`
-	Palette ClassPalette `json:"palette"`
-	Lore    string       `json:"lore"`
-
-	Health         int `json:"health"`
-	ActionPoints   int `json:"actionPoints"`
-	MovementPoints int `json:"movementPoints"`
-
-	// Passive is the class's standing rule, as the picker shows it.
-	Passive string `json:"passive"`
-	// MeleeBonus is the extra damage, in percent, the class deals to a target
-	// standing right next to it.
-	MeleeBonus int `json:"meleeBonus"`
-	// PushResist is how many cells shorter every push against the class is.
-	PushResist int `json:"pushResist"`
-
-	// Spells are catalogue ids, in bar order.
-	Spells   []string      `json:"spells"`
-	Opponent ClassOpponent `json:"opponent"`
-	// UnlockedBy names the class whose opponent has to be beaten in solo play
-	// before this one's can be challenged. Empty means open from the start.
-	UnlockedBy string `json:"unlockedBy"`
-}
-
-// ClassPalette is hex, never CSS class names, for the same reason as a
-// spell's colour: the client's Tailwind build would purge names it only
-// learns about at runtime. Primary also dyes the class's computer opponent,
-// so like a player's colour it should stay clear of the board's vermilion.
-type ClassPalette struct {
-	Primary   string `json:"primary"`
-	Secondary string `json:"secondary"`
-}
-
-// ClassOpponent is the named computer player a class is embodied by in solo
-// mode: one line when the challenge is offered, one when it is beaten.
-type ClassOpponent struct {
-	Name  string   `json:"name"`
-	Lines []string `json:"lines"`
 }
 
 // RoomSummary is one line in the lobby list.

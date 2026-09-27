@@ -27,7 +27,7 @@ import (
 
 // RecordingVersion is bumped whenever the shape of a Recording changes in a
 // way older files cannot survive. Replay refuses anything it does not know.
-const RecordingVersion = 1
+const RecordingVersion = 2
 
 // Command kinds. These strings live in recordings on disk, so they are as
 // stable as the version above.
@@ -89,7 +89,7 @@ type (
 		Character types.CharacterAppearance `json:"character"`
 	}
 	addBotPayload struct {
-		Class string `json:"class"`
+		Champion string `json:"champion"`
 		// Mode is empty on every recording made before opponents could stand
 		// still, which replays as the fighting opponent they were.
 		Mode string `json:"mode,omitempty"`
@@ -128,10 +128,10 @@ func NewSeed() int64 {
 }
 
 // RulesFingerprint hashes every number a replay depends on, under the content
-// new games are built from. Starting stats come from balance.json, spells and
-// classes from spells.json and classes.json, but all of them are just numbers
-// the fight was fought under, and changing any invalidates every recording
-// made before it.
+// new games are built from. Starting stats come from balance.json, spells from
+// spells.json and what a fighter carries from the loadout files, but all of
+// them are just numbers the fight was fought under, and changing any
+// invalidates every recording made before it.
 func RulesFingerprint() string {
 	return rulesFingerprint(current)
 }
@@ -148,7 +148,11 @@ func rulesFingerprint(cat content.Catalogue) string {
 		Ground                 map[string]int         `json:"ground"`
 		IslandGround           map[string][]string    `json:"islandGround"`
 		Spells                 map[string]types.Spell `json:"spells"`
-		Classes                []types.Class          `json:"classes"`
+		Outfits                []types.Outfit         `json:"outfits"`
+		Grimoires              []types.Grimoire       `json:"grimoires"`
+		Runes                  []types.Rune           `json:"runes"`
+		Talismans              []types.Talisman       `json:"talismans"`
+		Champions              []types.Champion       `json:"champions"`
 	}{
 		Health:                 StartingHealth,
 		ActionPoints:           StartingActionPoints,
@@ -182,7 +186,11 @@ func rulesFingerprint(cat content.Catalogue) string {
 		},
 		IslandGround: islandGround(cat),
 		Spells:       cat.Spells,
-		Classes:      cat.Classes,
+		Outfits:      cat.Outfits,
+		Grimoires:    cat.Grimoires,
+		Runes:        cat.Runes,
+		Talismans:    cat.Talismans,
+		Champions:    cat.Champions,
 	}
 	// encoding/json sorts map keys, so the same catalogue always hashes the
 	// same way whatever order it was built in.
@@ -357,7 +365,7 @@ func (g *Game) applyCommand(cmd Command) error {
 		if !ok {
 			return fmt.Errorf("recording asks for opponent mode %q", p.Mode)
 		}
-		id, err := g.AddBotOfClass(p.Class, mode)
+		id, err := g.AddBotChampion(p.Champion, mode)
 		if err != nil {
 			return err
 		}

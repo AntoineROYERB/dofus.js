@@ -159,6 +159,70 @@ const paths: Record<number, React.ReactNode> = {
       <path d="M4 9l2-3 2 3 2-3 2 3 2-3 2 3 2-3 2 3" />
     </>
   ),
+  // The outfits' basic attacks: a swing of the weapon, or a throw.
+  // Lantern Blow
+  21: (
+    <>
+      <path d="M5 20 14 7" />
+      <path d="M13 4.5h5v6h-5z" />
+      <path d="M15.5 6.5c.8 1 .8 1.8 0 2.5-.8-.7-.8-1.5 0-2.5Z" />
+    </>
+  ),
+  // Fireball
+  22: (
+    <>
+      <circle cx="15" cy="9" r="4" />
+      <path d="M12 12 4 20M9.5 9.5 5 14M14.5 14.5 10 19" />
+    </>
+  ),
+  // Lance Thrust
+  23: (
+    <>
+      <path d="M3 21 17 7" />
+      <path d="M15 5l5-1-1 5-4-4Z" />
+      <path d="M9 12.5 6 9.5l3-1" />
+    </>
+  ),
+  // Steel Feathers
+  24: (
+    <>
+      <path d="M4 20 14 10M14 10c2-4 5-6 7-6-0 2-2 5-6 7Z" />
+      <path d="M4 14 10 8M7 20l6-6" />
+    </>
+  ),
+  // Trident Strike
+  25: (
+    <>
+      <path d="M12 21V6" />
+      <path d="M7 3v4a5 5 0 0 0 10 0V3M12 3v3" />
+      <path d="M4 17c2 1 3 1 4 0M16 17c1 1 2 1 4 0" />
+    </>
+  ),
+  // Water Orb
+  26: (
+    <>
+      <circle cx="12" cy="12" r="6" />
+      <path d="M9.5 10a3 3 0 0 1 2.5-1.5" />
+      <path d="M3 19c1.5.8 2.5.8 4 0M17 5c1.5-.8 2.5-.8 4 0" />
+    </>
+  ),
+  // Sweep
+  27: (
+    <>
+      <circle cx="16" cy="8" r="3.5" />
+      <path d="M16 3v1.5M21 8h-1.5M12.5 4.5l1 1" />
+      <path d="M13.5 10.5 9 15l-2-1-3 4" />
+      <path d="M3 21h18" />
+    </>
+  ),
+  // Stone Throw
+  28: (
+    <>
+      <path d="M13 6.5 17 5l2.5 3-1 4-4 1-2.5-3Z" />
+      <path d="M3 20c2-6 5-9 9-10" strokeDasharray="1.5 2.5" />
+      <path d="M2.5 21h6" />
+    </>
+  ),
 };
 
 interface SpellGlyphProps {

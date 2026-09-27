@@ -1,4 +1,4 @@
-import { Spell, SpellState } from "../types/message";
+import { Spell, SpellBook, SpellState } from "../types/message";
 import { RULES, TERRAIN_INFO, ZONE_INFO } from "./terrain";
 import { Position } from "../types/game";
 import { distance, hasLineOfSight, neighbours } from "./board";
@@ -124,6 +124,10 @@ export function castOrigin(
   if (spell.targeting === "self") {
     return cell.x === caster.x && cell.y === caster.y ? caster : null;
   }
+  // Transfer is aimed at your own pylon, wherever it stands, and nowhere else.
+  if (spell.special === "swap") {
+    return relay && cell.x === relay.x && cell.y === relay.y ? caster : null;
+  }
   const reaches = (from: Position) =>
     distance(from, cell) <= spell.range &&
     (!spell.needsLineOfSight || hasLineOfSight(from, cell, sightBlocked));
@@ -189,6 +193,7 @@ const shapes: Record<Spell["areaOfEffect"], string | null> = {
 export const spec = (spell: Spell): string => {
   const parts = [`${spell.APCost} AP`];
   if (spell.targeting === "self") parts.push("on yourself");
+  else if (spell.special === "swap") parts.push("on your pylon");
   else if (spell.targeting === "empty") parts.push(`a free cell within ${spell.range}`);
   else parts.push(`range ${spell.range}`);
   if (spell.relayed) parts.push("or from your relay");
@@ -213,7 +218,9 @@ export const unavailableReason = (
   spell: Spell,
   state: SpellState | undefined,
   actionPoints: number,
-  turnNumber: number
+  turnNumber: number,
+  /** Whether the caster has a pylon out; unknown counts as yes. */
+  hasRelay = true
 ): string | null => {
   if (spell.ultimate && state?.spent) return "already used this fight";
   if (spell.ultimate && turnNumber < RULES.ultimateFromTurn) {
@@ -232,6 +239,7 @@ export const unavailableReason = (
     return "no casts left this turn";
   }
   if (actionPoints < spell.APCost) return "not enough action points";
+  if (spell.special === "swap" && !hasRelay) return "no pylon out";
   return null;
 };
 
@@ -241,18 +249,25 @@ export const spellMechanics = (spell: Spell): string[] => {
   const out: string[] = [];
   if (spell.push > 0) out.push(`throws back ${spell.push}`);
   if (spell.push < 0) out.push(`drags in ${-spell.push}`);
-  if (spell.terrain) out.push(`leaves ${TERRAIN_INFO[spell.terrain].name.toLowerCase()}`);
+  if (spell.terrain) {
+    const turns = spell.terrainTurns ? ` · ${spell.terrainTurns} turns` : "";
+    out.push(`leaves ${TERRAIN_INFO[spell.terrain].name.toLowerCase()}${turns}`);
+  }
   if (spell.special === "crater") out.push("digs a crater");
   if (spell.special === "quake") out.push("opens fissures");
   if (spell.special === "pillar") out.push("raises a pillar");
-  if (spell.special === "relay") out.push("sets your relay");
+  if (spell.special === "relay") out.push("raises your pylon");
+  if (spell.special === "swap") out.push("swap with your pylon");
+  if (spell.special === "flank") out.push("menhirs either side");
+  if (spell.special === "cage") out.push("cages the target");
+  if (spell.hits && spell.hits > 1) out.push(`strikes ${spell.hits} times`);
   if (spell.special === "leap") out.push("leap");
   if (spell.special === "detonate") out.push("sets burns off");
   if (spell.zone) {
     out.push(`${ZONE_INFO[spell.zone.kind].name.toLowerCase()} · ${spell.zone.duration} turns`);
   }
   if (spell.grantMP > 0) out.push(`+${spell.grantMP} MP now`);
-  if (spell.relayed) out.push(`+${RULES.relayBonus}% through your relay`);
+  if (spell.relayed) out.push(`+${RULES.relayBonus}% through your pylon`);
   if (spell.conducts) out.push(`+${RULES.conductBonus}% in water`);
   return out;
 };
@@ -286,7 +301,10 @@ export const spellSummary = (spell: Spell): string => {
       out.push("leap");
       break;
     case "relay":
-      out.push("sets relay");
+      out.push("raises pylon");
+      break;
+    case "swap":
+      out.push("swap");
       break;
     case "pillar":
       out.push("wall");
@@ -301,4 +319,38 @@ export const spellSummary = (spell: Spell): string => {
   if (spell.terrain) out.push(TERRAIN_INFO[spell.terrain].name.toLowerCase());
   if (spell.zone) out.push(`${ZONE_INFO[spell.zone.kind].name.toLowerCase()} ${spell.zone.duration}t`);
   return out.join(" · ");
+};
+
+/**
+ * A spell as it is cast by someone wearing an element: itself, with that
+ * element's infusion laid over it. Mirrors Spell.Infused on the server.
+ */
+export const infused = (spell: Spell, element: string | undefined): Spell => {
+  const infusion = element ? spell.infusions?.[element] : undefined;
+  if (!infusion || !element) return spell;
+  return {
+    ...spell,
+    element,
+    description: infusion.description || spell.description,
+    damage: infusion.damage || spell.damage,
+    criticalDamage: infusion.criticalDamage || spell.criticalDamage,
+    areaOfEffect: infusion.areaOfEffect || spell.areaOfEffect,
+    effect: infusion.effect ?? spell.effect,
+    push: infusion.push || spell.push,
+    terrain: infusion.terrain || spell.terrain,
+    terrainTurns: infusion.terrainTurns || spell.terrainTurns,
+    special: infusion.special || spell.special,
+    conducts: infusion.conducts || spell.conducts,
+  };
+};
+
+/** The whole catalogue as someone wearing an element would cast it. */
+export const infusedBook = (
+  book: SpellBook | null | undefined,
+  element: string | undefined
+): SpellBook | null => {
+  if (!book) return null;
+  const out: SpellBook = {};
+  for (const [id, spell] of Object.entries(book)) out[id] = infused(spell, element);
+  return out;
 };

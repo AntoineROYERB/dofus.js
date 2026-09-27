@@ -3,7 +3,7 @@ import { fetchContent } from "../lib/api";
 import { ContentResponse } from "../types/message";
 
 // One request per page load. Content only changes with a server restart, and
-// every page that shows a class asks for the same thing.
+// every page that dresses a character asks for the same thing.
 let pending: Promise<ContentResponse> | null = null;
 
 const load = (): Promise<ContentResponse> => {
@@ -17,7 +17,7 @@ const load = (): Promise<ContentResponse> => {
 };
 
 /**
- * The classes and spells the server loaded. `content` stays null until they
+ * The spells, loadout items and champions the server loaded. `content` stays null until they
  * arrive; `failed` says they are not coming, so a page can fall back to
  * letting the server pick rather than blocking the way in.
  */

@@ -90,6 +90,28 @@ export type Spell = {
   relayed: boolean;
   /** Double damage on a target standing in water. */
   conducts: boolean;
+  /** How many times it strikes, each with its own roll; absent is once. */
+  hits?: number;
+  /** How many of its caster's turns its terrain lasts; absent is for good. */
+  terrainTurns?: number;
+  /** The legendary who appears on the board to cast it. */
+  legend?: string;
+  /** What each element adds to it, keyed by element. */
+  infusions?: Record<string, Infusion>;
+};
+
+/** What an element adds to a spell: every field set replaces the spell's. */
+export type Infusion = {
+  description: string;
+  damage?: number;
+  criticalDamage?: number;
+  areaOfEffect?: Spell["areaOfEffect"];
+  effect?: SpellEffect;
+  push?: number;
+  terrain?: SpreadTerrain;
+  terrainTurns?: number;
+  special?: SpellSpecial;
+  conducts?: boolean;
 };
 
 export type SpellSpecial =
@@ -98,7 +120,13 @@ export type SpellSpecial =
   | "relay"
   | "pillar"
   | "crater"
-  | "quake";
+  | "quake"
+  /** The caster and their relay change places. */
+  | "swap"
+  /** A menhir on each side of the target, across the cast. */
+  | "flank"
+  /** Rocks round the target for a while, open towards the caster. */
+  | "cage";
 
 /** Terrain a spell spreads over its area. */
 export type SpreadTerrain = "fire" | "smoke" | "water" | "ice" | "trap";
@@ -117,9 +145,13 @@ export type TerrainCell = {
   kind: TerrainKind;
   /** Who made it: water heals only its owner, traps never catch theirs. */
   owner: string;
+  /** What a relay's pylon has left before it breaks. */
+  health?: number;
+  /** Counts down at the start of its owner's turns; absent is for good. */
+  turnsLeft?: number;
 };
 
-export type ZoneKind = "storm" | "maelstrom";
+export type ZoneKind = "storm" | "maelstrom" | "drums";
 
 export type Zone = {
   kind: ZoneKind;
@@ -128,6 +160,12 @@ export type Zone = {
   cells: Position[];
   /** Counts down at the start of each of its owner's turns. */
   turnsLeft: number;
+  /** The element it was cast in, for zones that act differently in each. */
+  element?: string;
+  /** The character it moves with, when it does. */
+  follows?: string;
+  /** The spell that left it. */
+  spellId?: number;
 };
 
 export type SpellEffect = {
@@ -187,37 +225,105 @@ export type LogEntry = {
   target?: Position;
   /** The relay an air spell went out from, when it did. */
   via?: Position;
+  /** The element a spell was infused with, when it was. */
+  infusion?: string;
 };
 
 export type SpellBook = { [spellId: string]: Spell };
 
 /**
- * A playable class, as loaded by the server from config/classes.json. Like
- * spells, the client keeps no copy: it fetches them from /api/classes. The
- * palette is hex for the same reason a spell's colour is.
+ * There are no classes. A character wears an outfit and carries a grimoire, a
+ * rune and a talisman (docs/adr/0002-outfit-grimoire-rune-talisman.md). All
+ * four are content the server loads from config/ and serves from
+ * /api/content; the client keeps no copy. Colours are hex for the same reason
+ * a spell's colour is.
  */
-export type CharacterClass = {
+export type Loadout = {
+  outfit: string;
+  grimoire: string;
+  rune: string;
+  talisman: string;
+};
+
+export type Palette = { primary: string; secondary: string };
+
+/** Looks, an element, and the basic attack of the weapon drawn in it. */
+export type Outfit = {
+  id: string;
+  name: string;
+  element: string;
+  /** A spell id of the outfit's element. */
+  basicAttack: string;
+  /** The weapon drawn in the outfit, as the wardrobe names it. */
+  weapon: string;
+  palette: Palette;
+  sprite: string;
+};
+
+/** The kit: three spells, the passive they share, and the stats it plays at. */
+export type Grimoire = {
   id: string;
   name: string;
   element: string;
   symbol: string;
-  palette: { primary: string; secondary: string };
   lore: string;
-  /** The class's standing rule, one sentence. */
+  /** Spell ids, in bar order after the basic attack. */
+  spells: string[];
+  /** The kit's standing rule, one sentence. */
   passive: string;
+  /**
+   * The circle drawn on the ground under whoever carries it: an
+   * "element/sheet" key of animation/fx/manifest.json.
+   */
+  glyph: string;
   /** Extra damage, in percent, against a target standing next to it. */
   meleeBonus?: number;
-  /** How many cells shorter every push against the class is. */
-  pushResist?: number;
   health: number;
   actionPoints: number;
   movementPoints: number;
-  /** Spell ids, in bar order. */
-  spells: string[];
-  /** Who stands for this class in solo play: a challenge line, a defeat line. */
-  opponent: { name: string; lines: string[] };
-  /** The class whose opponent has to be beaten first; empty when open. */
+};
+
+export type RuneEffect = {
+  kind: "finisher" | "openingMP" | "openingShield" | "pushResist";
+  value: number;
+  threshold?: number;
+  duration?: number;
+};
+
+/** One sentence that improves the character, whatever its element. */
+export type Rune = {
+  id: string;
+  name: string;
+  description: string;
+  effect: RuneEffect;
+};
+
+/** It orbits the character, and carries the ultimate. */
+export type Talisman = {
+  id: string;
+  name: string;
+  /** A spell id, and that spell is an ultimate. */
+  ultimate: string;
+  sprite: string;
+};
+
+/** A named computer opponent, who fights in a full set and gives it away. */
+export type Champion = {
+  id: string;
+  name: string;
+  /** A challenge line, a defeat line. */
+  lines: string[];
+  set: Loadout;
+  /** The champion who has to be beaten first; empty when open. */
   unlockedBy: string;
+};
+
+/** A look and nothing else: nothing a fight could read. */
+export type Cosmetic = {
+  id: string;
+  kind: "pet" | "aura" | "wings" | "title";
+  name: string;
+  sprite: string;
 };
 
 /**
@@ -280,8 +386,14 @@ export type Island = {
 };
 
 export type ContentResponse = {
-  classes: CharacterClass[];
   spells: SpellBook;
+  outfits: Outfit[];
+  grimoires: Grimoire[];
+  runes: Rune[];
+  talismans: Talisman[];
+  /** In challenge order, which is also unlock order. */
+  champions: Champion[];
+  cosmetics: Cosmetic[];
   terrains: Terrain[];
   bestiary: Monster[];
   armours: Armour[];

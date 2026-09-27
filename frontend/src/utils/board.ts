@@ -1,6 +1,6 @@
 import { Position } from "../types/game";
 import { GroundCell, TerrainCell } from "../types/message";
-import { isSolidTerrain } from "./terrain";
+import { isSolidTerrain, terrainBlocksSight } from "./terrain";
 import { groundBlocksSight, isSolidGround } from "./ground";
 
 /** Matches GridRadius on the server: the board is a diamond of this radius. */
@@ -168,7 +168,7 @@ export const blockedBy = (
 };
 
 /**
- * Builds the "nothing is seen past this" test: cover, smoke, rock, and
+ * Builds the "nothing is seen past this" test: cover, smoke, pylons, rock, and
  * everyone standing on the board. Craters, fissures and lava are low, not
  * walls.
  */
@@ -182,7 +182,7 @@ export const sightBlockedBy = (
     ...(obstacles ?? []).map(key),
     ...occupied.map(key),
     ...(terrain ?? [])
-      .filter((cell) => cell.kind === "smoke")
+      .filter((cell) => terrainBlocksSight(cell.kind))
       .map((cell) => key(cell.position)),
     ...(ground ?? [])
       .filter((cell) => groundBlocksSight(cell.kind))

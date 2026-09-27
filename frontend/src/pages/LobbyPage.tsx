@@ -8,11 +8,19 @@ import { useRejectionBanner } from "../hooks/useRejectionBanner";
 import { HowToPlayDialog } from "../components/HowToPlayDialog";
 import { useContent } from "../hooks/useContent";
 import { readDefeated } from "../utils/progressStorage";
-import { isUnlocked, nextChallenge } from "../utils/classUtils";
-import { CharacterClass } from "../types/message";
+import {
+  beatenChampions,
+  isUnlocked,
+  kitOf,
+  nextChallenge,
+  settleLoadout,
+} from "../utils/loadoutUtils";
+import { Champion, ContentResponse } from "../types/message";
+import { Wardrobe } from "../components/Game/Wardrobe";
 import { LobbyHome } from "../components/Lobby/LobbyHome";
 import { RenameDialog } from "../components/Lobby/RenameDialog";
 import { useMediaQuery } from "../hooks/useMediaQuery";
+import { ElementGlyph } from "../components/Game/ElementGlyph";
 import {
   armTutorialMatch,
   hasSeenTutorial,
@@ -20,45 +28,47 @@ import {
 } from "../utils/tutorialStorage";
 
 /**
- * One rung of the solo arc: an opponent, and whether it can be fought yet.
+ * One rung of the solo arc: a champion, and whether it can be fought yet.
  * Locked rungs still show who they are and what opens them, so the arc reads
- * as somewhere to go rather than a row of padlocks.
+ * as somewhere to go rather than a row of padlocks. Beating a champion wins
+ * its set.
  */
 const OpponentRow: React.FC<{
-  cls: CharacterClass;
-  classes: CharacterClass[];
+  champion: Champion;
+  content: ContentResponse;
   defeated: ReadonlySet<string>;
   disabled: boolean;
-  onChallenge: (classId: string) => void;
+  onChallenge: (championId: string) => void;
   /**
    * On the home screen a row picks the opponent Play will start against,
    * rather than starting the fight itself. Undefined means "fight now".
    */
   picked?: boolean;
-}> = ({ cls, classes, defeated, disabled, onChallenge, picked }) => {
-  const open = isUnlocked(cls, defeated);
-  const beaten = defeated.has(cls.id);
-  const opener = classes.find((c) => c.id === cls.unlockedBy);
+}> = ({ champion, content, defeated, disabled, onChallenge, picked }) => {
+  const open = isUnlocked(champion, defeated);
+  const beaten = defeated.has(champion.id);
+  const opener = content.champions.find((c) => c.id === champion.unlockedBy);
+  const kit = kitOf(champion.set, content);
 
   return (
     <li className="flex items-center gap-3 border-b border-hairline py-2.5 last:border-b-0">
-      <span aria-hidden className="w-6 flex-none text-center text-[17px]">
-        {open ? cls.symbol : "·"}
+      <span aria-hidden className="grid w-6 flex-none place-items-center text-[17px] text-muted">
+        {open ? <ElementGlyph element={kit?.element} size={16} /> : "·"}
       </span>
       <div className="min-w-0 flex-1">
         <p className={`truncate font-display text-[15px] font-bold ${open ? "" : "text-muted"}`}>
-          {cls.opponent.name}
+          {champion.name}
         </p>
         <p className="truncate font-mono text-[9.5px] uppercase tracking-label text-muted">
-          {cls.name}
-          {beaten ? " · beaten" : ""}
-          {!open && opener ? ` · beat ${opener.opponent.name} first` : ""}
+          {kit?.grimoire.name}
+          {beaten ? " · set won" : ""}
+          {!open && opener ? ` · beat ${opener.name} first` : ""}
         </p>
       </div>
       <button
         type="button"
         disabled={disabled || !open}
-        onClick={() => onChallenge(cls.id)}
+        onClick={() => onChallenge(champion.id)}
         className="border border-ink px-4 py-2.5 font-mono text-[10px] uppercase tracking-label text-ink transition-colors hover:bg-ink hover:text-paper disabled:cursor-not-allowed disabled:border-hairline disabled:text-muted disabled:hover:bg-transparent disabled:hover:text-muted sm:py-1.5"
       >
         {!open
@@ -167,13 +177,14 @@ const LobbyPage: React.FC = () => {
 
   const character = readCharacter();
   const { content, failed: contentFailed } = useContent();
-  const classes = content?.classes ?? [];
+  const champions = content?.champions ?? [];
   const islands = content?.islands ?? [];
+  const loadout = settleLoadout(character?.loadout, content);
   const [island, setIsland] = useState(islandFromUrl);
   // Read on every render: coming back from a won match has to show the rung
   // it opened without a reload.
-  const defeated = readDefeated();
-  const next = classes.length > 0 ? nextChallenge(classes, defeated) : undefined;
+  const defeated = beatenChampions(readDefeated(), champions);
+  const next = champions.length > 0 ? nextChallenge(champions, defeated) : undefined;
 
   // A phone held sideways — the iOS app — gets the home screen instead of
   // the list; the list lives on in its sheets.
@@ -182,12 +193,11 @@ const LobbyPage: React.FC = () => {
   // The opponent Play starts against: the arc's next one unless picked.
   const [pickedId, setPickedId] = useState<string | null>(null);
   const [renaming, setRenaming] = useState(false);
+  const [wardrobeOpen, setWardrobeOpen] = useState(false);
   // The character lives in storage; bumping this re-reads it after an edit.
   const [, setEdits] = useState(0);
   const picked =
-    classes.find(
-      (c) => c.id === pickedId && isUnlocked(c, defeated)
-    ) ?? next;
+    champions.find((c) => c.id === pickedId && isUnlocked(c, defeated)) ?? next;
 
   // Pick a character before entering a room; otherwise there is nothing to
   // send once we get there.
@@ -211,13 +221,13 @@ const LobbyPage: React.FC = () => {
 
   /*
    * A visitor with no one to play against can still see the whole game. With
-   * no class list to hand the server picks the opponent, as it always did.
+   * no champion list to hand the server picks the opponent, as it always did.
    *
    * The tutorial's opponent stands still until the tour ends: nobody learns
    * which button is which while being shot at. It wakes up on the way out.
    */
-  const playSolo = (botClass?: string, asked = false) => {
-    const opponent = classes.find((c) => c.id === botClass)?.opponent.name;
+  const playSolo = (botChampion?: string, asked = false) => {
+    const opponent = champions.find((c) => c.id === botChampion)?.name;
     /*
      * Any solo match a player opens before they have seen the tour is a
      * tutorial match, whichever button opened it: the game screen shows the
@@ -233,7 +243,7 @@ const LobbyPage: React.FC = () => {
       timestamp,
       name: `${character?.name ?? "Solo"} vs ${opponent ?? "Cpu"}`.slice(0, 24),
       withBot: true,
-      ...(botClass ? { botClass } : {}),
+      ...(botChampion ? { botChampion } : {}),
       ...(still ? { botMode: "dummy" as const } : {}),
       ...(island ? { island } : {}),
     });
@@ -274,13 +284,14 @@ const LobbyPage: React.FC = () => {
     sendGameAction({ type: "join_room", messageId, timestamp, roomId: id });
   };
 
-  const opponentList = (pick: boolean) => (
+  const opponentList = (pick: boolean) =>
+    content && (
     <ul>
-      {classes.map((cls) => (
+      {champions.map((champion) => (
         <OpponentRow
-          key={cls.id}
-          cls={cls}
-          classes={classes}
+          key={champion.id}
+          champion={champion}
+          content={content}
           defeated={defeated}
           disabled={!connected}
           onChallenge={
@@ -291,7 +302,7 @@ const LobbyPage: React.FC = () => {
                 }
               : playSolo
           }
-          picked={pick ? cls.id === picked?.id : undefined}
+          picked={pick ? champion.id === picked?.id : undefined}
         />
       ))}
     </ul>
@@ -342,6 +353,22 @@ const LobbyPage: React.FC = () => {
     </>
   );
 
+  const wardrobe = wardrobeOpen && character && (
+    <Wardrobe
+      content={content}
+      failed={contentFailed}
+      loadout={loadout}
+      color={character.color}
+      name={character.name}
+      onSave={(chosen) => {
+        saveCharacter(character.name, character.color, chosen);
+        setWardrobeOpen(false);
+        setEdits((n) => n + 1);
+      }}
+      onCancel={() => setWardrobeOpen(false)}
+    />
+  );
+
   const howToPlay = (
     <HowToPlayDialog
       open={howToPlayOpen}
@@ -358,19 +385,20 @@ const LobbyPage: React.FC = () => {
       <>
         <LobbyHome
           character={character}
-          classes={classes}
+          content={content}
+          loadout={loadout}
           connected={connected}
           notice={notice}
           opponent={picked}
-          beaten={classes.filter((c) => defeated.has(c.id)).length}
+          beaten={defeated.size}
           openRooms={joinable}
           onPlay={() => playSolo(picked?.id)}
           onRename={() => setRenaming(true)}
-          onSelectClass={(cls) => {
-            // The fighter wears its class's colour.
-            saveCharacter(character.name, cls.palette.primary, cls.id);
+          onSelectSet={(champion) => {
+            saveCharacter(character.name, character.color, champion.set);
             setEdits((n) => n + 1);
           }}
+          onOpenWardrobe={() => setWardrobeOpen(true)}
           onOpenOpponents={() => setSheet("opponents")}
           onOpenRooms={() => setSheet("rooms")}
           onOpenHistory={() => navigate("/matches")}
@@ -390,7 +418,7 @@ const LobbyPage: React.FC = () => {
           <RenameDialog
             name={character.name}
             onSave={(name) => {
-              saveCharacter(name, character.color, character.class);
+              saveCharacter(name, character.color, character.loadout);
               setRenaming(false);
               setEdits((n) => n + 1);
             }}
@@ -398,6 +426,7 @@ const LobbyPage: React.FC = () => {
           />
         )}
         {howToPlay}
+        {wardrobe}
       </>
     );
   }
@@ -410,11 +439,6 @@ const LobbyPage: React.FC = () => {
             Dofus.js · lobby
           </span>
           <span className="flex items-baseline gap-2 font-mono text-[9.5px] uppercase tracking-label text-muted">
-            <span
-              aria-hidden
-              className="h-[9px] w-[9px] flex-none translate-y-px"
-              style={{ backgroundColor: character?.color }}
-            />
             <b className="font-medium text-ink">{character?.name}</b>
             <span className={connected ? "" : "text-vermilion"}>
               {connected ? "connected" : "reconnecting…"}
@@ -449,11 +473,11 @@ const LobbyPage: React.FC = () => {
             connected ? "animate-beckon" : ""
           }`}
         >
-          {next ? `Challenge ${next.opponent.name}` : "Play against the computer"}
+          {next ? `Challenge ${next.name}` : "Play against the computer"}
         </button>
         {next && (
           <p className="mt-2 text-center text-[13px] italic text-graphite">
-            “{next.opponent.lines[0]}”
+            “{next.lines[0]}”
           </p>
         )}
 
@@ -483,11 +507,10 @@ const LobbyPage: React.FC = () => {
           </div>
         )}
 
-        {classes.length > 1 && (
+        {champions.length > 1 && (
           <details className="mt-3 border-t border-hairline">
             <summary className="cursor-pointer py-2 font-mono text-[9.5px] uppercase tracking-label text-muted transition-colors hover:text-vermilion">
-              Every opponent · {classes.filter((c) => defeated.has(c.id)).length}/
-              {classes.length} beaten
+              Every champion · {defeated.size}/{champions.length} beaten
             </summary>
             {opponentList(false)}
           </details>
@@ -525,6 +548,14 @@ const LobbyPage: React.FC = () => {
           </button>
           <button
             type="button"
+            onClick={() => setWardrobeOpen(true)}
+            disabled={!content}
+            className="self-start font-mono text-[9.5px] uppercase tracking-label text-muted transition-colors hover:text-vermilion"
+          >
+            Wardrobe
+          </button>
+          <button
+            type="button"
             onClick={() => navigate("/")}
             className="self-start font-mono text-[9.5px] uppercase tracking-label text-muted transition-colors hover:text-vermilion"
           >
@@ -534,6 +565,7 @@ const LobbyPage: React.FC = () => {
       </div>
 
       {howToPlay}
+      {wardrobe}
     </div>
   );
 };

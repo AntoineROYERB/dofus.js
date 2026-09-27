@@ -7,8 +7,9 @@ import {
 } from "../../../utils/isoUtils";
 import { blockedBy, reachable, sightBlockedBy } from "../../../utils/board";
 import { Tile } from "./Tile";
-import { castOrigin, outOfSight } from "../../../utils/spellUtils";
+import { castOrigin, infused, outOfSight } from "../../../utils/spellUtils";
 import { BurnMarker } from "./BurnMarker";
+import { TalismanOrbit, TalismanState } from "../TalismanOrbit";
 import {
   isSolidTerrain,
   relayOf,
@@ -23,13 +24,15 @@ import { GroundLayer } from "./GroundLayer";
 import { IslandLegend } from "./IslandLegend";
 import { groundIndex, stepCostOf } from "../../../utils/ground";
 import { useContent } from "../../../hooks/useContent";
+import { kitOf } from "../../../utils/loadoutUtils";
+import { attackKindOf, useFxManifest } from "../../../utils/fxManifest";
 import { Character } from "./Character";
 import { Socle } from "./Socle";
 import { CharacterTooltip } from "./CharacterTooltip";
 import { HitFeedback } from "./HitFeedback";
 import { StatFeedback } from "./StatFeedback";
 import { SpellFXLayer } from "./SpellFXLayer";
-import { BOARD } from "../../../constants";
+import { BOARD, SPRITE } from "../../../constants";
 import { useCharacterAnimations } from "../../../hooks/useCharacterAnimations";
 import { useHitFeedback } from "../../../hooks/useHitFeedback";
 import { useGridInteraction } from "../../../hooks/useGridInteraction";
@@ -93,6 +96,7 @@ export const Grid: React.FC<GridProps> = ({
   const stepCost = React.useMemo(() => stepCostOf(ground), [ground]);
   // What each terrain of the island is called, and the rule a player reads.
   const { content } = useContent();
+  const fxManifest = useFxManifest();
   const terrainLibrary = React.useMemo(
     () => new Map((content?.terrains ?? []).map((t) => [t.id, t])),
     [content]
@@ -101,10 +105,17 @@ export const Grid: React.FC<GridProps> = ({
   const terrainAt = React.useMemo(() => terrainIndex(terrain), [terrain]);
   const relay = React.useMemo(() => relayOf(terrain, userId), [terrain, userId]);
   // The spell catalogue is broadcast with the game state; the client keeps no copy.
-  const selectedSpell =
-    selectedSpellId === null
-      ? undefined
-      : latestGameState?.spells?.[String(selectedSpellId)];
+  // A legendary's ultimate is previewed as this player's element casts it.
+  const myElement = kitOf(players?.[userId]?.character.loadout, content)?.element;
+  const rawSpell =
+    selectedSpellId === null ? undefined : latestGameState?.spells?.[String(selectedSpellId)];
+  // Kept the same object between renders: an infused spell is a fresh copy,
+  // and everything below that is worked out from it would redo itself (and
+  // set state from it) on every render.
+  const selectedSpell = React.useMemo(
+    () => rawSpell && infused(rawSpell, myElement),
+    [rawSpell, myElement]
+  );
   const currentPlayer = players?.[userId];
   const movementPoints = currentPlayer?.character.movementPoints;
   const characterPosition = currentPlayer?.character.position;
@@ -135,7 +146,7 @@ export const Grid: React.FC<GridProps> = ({
 
     Object.entries(players).forEach(([playerId, playerData]) => {
       const isCurrentPlayer = playerId === userId;
-      const playerColor = playerData?.character.color;
+      const playerColor = isCurrentPlayer ? BOARD.socle.mine : BOARD.socle.theirs;
 
       playerData?.character.initialPositions?.forEach((position) => {
         positionsWithOwners.push({
@@ -649,6 +660,7 @@ export const Grid: React.FC<GridProps> = ({
               canCastAtHovered={hoveredCastable}
               isObstacle={isObstacle}
               isPillar={isObstacle && terrainAt.get(`${x},${y}`)?.kind === "pillar"}
+              pillarSheet={!!fxManifest}
               isInRange={isInRange}
               showMovementWash={showMovementWash}
               movementCost={walkable.get(`${x},${y}`)}
@@ -708,7 +720,7 @@ export const Grid: React.FC<GridProps> = ({
               key={`socle-${playerId}`}
               screenPosition={renderData.screenPosition}
               tileSize={tileSize}
-              color={player.character.color}
+              color={playerId === userId ? BOARD.socle.mine : BOARD.socle.theirs}
               isPlaying={player.isCurrentTurn}
               isAlive={player.character.isAlive}
               opacity={renderData.opacity}
@@ -724,8 +736,38 @@ export const Grid: React.FC<GridProps> = ({
               animation={renderData.animation}
               direction={renderData.direction}
               scale={tileSize.width / 256}
-              color={players?.[playerId]?.character.color}
               opacity={renderData.opacity}
+              outfit={kitOf(players?.[playerId]?.character.loadout, content)?.outfit.sprite}
+              attack={attackKindOf(renderData.spellId, fxManifest)}
+            />
+          );
+        })}
+        {/*
+          Each fighter's talisman circling it at chest height: the gauge of
+          its ultimate, dull until it can be cast, bright once it can.
+        */}
+        {Object.entries(characterRenderState).map(([playerId, renderData]) => {
+          const player = players?.[playerId];
+          const kit = kitOf(player?.character.loadout, content);
+          if (!renderData || !player?.character.isAlive || !kit || isPositioningPhase) return null;
+          const ultimate = kit.talisman.ultimate;
+          const state: TalismanState = player.spells?.[ultimate]?.spent
+            ? "spent"
+            : (latestGameState?.turnNumber ?? 0) < RULES.ultimateFromTurn
+              ? "charging"
+              : "ready";
+          const tw = tileSize.width;
+          return (
+            <TalismanOrbit
+              key={`talisman-${playerId}`}
+              x={renderData.screenPosition.x}
+              y={renderData.screenPosition.y - (SPRITE.feet - SPRITE.headTop) * tw * 0.45}
+              radius={tw * 0.2}
+              size={Math.max(8, tw * 0.085)}
+              color={content?.spells[ultimate]?.color ?? "#e2521d"}
+              state={state}
+              id={kit.talisman.id}
+              unit={tw / 64}
             />
           );
         })}
@@ -740,7 +782,6 @@ export const Grid: React.FC<GridProps> = ({
               screenPosition={renderData.screenPosition}
               tileSize={tileSize}
               stacks={burn.value}
-              turnsLeft={burn.turnsLeft}
             />
           );
         })}
@@ -967,7 +1008,7 @@ export const Grid: React.FC<GridProps> = ({
             animation="idle"
             direction="S"
             scale={tileSize.width / 256}
-            color={currentPlayer?.character.color}
+            outfit={kitOf(currentPlayer?.character.loadout, content)?.outfit.sprite}
           />
         )}
       </div>

@@ -7,7 +7,6 @@ import (
 	"strconv"
 	"strings"
 
-	"game-server/internal/config"
 	"game-server/internal/types"
 )
 
@@ -37,22 +36,23 @@ var knownTerrain = map[string]bool{
 	types.TerrainIce: true, types.TerrainTrap: true,
 }
 
-var knownZones = map[string]bool{types.ZoneStorm: true, types.ZoneMaelstrom: true}
+var knownZones = map[string]bool{types.ZoneStorm: true, types.ZoneMaelstrom: true, types.ZoneDrums: true}
 
 var knownSpecials = map[string]bool{
 	types.SpecialDetonate: true, types.SpecialLeap: true, types.SpecialRelay: true,
 	types.SpecialPillar: true, types.SpecialCrater: true, types.SpecialQuake: true,
+	types.SpecialSwap: true, types.SpecialFlank: true, types.SpecialCage: true,
 }
 
 // Specials that act on the cell they are aimed at, which therefore has to be
 // free.
 var specialsNeedingAnEmptyCell = map[string]bool{
-	types.SpecialLeap: true, types.SpecialRelay: true, types.SpecialPillar: true,
+	types.SpecialLeap: true, types.SpecialPillar: true,
 }
 
 var (
 	hexColour = regexp.MustCompile(`^#[0-9a-fA-F]{6}$`)
-	classID   = regexp.MustCompile(`^[a-z][a-z0-9-]{0,31}$`)
+	itemID    = regexp.MustCompile(`^[a-z][a-z0-9-]{0,31}$`)
 )
 
 type validator struct {
@@ -64,8 +64,8 @@ func (v *validator) add(file, field, format string, args ...any) {
 }
 
 // spells checks every spell on its own and returns the ones it could build.
-// Class-dependent rules — AP cost against the class's AP — are checked with
-// the classes.
+// Kit-dependent rules — AP cost against the grimoire's AP — are checked with
+// the loadouts.
 func (v *validator) spells(file string, sf spellsFile, bounds Bounds) map[string]types.Spell {
 	for _, name := range sortedStrings(sf.Elements) {
 		if !knownElements[name] {
@@ -176,6 +176,10 @@ func (v *validator) spells(file string, sf spellsFile, bounds Bounds) map[string
 			Special:          s.Special,
 			Relayed:          s.Relayed,
 			Conducts:         s.Conducts,
+			Hits:             s.Hits,
+			TerrainTurns:     s.TerrainTurns,
+			Legend:           s.Legend,
+			Infusions:        s.Infusions,
 		}
 	}
 	return spells
@@ -210,6 +214,14 @@ func (v *validator) mechanics(file, key string, s spellEntry, bounds Bounds) {
 	if specialsNeedingAnEmptyCell[s.Special] && s.Targeting != types.TargetEmpty {
 		v.add(file, field("targeting"), "the %s special acts on the cell it is aimed at, so targeting must be %q", s.Special, types.TargetEmpty)
 	}
+	// A relay set on a free cell stands where it is aimed; one set by a spell
+	// aimed at anything stands there only if the spell has left it free.
+	if s.Special == types.SpecialRelay && s.Targeting == types.TargetSelf {
+		v.add(file, field("targeting"), "the relay special stands on the cell it is aimed at, so targeting must not be %q", types.TargetSelf)
+	}
+	if s.Special == types.SpecialSwap && s.Targeting != "" && s.Targeting != types.TargetAny {
+		v.add(file, field("targeting"), "the swap special is aimed at its caster's relay, so targeting must be %q", types.TargetAny)
+	}
 	if s.Special == types.SpecialQuake && s.Targeting != types.TargetSelf {
 		v.add(file, field("targeting"), "the quake special opens fissures around its caster, so targeting must be %q", types.TargetSelf)
 	}
@@ -221,6 +233,18 @@ func (v *validator) mechanics(file, key string, s spellEntry, bounds Bounds) {
 	}
 	if s.GrantMP < 0 {
 		v.add(file, field("grantMP"), "is %d, must not be negative", s.GrantMP)
+	}
+	if s.Hits < 0 {
+		v.add(file, field("hits"), "is %d, must not be negative (0 means once)", s.Hits)
+	}
+	if s.TerrainTurns < 0 {
+		v.add(file, field("terrainTurns"), "is %d, must not be negative (0 means for good)", s.TerrainTurns)
+	}
+	if s.Legend != "" && !itemID.MatchString(strings.ReplaceAll(s.Legend, "_", "-")) {
+		v.add(file, field("legend"), "%q is not a sprite name", s.Legend)
+	}
+	for _, element := range sortedStrings(s.Infusions) {
+		v.infusion(file, fmt.Sprintf("spells[%q].infusions[%q]", key, element), element, s, s.Infusions[element])
 	}
 	if s.Zone != nil {
 		if !knownZones[s.Zone.Kind] {
@@ -237,6 +261,42 @@ func (v *validator) mechanics(file, key string, s spellEntry, bounds Bounds) {
 		if s.MaxCastsPerTurn != 1 {
 			v.add(file, field("maxCastsPerTurn"), "is %d on an ultimate, set it to 1", s.MaxCastsPerTurn)
 		}
+	}
+}
+
+// infusion checks what an element adds to a spell, on its own terms and as
+// part of the spell it changes.
+func (v *validator) infusion(file, field, element string, s spellEntry, in types.Infusion) {
+	if !knownElements[element] {
+		v.add(file, field, "unknown element %q (known: %s)", element, knownList(knownElements))
+	}
+	if strings.TrimSpace(in.Description) == "" {
+		v.add(file, field+".description", "must not be empty: the spell's card shows it to whoever wears %s", element)
+	}
+	if in.AreaOfEffect != "" && !knownAreas[in.AreaOfEffect] {
+		v.add(file, field+".areaOfEffect", "unknown area %q (known: %s)", in.AreaOfEffect, knownList(knownAreas))
+	}
+	if in.Terrain != "" && !knownTerrain[in.Terrain] {
+		v.add(file, field+".terrain", "unknown terrain %q (known: %s)", in.Terrain, knownList(knownTerrain))
+	}
+	if in.Special != "" && !knownSpecials[in.Special] {
+		v.add(file, field+".special", "unknown special %q (known: %s)", in.Special, knownList(knownSpecials))
+	}
+	if in.Effect != nil {
+		v.effect(file, field+".effect", *in.Effect)
+	}
+	damage, crit := s.Damage, s.CriticalDamage
+	if in.Damage != 0 {
+		damage = in.Damage
+	}
+	if in.CriticalDamage != 0 {
+		crit = in.CriticalDamage
+	}
+	if damage < 0 || crit < damage {
+		v.add(file, field+".criticalDamage", "is %d, must be at least the damage %d", crit, damage)
+	}
+	if in.TerrainTurns < 0 {
+		v.add(file, field+".terrainTurns", "is %d, must not be negative", in.TerrainTurns)
 	}
 }
 
@@ -260,174 +320,6 @@ func (v *validator) effect(file, field string, e types.SpellEffect) {
 	default:
 		if e.Value == 0 {
 			v.add(file, field+".value", "is 0, the effect would do nothing")
-		}
-	}
-}
-
-func (v *validator) classes(file string, cf classesFile, spells map[string]types.Spell, balance config.Balance) []types.Class {
-	if len(cf.Classes) == 0 {
-		v.add(file, "classes", "no classes defined")
-		return nil
-	}
-
-	ids := make(map[string]int, len(cf.Classes))
-	for i, c := range cf.Classes {
-		if prev, dup := ids[c.ID]; dup {
-			v.add(file, fmt.Sprintf("classes[%d].id", i), "duplicate id %q, already used by classes[%d]", c.ID, prev)
-			continue
-		}
-		ids[c.ID] = i
-	}
-
-	classes := make([]types.Class, 0, len(cf.Classes))
-	for i, c := range cf.Classes {
-		field := func(name string) string { return fmt.Sprintf("classes[%d].%s", i, name) }
-
-		if !classID.MatchString(c.ID) {
-			v.add(file, field("id"), "%q must be lowercase letters, digits and dashes, starting with a letter", c.ID)
-		}
-		if strings.TrimSpace(c.Name) == "" {
-			v.add(file, field("name"), "must not be empty")
-		}
-		if strings.TrimSpace(c.Symbol) == "" {
-			v.add(file, field("symbol"), "must not be empty")
-		}
-		if strings.TrimSpace(c.Lore) == "" {
-			v.add(file, field("lore"), "must not be empty")
-		}
-		if strings.TrimSpace(c.Passive) == "" {
-			v.add(file, field("passive"), "must not be empty: the picker shows it")
-		}
-		if c.PushResist < 0 {
-			v.add(file, field("pushResist"), "is %d, must not be negative", c.PushResist)
-		}
-		if c.MeleeBonus < 0 || c.MeleeBonus > 200 {
-			v.add(file, field("meleeBonus"), "is %d, must be a percentage between 0 and 200", c.MeleeBonus)
-		}
-		if !knownElements[c.Element] {
-			v.add(file, field("element"), "unknown element %q (known: %s)", c.Element, knownList(knownElements))
-		}
-		if !hexColour.MatchString(c.Palette.Primary) {
-			v.add(file, field("palette.primary"), "%q is not a #rrggbb hex value", c.Palette.Primary)
-		}
-		if !hexColour.MatchString(c.Palette.Secondary) {
-			v.add(file, field("palette.secondary"), "%q is not a #rrggbb hex value", c.Palette.Secondary)
-		}
-
-		health := orDefault(c.Health, balance.Health)
-		actionPoints := orDefault(c.ActionPoints, balance.ActionPoints)
-		movementPoints := orDefault(c.MovementPoints, balance.MovementPoints)
-		for _, stat := range []struct {
-			name  string
-			value int
-		}{{"health", health}, {"actionPoints", actionPoints}, {"movementPoints", movementPoints}} {
-			if stat.value < 1 {
-				v.add(file, field(stat.name), "is %d, must be at least 1", stat.value)
-			}
-		}
-
-		if len(c.Spells) == 0 || len(c.Spells) > BarSlots {
-			v.add(file, field("spells"), "has %d spells, the bar holds 1 to %d", len(c.Spells), BarSlots)
-		}
-		ultimates := 0
-		onBar := make(map[string]bool, len(c.Spells))
-		for j, id := range c.Spells {
-			spellField := fmt.Sprintf("classes[%d].spells[%d]", i, j)
-			if onBar[id] {
-				v.add(file, spellField, "spell %q is on the bar twice", id)
-				continue
-			}
-			onBar[id] = true
-			spell, ok := spells[id]
-			if !ok {
-				v.add(file, spellField, "unknown spell %q", id)
-				continue
-			}
-			if spell.APCost > actionPoints {
-				v.add(file, spellField, "%s costs %d AP, more than the class's %d", spell.Name, spell.APCost, actionPoints)
-			}
-			if spell.Ultimate {
-				ultimates++
-			}
-		}
-		if ultimates > 1 {
-			v.add(file, field("spells"), "has %d ultimates, a class gets at most one", ultimates)
-		}
-
-		if strings.TrimSpace(c.Opponent.Name) == "" {
-			v.add(file, field("opponent.name"), "must not be empty")
-		}
-		if len(c.Opponent.Lines) != 2 {
-			v.add(file, field("opponent.lines"), "has %d lines, want 2: one when challenged, one when beaten", len(c.Opponent.Lines))
-		}
-		for j, line := range c.Opponent.Lines {
-			if strings.TrimSpace(line) == "" {
-				v.add(file, fmt.Sprintf("classes[%d].opponent.lines[%d]", i, j), "must not be empty")
-			}
-		}
-
-		if c.UnlockedBy != "" {
-			if c.UnlockedBy == c.ID {
-				v.add(file, field("unlockedBy"), "a class cannot unlock itself")
-			} else if _, ok := ids[c.UnlockedBy]; !ok {
-				v.add(file, field("unlockedBy"), "unknown class %q", c.UnlockedBy)
-			}
-		}
-
-		classes = append(classes, types.Class{
-			ID:             c.ID,
-			Name:           c.Name,
-			Element:        c.Element,
-			Symbol:         c.Symbol,
-			Palette:        c.Palette,
-			Lore:           c.Lore,
-			Passive:        c.Passive,
-			MeleeBonus:     c.MeleeBonus,
-			PushResist:     c.PushResist,
-			Health:         health,
-			ActionPoints:   actionPoints,
-			MovementPoints: movementPoints,
-			Spells:         append([]string(nil), c.Spells...),
-			Opponent: types.ClassOpponent{
-				Name:  c.Opponent.Name,
-				Lines: append([]string(nil), c.Opponent.Lines...),
-			},
-			UnlockedBy: c.UnlockedBy,
-		})
-	}
-
-	v.unlockChain(file, cf, ids)
-	return classes
-}
-
-// unlockChain makes sure every opponent can eventually be reached: something
-// has to be open from the start, and no class may wait on a loop of classes
-// that all wait on each other.
-func (v *validator) unlockChain(file string, cf classesFile, ids map[string]int) {
-	open := false
-	for _, c := range cf.Classes {
-		if c.UnlockedBy == "" {
-			open = true
-		}
-	}
-	if !open {
-		v.add(file, "classes", "every class has unlockedBy set, so no opponent can ever be challenged")
-		return
-	}
-
-	for i, c := range cf.Classes {
-		seen := map[string]bool{c.ID: true}
-		for next := c.UnlockedBy; next != ""; {
-			j, ok := ids[next]
-			if !ok {
-				break // already reported as an unknown class
-			}
-			if seen[next] {
-				v.add(file, fmt.Sprintf("classes[%d].unlockedBy", i), "unlock chain loops back through %q and can never be satisfied", next)
-				break
-			}
-			seen[next] = true
-			next = cf.Classes[j].UnlockedBy
 		}
 	}
 }

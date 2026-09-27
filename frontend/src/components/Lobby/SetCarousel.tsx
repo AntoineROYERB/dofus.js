@@ -1,15 +1,21 @@
 import React, { useRef, useState } from "react";
-import { CharacterClass } from "../../types/message";
+import { Champion, ContentResponse, Loadout } from "../../types/message";
+import { championOf, kitOf } from "../../utils/loadoutUtils";
 import {
   CharacterShowcase,
   ShowcaseFigure,
 } from "../Game/CharacterShowcase";
 import { lineUpSlot, mod, shownPosition } from "../../utils/lineUp";
+import { elementLook } from "../../utils/elements";
+import { ElementGlyph } from "../Game/ElementGlyph";
 
-interface ClassCarouselProps {
-  classes: CharacterClass[];
-  selectedId: string | undefined;
-  onSelect: (cls: CharacterClass) => void;
+interface SetCarouselProps {
+  content: ContentResponse;
+  /** What the character wears and carries now. */
+  loadout: Loadout;
+  /** The player's colour, on the trims of the set they wear. */
+  color: string;
+  onSelect: (champion: Champion) => void;
 }
 
 /** A line-up slot as a style, sliding between places. */
@@ -53,34 +59,40 @@ const Arrow: React.FC<{ dir: -1 | 1; onClick: () => void; label: string }> = ({
 );
 
 /**
- * The class picker on the home screen. The stand never moves; the fighters
- * do. The chosen class stands on it, the classes either side wait in the
+ * The champions' sets on the home screen. The stand never moves; the fighters
+ * do. The set worn stands on it, the others wait either side in the
  * background, and the arrows (or a swipe) slide the whole line one place,
- * each fighter in its own class's colour.
+ * each fighter in its outfit's colour. A set of the player's own making —
+ * mixed in the wardrobe — stands in the place of the champion whose outfit
+ * it wears.
  *
- * Fighters are keyed by an unbounded position rather than by class, so
- * turning past the last class keeps sliding the same way instead of jumping
- * back across the stand.
+ * Fighters are keyed by an unbounded position rather than by set, so turning
+ * past the last set keeps sliding the same way instead of jumping back across
+ * the stand.
  */
-export const ClassCarousel: React.FC<ClassCarouselProps> = ({
-  classes,
-  selectedId,
+export const SetCarousel: React.FC<SetCarouselProps> = ({
+  content,
+  loadout,
+  color,
   onSelect,
 }) => {
-  const count = classes.length;
-  const selectedIndex = Math.max(
-    0,
-    classes.findIndex((c) => c.id === selectedId)
-  );
+  const champions = content.champions;
+  const count = champions.length;
+  const worn =
+    championOf(loadout, champions) ??
+    champions.find((c) => c.set.outfit === loadout.outfit);
+  const selectedIndex = Math.max(0, champions.findIndex((c) => c.id === worn?.id));
   const [position, setPosition] = useState(selectedIndex);
-  // A class picked elsewhere moves the line to it without a slide.
+  // A set picked elsewhere moves the line to it without a slide.
   const shown = shownPosition(position, selectedIndex, count);
-  const cls = classes[mod(shown, count)];
+  const kit = kitOf(loadout, content);
+  const colourOf = (champion: Champion) =>
+    kitOf(champion.set, content)?.outfit.palette.primary ?? "#000000";
 
   const turn = (dir: -1 | 1) => {
     const next = shown + dir;
     setPosition(next);
-    onSelect(classes[mod(next, count)]);
+    onSelect(champions[mod(next, count)]);
   };
 
   const swipe = useRef<{ x: number; y: number } | null>(null);
@@ -101,7 +113,15 @@ export const ClassCarousel: React.FC<ClassCarouselProps> = ({
     const slot = shown + offset;
     return {
       key: slot,
-      color: classes[mod(slot, count)].palette.primary,
+      // The set worn is the player's, in their colour; the others wait in
+      // their champions'.
+      color: offset === 0 ? color : colourOf(champions[mod(slot, count)]),
+      // The set worn stands in the character's own outfit; the others wait
+      // in their champions'.
+      outfit:
+        offset === 0
+          ? kit?.outfit.sprite
+          : kitOf(champions[mod(slot, count)].set, content)?.outfit.sprite,
       style: place(offset),
       behind: offset !== 0,
     };
@@ -117,13 +137,16 @@ export const ClassCarousel: React.FC<ClassCarouselProps> = ({
       >
         <div className="relative w-[min(62%,calc((100dvh-170px)*1.2))]">
           <CharacterShowcase
-            color={cls.palette.primary}
+            color={color}
             figures={figures}
+            glyph={kit?.grimoire.glyph}
+            talisman={kit ? content.spells[kit.talisman.ultimate]?.color : undefined}
+            talismanId={kit?.talisman.id}
             figureScale={2.7}
             className="w-full"
           />
-          <Arrow dir={-1} onClick={() => turn(-1)} label="Previous class" />
-          <Arrow dir={1} onClick={() => turn(1)} label="Next class" />
+          <Arrow dir={-1} onClick={() => turn(-1)} label="Previous set" />
+          <Arrow dir={1} onClick={() => turn(1)} label="Next set" />
         </div>
       </div>
 
@@ -131,24 +154,22 @@ export const ClassCarousel: React.FC<ClassCarouselProps> = ({
         aria-live="polite"
         className="mt-1 flex items-center gap-2 font-mono text-[10px] uppercase tracking-label text-graphite"
       >
-        <span
-          aria-hidden
-          className="h-2 w-2 transition-colors duration-300"
-          style={{ backgroundColor: cls.palette.primary }}
-        />
-        <b className="font-semibold text-ink">
-          {cls.symbol} {cls.name}
+        <ElementGlyph element={kit?.element} size={12} />
+        <b className="font-semibold" style={{ color: elementLook(kit?.element)?.dark }}>
+          {kit?.element}
         </b>
+        <b className="font-semibold text-ink">{kit?.grimoire.name}</b>
         <span>
-          {cls.health} hp · {cls.actionPoints} ap · {cls.movementPoints} mp
+          {kit?.grimoire.health} hp · {kit?.grimoire.actionPoints} ap ·{" "}
+          {kit?.grimoire.movementPoints} mp
         </span>
       </p>
-      {/* Always two lines tall, so the screen does not jump between classes. */}
+      {/* Always two lines tall, so the screen does not jump between sets. */}
       <p className="mt-0.5 line-clamp-2 min-h-[2lh] max-w-[40ch] text-center text-[11px] leading-snug text-graphite">
-        {cls.passive}
+        {kit?.grimoire.passive} · {kit?.rune.name}: {kit?.rune.description}
       </p>
     </div>
   );
 };
 
-export default ClassCarousel;
+export default SetCarousel;

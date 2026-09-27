@@ -33,11 +33,33 @@ const (
 	// spell and to a storm.
 	ConductBonus = 50
 	// RelayBonus is the extra damage, in percent, a spell deals when it goes
-	// out through its caster's relay: the wind has had room to build.
-	RelayBonus = 30
+	// out through its caster's relay: the wind has had room to build. Air
+	// spells are weak without it, and this is what makes up for it.
+	RelayBonus = 75
+	// RelayHealth is what a relay takes before it breaks: two blows of a
+	// character driven into it, or one strong spell and one blow.
+	RelayHealth = 12
+	// RelayBlast is what a breaking relay does to each of its owner's enemies
+	// standing next to it.
+	RelayBlast = 10
+	// RelayRecharge is the cooldown a broken relay puts on the spell that sets
+	// it: counted down at the start of its owner's turns, so the owner goes two
+	// turns without one.
+	RelayRecharge = 3
+	// PillarHealth is what a Stonewarden's pillar soaks up before it crumbles:
+	// every blow aimed at its owner while they stand beside it lands on it.
+	PillarHealth = 15
+	// CageTurns is how many of its caster's turns a cage of rocks stands.
+	CageTurns = 2
+	// DrumBeat is what each beat of the drums does to whoever stands under
+	// it, DrumFinale the last one.
+	DrumBeat   = 8
+	DrumFinale = 14
 )
 
 var (
+	ErrNoRelay          = errors.New("you have no pylon out")
+	ErrNotYourRelay     = errors.New("aim at your own pylon")
 	ErrUltimateNotReady = errors.New("ultimates unlock on turn 2")
 	ErrUltimateSpent    = errors.New("that ultimate has already been used this fight")
 	ErrCellNotFree      = errors.New("that spell needs a free cell")
@@ -50,7 +72,13 @@ var (
 var quakeFissures = []types.Position{{X: 2, Y: 0}, {X: -2, Y: 0}, {X: 0, Y: 2}, {X: 0, Y: -2}}
 
 func isSolidTerrain(kind string) bool {
-	return kind == types.TerrainCrater || kind == types.TerrainFissure
+	return kind == types.TerrainCrater || kind == types.TerrainFissure || kind == types.TerrainRelay
+}
+
+// terrainBlocksSight reports whether what a spell left on a cell hides what is
+// behind it: smoke, and a relay's pylon.
+func terrainBlocksSight(kind string) bool {
+	return kind == types.TerrainSmoke || kind == types.TerrainRelay
 }
 
 // solidLocked reports whether nobody can stand on or walk through a cell,
@@ -118,6 +146,169 @@ func (g *Game) relayOfLocked(owner string) (types.Position, bool) {
 		}
 	}
 	return types.Position{}, false
+}
+
+// setRelayLocked stands a player's relay on a cell, whole.
+func (g *Game) setRelayLocked(pos types.Position, owner string, health int) {
+	if g.terrain == nil {
+		g.terrain = make(map[types.Position]types.TerrainCell)
+	}
+	g.terrain[pos] = types.TerrainCell{Position: pos, Kind: types.TerrainRelay, Owner: owner, Health: health}
+}
+
+// hitRelayLocked takes health off the relay on a cell, and breaks it once it
+// has none left.
+func (g *Game) hitRelayLocked(pos types.Position, amount int) {
+	cell, ok := g.terrain[pos]
+	if !ok || cell.Kind != types.TerrainRelay || amount <= 0 {
+		return
+	}
+	cell.Health -= amount
+	if cell.Health > 0 {
+		g.terrain[pos] = cell
+		return
+	}
+	g.breakRelayLocked(pos)
+}
+
+// breakRelayLocked brings a relay down. It goes off as it breaks, hurting
+// every one of its owner's enemies next to it, and its owner cannot set
+// another for a while.
+func (g *Game) breakRelayLocked(pos types.Position) {
+	cell := g.terrain[pos]
+	delete(g.terrain, pos)
+	owner, ok := g.players[cell.Owner]
+	if !ok {
+		return
+	}
+	g.effectLogLocked(cell.Owner, "loses their pylon", 0)
+	for key, st := range owner.Spells {
+		if spell, ok := g.spells[key]; ok && spell.Special == types.SpecialRelay {
+			st.CooldownLeft = max(st.CooldownLeft, RelayRecharge)
+			owner.Spells[key] = st
+		}
+	}
+	g.players[cell.Owner] = owner
+	for _, n := range Neighbours(pos) {
+		id, ok := g.playerAtLocked(n)
+		if !ok || id == cell.Owner || !g.players[id].Character.IsAlive {
+			continue
+		}
+		dealt := g.hitLocked(id, RelayBlast)
+		g.effectLogLocked(id, "is caught in the pylon's blast", dealt)
+	}
+}
+
+// hitLocked is a blow landing on a character: a Stonewarden standing beside
+// one of their own pillars has it take the blow instead, as much as it has
+// left, and only what it cannot hold gets through. What reaches the
+// character is reported, as damageLocked does.
+func (g *Game) hitLocked(id string, amount int) int {
+	if pos, ok := g.guardOfLocked(id); ok && amount > 0 {
+		cell := g.terrain[pos]
+		taken := min(amount, cell.Health)
+		amount -= taken
+		cell.Health -= taken
+		g.terrain[pos] = cell
+		g.effectLogLocked(id, "is covered by their pillar", 0)
+		if cell.Health <= 0 {
+			g.crumblePillarLocked(pos)
+		}
+	}
+	return g.damageLocked(id, amount)
+}
+
+// guardOfLocked finds the pillar of theirs a character stands beside, if
+// any: the one with the most left in it. Beside is any of the eight cells
+// around it, corners included, so the cairn's ward is a square to stand in.
+func (g *Game) guardOfLocked(id string) (types.Position, bool) {
+	c := g.players[id].Character
+	if !c.IsAlive || c.Position == nil {
+		return types.Position{}, false
+	}
+	best, found := types.Position{}, false
+	for _, n := range around(*c.Position) {
+		cell, ok := g.terrain[n]
+		if !ok || cell.Kind != types.TerrainPillar || cell.Owner != id || cell.Health <= 0 {
+			continue
+		}
+		if !found || cell.Health > g.terrain[best].Health {
+			best, found = n, true
+		}
+	}
+	return best, found
+}
+
+// around is the eight cells round a cell, corners included, in a fixed order.
+func around(p types.Position) []types.Position {
+	out := make([]types.Position, 0, 8)
+	for dy := -1; dy <= 1; dy++ {
+		for dx := -1; dx <= 1; dx++ {
+			if dx == 0 && dy == 0 {
+				continue
+			}
+			out = append(out, types.Position{X: p.X + dx, Y: p.Y + dy})
+		}
+	}
+	return out
+}
+
+// hitPillarLocked takes health off a pillar that holds some.
+func (g *Game) hitPillarLocked(pos types.Position, amount int) {
+	cell, ok := g.terrain[pos]
+	if !ok || cell.Kind != types.TerrainPillar || cell.Health <= 0 || amount <= 0 {
+		return
+	}
+	cell.Health -= amount
+	g.terrain[pos] = cell
+	if cell.Health <= 0 {
+		g.crumblePillarLocked(pos)
+	}
+}
+
+// crumblePillarLocked brings a pillar down and opens its cell again.
+func (g *Game) crumblePillarLocked(pos types.Position) {
+	cell := g.terrain[pos]
+	delete(g.terrain, pos)
+	delete(g.obstacles, pos)
+	if _, ok := g.players[cell.Owner]; ok {
+		g.effectLogLocked(cell.Owner, "loses a pillar", 0)
+	}
+}
+
+// raiseRockLocked raises a rock on a free cell, if walling it off would not cut
+// the board in two: for good, or for that many of its owner's turns.
+func (g *Game) raiseRockLocked(pos types.Position, owner string, turns int) {
+	if !g.freeLocked(pos) || !g.staysConnectedLocked(pos) {
+		return
+	}
+	if g.obstacles == nil {
+		g.obstacles = make(map[types.Position]bool)
+	}
+	g.obstacles[pos] = true
+	if g.terrain == nil {
+		g.terrain = make(map[types.Position]types.TerrainCell)
+	}
+	g.terrain[pos] = types.TerrainCell{Position: pos, Kind: types.TerrainPillar, Owner: owner, TurnsLeft: turns}
+}
+
+// ageTerrainLocked takes a turn off everything its owner left for a while,
+// at the start of that owner's turn, and clears what has run out.
+func (g *Game) ageTerrainLocked(owner string) {
+	for pos, cell := range g.terrain {
+		if cell.Owner != owner || cell.TurnsLeft <= 0 {
+			continue
+		}
+		cell.TurnsLeft--
+		if cell.TurnsLeft > 0 {
+			g.terrain[pos] = cell
+			continue
+		}
+		delete(g.terrain, pos)
+		if cell.Kind == types.TerrainPillar {
+			delete(g.obstacles, pos)
+		}
+	}
 }
 
 // staysConnectedLocked reports whether every free cell of the board could
@@ -256,7 +447,7 @@ func (g *Game) enterCellLocked(id string) (stop bool) {
 			return false
 		}
 		delete(g.terrain, pos)
-		dealt := g.damageLocked(id, TrapDamage)
+		dealt := g.hitLocked(id, TrapDamage)
 		p = g.players[id]
 		p.Character.MovementPoints = 0
 		g.players[id] = p
@@ -299,9 +490,9 @@ func (g *Game) slideLocked(id string, dir types.Position) int {
 // before it has run its course hurts.
 func (g *Game) shoveLocked(id string, dir types.Position, n int, pullTo *types.Position) {
 	if pullTo == nil {
-		// Some classes are harder to throw around than others.
-		if class, ok := g.catalogue.Class(g.players[id].Character.Class); ok {
-			n -= class.PushResist
+		// An Anchor rune makes its carrier harder to throw around.
+		if rune, ok := g.runeOf(g.players[id].Character, types.RunePushResist); ok {
+			n -= rune.Value
 		}
 	}
 	if dir == (types.Position{}) || n <= 0 {
@@ -316,8 +507,13 @@ func (g *Game) shoveLocked(id string, dir types.Position, n int, pullTo *types.P
 		next := types.Position{X: pos.X + dir.X, Y: pos.Y + dir.Y}
 		if !g.freeLocked(next) {
 			if pullTo == nil {
-				dealt := g.damageLocked(id, CollisionDamage)
-				g.effectLogLocked(id, "slams into something", dealt)
+				dealt := g.hitLocked(id, CollisionDamage)
+				if g.terrainKindLocked(next) == types.TerrainRelay {
+					g.effectLogLocked(id, "slams into a pylon", dealt)
+					g.hitRelayLocked(next, CollisionDamage)
+				} else {
+					g.effectLogLocked(id, "slams into something", dealt)
+				}
 			}
 			break
 		}
@@ -383,6 +579,83 @@ func (g *Game) ageZonesLocked(owner string) {
 	}
 }
 
+// drumsLocked beats every drum its owner keeps up, at the start of the
+// owner's turn: whoever stands under a beat is struck, harder on the last.
+// The element the drums were cast in adds to each beat.
+func (g *Game) drumsLocked(owner string) {
+	for i := range g.zones {
+		z := g.zones[i]
+		if z.Kind != types.ZoneDrums || z.Owner != owner {
+			continue
+		}
+		finale := z.TurnsLeft <= 1
+		amount := DrumBeat
+		if finale {
+			amount = DrumFinale
+		}
+		if z.Element == "Air" {
+			// The storm keeps up with its target, and hits a little softer.
+			amount = amount * 3 / 4
+			if c := g.players[z.Follows].Character; c.IsAlive && c.Position != nil {
+				z.Center = *c.Position
+				z.Cells = []types.Position{z.Center}
+				g.zones[i] = z
+			}
+		}
+		center := z.Center
+		g.appendLogLocked(types.LogEntry{
+			Actor: g.players[owner].Character.Name, Kind: types.LogEffect, Text: "beats the drums",
+			SpellID: z.SpellID, Origin: &center, Target: &center, Infusion: z.Element,
+		})
+		for _, cell := range z.Cells {
+			id, ok := g.playerAtLocked(cell)
+			if !ok || id == owner || !g.players[id].Character.IsAlive {
+				continue
+			}
+			hit := amount
+			p := g.players[id]
+			switch z.Element {
+			case "Water":
+				if g.terrainKindLocked(cell) == types.TerrainWater {
+					hit = hit * (100 + ConductBonus) / 100
+				}
+			case "Fire":
+				if finale {
+					stacks, turns := takeBurn(&p.Character)
+					hit += stacks * turns * BurnDamagePerStack
+					g.players[id] = p
+				}
+			}
+			dealt := g.hitLocked(id, hit)
+			g.effectLogLocked(id, "is struck by the drums", dealt)
+			p = g.players[id]
+			if !p.Character.IsAlive {
+				continue
+			}
+			switch z.Element {
+			case "Fire":
+				if !finale {
+					addBurn(&p.Character, 1)
+				}
+			case "Earth":
+				applyEffect(&p.Character, types.Effect{Kind: types.EffectMP, Value: -1, TurnsLeft: 1, Source: "the drums"})
+			}
+			g.players[id] = p
+		}
+		if finale && z.Element == "Earth" {
+			for _, offset := range quakeFissures {
+				cell := types.Position{X: center.X + offset.X, Y: center.Y + offset.Y}
+				if g.freeLocked(cell) && g.staysConnectedLocked(cell) {
+					if g.terrain == nil {
+						g.terrain = make(map[types.Position]types.TerrainCell)
+					}
+					g.terrain[cell] = types.TerrainCell{Position: cell, Kind: types.TerrainFissure, Owner: owner}
+				}
+			}
+		}
+	}
+}
+
 // zonesActOnLocked is what an enemy's zones do to a character whose turn is
 // starting inside them.
 func (g *Game) zonesActOnLocked(id string) {
@@ -398,7 +671,7 @@ func (g *Game) zonesActOnLocked(id string) {
 			if g.terrainKindLocked(*p.Character.Position) == types.TerrainWater {
 				amount = amount * (100 + ConductBonus) / 100
 			}
-			dealt := g.damageLocked(id, amount)
+			dealt := g.hitLocked(id, amount)
 			g.effectLogLocked(id, "is struck by the storm", dealt)
 		case types.ZoneMaelstrom:
 			if *p.Character.Position != z.Center && g.freeLocked(z.Center) {

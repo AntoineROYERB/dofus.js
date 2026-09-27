@@ -1,0 +1,824 @@
+{
+  "fire": {
+    "projectile": {
+      "file": "fire/projectile.png",
+      "frameWidth": 256,
+      "frameHeight": 256,
+      "frames": 4,
+      "loop": true,
+      "layer": "air",
+      "anchor": [
+        128,
+        128
+      ],
+      "directions": [
+        "NW",
+        "W",
+        "SW",
+        "S",
+        "SE",
+        "E",
+        "NE",
+        "N"
+      ]
+    },
+    "impact": {
+      "file": "fire/impact.png",
+      "frameWidth": 256,
+      "frameHeight": 256,
+      "frames": 10,
+      "loop": false,
+      "layer": "air",
+      "anchor": [
+        128,
+        184
+      ],
+      "directions": null
+    },
+    "sigil": {
+      "file": "fire/sigil.png",
+      "frameWidth": 256,
+      "frameHeight": 256,
+      "frames": 12,
+      "loop": true,
+      "layer": "ground",
+      "anchor": [
+        128,
+        184
+      ],
+      "directions": null
+    },
+    "ignite": {
+      "file": "fire/ignite.png",
+      "frameWidth": 256,
+      "frameHeight": 256,
+      "frames": 12,
+      "loop": false,
+      "layer": "air",
+      "anchor": [
+        128,
+        184
+      ],
+      "directions": null
+    },
+    "firewall": {
+      "file": "fire/firewall.png",
+      "frameWidth": 256,
+      "frameHeight": 256,
+      "frames": 8,
+      "loop": true,
+      "layer": "standing",
+      "anchor": [
+        128,
+        184
+      ],
+      "directions": null
+    },
+    "combustion": {
+      "file": "fire/combustion.png",
+      "frameWidth": 384,
+      "frameHeight": 384,
+      "frames": 14,
+      "loop": false,
+      "layer": "air",
+      "anchor": [
+        192,
+        280
+      ],
+      "directions": null
+    },
+    "smoke": {
+      "file": "fire/smoke.png",
+      "frameWidth": 256,
+      "frameHeight": 256,
+      "frames": 12,
+      "loop": true,
+      "layer": "standing",
+      "anchor": [
+        128,
+        184
+      ],
+      "directions": null
+    },
+    "meteor": {
+      "file": "fire/meteor.png",
+      "frameWidth": 384,
+      "frameHeight": 512,
+      "frames": 18,
+      "loop": false,
+      "layer": "air",
+      "anchor": [
+        192,
+        432
+      ],
+      "directions": null
+    },
+    "burning_ground": {
+      "file": "fire/burning_ground.png",
+      "frameWidth": 256,
+      "frameHeight": 256,
+      "frames": 8,
+      "loop": true,
+      "layer": "ground",
+      "anchor": [
+        128,
+        184
+      ],
+      "directions": null
+    }
+  },
+  "air": {
+    "projectile": {
+      "file": "air/projectile.png",
+      "frameWidth": 256,
+      "frameHeight": 256,
+      "frames": 4,
+      "loop": true,
+      "layer": "air",
+      "anchor": [
+        128,
+        128
+      ],
+      "directions": [
+        "NW",
+        "W",
+        "SW",
+        "S",
+        "SE",
+        "E",
+        "NE",
+        "N"
+      ]
+    },
+    "impact": {
+      "file": "air/impact.png",
+      "frameWidth": 256,
+      "frameHeight": 256,
+      "frames": 8,
+      "loop": false,
+      "layer": "air",
+      "anchor": [
+        128,
+        184
+      ],
+      "directions": null
+    },
+    "sigil": {
+      "file": "air/sigil.png",
+      "frameWidth": 256,
+      "frameHeight": 256,
+      "frames": 12,
+      "loop": true,
+      "layer": "ground",
+      "anchor": [
+        128,
+        184
+      ],
+      "directions": null
+    },
+    "banner": {
+      "file": "air/banner.png",
+      "frameWidth": 256,
+      "frameHeight": 256,
+      "frames": 12,
+      "loop": true,
+      "layer": "standing",
+      "anchor": [
+        128,
+        184
+      ],
+      "directions": null
+    },
+    "lightning": {
+      "file": "air/lightning.png",
+      "frameWidth": 256,
+      "frameHeight": 448,
+      "frames": 10,
+      "loop": false,
+      "layer": "air",
+      "anchor": [
+        128,
+        400
+      ],
+      "directions": null
+    },
+    "gale": {
+      "file": "air/gale.png",
+      "frameWidth": 256,
+      "frameHeight": 256,
+      "frames": 8,
+      "loop": false,
+      "layer": "air",
+      "anchor": [
+        128,
+        184
+      ],
+      "directions": null
+    },
+    "tailwind": {
+      "file": "air/tailwind.png",
+      "frameWidth": 256,
+      "frameHeight": 256,
+      "frames": 12,
+      "loop": true,
+      "layer": "ground",
+      "anchor": [
+        128,
+        184
+      ],
+      "directions": null
+    },
+    "tempest": {
+      "file": "air/tempest.png",
+      "frameWidth": 512,
+      "frameHeight": 384,
+      "frames": 12,
+      "loop": true,
+      "layer": "air",
+      "anchor": [
+        256,
+        336
+      ],
+      "directions": null
+    }
+  },
+  "water": {
+    "projectile": {
+      "file": "water/projectile.png",
+      "frameWidth": 256,
+      "frameHeight": 256,
+      "frames": 4,
+      "loop": true,
+      "layer": "air",
+      "anchor": [
+        128,
+        128
+      ],
+      "directions": [
+        "NW",
+        "W",
+        "SW",
+        "S",
+        "SE",
+        "E",
+        "NE",
+        "N"
+      ]
+    },
+    "impact": {
+      "file": "water/impact.png",
+      "frameWidth": 256,
+      "frameHeight": 256,
+      "frames": 8,
+      "loop": false,
+      "layer": "air",
+      "anchor": [
+        128,
+        184
+      ],
+      "directions": null
+    },
+    "sigil": {
+      "file": "water/sigil.png",
+      "frameWidth": 256,
+      "frameHeight": 256,
+      "frames": 12,
+      "loop": true,
+      "layer": "ground",
+      "anchor": [
+        128,
+        184
+      ],
+      "directions": null
+    },
+    "hydro": {
+      "file": "water/hydro.png",
+      "frameWidth": 256,
+      "frameHeight": 320,
+      "frames": 12,
+      "loop": false,
+      "layer": "air",
+      "anchor": [
+        128,
+        280
+      ],
+      "directions": null
+    },
+    "water": {
+      "file": "water/water.png",
+      "frameWidth": 256,
+      "frameHeight": 256,
+      "frames": 12,
+      "loop": true,
+      "layer": "ground",
+      "anchor": [
+        128,
+        184
+      ],
+      "directions": null
+    },
+    "bubbles": {
+      "file": "water/bubbles.png",
+      "frameWidth": 256,
+      "frameHeight": 256,
+      "frames": 12,
+      "loop": true,
+      "layer": "ground",
+      "anchor": [
+        128,
+        184
+      ],
+      "directions": null
+    },
+    "bubbles_pop": {
+      "file": "water/bubbles_pop.png",
+      "frameWidth": 256,
+      "frameHeight": 256,
+      "frames": 8,
+      "loop": false,
+      "layer": "air",
+      "anchor": [
+        128,
+        184
+      ],
+      "directions": null
+    },
+    "rain": {
+      "file": "water/rain.png",
+      "frameWidth": 256,
+      "frameHeight": 320,
+      "frames": 8,
+      "loop": true,
+      "layer": "air",
+      "anchor": [
+        128,
+        312
+      ],
+      "directions": null
+    },
+    "ice": {
+      "file": "water/ice.png",
+      "frameWidth": 256,
+      "frameHeight": 256,
+      "frames": 12,
+      "loop": true,
+      "layer": "ground",
+      "anchor": [
+        128,
+        184
+      ],
+      "directions": null
+    },
+    "maelstrom": {
+      "file": "water/maelstrom.png",
+      "frameWidth": 384,
+      "frameHeight": 256,
+      "frames": 12,
+      "loop": true,
+      "layer": "ground",
+      "anchor": [
+        192,
+        144
+      ],
+      "directions": null
+    }
+  },
+  "earth": {
+    "projectile": {
+      "file": "earth/projectile.png",
+      "frameWidth": 256,
+      "frameHeight": 256,
+      "frames": 4,
+      "loop": true,
+      "layer": "air",
+      "anchor": [
+        128,
+        128
+      ],
+      "directions": [
+        "NW",
+        "W",
+        "SW",
+        "S",
+        "SE",
+        "E",
+        "NE",
+        "N"
+      ]
+    },
+    "impact": {
+      "file": "earth/impact.png",
+      "frameWidth": 256,
+      "frameHeight": 256,
+      "frames": 8,
+      "loop": false,
+      "layer": "air",
+      "anchor": [
+        128,
+        184
+      ],
+      "directions": null
+    },
+    "sigil": {
+      "file": "earth/sigil.png",
+      "frameWidth": 256,
+      "frameHeight": 256,
+      "frames": 12,
+      "loop": true,
+      "layer": "ground",
+      "anchor": [
+        128,
+        184
+      ],
+      "directions": null
+    },
+    "leap": {
+      "file": "earth/leap.png",
+      "frameWidth": 256,
+      "frameHeight": 256,
+      "frames": 8,
+      "loop": false,
+      "layer": "ground",
+      "anchor": [
+        128,
+        184
+      ],
+      "directions": null
+    },
+    "flail_smash": {
+      "file": "earth/flail_smash.png",
+      "frameWidth": 384,
+      "frameHeight": 256,
+      "frames": 10,
+      "loop": false,
+      "layer": "air",
+      "anchor": [
+        192,
+        176
+      ],
+      "directions": null
+    },
+    "grapple": {
+      "file": "earth/grapple.png",
+      "frameWidth": 256,
+      "frameHeight": 256,
+      "frames": 4,
+      "loop": true,
+      "layer": "air",
+      "anchor": [
+        128,
+        128
+      ],
+      "directions": [
+        "NW",
+        "W",
+        "SW",
+        "S",
+        "SE",
+        "E",
+        "NE",
+        "N"
+      ]
+    },
+    "pillar": {
+      "file": "earth/pillar.png",
+      "frameWidth": 256,
+      "frameHeight": 320,
+      "frames": 8,
+      "loop": false,
+      "layer": "standing",
+      "anchor": [
+        128,
+        280
+      ],
+      "directions": null
+    },
+    "fissures": {
+      "file": "earth/fissures.png",
+      "frameWidth": 256,
+      "frameHeight": 256,
+      "frames": 12,
+      "loop": true,
+      "layer": "ground",
+      "anchor": [
+        128,
+        184
+      ],
+      "directions": null
+    },
+    "quake": {
+      "file": "earth/quake.png",
+      "frameWidth": 512,
+      "frameHeight": 256,
+      "frames": 10,
+      "loop": false,
+      "layer": "ground",
+      "anchor": [
+        256,
+        144
+      ],
+      "directions": null
+    }
+  },
+  "spells": {
+    "1": {
+      "name": "Braise",
+      "hero": "AttackRanged",
+      "fx": [
+        "fire/sigil",
+        "fire/projectile",
+        "fire/ignite"
+      ]
+    },
+    "2": {
+      "name": "Terre brûlée",
+      "hero": "AttackRanged",
+      "fx": [
+        "fire/sigil",
+        "fire/firewall"
+      ]
+    },
+    "3": {
+      "name": "Combustion",
+      "hero": "AttackRanged",
+      "fx": [
+        "fire/sigil",
+        "fire/combustion"
+      ]
+    },
+    "4": {
+      "name": "Fumée de lanterne",
+      "hero": "AttackRanged",
+      "fx": [
+        "fire/sigil",
+        "fire/smoke"
+      ]
+    },
+    "5": {
+      "name": "Chute du Cœur",
+      "hero": "AttackRanged",
+      "fx": [
+        "fire/sigil",
+        "fire/meteor",
+        "fire/burning_ground"
+      ]
+    },
+    "6": {
+      "name": "Paratonnerre",
+      "hero": "AttackRanged",
+      "fx": [
+        "air/sigil"
+      ]
+    },
+    "7": {
+      "name": "Foudre",
+      "hero": "AttackRanged",
+      "fx": [
+        "air/sigil",
+        "air/lightning"
+      ]
+    },
+    "8": {
+      "name": "Coup d'ailes",
+      "hero": "AttackMelee",
+      "fx": [
+        "air/sigil",
+        "air/gale"
+      ]
+    },
+    "9": {
+      "name": "Transfert",
+      "hero": null,
+      "fx": [
+        "air/sigil"
+      ]
+    },
+    "10": {
+      "name": "Tempête",
+      "hero": "AttackRanged",
+      "fx": [
+        "air/sigil",
+        "air/tempest"
+      ]
+    },
+    "11": {
+      "name": "Trombe",
+      "hero": "AttackRanged",
+      "fx": [
+        "water/sigil",
+        "water/hydro",
+        "water/water"
+      ]
+    },
+    "12": {
+      "name": "Piège de bulles",
+      "hero": "AttackRanged",
+      "fx": [
+        "water/sigil",
+        "water/bubbles",
+        "water/bubbles_pop"
+      ]
+    },
+    "13": {
+      "name": "Déluge",
+      "hero": "AttackRanged",
+      "fx": [
+        "water/sigil",
+        "water/rain",
+        "water/water"
+      ]
+    },
+    "14": {
+      "name": "Sol gelé",
+      "hero": "AttackRanged",
+      "fx": [
+        "water/sigil",
+        "water/ice"
+      ]
+    },
+    "15": {
+      "name": "Maelström",
+      "hero": "AttackRanged",
+      "fx": [
+        "water/sigil",
+        "water/maelstrom"
+      ]
+    },
+    "16": {
+      "name": "Bond tellurique",
+      "hero": null,
+      "fx": [
+        "earth/sigil",
+        "earth/leap"
+      ]
+    },
+    "17": {
+      "name": "Fléau",
+      "hero": "AttackMelee",
+      "fx": [
+        "earth/sigil",
+        "earth/flail_smash"
+      ]
+    },
+    "18": {
+      "name": "Grappin de pierre",
+      "hero": "AttackRanged",
+      "fx": [
+        "earth/sigil",
+        "earth/grapple"
+      ]
+    },
+    "19": {
+      "name": "Pilier",
+      "hero": "AttackRanged",
+      "fx": [
+        "earth/sigil",
+        "earth/pillar"
+      ]
+    },
+    "20": {
+      "name": "Séisme",
+      "hero": "AttackMelee",
+      "fx": [
+        "earth/sigil",
+        "earth/quake",
+        "earth/fissures"
+      ]
+    },
+    "21": {
+      "name": "Balancier de lanterne",
+      "hero": "AttackMelee",
+      "fx": [
+        "fire/impact",
+        "fire/ignite"
+      ]
+    },
+    "22": {
+      "name": "Cœur éclaté",
+      "hero": "AttackRanged",
+      "fx": [
+        "fire/projectile",
+        "fire/impact"
+      ]
+    },
+    "23": {
+      "name": "Charge de lance",
+      "hero": "AttackMelee",
+      "fx": [
+        "air/impact"
+      ]
+    },
+    "24": {
+      "name": "Plumes d’acier",
+      "hero": "AttackRanged",
+      "fx": [
+        "air/projectile",
+        "air/impact"
+      ]
+    },
+    "25": {
+      "name": "Harpon du trident",
+      "hero": "AttackMelee",
+      "fx": [
+        "water/impact"
+      ]
+    },
+    "26": {
+      "name": "Orbe de marée",
+      "hero": "AttackRanged",
+      "fx": [
+        "water/projectile",
+        "water/impact"
+      ]
+    },
+    "27": {
+      "name": "Balayage du fléau",
+      "hero": "AttackMelee",
+      "fx": [
+        "earth/impact"
+      ]
+    },
+    "28": {
+      "name": "Pierre en cloche",
+      "hero": "AttackRanged",
+      "fx": [
+        "earth/projectile",
+        "earth/impact"
+      ]
+    },
+    "29": {
+      "name": "Couperet du Roi",
+      "hero": "AttackMelee",
+      "fx": []
+    },
+    "30": {
+      "name": "Rayon Tricéphale",
+      "hero": "AttackRanged",
+      "fx": []
+    },
+    "31": {
+      "name": "Tambours du Tonnerre",
+      "hero": "AttackRanged",
+      "fx": []
+    },
+    "32": {
+      "name": "Gueule des Profondeurs",
+      "hero": null,
+      "fx": []
+    }
+  },
+  "basic": {
+    "fire": {
+      "melee": {
+        "hero": "AttackMelee",
+        "fx": []
+      },
+      "ranged": {
+        "hero": "AttackRanged",
+        "fx": [
+          "fire/projectile",
+          "fire/impact"
+        ]
+      }
+    },
+    "air": {
+      "melee": {
+        "hero": "AttackMelee",
+        "fx": []
+      },
+      "ranged": {
+        "hero": "AttackRanged",
+        "fx": [
+          "air/projectile",
+          "air/impact"
+        ]
+      }
+    },
+    "water": {
+      "melee": {
+        "hero": "AttackMelee",
+        "fx": []
+      },
+      "ranged": {
+        "hero": "AttackRanged",
+        "fx": [
+          "water/projectile",
+          "water/impact"
+        ]
+      }
+    },
+    "earth": {
+      "melee": {
+        "hero": "AttackMelee",
+        "fx": []
+      },
+      "ranged": {
+        "hero": "AttackRanged",
+        "fx": [
+          "earth/projectile",
+          "earth/impact"
+        ]
+      }
+    }
+  }
+}

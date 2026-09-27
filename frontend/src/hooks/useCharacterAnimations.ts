@@ -26,7 +26,9 @@ interface AnimationState {
      * "attack" wherever it happened to be, and it only reappeared at its real
      * cell once that finished — a second, larger snap right after the first.
      */
-    pendingAttack?: { direction: Direction };
+    pendingAttack?: { direction: Direction; spellId?: number };
+    /** For an attack: the spell cast, which decides the outfit's pose. */
+    spellId?: number;
   };
 }
 // What the UI actually renders
@@ -35,6 +37,8 @@ type CharacterRenderState = {
     screenPosition: Position;
     direction: Direction;
     animation: "idle" | "walk" | "attack" | "die";
+    /** For an attack: the spell cast, which decides the outfit's pose. */
+    spellId?: number;
     /** Fades out over the death animation; absent (1) the rest of the time. */
     opacity?: number;
   };
@@ -194,10 +198,16 @@ export const useCharacterAnimations = (
             );
           }
 
+          // The cast's own line in the log says which spell it was, and so
+          // whether the outfit swings its weapon, throws, or does neither.
+          const cast = [...(latestGameState.log ?? [])]
+            .reverse()
+            .find((e) => e.spellId !== undefined && e.actor === newPlayer.character.name);
           newAnimations[playerId] = {
             type: "attack",
             startTime: Date.now(),
             direction: direction,
+            spellId: cast?.spellId,
           };
         }
       }
@@ -251,7 +261,7 @@ export const useCharacterAnimations = (
             if (incoming.type === "attack" && current?.type === "move") {
               next[playerId] = {
                 ...current,
-                pendingAttack: { direction: incoming.direction },
+                pendingAttack: { direction: incoming.direction, spellId: incoming.spellId },
               };
               continue;
             }
@@ -293,6 +303,7 @@ export const useCharacterAnimations = (
           if (elapsed < ATTACK_ANIMATION_DURATION) {
             if (newRenderState[playerId]) {
               newRenderState[playerId].animation = "attack";
+              newRenderState[playerId].spellId = anim.spellId;
               newRenderState[playerId].direction = anim.direction;
             }
           } else {
@@ -365,6 +376,7 @@ export const useCharacterAnimations = (
                     type: "attack",
                     startTime: now,
                     direction: attack.direction,
+                    spellId: attack.spellId,
                   };
                 } else {
                   delete newPrev[playerId];
@@ -380,6 +392,7 @@ export const useCharacterAnimations = (
                   ),
                   direction: lastDirection,
                   animation: attack ? "attack" : "idle",
+                  spellId: attack?.spellId,
                 };
               }
             }

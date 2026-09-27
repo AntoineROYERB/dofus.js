@@ -75,3 +75,38 @@ input,
   }
 }
 
+
+/*
+ * A talisman circling its fighter: one layer swings left and right, another
+ * up and down a quarter-turn behind, which together trace an ellipse lying
+ * on the board. It dims on the far side, where the fighter hides it.
+ */
+@keyframes orbit-x {
+  from {
+    transform: translateX(calc(var(--orbit-rx) * -1));
+  }
+  to {
+    transform: translateX(var(--orbit-rx));
+  }
+}
+
+@keyframes orbit-y {
+  from {
+    transform: translateY(calc(var(--orbit-ry) * -1));
+    opacity: 0.45;
+  }
+  to {
+    transform: translateY(var(--orbit-ry));
+    opacity: 1;
+  }
+}
+
+@keyframes talisman-pulse {
+  0%,
+  100% {
+    transform: rotate(45deg) scale(1);
+  }
+  50% {
+    transform: rotate(45deg) scale(1.25);
+  }
+}

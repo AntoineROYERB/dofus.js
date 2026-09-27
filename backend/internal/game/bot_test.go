@@ -111,13 +111,14 @@ func TestAddBotJoinsReadyAndFlagged(t *testing.T) {
 	if !p.IsBot || !p.Connected {
 		t.Errorf("bot player = %+v, want it flagged and connected", p)
 	}
-	class := Content().DefaultClass()
-	if p.Character.Class != class.ID || p.Character.Health != class.Health {
-		t.Errorf("bot is %s with %d health, want the default class %s with %d",
-			p.Character.Class, p.Character.Health, class.ID, class.Health)
+	champion := Content().DefaultChampion()
+	grimoire, _ := Content().Grimoire(champion.Set.Grimoire)
+	if p.Character.Loadout != champion.Set || p.Character.Health != grimoire.Health {
+		t.Errorf("bot is %+v with %d health, want the default champion's set %+v with %d",
+			p.Character.Loadout, p.Character.Health, champion.Set, grimoire.Health)
 	}
-	if p.Character.Name != class.Opponent.Name {
-		t.Errorf("bot is named %q, want its class's opponent %q", p.Character.Name, class.Opponent.Name)
+	if p.Character.Name != champion.Name {
+		t.Errorf("bot is named %q, want its champion %q", p.Character.Name, champion.Name)
 	}
 }
 
@@ -309,9 +310,9 @@ func TestADummyDoesNothingWhateverTheBoardLooksLike(t *testing.T) {
 
 func TestADummyOpponentNeverTouchesTheHuman(t *testing.T) {
 	g := NewWithOptions(Options{Seed: 5, TurnDuration: time.Minute})
-	botID, err := g.AddBotOfClass("", BotStandsStill)
+	botID, err := g.AddBotChampion("", BotStandsStill)
 	if err != nil {
-		t.Fatalf("AddBotOfClass: %v", err)
+		t.Fatalf("AddBotChampion: %v", err)
 	}
 	if err := g.AddPlayer("human", "User-human", look("Alice")); err != nil {
 		t.Fatalf("AddPlayer: %v", err)
@@ -351,9 +352,9 @@ func TestADummyOpponentNeverTouchesTheHuman(t *testing.T) {
 
 func TestWakingTheOpponentMakesItFight(t *testing.T) {
 	g := NewWithOptions(Options{Seed: 5, TurnDuration: time.Minute})
-	botID, err := g.AddBotOfClass("", BotStandsStill)
+	botID, err := g.AddBotChampion("", BotStandsStill)
 	if err != nil {
-		t.Fatalf("AddBotOfClass: %v", err)
+		t.Fatalf("AddBotChampion: %v", err)
 	}
 	if err := g.AddPlayer("human", "User-human", look("Alice")); err != nil {
 		t.Fatalf("AddPlayer: %v", err)
@@ -409,9 +410,9 @@ func TestWakingIsRefusedWhenNobodyIsAsleep(t *testing.T) {
 // replays as the tutorial it was rather than as a fight nobody had.
 func TestATutorialMatchReplaysAsOne(t *testing.T) {
 	g := NewWithOptions(Options{Seed: 5, TurnDuration: time.Minute})
-	botID, err := g.AddBotOfClass("", BotStandsStill)
+	botID, err := g.AddBotChampion("", BotStandsStill)
 	if err != nil {
-		t.Fatalf("AddBotOfClass: %v", err)
+		t.Fatalf("AddBotChampion: %v", err)
 	}
 	if err := g.AddPlayer("human", "User-human", look("Alice")); err != nil {
 		t.Fatalf("AddPlayer: %v", err)

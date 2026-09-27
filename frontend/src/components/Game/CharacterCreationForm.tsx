@@ -1,12 +1,9 @@
 import React from "react";
-import { PLAYER_COLORS } from "../../constants";
 import { NAME_RULE } from "../../utils/characterStorage";
 
 interface CharacterCreationFormProps {
   characterName: string;
   setCharacterName: (name: string) => void;
-  selectedColor: string;
-  setSelectedColor: (color: string) => void;
   isNameValid: boolean;
   setIsNameValid: (isValid: boolean) => void;
   /** Enter sends you to the lobby, the same as the button does. */
@@ -17,8 +14,6 @@ interface CharacterCreationFormProps {
 export const CharacterCreationForm: React.FC<CharacterCreationFormProps> = ({
   characterName,
   setCharacterName,
-  selectedColor,
-  setSelectedColor,
   isNameValid,
   setIsNameValid,
   onSubmit,
@@ -64,32 +59,11 @@ export const CharacterCreationForm: React.FC<CharacterCreationFormProps> = ({
         }`}
       />
 
-      <p
-        className={`mt-1.5 font-mono text-[9.5px] uppercase tracking-label ${
-          showError ? "text-vermilion" : "text-muted"
-        }`}
-      >
-        {showError ? "3 to 20 letters, digits or spaces" : "Colour"}
-      </p>
-
-      {/* 28px squares: a colour has to be pickable with a thumb, not a cursor. */}
-      <div className="mt-2 flex flex-wrap gap-2">
-        {PLAYER_COLORS.map((color) => (
-          <button
-            key={color}
-            type="button"
-            aria-label={`Colour ${color}`}
-            aria-pressed={color === selectedColor}
-            onClick={() => setSelectedColor(color)}
-            className={`h-7 w-7 transition-transform hover:scale-110 sm:h-[22px] sm:w-[22px] ${
-              color === selectedColor
-                ? "outline outline-2 outline-offset-2 outline-ink"
-                : ""
-            }`}
-            style={{ backgroundColor: color }}
-          />
-        ))}
-      </div>
+      {showError && (
+        <p className="mt-1.5 font-mono text-[9.5px] uppercase tracking-label text-vermilion">
+          3 to 20 letters, digits or spaces
+        </p>
+      )}
     </div>
   );
 };
