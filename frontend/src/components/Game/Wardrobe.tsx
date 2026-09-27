@@ -2,8 +2,14 @@ import React, { useEffect, useState } from "react";
 import { infusedBook } from "../../utils/spellUtils";
 import { ContentResponse, Loadout, SpellBook } from "../../types/message";
 import { CharacterShowcase, ShowcaseCast } from "./CharacterShowcase";
+import { OutfitIcon } from "./OutfitIcon";
 import { RelicIcon } from "./RelicIcon";
-import { hasRelic } from "../../vfx/relics";
+import { ElementGlyph } from "./ElementGlyph";
+import { AttackShape } from "./AttackShape";
+import { attackFacts } from "../../utils/attacks";
+import { areaPattern } from "../../utils/spellUtils";
+import { elementLook } from "../../utils/elements";
+import { hasRelic, runeKey } from "../../vfx/relics";
 import {
   championOf,
   grimoireFor,
@@ -11,7 +17,7 @@ import {
   outfitFor,
   settleLoadout,
 } from "../../utils/loadoutUtils";
-import { outfitSheet, useFxManifest } from "../../utils/fxManifest";
+import { useFxManifest } from "../../utils/fxManifest";
 import { apiBaseUrl } from "../../lib/api";
 
 type Slot = "outfit" | "grimoire" | "rune" | "talisman";
@@ -22,7 +28,7 @@ interface WardrobeProps {
   /** The content is not coming: the server did not answer. */
   failed?: boolean;
   loadout: Partial<Loadout> | undefined;
-  /** The player's own colour, on the trims of every outfit. */
+  /** Only drawn for a fighter without an outfit; players have no colour of their own. */
   color: string;
   name: string;
   onSave: (loadout: Loadout) => void;
@@ -34,13 +40,13 @@ interface WardrobeProps {
  * that says what it is for, and the side of the fighter it hangs on.
  */
 const SLOTS: Record<Slot, { verb: string; flavour: string }> = {
+  grimoire: {
+    verb: "Element",
+    flavour: "What you fight with: its grimoire's three spells, the rule they share, and the outfits that go with it.",
+  },
   outfit: {
     verb: "Wears",
-    flavour: "What you wear is your element, and the weapon drawn in it is your basic attack.",
-  },
-  grimoire: {
-    verb: "Reads from",
-    flavour: "Three spells and the rule they share. It speaks your outfit's element.",
+    flavour: "An outfit of your element. The weapon drawn in it is your basic attack.",
   },
   rune: {
     verb: "Carries the rune",
@@ -51,12 +57,12 @@ const SLOTS: Record<Slot, { verb: string; flavour: string }> = {
     flavour: "It circles you, and brightens when your ultimate is ready.",
   },
 };
-const LEFT: Slot[] = ["outfit", "grimoire"];
+const LEFT: Slot[] = ["grimoire", "outfit"];
 const RIGHT: Slot[] = ["rune", "talisman"];
 /** On a phone held upright: two by two under the fighter. */
 const UPRIGHT: Record<Slot, string> = {
-  outfit: "narrow:col-start-1 narrow:row-start-2",
-  grimoire: "narrow:col-start-1 narrow:row-start-3",
+  grimoire: "narrow:col-start-1 narrow:row-start-2",
+  outfit: "narrow:col-start-1 narrow:row-start-3",
   rune: "narrow:col-start-2 narrow:row-start-2",
   talisman: "narrow:col-start-2 narrow:row-start-3",
 };
@@ -76,29 +82,9 @@ type Item = {
   line: string;
   /** What picking it would also change, if anything. */
   note?: string;
+  /** More than a line can say, shown on the shelf only. */
+  detail?: React.ReactNode;
   icon: React.ReactNode;
-};
-
-/** The outfit itself, facing you: its idle sheet's first frame, cropped to the figure. */
-const OutfitIcon: React.FC<{ sprite: string; size: number }> = ({ sprite, size }) => {
-  // A frame twice the icon's size, so the figure — a third of its frame —
-  // fills the icon; the sheet is 24 frames by 8 directions, south on row 3.
-  const frame = size * 2.1;
-  return (
-    <span
-      aria-hidden
-      className="block flex-none border border-hairline bg-board"
-      style={{
-        width: size,
-        height: size,
-        backgroundImage: `url(${outfitSheet(sprite, "Idle")})`,
-        backgroundSize: `${frame * 24}px ${frame * 8}px`,
-        backgroundPosition: `${-(frame / 2 - size / 2)}px ${-(3 * frame + frame * 0.49 - size / 2)}px`,
-        backgroundRepeat: "no-repeat",
-        imageRendering: "pixelated",
-      }}
-    />
-  );
 };
 
 const TextIcon: React.FC<{ size: number; children: React.ReactNode; tint?: string }> = ({
@@ -115,15 +101,19 @@ const TextIcon: React.FC<{ size: number; children: React.ReactNode; tint?: strin
   </span>
 );
 
-/** A carved stone: the same for every rune, its first letter cut in it. */
-const RuneIcon: React.FC<{ size: number; name: string }> = ({ size, name }) => (
+/** The rune's carved stone, its sign lit; its first letter if it has no stone. */
+const RuneIcon: React.FC<{ size: number; id: string; name: string }> = ({ size, id, name }) => (
   <TextIcon size={size}>
+    {hasRelic(runeKey(id)) ? (
+      <RelicIcon id={runeKey(id)} unit={Math.max(1, Math.floor(size / 16))} />
+    ) : (
     <span
       className="grid place-items-center border border-graphite bg-hairline font-display font-extrabold text-graphite"
       style={{ width: size * 0.55, height: size * 0.55, fontSize: size * 0.3, transform: "rotate(45deg)" }}
     >
       <span style={{ transform: "rotate(-45deg)" }}>{name.charAt(0)}</span>
     </span>
+    )}
   </TextIcon>
 );
 
@@ -151,17 +141,17 @@ const TalismanIcon: React.FC<{ size: number; color: string; id: string }> = ({ s
  * Where a character is dressed for a fight, the way a role-playing game's
  * character sheet is: the fighter on a stand in the middle, on its grimoire's
  * circle, its talisman circling it; the four things it takes into the fight
- * hung either side, each named for what the character does with it — wears
- * an outfit, reads from a grimoire, carries a rune, bears a talisman.
+ * hung either side: its element first, then what it wears, the rune it
+ * carries and the talisman it bears.
  *
  * Tapping one opens a shelf of what could take its place, on the far side so
  * the fighter stays in view and changes as each is tried on. On a phone held
  * upright the shelf rises from the bottom instead, under the stand.
  *
- * The outfit decides the element and the grimoire follows it: picking an
- * outfit of another element brings a grimoire of that element along, and
- * picking a grimoire of another element changes the outfit to match, so the
- * draft is always a set the server will accept.
+ * The element comes first. Each has one grimoire — its school — and a few
+ * outfits: picking another element changes into one of its outfits, and the
+ * outfit shelf only ever shows the element's own, so the draft is always a
+ * set the server will accept and nothing changes behind the player's back.
  */
 export const Wardrobe: React.FC<WardrobeProps> = ({ content, failed, loadout, onCancel, ...rest }) => {
   const kit = content && kitOf(settleLoadout(loadout, content), content);
@@ -226,7 +216,7 @@ const WardrobeSheet: React.FC<Omit<WardrobeProps, "content" | "failed"> & { cont
   const kit = kitOf(draft, content);
   if (!draft || !kit) return null;
 
-  // A legendary's ultimate reads as it would be cast in the outfit worn.
+  // A legendary's ultimate reads as it would be cast in the element worn.
   const spells: SpellBook = infusedBook(content.spells, kit.element) ?? content.spells;
   const spellName = (id: string) => spells[id]?.name ?? id;
   const ultimateColor = (id: string) => spells[id]?.color ?? "#d1462f";
@@ -247,12 +237,11 @@ const WardrobeSheet: React.FC<Omit<WardrobeProps, "content" | "failed"> & { cont
         : spell.range === 1
           ? { x: 1, y: 0 }
           : { x: 2, y: 0 };
-    const area =
-      spell.areaOfEffect && spell.areaOfEffect !== "none"
-        ? STAND_CELLS.filter(
-            (c) => Math.abs(c.x - target.x) + Math.abs(c.y - target.y) <= 1
-          )
-        : [target];
+    // Its real shape, turned to face along the stand, the way the board turns it.
+    const { pattern, rotates } = areaPattern(spell.areaOfEffect);
+    const area = pattern
+      .map((p) => (rotates ? { x: target.x + p.y, y: target.y - p.x } : { x: target.x + p.x, y: target.y + p.y }))
+      .filter((c) => STAND_CELLS.some((s) => s.x === c.x && s.y === c.y));
     setCast({ key: Date.now(), spell: fx, target, area });
   };
 
@@ -280,39 +269,55 @@ const WardrobeSheet: React.FC<Omit<WardrobeProps, "content" | "failed"> & { cont
   const items = (slot: Slot, size: number): Item[] => {
     switch (slot) {
       case "outfit":
-        return content.outfits.map((o) => ({
-          id: o.id,
-          title: o.name,
-          line: `${o.element} · ${o.weapon} · ${spellName(o.basicAttack)}`,
-          note:
-            o.element !== kit.element
-              ? `Your grimoire becomes ${grimoireFor(o, kit.grimoire, content.grimoires)?.name ?? "one of its element"}`
-              : undefined,
-          icon: <OutfitIcon sprite={o.sprite} size={size} />,
-        }));
+        return content.outfits
+          .filter((o) => o.element === kit.element)
+          .map((o) => {
+            const attack = spells[o.basicAttack];
+            return {
+              id: o.id,
+              title: o.name,
+              line: attack ? `${attack.name} · ${attack.role}` : spellName(o.basicAttack),
+              detail: attack && (
+                <span className="mt-1 flex items-center gap-2.5">
+                  <AttackShape spell={attack} />
+                  <span className="flex flex-wrap gap-1">
+                    {attackFacts(attack).map((fact) => (
+                      <span key={fact} className="border border-hairline bg-board px-1 font-mono text-[9.5px] leading-4 text-ink">
+                        {fact}
+                      </span>
+                    ))}
+                  </span>
+                </span>
+              ),
+              icon: <OutfitIcon sprite={o.sprite} size={size} />,
+            };
+          });
       case "grimoire":
         return content.grimoires.map((g) => ({
           id: g.id,
-          title: g.name,
+          title: `${g.element} · ${g.name}`,
           line: `${g.spells.map(spellName).join(" · ")} — ${g.passive}`,
-          note:
-            g.element !== kit.element
-              ? `You change into ${outfitFor(g, kit.outfit, content.outfits)?.name ?? `a ${g.element} outfit`}`
-              : undefined,
-          icon: <TextIcon size={size}>{g.symbol}</TextIcon>,
+          icon: (
+            <TextIcon size={size}>
+              <ElementGlyph element={g.element} size={Math.round(size * 0.6)} />
+            </TextIcon>
+          ),
         }));
       case "rune":
         return content.runes.map((r) => ({
           id: r.id,
           title: r.name,
           line: r.description,
-          icon: <RuneIcon size={size} name={r.name} />,
+          icon: <RuneIcon size={size} id={r.id} name={r.name} />,
         }));
       case "talisman":
         return content.talismans.map((t) => ({
           id: t.id,
           title: t.name,
-          line: `Ultimate · ${spellName(t.ultimate)} — ${spells[t.ultimate]?.description ?? ""}`,
+          // A legendary's ultimate says what it does, then what your element adds.
+          line: content.spells[t.ultimate]?.infusions?.[kit.element]
+            ? `Ultimate · ${spellName(t.ultimate)} — ${content.spells[t.ultimate].description} Infused by your ${kit.element}: ${spells[t.ultimate].description}`
+            : `Ultimate · ${spellName(t.ultimate)} — ${spells[t.ultimate]?.description ?? ""}`,
           icon: <TalismanIcon size={size} color={ultimateColor(t.ultimate)} id={t.id} />,
         }));
     }
@@ -395,6 +400,7 @@ const WardrobeSheet: React.FC<Omit<WardrobeProps, "content" | "failed"> & { cont
                   {chosen && <span className={`${MONO} flex-none text-vermilion`}>Worn</span>}
                 </span>
                 <span className="block text-[11.5px] leading-snug text-graphite">{o.line}</span>
+                {o.detail}
                 {o.note && !chosen && (
                   <span className={`${MONO} mt-0.5 block text-muted`}>{o.note}</span>
                 )}
@@ -438,8 +444,12 @@ const WardrobeSheet: React.FC<Omit<WardrobeProps, "content" | "failed"> & { cont
           <h2 id="wardrobe-title" className="font-display text-[20px] font-bold leading-none tracking-tight">
             The wardrobe
           </h2>
-          <span className={`${MONO} ml-auto truncate text-muted`}>
-            {champion ? `${champion.name}'s set` : "Your own set"}
+          <span className={`${MONO} ml-auto flex min-w-0 items-center gap-1.5 text-muted`}>
+            <ElementGlyph element={kit.element} size={12} />
+            <span className="truncate">
+              <span style={{ color: elementLook(kit.element)?.dark }}>{kit.element}</span> ·{" "}
+              {champion ? `${champion.name}'s set` : "your own set"}
+            </span>
           </span>
         </header>
 
@@ -479,11 +489,12 @@ const WardrobeSheet: React.FC<Omit<WardrobeProps, "content" | "failed"> & { cont
             </div>
             <div className={`contents ${open ? "narrow:hidden" : ""}`}>
             <p className="mt-0.5 flex items-center gap-1.5 font-display text-[16px] font-bold leading-tight">
-              <span aria-hidden className="h-2.5 w-2.5" style={{ backgroundColor: color }} />
               {name}
             </p>
-            <p className={`${MONO} mt-0.5 text-graphite`}>
-              {kit.element} · {kit.grimoire.health} hp · {kit.grimoire.actionPoints} ap ·{" "}
+            <p className={`${MONO} mt-0.5 flex items-center gap-1.5 text-graphite`}>
+              <ElementGlyph element={kit.element} size={11} />
+              <span style={{ color: elementLook(kit.element)?.dark }}>{kit.element}</span> · {kit.grimoire.name} ·{" "}
+              {kit.grimoire.health} hp · {kit.grimoire.actionPoints} ap ·{" "}
               {kit.grimoire.movementPoints} mp
             </p>
             <ol aria-label="Spell bar" className="mt-1.5 flex max-w-full flex-wrap justify-center gap-1">

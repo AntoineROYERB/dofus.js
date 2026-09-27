@@ -6,16 +6,11 @@ import { areaPattern } from "../../utils/spellUtils";
 import { effectLook } from "./EffectBadges";
 import { RULES } from "../../utils/terrain";
 import { spellMechanics } from "../../utils/spellUtils";
-
-const ELEMENT_ICON: Record<string, string> = {
-  Fire: "🔥",
-  Water: "💧",
-  Air: "💨",
-  Earth: "🪨",
-};
+import { ELEMENTS } from "../../utils/elements";
+import { ElementGlyph } from "./ElementGlyph";
 
 /** One stat, rendered the same way EffectBadges renders a status effect. */
-const Badge: React.FC<{ icon: string; children: React.ReactNode }> = ({
+const Badge: React.FC<{ icon: React.ReactNode; children: React.ReactNode }> = ({
   icon,
   children,
 }) => (
@@ -178,8 +173,8 @@ export const SpellTooltip: React.FC<SpellTooltipProps> = ({
           spell.needsLineOfSight === false && (
           <Badge icon="👁">ignores line of sight</Badge>
         )}
-        {ELEMENT_ICON[spell.element] && (
-          <Badge icon={ELEMENT_ICON[spell.element]}>{spell.element}</Badge>
+        {ELEMENTS[spell.element] && (
+          <Badge icon={<ElementGlyph element={spell.element} size={10} />}>{spell.element}</Badge>
         )}
       </div>
 

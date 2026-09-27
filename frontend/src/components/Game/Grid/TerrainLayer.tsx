@@ -12,6 +12,7 @@ import {
   gridPixel,
 } from "../../../vfx/pylon";
 import { RULES } from "../../../utils/terrain";
+import { ELEMENTS } from "../../../utils/elements";
 import { CAIRN_RISE, STONE_FALL, drawCairn, stonesLeft } from "../../../vfx/rampart";
 import { FX_ROOT, FxManifest, FxSheet, sheetOf, useFxManifest } from "../../../utils/fxManifest";
 import {
@@ -46,17 +47,11 @@ const INK_LIGHT = "#8fb4ea";
 const SOIL_DARK = "#2a1d10";
 const WIND = "#2e9e6a";
 const ENEMY = "#a3231b";
-/** The colour Fulgor's drums are marked in, by the element they were cast in. */
-const DRUM_INK: Record<string, string> = {
-  Fire: "#e2521d",
-  Air: "#6b4fd8",
-  Water: "#2f5fa8",
-  Earth: "#8a5a2b",
-};
 /** How long a pylon flashes when hit, and goes off when it breaks, in ms. */
 const PYLON_HIT = 400;
 const PYLON_SHATTER = 900;
-const EARTH = "#b45309";
+/** A Stonewarden's own cairn wards its square in earth's colour. */
+const EARTH = ELEMENTS.Earth.color;
 
 const TAU = Math.PI * 2;
 
@@ -754,7 +749,8 @@ export const TerrainLayer: React.FC<TerrainLayerProps> = ({
         if (zone.kind === "drums") {
           // Fulgor's drums: the cells the next beat falls on, marked in the
           // element they were cast in, and a pip for every beat still to come.
-          const ink = DRUM_INK[zone.element ?? "Air"] ?? DRUM_INK.Air;
+          // Fulgor's drums are marked in the colour of the element they were cast in.
+          const ink = (ELEMENTS[zone.element ?? "Air"] ?? ELEMENTS.Air).color;
           const beat = 0.5 + 0.5 * Math.sin(time * 6);
           for (const cell of zone.cells) {
             diamond(g, cell, 0.78 + 0.08 * beat);

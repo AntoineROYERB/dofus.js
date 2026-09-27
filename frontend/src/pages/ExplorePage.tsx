@@ -73,7 +73,7 @@ const ExplorePage: React.FC = () => {
 
       <div className="relative min-h-0 flex-1">
         {content ? (
-          <ExploreBoard color={character?.color} daylight={daylight} />
+          <ExploreBoard daylight={daylight} />
         ) : (
           <p className="absolute inset-0 flex items-center justify-center font-mono text-[11px] uppercase tracking-label text-muted">
             {failed ? "The world could not be reached. Try again in a moment." : "Unrolling the map…"}

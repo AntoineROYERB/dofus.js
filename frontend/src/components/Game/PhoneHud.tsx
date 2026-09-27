@@ -51,7 +51,7 @@ export const TurnBar: React.FC<{
               className={`grid h-7 w-7 place-items-center rounded-full border-2 font-display text-[12px] font-bold text-white ${
                 p.isCurrentTurn ? "border-vermilion" : "border-panel"
               } ${p.character.isAlive ? "" : "opacity-40"}`}
-              style={{ backgroundColor: p.character.color }}
+              style={{ backgroundColor: id === userId ? BOARD.socle.mine : BOARD.socle.theirs }}
             >
               {p.character.name[0]?.toUpperCase()}
             </span>

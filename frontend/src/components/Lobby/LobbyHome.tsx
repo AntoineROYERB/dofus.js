@@ -5,6 +5,7 @@ import { CharacterShowcase } from "../Game/CharacterShowcase";
 import { KitTag } from "../Game/KitTag";
 import { SetCarousel } from "./SetCarousel";
 import { kitOf } from "../../utils/loadoutUtils";
+import { ElementGlyph } from "../Game/ElementGlyph";
 
 /*
  * The lobby as a phone game's home screen: your fighter in the middle, the
@@ -128,11 +129,6 @@ export const LobbyHome: React.FC<LobbyHomeProps> = ({
     */}
     <div className="absolute inset-0 flex flex-col items-center px-[calc(max(env(safe-area-inset-left),env(safe-area-inset-right),16px)+80px)] pb-[calc(max(10px,env(safe-area-inset-bottom))+70px)] pt-[max(10px,env(safe-area-inset-top))]">
       <p className={`mt-1 flex flex-none items-center gap-2 px-3 py-1 font-display text-[17px] font-bold leading-tight tracking-tight ${HAIRLINE}`}>
-        <span
-          aria-hidden
-          className="h-2.5 w-2.5 flex-none transition-colors duration-300"
-          style={{ backgroundColor: character.color }}
-        />
         {character.name}
       </p>
       {notice && (
@@ -170,8 +166,7 @@ export const LobbyHome: React.FC<LobbyHomeProps> = ({
       >
         <span
           aria-hidden
-          className="grid h-9 w-9 flex-none place-items-center font-display text-[18px] font-bold text-white"
-          style={{ backgroundColor: character.color }}
+          className="grid h-9 w-9 flex-none place-items-center bg-ink font-display text-[18px] font-bold text-white"
         >
           {character.symbol}
         </span>
@@ -238,7 +233,11 @@ export const LobbyHome: React.FC<LobbyHomeProps> = ({
           aria-hidden
           className="grid h-11 w-11 flex-none place-items-center border border-hairline bg-board text-[22px]"
         >
-          {kitOf(opponent?.set, content)?.grimoire.symbol ?? "⚔"}
+          {kitOf(opponent?.set, content) ? (
+            <ElementGlyph element={kitOf(opponent?.set, content)?.element} size={24} />
+          ) : (
+            "⚔"
+          )}
         </span>
         <span className="min-w-0">
           <span className="block font-mono text-[9px] uppercase tracking-label text-muted">

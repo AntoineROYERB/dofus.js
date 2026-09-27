@@ -143,7 +143,6 @@ export const Character: React.FC<CharacterProps> = ({
         direction={direction}
         scale={scale}
         color={outfit ? undefined : color}
-        accent={outfit ? color : undefined}
       />
     </div>
   );

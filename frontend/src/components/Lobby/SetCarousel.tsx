@@ -6,6 +6,8 @@ import {
   ShowcaseFigure,
 } from "../Game/CharacterShowcase";
 import { lineUpSlot, mod, shownPosition } from "../../utils/lineUp";
+import { elementLook } from "../../utils/elements";
+import { ElementGlyph } from "../Game/ElementGlyph";
 
 interface SetCarouselProps {
   content: ContentResponse;
@@ -152,14 +154,11 @@ export const SetCarousel: React.FC<SetCarouselProps> = ({
         aria-live="polite"
         className="mt-1 flex items-center gap-2 font-mono text-[10px] uppercase tracking-label text-graphite"
       >
-        <span
-          aria-hidden
-          className="h-2 w-2 transition-colors duration-300"
-          style={{ backgroundColor: kit?.outfit.palette.primary }}
-        />
-        <b className="font-semibold text-ink">
-          {kit?.grimoire.symbol} {kit?.grimoire.name}
+        <ElementGlyph element={kit?.element} size={12} />
+        <b className="font-semibold" style={{ color: elementLook(kit?.element)?.dark }}>
+          {kit?.element}
         </b>
+        <b className="font-semibold text-ink">{kit?.grimoire.name}</b>
         <span>
           {kit?.grimoire.health} hp · {kit?.grimoire.actionPoints} ap ·{" "}
           {kit?.grimoire.movementPoints} mp

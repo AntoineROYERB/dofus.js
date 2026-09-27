@@ -16,16 +16,15 @@ import { isNativeApp } from "../lib/native";
 
 /**
  * One column, in the same order at every size: what the game is called, the
- * character you are about to name, the three things to choose, and the way in.
+ * character you are about to name, the two things to choose, and the way in.
  * Everything else — the pitch, the stack, the numbers — is behind "What is
  * this?", because none of it is needed to start playing.
  */
 const LandingPage: React.FC = () => {
   // Coming back to change a character starts from the one already saved.
   const [saved] = useState(readCharacter);
-  const [selectedColor, setSelectedColor] = useState(
-    saved?.color ?? PLAYER_COLORS[0]
-  );
+  // A player no longer picks a colour: the one saved travels on unused.
+  const selectedColor = saved?.color ?? PLAYER_COLORS[0];
   const [characterName, setCharacterName] = useState(saved?.name ?? "");
   const [isNameValid, setIsNameValid] = useState(!!saved);
   const [aboutOpen, setAboutOpen] = useState(false);
@@ -129,8 +128,6 @@ const LandingPage: React.FC = () => {
           <CharacterCreationForm
             characterName={characterName}
             setCharacterName={setCharacterName}
-            selectedColor={selectedColor}
-            setSelectedColor={setSelectedColor}
             isNameValid={isNameValid}
             setIsNameValid={setIsNameValid}
             onSubmit={handleJoinMatch}

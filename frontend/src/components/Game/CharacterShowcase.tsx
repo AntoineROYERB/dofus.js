@@ -174,7 +174,6 @@ export const CharacterShowcase: React.FC<CharacterShowcaseProps> = ({
               direction={pose && figure.outfit && !figures ? "SE" : "S"}
               scale={scale}
               color={figure.outfit ? undefined : figure.color}
-              accent={figure.outfit ? figure.color : undefined}
             />
           </div>
         </div>

@@ -146,7 +146,7 @@ export const Grid: React.FC<GridProps> = ({
 
     Object.entries(players).forEach(([playerId, playerData]) => {
       const isCurrentPlayer = playerId === userId;
-      const playerColor = playerData?.character.color;
+      const playerColor = isCurrentPlayer ? BOARD.socle.mine : BOARD.socle.theirs;
 
       playerData?.character.initialPositions?.forEach((position) => {
         positionsWithOwners.push({
@@ -720,7 +720,7 @@ export const Grid: React.FC<GridProps> = ({
               key={`socle-${playerId}`}
               screenPosition={renderData.screenPosition}
               tileSize={tileSize}
-              color={player.character.color}
+              color={playerId === userId ? BOARD.socle.mine : BOARD.socle.theirs}
               isPlaying={player.isCurrentTurn}
               isAlive={player.character.isAlive}
               opacity={renderData.opacity}
@@ -736,7 +736,6 @@ export const Grid: React.FC<GridProps> = ({
               animation={renderData.animation}
               direction={renderData.direction}
               scale={tileSize.width / 256}
-              color={players?.[playerId]?.character.color}
               opacity={renderData.opacity}
               outfit={kitOf(players?.[playerId]?.character.loadout, content)?.outfit.sprite}
               attack={attackKindOf(renderData.spellId, fxManifest)}
@@ -1009,7 +1008,6 @@ export const Grid: React.FC<GridProps> = ({
             animation="idle"
             direction="S"
             scale={tileSize.width / 256}
-            color={currentPlayer?.character.color}
             outfit={kitOf(currentPlayer?.character.loadout, content)?.outfit.sprite}
           />
         )}

@@ -686,14 +686,15 @@
       ]
     },
     "21": {
-      "name": "Coup de lanterne",
+      "name": "Balancier de lanterne",
       "hero": "AttackMelee",
       "fx": [
-        "fire/impact"
+        "fire/impact",
+        "fire/ignite"
       ]
     },
     "22": {
-      "name": "Boule de feu",
+      "name": "Cœur éclaté",
       "hero": "AttackRanged",
       "fx": [
         "fire/projectile",
@@ -701,7 +702,7 @@
       ]
     },
     "23": {
-      "name": "Coup de lance",
+      "name": "Charge de lance",
       "hero": "AttackMelee",
       "fx": [
         "air/impact"
@@ -716,14 +717,14 @@
       ]
     },
     "25": {
-      "name": "Coup de trident",
+      "name": "Harpon du trident",
       "hero": "AttackMelee",
       "fx": [
         "water/impact"
       ]
     },
     "26": {
-      "name": "Orbe d’eau",
+      "name": "Orbe de marée",
       "hero": "AttackRanged",
       "fx": [
         "water/projectile",
@@ -731,14 +732,14 @@
       ]
     },
     "27": {
-      "name": "Balayage",
+      "name": "Balayage du fléau",
       "hero": "AttackMelee",
       "fx": [
         "earth/impact"
       ]
     },
     "28": {
-      "name": "Jet de pierre",
+      "name": "Pierre en cloche",
       "hero": "AttackRanged",
       "fx": [
         "earth/projectile",

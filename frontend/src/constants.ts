@@ -1,11 +1,9 @@
 /**
- * The six skins a fighter can wear. Each one is a real dye, not a flat tint:
- * SpriteAnimation rotates the whole sprite sheet's hue by the distance from
- * this colour to the art's own — see spriteRecolor.ts — so the helmet, the
- * tunic and its own shadow land in different shades of the new colour rather
- * than collapsing into one. The six sit sixty degrees apart around the wheel,
- * clear of vermilion's own hue: a player's colour must never sit close enough
- * to be mistaken for what a spell is about to hit.
+ * The colours a player used to pick for their fighter. Players have no colour
+ * of their own any more — the only colours are the elements' (utils/elements)
+ * and, on the board, amber for yours and red for theirs — but a character is
+ * still saved and sent with one, so the first stands in for anyone who never
+ * picked.
  */
 export const PLAYER_COLORS = [
   "#d8ae31", // amber
@@ -25,6 +23,8 @@ export const PLAYER_COLORS = [
  * a cell you may not start on should never share a colour with a cell you may.
  */
 export const BOARD = {
+  /** Text and frames, and anything drawn in ink on the board: the `ink` token. */
+  ink: "#17181a",
   tile: "#ffffff",
   tileAlt: "#f4f4f2",
   stroke: "#cfd0cd",
@@ -108,12 +108,19 @@ export const BOARD = {
     grow: 520,
   },
   /**
-   * The ring under a fighter's feet, which is the only place a player's own
-   * colour is allowed on the board. Whose turn it is is drawn in ink rather
-   * than in the accent: vermilion says "this is what your click would do", and
-   * a fighter standing there is not something you are about to click.
+   * The ring under a fighter's feet: amber under yours — the colour of your
+   * own turn and your own fighter in the charter — and red under the other
+   * side's, the red that already marks what is theirs on the ground. Players
+   * have no colour of their own; the only colours are the elements'. Whose
+   * turn it is is a second ink ring just outside: vermilion says "this is
+   * what your click would do", and a fighter standing there is not something
+   * you are about to click.
    */
   socle: {
+    /** Under your own fighter: the `amber` token. */
+    mine: "#b5790a",
+    /** Under everyone else's. */
+    theirs: "#a3231b",
     /** Share of a tile the ring is pulled in by, so it reads inside the cell. */
     inset: 0.16,
     fill: 0.2,

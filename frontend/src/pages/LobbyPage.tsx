@@ -20,6 +20,7 @@ import { Wardrobe } from "../components/Game/Wardrobe";
 import { LobbyHome } from "../components/Lobby/LobbyHome";
 import { RenameDialog } from "../components/Lobby/RenameDialog";
 import { useMediaQuery } from "../hooks/useMediaQuery";
+import { ElementGlyph } from "../components/Game/ElementGlyph";
 import {
   armTutorialMatch,
   hasSeenTutorial,
@@ -51,8 +52,8 @@ const OpponentRow: React.FC<{
 
   return (
     <li className="flex items-center gap-3 border-b border-hairline py-2.5 last:border-b-0">
-      <span aria-hidden className="w-6 flex-none text-center text-[17px]">
-        {open ? kit?.grimoire.symbol : "·"}
+      <span aria-hidden className="grid w-6 flex-none place-items-center text-[17px] text-muted">
+        {open ? <ElementGlyph element={kit?.element} size={16} /> : "·"}
       </span>
       <div className="min-w-0 flex-1">
         <p className={`truncate font-display text-[15px] font-bold ${open ? "" : "text-muted"}`}>
@@ -438,11 +439,6 @@ const LobbyPage: React.FC = () => {
             Dofus.js · lobby
           </span>
           <span className="flex items-baseline gap-2 font-mono text-[9.5px] uppercase tracking-label text-muted">
-            <span
-              aria-hidden
-              className="h-[9px] w-[9px] flex-none translate-y-px"
-              style={{ backgroundColor: character?.color }}
-            />
             <b className="font-medium text-ink">{character?.name}</b>
             <span className={connected ? "" : "text-vermilion"}>
               {connected ? "connected" : "reconnecting…"}

@@ -171,3 +171,6 @@ export const beatenChampions = (
   }
   return beaten;
 };
+
+/** A champion's name without its epithet: "Ashka", not "Ashka the Kindled". */
+export const shortName = (name: string) => name.split(/ (?:the|of) /)[0];
