@@ -73,6 +73,8 @@ interface CharacterShowcaseProps {
   glyph?: string;
   /** The colour of a talisman circling the fighter, its ultimate ready. */
   talisman?: string;
+  /** Which talisman it is, drawn as its relic when it is a legendary's. */
+  talismanId?: string;
   /** A spell the single fighter casts on the stand. */
   cast?: ShowcaseCast | null;
 }
@@ -90,6 +92,7 @@ export const CharacterShowcase: React.FC<CharacterShowcaseProps> = ({
   figureScale = 1.7,
   glyph,
   talisman,
+  talismanId,
   cast,
 }) => {
   const manifest = useFxManifest();
@@ -190,6 +193,8 @@ export const CharacterShowcase: React.FC<CharacterShowcaseProps> = ({
             radius={256 * scale * 0.2}
             size={Math.max(7, 256 * scale * 0.065)}
             color={talisman}
+            id={talismanId}
+            unit={4 * scale}
           />
         </div>
       )}

@@ -2,6 +2,8 @@ import React, { useEffect, useState } from "react";
 import { infusedBook } from "../../utils/spellUtils";
 import { ContentResponse, Loadout, SpellBook } from "../../types/message";
 import { CharacterShowcase, ShowcaseCast } from "./CharacterShowcase";
+import { RelicIcon } from "./RelicIcon";
+import { hasRelic } from "../../vfx/relics";
 import {
   championOf,
   grimoireFor,
@@ -125,9 +127,12 @@ const RuneIcon: React.FC<{ size: number; name: string }> = ({ size, name }) => (
   </TextIcon>
 );
 
-/** The talisman's gem, in its ultimate's colour, lit. */
-const TalismanIcon: React.FC<{ size: number; color: string }> = ({ size, color }) => (
+/** The talisman's shard, alive; a gem in its ultimate's colour if it has none. */
+const TalismanIcon: React.FC<{ size: number; color: string; id: string }> = ({ size, color, id }) => (
   <TextIcon size={size}>
+    {hasRelic(id) ? (
+      <RelicIcon id={id} unit={Math.max(1, Math.floor(size / 16))} />
+    ) : (
     <span
       className="block border border-ink"
       style={{
@@ -138,6 +143,7 @@ const TalismanIcon: React.FC<{ size: number; color: string }> = ({ size, color }
         transform: "rotate(45deg)",
       }}
     />
+    )}
   </TextIcon>
 );
 
@@ -307,7 +313,7 @@ const WardrobeSheet: React.FC<Omit<WardrobeProps, "content" | "failed"> & { cont
           id: t.id,
           title: t.name,
           line: `Ultimate · ${spellName(t.ultimate)} — ${spells[t.ultimate]?.description ?? ""}`,
-          icon: <TalismanIcon size={size} color={ultimateColor(t.ultimate)} />,
+          icon: <TalismanIcon size={size} color={ultimateColor(t.ultimate)} id={t.id} />,
         }));
     }
   };
@@ -465,6 +471,7 @@ const WardrobeSheet: React.FC<Omit<WardrobeProps, "content" | "failed"> & { cont
                 outfit={kit.outfit.sprite}
                 glyph={kit.grimoire.glyph}
                 talisman={ultimateColor(kit.talisman.ultimate)}
+                talismanId={kit.talisman.id}
                 cast={cast}
                 figureScale={2.3}
                 className="w-[min(100%,320px,calc((100dvh-170px)*1.2))] narrow:w-[min(92%,340px,calc((100dvh-400px)*1.2))]"

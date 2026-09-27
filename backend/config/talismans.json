@@ -26,25 +26,25 @@
     },
     {
       "id": "ashen-crown",
-      "name": "The Ashen King's crown",
+      "name": "Shard of the Ashen Halo",
       "ultimate": "29",
       "sprite": "legend_roi_cendre"
     },
     {
       "id": "aurorion-scale",
-      "name": "Aurorion's scale",
+      "name": "Aurorion's crystal",
       "ultimate": "30",
       "sprite": "legend_aurorion"
     },
     {
       "id": "fulgor-drumstick",
-      "name": "Fulgor's drumstick",
+      "name": "Fulgor's orb",
       "ultimate": "31",
       "sprite": "legend_fulgor"
     },
     {
       "id": "sahrkhan-fang",
-      "name": "Sahr'Khan's fang",
+      "name": "Sahr'Khan's coil",
       "ultimate": "32",
       "sprite": "legend_sahrkhan"
     }

@@ -139,6 +139,7 @@ export const SetCarousel: React.FC<SetCarouselProps> = ({
             figures={figures}
             glyph={kit?.grimoire.glyph}
             talisman={kit ? content.spells[kit.talisman.ultimate]?.color : undefined}
+            talismanId={kit?.talisman.id}
             figureScale={2.7}
             className="w-full"
           />

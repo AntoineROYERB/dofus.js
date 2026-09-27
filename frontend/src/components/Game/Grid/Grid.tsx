@@ -767,6 +767,8 @@ export const Grid: React.FC<GridProps> = ({
               size={Math.max(8, tw * 0.085)}
               color={content?.spells[ultimate]?.color ?? "#e2521d"}
               state={state}
+              id={kit.talisman.id}
+              unit={tw / 64}
             />
           );
         })}
