@@ -25,6 +25,14 @@ var messageHandlers = map[string]MessageHandler{
 	"end_turn":             handleEndTurn,
 	"play_again":           handlePlayAgain,
 	"wake_opponent":        handleWakeOpponent,
+	"dream_create":         handleDreamCreate,
+	"dream_join":           handleDreamJoin,
+	"dream_resume":         handleDreamResume,
+	"dream_leave":          handleDreamLeave,
+	"dream_start":          handleDreamStart,
+	"dream_point":          handleDreamPoint,
+	"dream_enter":          handleDreamEnter,
+	"dream_boon":           handleDreamBoon,
 }
 
 func decode[T any](c *Client, action string, data []byte, out *T) bool {
@@ -317,6 +325,11 @@ func handlePlayAgain(h *Hub, c *Client, data []byte) {
 	}
 	room, ok := h.inRoom(c, "play_again", in.MessageID)
 	if !ok {
+		return
+	}
+	// A dream's floor is fought once: the run moves on, win or lose.
+	if room.Run != "" {
+		h.reject(c, "play_again", in.MessageID, game.ErrWrongPhase)
 		return
 	}
 	if err := room.Game.Restart(c.ID); err != nil {

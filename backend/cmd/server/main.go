@@ -67,13 +67,14 @@ func main() {
 		return
 	}
 
-	hub := websocket.NewHub(cfg, store.NewAsync(matches, 32))
+	hub := websocket.NewHub(cfg, store.NewAsync(matches, 32), matches)
 	go hub.Run()
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/ws", hub.HandleWebSocket)
 	api.RegisterMatchRoutes(mux, matches)
 	api.RegisterContentRoutes(mux, catalogue)
+	api.RegisterDreamRoutes(mux, matches)
 	if cfg.StaticDir != "" {
 		mux.Handle("/", spaHandler(cfg.StaticDir))
 		slog.Info("serving static frontend", "component", "server", "dir", cfg.StaticDir)
@@ -154,7 +155,7 @@ func startMetricsServer(addr string) *http.Server {
 // constraint, not a fallback for a broken config: docker compose up
 // --build and go run ./cmd/server have to keep working with no database at
 // all.
-func openStore(databaseURL string) (store.MatchStore, error) {
+func openStore(databaseURL string) (store.Store, error) {
 	if databaseURL == "" {
 		slog.Info("DATABASE_URL not set, matches are kept in memory only", "component", "store")
 		return memory.New(), nil

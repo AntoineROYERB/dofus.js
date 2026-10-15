@@ -20,6 +20,10 @@ import (
 // botThinkDelay paces the computer opponent so a human can follow what it did.
 const botThinkDelay = 700 * time.Millisecond
 
+// crowdThinkDelay paces bots in a fight between teams. A room of six monsters
+// at the duel's pace kept the party waiting most of a minute between turns.
+const crowdThinkDelay = 400 * time.Millisecond
+
 type Hub struct {
 	Clients    map[*Client]bool
 	Register   chan *Client
@@ -29,6 +33,8 @@ type Hub struct {
 	// Ticks carries room ids whose turn timer fired: a bot to move, or a turn
 	// that ran out of time.
 	Ticks chan string
+	// RunTicks carries a dream's timers going off.
+	RunTicks chan runTick
 
 	cfg        config.Config
 	lobby      *game.Lobby
@@ -42,16 +48,20 @@ type Hub struct {
 	// game-over state that gets broadcast again (a reconnect, a player
 	// disconnecting right after the match ends) does not save it twice.
 	// Cleared when the room leaves game-over (a rematch), so the next
-	// finish is recognised as a new match.
-	persistedRooms map[string]bool
+	// finish is recognised as a new match. It holds the saved match's id.
+	persistedRooms map[string]string
+	// dreams is Endless Dreams: the runs under way, and where they are kept.
+	dreams *dreams
 
 	// Guards Clients. Every other mutation happens on the Run goroutine, and
 	// each game keeps its own lock.
 	mutex sync.Mutex
 }
 
-func NewHub(cfg config.Config, matchStore store.MatchStore) *Hub {
+func NewHub(cfg config.Config, matchStore store.MatchStore, dreamStore store.DreamStore) *Hub {
 	return &Hub{
+		RunTicks:       make(chan runTick, 64),
+		dreams:         newDreams(dreamStore),
 		Inbound:        make(chan Inbound),
 		Register:       make(chan *Client),
 		Unregister:     make(chan *Client),
@@ -63,7 +73,7 @@ func NewHub(cfg config.Config, matchStore store.MatchStore) *Hub {
 		sessions:       NewSessions(),
 		matchStore:     matchStore,
 		roomTimers:     make(map[string]*time.Timer),
-		persistedRooms: make(map[string]bool),
+		persistedRooms: make(map[string]string),
 		upgrader: websocket.Upgrader{
 			ReadBufferSize:  1024,
 			WriteBufferSize: 1024,
@@ -126,7 +136,10 @@ func (h *Hub) broadcastGameState(room *game.Room) {
 			slog.Info("game over", "component", "hub", "match_id", room.ID, "winner", winner)
 			h.broadcastToRoom(room.ID, payload)
 		}
-		h.persistMatch(room, winner)
+		matchID := h.persistMatch(room, winner)
+		if room.Run != "" {
+			h.onDreamFightOver(room, matchID)
+		}
 	} else {
 		// The room left game-over (a rematch via CmdRestart), so the next
 		// time it finishes is a new match, not a resend of this one.
@@ -159,11 +172,12 @@ func (h *Hub) refreshRoomMetrics() {
 // a player disconnecting right after the match ends (that appends a
 // "connect" command to the log). Guarding on a flag rather than the
 // command count means neither retriggers a second save.
-func (h *Hub) persistMatch(room *game.Room, winner string) {
-	if h.persistedRooms[room.ID] {
-		return
+func (h *Hub) persistMatch(room *game.Room, winner string) string {
+	if id, saved := h.persistedRooms[room.ID]; saved {
+		return id
 	}
-	h.persistedRooms[room.ID] = true
+	matchID := store.NewMatchID()
+	h.persistedRooms[room.ID] = matchID
 
 	rec := room.Game.Recording()
 	turns, durationMS := store.TurnsAndDuration(rec)
@@ -179,7 +193,7 @@ func (h *Hub) persistMatch(room *game.Room, winner string) {
 	}
 
 	match := store.Match{
-		ID:         store.NewMatchID(),
+		ID:         matchID,
 		RoomID:     room.ID,
 		RoomName:   room.Name,
 		StartedAt:  startedAt,
@@ -193,6 +207,7 @@ func (h *Hub) persistMatch(room *game.Room, winner string) {
 	if err := h.matchStore.SaveMatch(context.Background(), match); err != nil {
 		slog.Error("failed to save match", "component", "store", "match_id", room.ID, "error", err)
 	}
+	return matchID
 }
 
 // broadcastLobby refreshes the room list for everyone who is not in a room.
@@ -260,6 +275,11 @@ func (h *Hub) closeRoomIfEmpty(room *game.Room) bool {
 	if room.Game.HumanCount() > 0 {
 		return false
 	}
+	// A party that walked out of a floor's fight has lost it: the run hears
+	// so before the room goes, or it would wait on that fight for ever.
+	if room.Run != "" {
+		h.abandonFloor(room)
+	}
 	h.lobby.Remove(room.ID)
 	delete(h.persistedRooms, room.ID)
 	slog.Info("room closed (empty)", "component", "hub", "match_id", room.ID)
@@ -286,6 +306,9 @@ func (h *Hub) scheduleRoom(room *game.Room) {
 	var delay time.Duration
 	if _, isBot := room.Game.CurrentBot(); isBot {
 		delay = botThinkDelay
+		if room.Game.Capacity() > game.MinPlayers {
+			delay = crowdThinkDelay
+		}
 	} else {
 		deadline := room.Game.TurnEndsAt()
 		if deadline.IsZero() {
@@ -350,6 +373,9 @@ func (h *Hub) Run() {
 		case roomID := <-h.Ticks:
 			h.onTick(roomID)
 
+		case t := <-h.RunTicks:
+			h.onRunTick(t)
+
 		case msg := <-h.Inbound:
 			var base types.BaseMessage
 			if err := json.Unmarshal(msg.Data, &base); err != nil {
@@ -380,6 +406,13 @@ func (h *Hub) onRegister(client *Client) {
 	// A resuming client goes straight back to the room it was in, character
 	// and all. If it never got as far as creating one, the client simply asks
 	// for it again on arrival.
+	// A dreamer coming back hears where their run stands, whether they are
+	// in one of its fights or between two.
+	if run, ok := h.runOf(client); ok {
+		h.sessions.stopForfeit(client.Session)
+		defer h.broadcastDream(run)
+	}
+
 	if room, ok := h.lobby.Get(client.Session.RoomID); ok {
 		h.sessions.stopForfeit(client.Session)
 		room.Game.SetConnected(client.ID, true)
@@ -411,6 +444,7 @@ func (h *Hub) onUnregister(client *Client) {
 
 	room, ok := h.lobby.Get(client.RoomID)
 	if !ok {
+		h.onDreamDisconnect(client)
 		return
 	}
 
@@ -428,13 +462,20 @@ func (h *Hub) onForfeit(f Forfeit) {
 	if !ok || sess.RoomID != f.RoomID {
 		return // reconnected and moved on
 	}
-	room, ok := h.lobby.Get(f.RoomID)
-	if !ok {
-		return
-	}
 	// Still connected means someone came back on this session in the meantime.
 	if h.isConnected(f.UserID) {
 		return
+	}
+	room, ok := h.lobby.Get(f.RoomID)
+	if !ok {
+		// Away from a dream between two of its fights: out of the run.
+		if f.RoomID == "" && sess.RunID != "" {
+			h.onDreamForfeit(sess, f.UserID)
+		}
+		return
+	}
+	if room.Run != "" {
+		h.onDreamForfeit(sess, f.UserID)
 	}
 
 	slog.Info("forfeit", "component", "hub", "user_id", f.UserID, "match_id", f.RoomID)

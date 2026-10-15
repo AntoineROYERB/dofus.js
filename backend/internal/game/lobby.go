@@ -34,6 +34,9 @@ type Room struct {
 	ID   string
 	Name string
 	Game *Game
+	// Run is the dream this room is a floor of. Such a room is private: it
+	// is not listed, and nobody joins it but the party it was opened for.
+	Run string
 }
 
 // Lobby holds every room on the server. It replaces the single global game the
@@ -76,6 +79,24 @@ func (l *Lobby) Create(name, island string) (*Room, error) {
 	return room, nil
 }
 
+// CreateFight opens a room for a fight whose inputs the caller has already
+// decided, a dream's floor, under a fresh seed.
+func (l *Lobby) CreateFight(name string, opts Options, run string) (*Room, error) {
+	id, err := newRoomID()
+	if err != nil {
+		return nil, err
+	}
+	opts.Seed = NewSeed()
+	if opts.TurnDuration <= 0 {
+		opts.TurnDuration = l.turnDuration
+	}
+	room := &Room{ID: id, Name: name, Game: NewWithOptions(opts), Run: run}
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.rooms[id] = room
+	return room, nil
+}
+
 func (l *Lobby) Get(id string) (*Room, bool) {
 	l.mu.RLock()
 	defer l.mu.RUnlock()
@@ -96,7 +117,9 @@ func (l *Lobby) List() []types.RoomSummary {
 	l.mu.RLock()
 	rooms := make([]*Room, 0, len(l.rooms))
 	for _, room := range l.rooms {
-		rooms = append(rooms, room)
+		if room.Run == "" {
+			rooms = append(rooms, room)
+		}
 	}
 	l.mu.RUnlock()
 
@@ -121,6 +144,9 @@ func (l *Lobby) List() []types.RoomSummary {
 
 // CanJoin reports whether a newcomer may still enter this room.
 func (r *Room) CanJoin() error {
+	if r.Run != "" {
+		return ErrRoomStarted
+	}
 	if r.Game.Status() != types.StatusCreatingPlayer {
 		return ErrRoomStarted
 	}

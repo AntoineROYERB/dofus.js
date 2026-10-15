@@ -35,7 +35,7 @@ func openTestStore(t *testing.T) *Store {
 
 	// Each test gets a clean slate rather than its own database, since the
 	// migration runner is what is under test as much as the queries are.
-	if _, err := s.db.ExecContext(ctx, `TRUNCATE matches, match_commands`); err != nil {
+	if _, err := s.db.ExecContext(ctx, `TRUNCATE matches, match_commands, dream_runs, dream_entries`); err != nil {
 		t.Fatalf("truncate: %v", err)
 	}
 	return s
@@ -273,4 +273,28 @@ func TestMigrateIsIdempotent(t *testing.T) {
 		t.Fatalf("second Open: %v", err)
 	}
 	defer s2.Close()
+}
+
+func TestDreamRunsAndTheLeaderboardRoundTrip(t *testing.T) {
+	s := openTestStore(t)
+	ctx := context.Background()
+	if err := s.SaveRun(ctx, "r1", json.RawMessage(`{"floor":3}`)); err != nil {
+		t.Fatalf("SaveRun: %v", err)
+	}
+	if got, err := s.GetRun(ctx, "r1"); err != nil || string(got) != `{"floor": 3}` && string(got) != `{"floor":3}` {
+		t.Fatalf("GetRun = %s, %v", got, err)
+	}
+	at := time.Now().Truncate(time.Second)
+	for _, e := range []store.DreamEntry{
+		{RunID: "a", Size: 2, Floor: 7, Turns: 30, Names: []string{"A", "B"}, Grimoires: []string{"pyromancer", "tidecaller"}, MatchIDs: []string{"m1"}, EndedAt: at},
+		{RunID: "b", Size: 2, Floor: 9, Turns: 45, Names: []string{"C", "D"}, Grimoires: []string{}, MatchIDs: []string{}, EndedAt: at},
+	} {
+		if err := s.SaveDreamEntry(ctx, e); err != nil {
+			t.Fatalf("SaveDreamEntry: %v", err)
+		}
+	}
+	board, err := s.Leaderboard(ctx, 2, 10)
+	if err != nil || len(board) != 2 || board[0].RunID != "b" || board[1].Names[1] != "B" {
+		t.Fatalf("Leaderboard = %+v, %v", board, err)
+	}
 }

@@ -418,6 +418,17 @@ func (g *Game) addPlayerLocked(userID, userName string, look types.CharacterAppe
 	return nil
 }
 
+// ValidAppearance checks what a client chose about its character before it is
+// seated anywhere: a name the game accepts, and a loadout the catalogue
+// resolves.
+func ValidAppearance(look types.CharacterAppearance) error {
+	if !namePattern.MatchString(look.Name) {
+		return ErrInvalidName
+	}
+	_, err := Content().Kit(look.Loadout)
+	return err
+}
+
 // championLocked resolves a champion id, empty meaning the first champion.
 func (g *Game) championLocked(id string) (types.Champion, error) {
 	if id == "" {

@@ -5,6 +5,7 @@ package memory
 
 import (
 	"context"
+	"encoding/json"
 	"sync"
 
 	"game-server/internal/game"
@@ -18,10 +19,59 @@ type Store struct {
 	mu      sync.RWMutex
 	matches map[string]store.Match
 	order   []string // insertion order, most recent last
+	runs    map[string]json.RawMessage
+	entries []store.DreamEntry
 }
 
 func New() *Store {
-	return &Store{matches: make(map[string]store.Match)}
+	return &Store{matches: make(map[string]store.Match), runs: make(map[string]json.RawMessage)}
+}
+
+func (s *Store) SaveRun(_ context.Context, id string, state json.RawMessage) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.runs[id] = append(json.RawMessage(nil), state...)
+	return nil
+}
+
+func (s *Store) GetRun(_ context.Context, id string) (json.RawMessage, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	state, ok := s.runs[id]
+	if !ok {
+		return nil, store.ErrNotFound
+	}
+	return append(json.RawMessage(nil), state...), nil
+}
+
+// SaveDreamEntry keeps one line per run: a run saved twice is updated.
+func (s *Store) SaveDreamEntry(_ context.Context, e store.DreamEntry) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i := range s.entries {
+		if s.entries[i].RunID == e.RunID {
+			s.entries[i] = e
+			return nil
+		}
+	}
+	s.entries = append(s.entries, e)
+	return nil
+}
+
+func (s *Store) Leaderboard(_ context.Context, size, limit int) ([]store.DreamEntry, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	out := []store.DreamEntry{}
+	for _, e := range s.entries {
+		if e.Size == size {
+			out = append(out, e)
+		}
+	}
+	store.RankDreamEntries(out)
+	if limit > 0 && len(out) > limit {
+		out = out[:limit]
+	}
+	return out, nil
 }
 
 func (s *Store) SaveMatch(_ context.Context, m store.Match) error {
@@ -112,4 +162,4 @@ func (s *Store) Reproject(_ context.Context, id string) error {
 
 func (s *Store) Close() error { return nil }
 
-var _ store.MatchStore = (*Store)(nil)
+var _ store.Store = (*Store)(nil)
