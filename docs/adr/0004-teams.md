@@ -1,6 +1,6 @@
 # 4. A fight can be played between teams
 
-- Status: proposed
+- Status: accepted
 - Date: 2026-10-15
 - Plan: [Endless Dreams](../plans/endless-dream.md)
 

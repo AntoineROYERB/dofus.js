@@ -1,331 +1,196 @@
 # Plan — Endless Dreams
 
-Statut : **plan validé**, rien n'est implémenté.
+Statut : **implémenté** sur la branche `feat/endless-dreams` (locale, non
+poussée). Ce document décrit le mode tel qu'il est codé ; les écarts avec la
+première version du plan sont signalés en fin de document.
 
-## 0. Décisions prises
+## 0. Décisions
 
 | Sujet | Décision |
 |---|---|
 | Nom | **Endless Dreams** |
-| Joueurs | coopératif, **1 à 3 joueurs** dans un même groupe |
-| Monstres | une salle contient un **groupe de 1 à 6 monstres**, qui grossit avec l'étage et la taille du groupe |
+| Joueurs | coopératif, **1 à 3 joueurs** dans un groupe, rejoint par un code |
+| Monstres | une salle contient **1 à 6 monstres** du bestiaire |
 | Accès | débloqué à la **fin du tutoriel** |
-| Vie | remise au **maximum à la fin de chaque combat** |
-| Coéquipier mort | **revient** au combat suivant (le run ne s'arrête que si tout le groupe tombe) |
-| Bonus | la liste du §5, validée. Pas de bonus de soin entre deux combats : la vie y est déjà remise au max |
-| Feu ami | **oui**, nos sorts touchent nos alliés |
-| Choix de la salle | **le chef seul** |
-| Départ d'un joueur | le classement retient **le groupe du départ** |
+| Vie | remise au **maximum à la fin de chaque combat** ; les morts se relèvent |
+| Feu ami | **oui**, nos sorts touchent nos alliés (le bot, lui, ne les vise jamais) |
+| Choix de la salle | **le chef seul** ; les autres peuvent pointer une salle |
 | Boss | tous les **5 étages** |
-| Courbe de difficulté (CI) | victoire > 80 % aux étages 1–4, ~50 % vers l'étage 10, < 20 % après 20 |
-| Classement | **dès la V1** |
+| Départ d'un joueur | le classement retient **le groupe du départ** |
+| Classement | **dès la V1** : Solo, Duo, Trio |
+| Courbe de difficulté (CI) | victoire > 80 % aux étages 1–4, 30–70 % aux étages 8–12, < 20 % à partir de 20 |
 
-## 1. Ce qu'on reprend de Dofus
-
-La boucle des Songes infinis : on monte des **étages**. À chaque étage on
-**choisit une salle** parmi plusieurs, chacune annonçant ses monstres, ce qui la
-rend difficile et ce qu'elle rapporte. Un **boss** revient régulièrement, et des
-**modificateurs** changent les règles du combat. La difficulté monte sans
-plafond et ce qui compte, c'est **l'étage le plus haut atteint**.
-
-On ne reprend pas l'économie (clés, ressources, équipement) : on n'a ni
-inventaire ni comptes.
-
-## 2. Ce que le jeu actuel impose
-
-| Contrainte | Où | Conséquence |
-|---|---|---|
-| Strictement 1v1 : `MaxPlayersPerRoom = MinPlayers = 2`, fin de combat = « un seul vivant » | `game/lobby.go`, `game/game.go` (`checkGameOverLocked`) | Le moteur doit apprendre les **équipes** : c'est le plus gros chantier (§6.1), avec sa propre ADR. |
-| Les adversaires sont les 4 classes, en kit de 5 sorts | `config/classes.json` | Il faut des **monstres** plus simples que des classes pour remplir une salle de 6 (§4.2). |
-| Le bot joue une action par tick, et `nearestEnemy` vise « tout le monde sauf moi » | `game/bot.go` | Le bot doit viser **l'autre équipe**, et le rythme doit tenir avec 6 bots (§6.1). |
-| Le serveur est l'arbitre, le client n'est jamais cru | README | Étage, salles, bonus et classement sont **décidés par le serveur**. |
-| Pas de comptes, serveur en mémoire qui s'endort | README | Le run vit dans le **store** (Postgres s'il est configuré, mémoire sinon), avec une clé par joueur pour y revenir (§7). |
-| Un match = seed + commandes acceptées, rejoué en CI | ADR 0001 | Équipes, monstres, modificateurs et bonus sont **des entrées du match** : ils vont dans la `Recording` et l'empreinte des règles. |
-| Le contenu est du JSON validé au démarrage | `content/validate.go` | Monstres, salles, modificateurs, boss et bonus vivent dans `config/dream.json`, validé pareil. |
-| L'équilibre est un test en CI | balance sim | On ajoute une **courbe de difficulté** pour 1, 2 et 3 joueurs (§9). |
-
-## 3. La boucle de jeu
+## 1. La boucle
 
 ```
-Fin du tutoriel ─► Lobby ─► « Endless Dreams »
-                              │ créer un groupe (seul, ou code à partager, 3 max)
-                              ▼
-                     Étage N : 3 salles
-                     (monstres + modificateur + difficulté)
-                              │ le chef de groupe choisit
-                              ▼
-                     Combat : groupe vs groupe de monstres
-                              │
-          tout le groupe ◄────┴────► monstres tous tombés
-          est tombé                        │
-              │                   chaque joueur choisit 1 bonus parmi 3
-       Fin du run :               PV remis au max, morts relevés
-       étage atteint ─► classement         │
-                                           ▼
-                                 Étage N+1 (boss tous les 5 étages)
+Lobby (après le tutoriel) ─► /dream
+   ouvrir un groupe (code à partager) ou en rejoindre un
+            │ le chef lance
+            ▼
+   Étage N : 3 salles, chacune sur une île
+   (monstres de l'île + twists + rareté des bonus)
+            │ le chef entre, les autres peuvent pointer
+            ▼
+   Combat : groupe (équipe "party") contre salle (équipe "dream")
+            │
+   défaite ◄┴► victoire ── 3 s plus tard, retour au songe
+      │                    chacun choisit 1 bonus parmi 3 (30 s)
+   Fin du run,             vie remise au max, morts relevés
+   classement                       │
+                                    ▼
+                         Étage N+1 (boss tous les 5)
 ```
 
-- **Groupe** : créé depuis le lobby, rejoint par un code (comme une salle
-  aujourd'hui). Le chef lance le run ; personne ne rejoint en cours de run en V1.
-- **Classe** : celle de chaque joueur, fixée pour tout le run. Deux joueurs
-  peuvent prendre la même.
-- **Choix de la salle** : le chef décide. Les autres voient les salles et
-  peuvent en « pointer » une, ce que le chef voit.
-- **Choix des bonus** : chacun le sien, en même temps, 30 s maximum (sinon le
-  premier est pris pour lui).
-- **Boss** : tous les **5 étages**, pour qu'un palier tienne en ~15 minutes.
-- **Vie** : remise au max entre deux combats ; les morts reviennent.
-- **Départ d'un joueur** : il quitte le run ; le groupe continue s'il reste
-  quelqu'un. Le classement retient la composition au départ du run.
+## 2. Le contenu (`backend/config/dreams.json`)
 
-## 4. Le contenu des salles
+Tout est validé au démarrage (`internal/content/dreams.go`), chaque règle a un
+test de refus.
 
-### 4.1 Les salles
+### 2.1 Les îles et les monstres
 
-À chaque étage, le serveur tire **3 salles** à partir de
-`(seed du run, étage, taille du groupe)`. Une salle annonce :
+Une salle est jouée sur une **île** (son terrain, sa palette) et remplie avec
+la **lignée** de cette île. Six îles servent aux salles : Prairie, Earth,
+Water, Ice, Air, Acid. Chaque monstre du bestiaire a une fiche de combat :
 
-- **le groupe de monstres** : qui, combien, avec leurs PV ;
-- **un modificateur** (§4.4), parfois deux à haut étage ;
-- **une difficulté** (Calme / Agitée / Cauchemar), qui fixe la rareté des
-  bonus offerts après la victoire.
+- un **set** complet (élément, passif du grimoire, rune) ;
+- une **barre de 1 à 3 sorts**, pris dans la barre de ce set ;
+- ses **PV, PA, PM**, un **coût de menace** (1 à 3) et une couleur.
 
-### 4.2 Les monstres
+En combat, un monstre est **dessiné avec sa planche du bestiaire**.
 
-Les classes restent les « gros » adversaires (boss, élites). Pour remplir une
-salle, on ajoute des **monstres de rêve**, déclarés dans `dream.json` :
-
-- 1 à 3 sorts pris dans `spells.json` (ou des sorts propres au songe) ;
-- des PV, PA, PM et un **coût** en points de menace ;
-- un élément, une couleur, un nom.
-
-Exemples de départ (un par élément, plus des neutres) :
-
-| Monstre | Rôle | Kit | Coût |
-|---|---|---|---|
-| Ember Wisp | faible, à distance | une brûlure | 1 |
-| Gust Imp | rapide, repousse | un coup + une poussée | 1 |
-| Brine Crab | lent, solide | un coup, beaucoup de PV | 2 |
-| Pebble Golem | bloque | un coup + un pilier | 2 |
-| Dream Echo | copie réduite d'une classe | 3 sorts de la classe | 3 |
-| Nightmare (élite) | une classe complète | 5 sorts | 5 |
-
-### 4.3 Taille des groupes
-
-Une salle a un **budget de menace** :
+### 2.2 Composition d'une salle
 
 ```
-budget(étage, joueurs) = base(étage) × facteur(joueurs) × facteur(difficulté)
-facteur(joueurs)       = 1 / 1,8 / 2,5      (1, 2, 3 joueurs)
+budget = (baseThreat + threatPerFloor × (étage − 1)) × partyThreat[taille] × difficulté
 ```
 
-Le générateur dépense le budget en monstres, **6 au plus**. À bas étage on
-tombe sur 1 ou 2 monstres faibles ; plus haut, on voit des groupes de 4 à 6, ou
-moins de monstres mais plus lourds. Au-delà de 6, la difficulté monte par les
-stats (PV, PA) et par les modificateurs, pas par le nombre.
+- `baseThreat` 20, `threatPerFloor` 5 (en dixièmes de monstre) ;
+- `partyThreat` : 100 / 190 / 280 % pour 1, 2, 3 joueurs ;
+- difficulté : Calme 100 %, Agitée 130 %, Cauchemar 165 %.
 
-Les nombres exacts sortent de la simulation (§9).
+Le budget est dépensé au hasard parmi les monstres qui laissent le reste
+dépensable sur les places restantes (6 au plus). **Un budget trop grand pour 6
+places revient en PV** (jusqu'à +150 %). Les monstres gagnent **+4 % de PV par
+étage**, et à partir d'un étage ils portent des bonus :
 
-### 4.4 Les modificateurs (« Twists »)
-
-Des règles appliquées au combat entier, construites sur ce que le moteur sait
-déjà faire :
-
-| Twist | Effet | Réutilise |
-|---|---|---|
-| Burning Ground | 6 cellules de feu au départ | `terrain` |
-| Fog | une bande de fumée au centre | `terrain` |
-| Frozen Edge | glace sur les bords | `terrain` |
-| Thick Hide | monstres +30 % PV | stats |
-| Heavy Limbs | tout le monde −1 PM, +1 PA | `turnPoints` |
-| Short Night | tours de 30 s | `TurnDuration` |
-| Open Field | aucun couvert | `GenerateObstacles` |
-| Swarm | +1 monstre faible gratuit | composition |
-
-### 4.5 Les boss
-
-Tous les 5 étages : une classe complète sous une identité de songe (nom, deux
-répliques), PV × 2 × joueurs, un twist imposé, **son ultime dès le tour 1**, et
-une escorte de monstres faibles à partir de l'étage 10.
-
-## 5. Les bonus (« Boons »)
-
-Après chaque victoire, chaque joueur reçoit **3 bonus au choix**, tirés selon
-la difficulté de la salle. Ils durent **jusqu'à la fin du run** et s'empilent.
-
-Les bonus de type **sort de songe** ajoutent un sort à la barre du joueur (la
-barre accepte jusqu'à 8 sorts, les classes en ont 5) : ce sont des actions à
-utiliser pendant le combat, une fois par combat sauf mention contraire.
-
-### Communs
-
-| Bonus | Effet |
+| Étage | Bonus des monstres |
 |---|---|
-| Vigor | +10 PV max |
-| Stride | +1 PM |
-| Thick Skin | −1 dégât sur chaque coup reçu |
-| Sharpened | +10 % dégâts de tous vos sorts |
-| Long Arm | +1 portée sur un sort au choix |
-| Quick Hands | −1 PA sur un sort au choix (minimum 1) |
-| Head Start | +2 PM au premier tour de chaque combat |
+| 8 | Sharpened (+10 % dégâts) |
+| 11 | Thick Skin (−1 par coup) |
+| 14 | Sharpened |
+| 17 | Focus (+1 PA) |
+| 20 | Sharpened |
+| 23 | Thick Skin |
 
-### Rares
+Niveau du bot : facile jusqu'à l'étage 4, normal de 5 à 14, difficile ensuite.
 
-| Bonus | Effet |
+### 2.3 Les boss
+
+Tous les 5 étages, une seule salle : un des **six maîtres des îles** (Monolithe,
+Kraken, Heart of Winter, Eye of the Swarm, Mother Gloop, Ash King), dans le set
+de son champion, avec son profil de combat et sur son île. PV : 110 / 200 /
+280 % du champion selon la taille du groupe. Il lance son ultime dès le
+tour 1 **à partir de l'étage 10**, et amène une escorte de son île à partir de
+l'étage 10. Une salle de boss paie un rare et deux légendaires.
+
+### 2.4 Les twists
+
+| Twist | Effet |
 |---|---|
-| Focus | +1 PA |
-| Wake Up | **sort de songe** : relève un allié tombé ce combat à 40 % de ses PV, une fois par combat |
-| Shared Strength | tous les alliés à 2 cases ou moins de vous gagnent +1 PA au début de leur tour |
-| Class passive+ | renforce le passif de la classe : brûlures jusqu'à 4 (Pyromancer), relais +2 portée (Windwalker), pièges qui gèlent (Tidecaller), +1 résistance à la poussée (Stonewarden) |
-| Twice | un sort au choix peut être lancé une fois de plus par tour |
+| Burning Ground | 6 cases de feu au départ |
+| Fog | une bande de fumée au centre |
+| Frozen Edge | de la glace sur le bord du plateau |
+| Thick Hide | monstres +30 % PV |
+| Heavy Limbs | tout le monde −1 PM, +1 PA |
+| Short Night | tours de 30 s |
+| Open Field | aucun couvert |
+| Swarm | +1 monstre faible gratuit |
 
-### Légendaires (salles Cauchemar, boss)
+Une salle Agitée ou Cauchemar en porte un, deux à partir de l'étage 10.
 
-| Bonus | Effet |
+### 2.5 Les bonus
+
+Trois proposés par victoire, selon la rareté que paie la salle. Jamais un bonus
+inutile pour le joueur (lore d'un autre grimoire, Wake Up ou Shared Strength
+en solo, Twice sur une attaque de base à recharge). Un bonus déjà pris ne
+revient que s'il se cumule.
+
+| Rareté | Bonus |
 |---|---|
-| Second Wind | une fois par run, au lieu de tomber, vous restez à 1 PV |
-| Early Ultimate | votre ultime est disponible dès le tour 1 |
-| Dream Shield | au début de chaque combat, tout le groupe a un bouclier de 15 PV |
-| Overflow | les PA non dépensés passent au tour suivant (2 au plus) |
+| Commun | Vigor (+10 PV, cumulable), Stride (+1 PM), Thick Skin (−1 par coup, cumulable), Sharpened (+10 % dégâts, cumulable), Long Arm (+1 portée aux sorts de portée ≥ 2), Quick Hands (attaque de base −1 PA), Head Start (+2 PM au premier tour) |
+| Rare | Focus (+1 PA), **Wake Up** (sort : relève un allié tombé à 40 % de ses PV, une fois par combat), Shared Strength (+1 PA aux alliés à 2 cases ou moins), Twice (attaque de base une fois de plus par tour), Lore of Embers (Combustion −1 PA), Lore of the Wind (Updraft +2 portée), Lore of the Tide (Bubble Trap −1 PA), Lore of Stone (−1 case de poussée) |
+| Légendaire | Second Wind (une fois par run, rester à 1 PV au lieu de tomber), Early Ultimate (ultime dès le tour 1), Dream Shield (tout le groupe commence protégé : −3 par coup jusqu'à la fin de son premier tour), Overflow (jusqu'à 2 PA non dépensés reportés) |
 
-Tous les bonus sont des **données** dans `dream.json` (id, rareté, classe
-éventuelle, effet). Les effets possibles sont une liste fermée validée au
-démarrage, comme les `special` des sorts : `stat`, `spell_mod`, `grant_spell`,
-`passive`, `aura`, `rule`.
+Un bonus qui modifie un sort donne au joueur **son propre sort**, avec un
+nouvel id et l'id d'origine (`baseId`) : les aperçus, le bot et les effets
+visuels le lisent tel qu'il est.
 
-## 6. Ce qu'il faut changer, par couche
+## 3. Ce qui a changé dans le code
 
-### 6.1 Moteur : les équipes (le gros morceau, ADR 0002)
+### Moteur (`internal/game`) — [ADR 0004](../adr/0004-teams.md)
 
-1. `Player.Team` (`"party"` / `"dream"`). `checkGameOverLocked` : le combat
-   s'arrête quand **une équipe** n'a plus personne debout.
-2. Capacité par mode : la salle d'un songe accepte jusqu'à 3 humains + 6 monstres.
-   Le 1v1 classique ne change pas (`MaxPlayersPerRoom` reste à 2 pour lui).
-3. Placement : un bloc de départ **par équipe**, assez de cellules pour 6.
-   Le plateau (losange de rayon 7, 113 cellules) suffit.
-4. Ordre de jeu : on **alterne les équipes** (joueur, monstre, joueur, monstre…,
-   les monstres en trop jouent à la suite), tiré une fois comme aujourd'hui.
-5. Ciblage : les dégâts touchent tout le monde (feu ami compris, comme dans
-   Dofus) ; les sorts « allié » (Wake Up) ne visent que son équipe.
-6. Bot : `nearestEnemy` et l'estimation de dégâts ne visent que l'autre équipe ;
-   le bot évite de toucher ses alliés.
-7. Rythme : avec 6 monstres, le tick des bots est raccourci dans un songe pour
-   qu'un tour de monstres ne dure pas une minute.
-8. `Recording` : `Version` +1 ; équipe, profil de chaque bot, twists et bonus
-   enregistrés. Les matchs de `testdata` rejouent à l'identique.
+- `Player.Team`, `Options.Seats` : un combat se joue entre équipes, se
+  termine quand un seul camp tient debout, les équipes jouent en alternance et
+  partent chacune d'un bloc commun. Un duel ne change pas, ses
+  enregistrements rejouent à l'identique.
+- Les morts ne bloquent plus leur case ; le passage de tour ne saute plus le
+  combattant suivant quand quelqu'un meurt de ses blessures en début de tour.
+- Le bot voit ses alliés : il les contourne, et ne lance jamais un sort qui les
+  touche.
+- Monstres (`BotSpec.Monster`, `Stats`), bonus (`Seat.Boons`, `BotSpec.Boons`),
+  twists (`Options.Twists`) et le sort Wake Up (`revive`, ciblage `fallen`).
+  Tout est une entrée du combat, enregistrée dans la `Recording` (champs
+  optionnels uniquement).
 
-### 6.2 Moteur : profils et règles du songe
+### Le songe (`internal/dream`)
 
-9. `AddBotOfClass` devient `AddBotProfile(profile)` : nom, sorts, PV, PA, PM,
-   équipe.
-10. `Options.Dream *DreamSetup` : twists, bonus de chaque joueur. Appliqué au
-    placement (terrain initial, obstacles, stats, sorts ajoutés).
-11. Nouvelles règles pour les bonus qui en demandent : bouclier, report de PA,
-    « Second Wind », sort `revive`.
-12. `dream.go` : `FloorRooms(seed, floor, players)`, `FloorBoons(seed, floor,
-    player, tier)`, `ThreatBudget(...)`, fonctions pures.
+- `FloorOffer`, `BoonOffer` : tirés de `(graine du run, étage)`, jamais de
+  l'horloge — recharger la page redonne les mêmes salles et les mêmes bonus.
+- `Run` : groupe, étages, combats, bonus, départs, fin.
+- `TestTheClimbGetsHarder` : des bots montent en solo, duo et trio et la CI
+  tient la courbe de difficulté.
 
-### 6.3 Contenu
+### Serveur (`internal/websocket`, `internal/store`, `internal/api`)
 
-13. `config/dream.json` : monstres, twists, boss, bonus, paliers de budget.
-14. Validation : sorts inconnus, effets inconnus, monstre de coût nul, bonus qui
-    vise un sort absent de la classe, etc.
+- Messages `dream_create`, `dream_join`, `dream_resume`, `dream_leave`,
+  `dream_start`, `dream_point`, `dream_enter`, `dream_boon` ; réponse
+  `dream_state` (la vue du run pour ce joueur, sa clé comprise).
+- Chaque étage est une salle privée (non listée, non rejoignable). Fin de
+  combat → bonus, ou fin du run ; le groupe est ramené au songe 3 s après.
+- Runs sauvegardés dans le store (mémoire, ou Postgres : migration
+  `0002_dreams.sql`). Après un redémarrage, chaque membre revient avec sa clé ;
+  un combat en cours est perdu et l'étage reprend au choix de la salle.
+- Classement écrit par le serveur seul : `GET /api/dreams/leaderboard?size=1|2|3`.
+- Absent hors combat : 45 s de grâce, puis sortie du run. Un groupe qui quitte
+  tout entier un combat le perd.
 
-### 6.4 Réseau
+### Client
 
-15. Groupe : `dream_party_create`, `dream_party_join` (code),
-    `dream_party_start`.
-16. Étage : `dream_floor` (3 salles), `dream_point` (suggérer une salle),
-    `dream_enter` (chef) → ouvre la salle du combat.
-17. Après le combat : `dream_result` (bonus offerts, ou fin du run) →
-    `dream_boon` (choix de chacun) → étage suivant.
-18. `dream_resume` (clé du joueur) pour revenir dans un run après une
-    déconnexion ou un redémarrage.
+- `/dream` (groupe, salles, bonus, fin) et `/dreams/leaderboard`, avec entrée
+  depuis le lobby et l'écran d'accueil téléphone.
+- En combat : anneaux et pastilles par camp (les alliés en ambre), anneau
+  brisé là où un allié est tombé, monstres dessinés depuis le bestiaire,
+  pas de revanche ni d'arc solo, fin de combat propre au songe.
 
-### 6.5 Client
+## 4. Écarts avec le premier plan
 
-19. Lobby : bouton **Endless Dreams**, grisé tant que le tutoriel n'est pas fini
-    (`tutorialStorage.ts`).
-20. Écran du groupe : membres, classes, code à partager, « Lancer ».
-21. Écran de l'étage : 3 salles en cartes (monstres avec PV, twist,
-    difficulté), suggestions des coéquipiers, choix du chef.
-22. Écran des bonus : 3 cartes, minuteur, qui a déjà choisi.
-23. En combat : bandeau « Floor 7 · Fog », bonus actifs dans le rail / HUD
-    téléphone, couleur d'équipe sur la frise des tours (`TurnTimeline`) et sur
-    le socle des personnages.
-24. Fin du run : étage atteint, bonus pris, rang au classement.
-25. Écran du **classement**.
+- **Lucid Dream retiré** : la vie revient déjà au max entre deux combats.
+- **Les monstres viennent du bestiaire des îles** (le jeu a gagné des îles et
+  un bestiaire depuis le premier plan), et les boss sont les maîtres des îles.
+- **Dream Shield** : le bouclier du jeu retire un montant fixe à chaque coup,
+  ce n'est pas une réserve de PV ; d'où « −3 par coup jusqu'à la fin du premier
+  tour ».
+- **Lore of Embers** : Kindle n'est pas un sort du grimoire Pyromancer ; le
+  bonus réduit Combustion d'1 PA.
+- **Bonus « au choix »** : Long Arm, Quick Hands et Twice s'appliquent à des
+  sorts fixés (portée ≥ 2, attaque de base), pour ne pas demander de choisir un
+  sort au moment du bonus.
+- **Nombres** : réglés par la simulation (boss solo à 110 %, bonus des monstres
+  dès l'étage 8, budget converti en PV au-delà de 6 monstres).
 
-## 7. Où vit le run
+## 5. Plus tard
 
-Un run traverse plusieurs combats et doit survivre à un serveur qui s'endort ;
-avec un classement et un groupe, il ne peut plus vivre seulement chez le client.
-
-- Le run est **dans le store** (`internal/store`, Postgres si configuré,
-  mémoire sinon), sauvegardé à chaque **fin d'étage** : seed, étage, membres,
-  bonus de chacun, enregistrement de chaque combat.
-- Chaque joueur reçoit une **clé de run** aléatoire, gardée en `localStorage` :
-  c'est elle qui lui permet de revenir (rechargement, réseau coupé, serveur
-  réveillé).
-- Si le serveur redémarre en plein combat, le groupe reprend **au début de cet
-  étage**, avec les mêmes salles (elles sont dérivées du seed).
-- Rien ne vient du client : l'étage n'avance que quand le serveur a vu le
-  combat se terminer dans sa propre salle.
-
-## 8. Le classement
-
-- Trois tableaux : **Solo, Duo, Trio**.
-- Une entrée = noms et classes du groupe, étage atteint, nombre total de tours
-  (départage : moins de tours = mieux), date.
-- Écrit **par le serveur seulement**, à la fin d'un run, à partir de ce qu'il a
-  vu : un client ne peut pas envoyer un score.
-- Chaque entrée garde les enregistrements de ses combats : on peut **rejouer**
-  n'importe quel étage d'un run classé (la page de replay existe déjà).
-- Sans comptes, les noms ne sont pas uniques : deux « Antoine » peuvent avoir
-  chacun leur ligne. Acceptable en V1.
-- Sans Postgres (mode mémoire), le classement disparaît au redémarrage. En
-  production, il faut donc Postgres.
-- API : `GET /api/dreams/leaderboard?size=1|2|3`, sur le modèle de
-  `api/matches.go`.
-
-## 9. Tests et équilibre
-
-- **Équipes** : fin de combat par équipe, ordre alterné, feu ami, sorts alliés,
-  rejeu exact des anciens matchs.
-- **Déterminisme** : mêmes salles et bonus pour le même `(seed, étage, taille)`.
-- **Contenu** : un `dream.json` cassé arrête le serveur avec fichier, champ,
-  problème.
-- **Run** : on ne peut pas choisir une salle ou un bonus qui n'a pas été
-  offert ; un non-chef ne peut pas entrer ; une clé de run d'un autre joueur
-  est refusée.
-- **Courbe de difficulté** (le test qui compte) : des bots jouent le rôle des
-  joueurs, en solo, duo et trio, sur des seeds fixes. Seuils retenus :
-  victoire > 80 % aux étages 1–4, ~50 % vers l'étage 10, < 20 % après 20, et
-  aucune taille de groupe qui monte deux fois plus haut qu'une autre en
-  moyenne.
-
-## 10. Découpage en PR (depuis `develop`)
-
-1. **ADR 0002 + équipes dans le moteur** : `Team`, fin de combat, placement,
-   ordre alterné, bot qui vise l'autre équipe. Testé en 2v2 bot contre bot.
-   Aucun changement visible pour le 1v1.
-2. **Profils de bot + monstres** : `AddBotProfile`, `dream.json` (monstres),
-   validation.
-3. **Règles du songe** : twists, bonus, nouveaux effets (`revive`,
-   bouclier…), `Recording` v+1.
-4. **Run et groupe côté serveur** : store, messages, clé de run, reprise.
-5. **Client** : groupe, étage, bonus, bandeau en combat, couleurs d'équipe.
-6. **Classement** : store + API + écran.
-7. **Équilibre** : courbe en CI, réglage des nombres.
-8. **Finitions** : README, captures, haptique iOS sur un boss vaincu.
-
-## 11. Plus tard (hors V1)
-
-- **Songe de la semaine** : un seed commun à tout le monde, avec son classement.
-- **IA par palier** : des monstres plus malins à haut étage (soigneurs,
-  protecteurs).
+- **Songe de la semaine** : une graine commune à tous, avec son classement.
+- **Planches de combat des boss**, au lieu de celles de leur champion.
+- **IA par palier** : soigneurs, protecteurs.
 - Rejoindre un run en cours entre deux étages.
-
-## 12. Questions ouvertes
-
-Aucune pour l'instant.
