@@ -46,11 +46,14 @@ func (g *Game) CastSpell(userID string, spellID int, target types.Position) erro
 	if caster.Character.ActionPoints < spell.APCost {
 		return ErrNotEnoughAP
 	}
+	if spell.Special == types.SpecialRevive && state.Spent {
+		return ErrSpentThisFight
+	}
 	if spell.Ultimate {
 		if state.Spent {
 			return ErrUltimateSpent
 		}
-		if g.turnNumber < UltimateFromTurn {
+		if g.turnNumber < UltimateFromTurn && !caster.Character.Blessings.EarlyUltimate {
 			return ErrUltimateNotReady
 		}
 	}
@@ -66,6 +69,14 @@ func (g *Game) CastSpell(userID string, spellID int, target types.Position) erro
 	}
 	if spell.Targeting == types.TargetEmpty && !g.freeLocked(target) {
 		return ErrCellNotFree
+	}
+	if spell.Special == types.SpecialRevive {
+		if _, ok := g.fallenAllyAtLocked(userID, target); !ok {
+			return ErrNoFallenAlly
+		}
+		if _, taken := g.playerAtLocked(target); taken {
+			return ErrSomeoneStanding
+		}
 	}
 	if (spell.Special == types.SpecialPillar || (spell.Special == types.SpecialRelay && spell.Targeting == types.TargetEmpty)) &&
 		!g.staysConnectedLocked(target) {
@@ -94,7 +105,7 @@ func (g *Game) CastSpell(userID string, spellID int, target types.Position) erro
 	caster.Character.MovementPoints += spell.GrantMP
 	state.CastsThisTurn++
 	state.CooldownLeft = spell.Cooldown
-	if spell.Ultimate {
+	if spell.Ultimate || spell.Special == types.SpecialRevive {
 		state.Spent = true
 	}
 	caster.Spells[key] = state
@@ -343,6 +354,8 @@ func (g *Game) reshapeBoardLocked(userID string, spell types.Spell, target, orig
 	g.pushVictimsLocked(userID, spell, target, origin, relayed, victims)
 
 	switch spell.Special {
+	case types.SpecialRevive:
+		g.reviveLocked(userID, target)
 	case types.SpecialRelay:
 		// Aimed at a free cell it always stands; set by a blast, only where
 		// the blast has left room for it.

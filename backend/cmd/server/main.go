@@ -46,6 +46,7 @@ func main() {
 		Talismans: cfg.TalismansFile,
 		Champions: cfg.ChampionsFile,
 		Cosmetics: cfg.CosmeticsFile,
+		Dreams:    cfg.DreamsFile,
 	}, cfg.Balance, game.ContentBounds())
 	if err != nil {
 		slog.Error("invalid game content, refusing to start", "component", "content", "error", err)

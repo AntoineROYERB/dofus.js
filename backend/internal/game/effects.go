@@ -162,7 +162,7 @@ func ageEffects(c *types.Character) {
 // absorb reduces incoming damage by the character's shielding, never below
 // zero, and reports what actually got through.
 func absorb(c types.Character, damage int) int {
-	shield := effectTotal(c, types.EffectShield)
+	shield := effectTotal(c, types.EffectShield) + c.Blessings.Guard
 	if shield <= 0 {
 		return damage
 	}

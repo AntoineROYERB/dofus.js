@@ -382,6 +382,7 @@ func (g *Game) damageLocked(id string, amount int) int {
 		p.Character.IsAlive = false
 	}
 	g.players[id] = p
+	g.secondWindLocked(id)
 	return through
 }
 
@@ -494,6 +495,7 @@ func (g *Game) shoveLocked(id string, dir types.Position, n int, pullTo *types.P
 		if rune, ok := g.runeOf(g.players[id].Character, types.RunePushResist); ok {
 			n -= rune.Value
 		}
+		n -= g.players[id].Character.Blessings.PushResist
 	}
 	if dir == (types.Position{}) || n <= 0 {
 		return

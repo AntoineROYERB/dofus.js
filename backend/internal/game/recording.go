@@ -80,7 +80,9 @@ type Recording struct {
 	// islands had ground.
 	Island string `json:"island,omitempty"`
 	// Seats is how many fighters the fight held, absent on a duel.
-	Seats    int       `json:"seats,omitempty"`
+	Seats int `json:"seats,omitempty"`
+	// Twists are a dream's room's changes to the fight, absent elsewhere.
+	Twists   *Twists   `json:"twists,omitempty"`
 	Commands []Command `json:"commands"`
 }
 
@@ -92,6 +94,8 @@ type (
 		// Team is empty in a duel, which is every recording made before
 		// fights had sides.
 		Team string `json:"team,omitempty"`
+		// Boons are what a dream's player carries into the fight.
+		Boons []string `json:"boons,omitempty"`
 	}
 	addBotPayload struct {
 		Champion string `json:"champion"`
@@ -105,6 +109,12 @@ type (
 		Level string `json:"level,omitempty"`
 		Boss  string `json:"boss,omitempty"`
 		Team  string `json:"team,omitempty"`
+		// Monster, Stats and Boons are a dream's: the bestiary sheet it
+		// fights as, its numbers as they were resolved for the floor, and
+		// the boons a boss carries.
+		Monster string              `json:"monster,omitempty"`
+		Stats   *types.FighterStats `json:"stats,omitempty"`
+		Boons   []string            `json:"boons,omitempty"`
 	}
 	connectPayload struct {
 		Connected bool `json:"connected"`
@@ -165,6 +175,10 @@ func rulesFingerprint(cat content.Catalogue) string {
 		Runes                  []types.Rune           `json:"runes"`
 		Talismans              []types.Talisman       `json:"talismans"`
 		Champions              []types.Champion       `json:"champions"`
+		// A dream's monsters fight with the bars their sheets give them,
+		// and its boons change spells and numbers.
+		DreamMonsters []types.DreamMonster `json:"dreamMonsters"`
+		DreamBoons    []types.DreamBoon    `json:"dreamBoons"`
 	}{
 		Health:                 StartingHealth,
 		ActionPoints:           StartingActionPoints,
@@ -185,6 +199,7 @@ func rulesFingerprint(cat content.Catalogue) string {
 			"waterSlow":          WaterSlow,
 			"conductBonus":       ConductBonus,
 			"relayBonus":         RelayBonus,
+			"reviveHealth":       ReviveHealth,
 		},
 		// So are the island's ground and what each island deals.
 		Ground: map[string]int{
@@ -196,13 +211,15 @@ func rulesFingerprint(cat content.Catalogue) string {
 			"lavaBurnPercent":   LavaBurnPercent,
 			"airCurrentPush":    AirCurrentPush,
 		},
-		IslandGround: islandGround(cat),
-		Spells:       cat.Spells,
-		Outfits:      cat.Outfits,
-		Grimoires:    cat.Grimoires,
-		Runes:        cat.Runes,
-		Talismans:    cat.Talismans,
-		Champions:    cat.Champions,
+		IslandGround:  islandGround(cat),
+		Spells:        cat.Spells,
+		Outfits:       cat.Outfits,
+		Grimoires:     cat.Grimoires,
+		Runes:         cat.Runes,
+		Talismans:     cat.Talismans,
+		Champions:     cat.Champions,
+		DreamMonsters: cat.Dream.Monsters,
+		DreamBoons:    cat.Dream.Boons,
 	}
 	// encoding/json sorts map keys, so the same catalogue always hashes the
 	// same way whatever order it was built in.
@@ -269,6 +286,7 @@ func (g *Game) Recording() Recording {
 		Rules:          rulesFingerprint(g.catalogue),
 		Island:         g.island,
 		Seats:          g.recordedSeatsLocked(),
+		Twists:         g.twists,
 		Commands:       append([]Command(nil), g.commands...),
 	}
 }
@@ -332,6 +350,7 @@ func newReplayGame(rec Recording) (*Game, *int64, error) {
 		Clock:        func() time.Time { return time.UnixMilli(at) },
 		Island:       rec.Island,
 		Seats:        rec.Seats,
+		Twists:       rec.Twists,
 	})
 	return g, &at, nil
 }
@@ -375,7 +394,7 @@ func (g *Game) applyCommand(cmd Command) error {
 		if err := json.Unmarshal(cmd.Payload, &p); err != nil {
 			return err
 		}
-		return g.AddPlayerOnTeam(cmd.UserID, p.UserName, p.Character, p.Team)
+		return g.AddPlayerSeated(cmd.UserID, p.UserName, p.Character, Seat{Team: p.Team, Boons: p.Boons})
 
 	case CmdAddBot:
 		var p addBotPayload
@@ -392,7 +411,10 @@ func (g *Game) applyCommand(cmd Command) error {
 		if !ok {
 			return fmt.Errorf("recording asks for opponent level %q", p.Level)
 		}
-		id, err := g.AddBotOf(BotSpec{Champion: p.Champion, Mode: mode, Level: level, Boss: p.Boss, Team: p.Team})
+		id, err := g.AddBotOf(BotSpec{
+			Champion: p.Champion, Mode: mode, Level: level, Boss: p.Boss, Team: p.Team,
+			Monster: p.Monster, Stats: p.Stats, Boons: p.Boons,
+		})
 		if err != nil {
 			return err
 		}

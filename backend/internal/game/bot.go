@@ -282,7 +282,11 @@ func readySpells(state types.GameState, me types.Player, element string) []types
 		if spell.MaxCastsPerTurn > 0 && st.CastsThisTurn >= spell.MaxCastsPerTurn {
 			continue
 		}
-		if spell.Ultimate && (st.Spent || state.TurnNumber < UltimateFromTurn) {
+		if spell.Ultimate && (st.Spent || (state.TurnNumber < UltimateFromTurn && !me.Character.Blessings.EarlyUltimate)) {
+			continue
+		}
+		// Standing an ally back up is not something the planner weighs.
+		if spell.Special == types.SpecialRevive {
 			continue
 		}
 		ready = append(ready, spell)
@@ -415,6 +419,15 @@ type BotSpec struct {
 	Boss string
 	// Team is the side it fights on; empty in a duel.
 	Team string
+	// Monster is a dream's monster, by bestiary id: it brings its own set,
+	// bar, numbers and colour. Champion and Boss are then left empty.
+	Monster string
+	// Stats replace the numbers its set or its sheet would give it: a
+	// monster or a boss grown for the floor and the party it faces.
+	Stats *types.FighterStats
+	// Boons are what it carries, as a player would: a boss's early
+	// ultimate.
+	Boons []string
 }
 
 // AddBotOf drops a server-played opponent into the room, already ready to
@@ -432,6 +445,13 @@ func (g *Game) AddBotOf(spec BotSpec) (string, error) {
 	}
 	if _, ok := ParseBotLevel(string(spec.Level)); !ok {
 		return "", ErrUnknownBotLevel
+	}
+	if spec.Monster != "" {
+		return g.addMonsterLocked(spec)
+	}
+	boons, err := g.boonsOfLocked(spec.Boons)
+	if err != nil {
+		return "", err
 	}
 	var boss types.Monster
 	if spec.Boss != "" {
@@ -459,18 +479,10 @@ func (g *Game) AddBotOf(spec BotSpec) (string, error) {
 		}
 	}
 
-	// Named by seat. In a duel the seat is free by construction; in a room
-	// that fills and empties before a fight between teams starts, the next
-	// free number is taken instead.
-	n := len(g.players) + 1
-	id := fmt.Sprintf("%s%d", BotIDPrefix, n)
-	for _, taken := g.players[id]; taken; _, taken = g.players[id] {
-		n++
-		id = fmt.Sprintf("%s%d", BotIDPrefix, n)
-	}
+	id := g.nextBotIDLocked()
 	// The level is written down as it was resolved, so a recording replays
 	// the same opponent even after the island's level is retuned.
-	g.recordLocked(id, CmdAddBot, addBotPayload{Champion: champion.ID, Mode: string(spec.Mode), Level: string(spec.Level), Boss: spec.Boss, Team: spec.Team})
+	g.recordLocked(id, CmdAddBot, addBotPayload{Champion: champion.ID, Mode: string(spec.Mode), Level: string(spec.Level), Boss: spec.Boss, Team: spec.Team, Stats: spec.Stats, Boons: spec.Boons})
 	name := champion.Name
 	if boss.Name != "" {
 		name = boss.Name
@@ -485,6 +497,11 @@ func (g *Game) AddBotOf(spec BotSpec) (string, error) {
 	p.BotLevel = string(spec.Level)
 	p.Boss = spec.Boss
 	p.Team = spec.Team
+	if spec.Stats != nil {
+		withStats(&p, *spec.Stats)
+	}
+	g.blessLocked(&p, boons)
+	g.refillLocked(&p)
 	g.players[id] = p
 	g.startPlacementIfReadyLocked()
 	return id, nil
@@ -522,6 +539,63 @@ func (g *Game) WakeBots(userID string) error {
 	}
 	g.recordLocked(userID, CmdWakeBots, nil)
 	return nil
+}
+
+// nextBotIDLocked names a bot by its seat. In a duel the seat is free by
+// construction; in a room that fills and empties before a fight between
+// teams starts, the next free number is taken instead.
+func (g *Game) nextBotIDLocked() string {
+	for n := len(g.players) + 1; ; n++ {
+		id := fmt.Sprintf("%s%d", BotIDPrefix, n)
+		if _, taken := g.players[id]; !taken {
+			return id
+		}
+	}
+}
+
+// addMonsterLocked seats a dream's monster: its own set, bar, numbers and
+// colour, under the name the bestiary gives it.
+func (g *Game) addMonsterLocked(spec BotSpec) (string, error) {
+	m, kit, name, err := g.monsterLocked(spec.Monster)
+	if err != nil {
+		return "", err
+	}
+	if spec.Champion != "" || spec.Boss != "" {
+		return "", ErrUnknownMonster
+	}
+	boons, err := g.boonsOfLocked(spec.Boons)
+	if err != nil {
+		return "", err
+	}
+	if spec.Level == "" {
+		spec.Level = DefaultBotLevel
+	}
+	stats := types.FighterStats{Health: m.Health, ActionPoints: m.ActionPoints, MovementPoints: m.MovementPoints}
+	if spec.Stats != nil {
+		stats = *spec.Stats
+	}
+	id := g.nextBotIDLocked()
+	g.recordLocked(id, CmdAddBot, addBotPayload{
+		Mode: string(spec.Mode), Level: string(spec.Level), Team: spec.Team,
+		Monster: m.ID, Stats: &stats, Boons: spec.Boons,
+	})
+	p := newPlayer(id, name, kit, types.Character{
+		Name:   name,
+		Color:  m.Color,
+		Symbol: strings.ToUpper(string([]rune(name)[:1])),
+	})
+	withBar(&p, m.Bar)
+	withStats(&p, stats)
+	p.IsBot = true
+	p.IsDummy = spec.Mode == BotStandsStill
+	p.BotLevel = string(spec.Level)
+	p.Team = spec.Team
+	p.Monster = m.ID
+	g.blessLocked(&p, boons)
+	g.refillLocked(&p)
+	g.players[id] = p
+	g.startPlacementIfReadyLocked()
+	return id, nil
 }
 
 // CurrentBot returns the id of the bot whose turn it is, if any.

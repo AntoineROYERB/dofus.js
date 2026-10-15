@@ -95,7 +95,12 @@ type Game struct {
 	// seats is how many fighters this fight holds, and how many have to be
 	// seated before placement opens: two for a duel.
 	seats int
-	rng   *rand.Rand
+	// twists are a dream's room's changes to the fight; nil for any other.
+	twists *Twists
+	// hadTurn is who has had a turn this fight, for what carries over from
+	// one turn to the next.
+	hadTurn map[string]bool
+	rng     *rand.Rand
 
 	turnDuration time.Duration
 	turnEndsAt   time.Time
@@ -142,6 +147,8 @@ type Options struct {
 	// Seats is how many fighters the fight holds, and how many have to be
 	// seated before it starts. Zero is a duel.
 	Seats int
+	// Twists are a dream's room's changes to the fight. Nil for any other.
+	Twists *Twists
 }
 
 func New() *Game { return NewWithSeed(NewSeed()) }
@@ -176,7 +183,12 @@ func NewWithOptions(opts Options) *Game {
 	if opts.Seats > MaxSeats {
 		opts.Seats = MaxSeats
 	}
+	if opts.Twists.IsZero() {
+		opts.Twists = nil
+	}
 	g := &Game{
+		twists:       opts.Twists,
+		hadTurn:      make(map[string]bool),
 		seats:        opts.Seats,
 		status:       types.StatusCreatingPlayer,
 		players:      make(map[string]types.Player),
@@ -262,6 +274,10 @@ func (g *Game) snapshotLocked() types.GameState {
 		if c.Effects != nil {
 			c.Effects = append([]types.Effect(nil), c.Effects...)
 		}
+		if c.Base != nil {
+			base := *c.Base
+			c.Base = &base
+		}
 		c.MaxActionPoints, c.MaxMovementPoints = g.turnPoints(c)
 		p.Character = c
 		if p.Spells != nil {
@@ -272,6 +288,9 @@ func (g *Game) snapshotLocked() types.GameState {
 			p.Spells = spells
 		}
 		p.SpellBar = append(make([]string, 0, len(p.SpellBar)), p.SpellBar...)
+		if p.Boons != nil {
+			p.Boons = append([]string(nil), p.Boons...)
+		}
 		players[id] = p
 	}
 
@@ -348,6 +367,10 @@ func (g *Game) AddPlayer(userID, userName string, look types.CharacterAppearance
 // AddPlayerOnTeam seats a player on one side of a fight between teams. An
 // empty team is a duel's seat.
 func (g *Game) AddPlayerOnTeam(userID, userName string, look types.CharacterAppearance, team string) error {
+	return g.addPlayerLocked(userID, userName, look, Seat{Team: team})
+}
+
+func (g *Game) addPlayerLocked(userID, userName string, look types.CharacterAppearance, seat Seat) error {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
@@ -367,6 +390,10 @@ func (g *Game) AddPlayerOnTeam(userID, userName string, look types.CharacterAppe
 	if err != nil {
 		return err
 	}
+	boons, err := g.boonsOfLocked(seat.Boons)
+	if err != nil {
+		return err
+	}
 
 	symbol := look.Symbol
 	if symbol == "" {
@@ -376,14 +403,16 @@ func (g *Game) AddPlayerOnTeam(userID, userName string, look types.CharacterAppe
 	// played rather than leaving "the default" to be worked out again on
 	// replay.
 	look.Loadout = kit.Loadout
-	g.recordLocked(userID, CmdJoin, joinPayload{UserName: userName, Character: look, Team: team})
+	g.recordLocked(userID, CmdJoin, joinPayload{UserName: userName, Character: look, Team: seat.Team, Boons: seat.Boons})
 
 	p := newPlayer(userID, userName, kit, types.Character{
 		Name:   look.Name,
 		Color:  look.Color,
 		Symbol: symbol,
 	})
-	p.Team = team
+	p.Team = seat.Team
+	g.blessLocked(&p, boons)
+	g.refillLocked(&p)
 	g.players[userID] = p
 	g.startPlacementIfReadyLocked()
 	return nil
@@ -440,18 +469,37 @@ func (g *Game) runeOf(c types.Character, kind string) (types.RuneEffect, bool) {
 }
 
 // baseStats is what a character's grimoire deals it before any effect has its
-// say. A character with no kit gets the balance defaults.
+// say — or its own numbers, for a monster — and what its boons add. A
+// character with neither kit nor numbers gets the balance defaults.
 func (g *Game) baseStats(c types.Character) (health, actionPoints, movementPoints int) {
-	if kit, ok := g.kitOf(c); ok {
-		return kit.Grimoire.Health, kit.Grimoire.ActionPoints, kit.Grimoire.MovementPoints
+	switch kit, ok := g.kitOf(c); {
+	case c.Base != nil:
+		health, actionPoints, movementPoints = c.Base.Health, c.Base.ActionPoints, c.Base.MovementPoints
+	case ok:
+		health, actionPoints, movementPoints = kit.Grimoire.Health, kit.Grimoire.ActionPoints, kit.Grimoire.MovementPoints
+	default:
+		health, actionPoints, movementPoints = StartingHealth, StartingActionPoints, StartingMovementPoints
 	}
-	return StartingHealth, StartingActionPoints, StartingMovementPoints
+	b := c.Blessings
+	return health + b.Health, actionPoints + b.AP, movementPoints + b.MP
 }
 
-// turnPoints gives the points a character starts its turn with.
+// turnPoints gives the points a character starts its turn with: its own,
+// what a room's twists add to everyone's, and what its effects make of that.
 func (g *Game) turnPoints(c types.Character) (actionPoints, movementPoints int) {
 	_, ap, mp := g.baseStats(c)
+	if g.twists != nil {
+		ap, mp = max(0, ap+g.twists.AP), max(0, mp+g.twists.MP)
+	}
 	return turnPoints(c, ap, mp)
+}
+
+// refillLocked fills a freshly seated fighter up to what its numbers now
+// are, once its boons or its own numbers have had their say.
+func (g *Game) refillLocked(p *types.Player) {
+	health, ap, mp := g.baseStats(p.Character)
+	p.Character.Health, p.Character.MaxHealth = health, health
+	p.Character.ActionPoints, p.Character.MovementPoints = ap, mp
 }
 
 // RemovePlayer takes a player out for good. Mid-game this is a forfeit, so
@@ -562,6 +610,7 @@ func (g *Game) returnToLobbyLocked() {
 	g.turnOrder = nil
 	g.winner = ""
 	g.winnerTeam = ""
+	g.hadTurn = make(map[string]bool)
 	g.turnEndsAt = time.Time{}
 	g.log = nil
 	g.obstacles = nil
@@ -622,6 +671,9 @@ func (g *Game) startTurnForLocked(userID string) (alive bool) {
 	if p.Character.IsAlive {
 		damage, healing = tickEffects(&p.Character)
 		g.players[userID] = p
+		if g.secondWindLocked(userID) {
+			p = g.players[userID]
+		}
 	}
 	if damage > 0 {
 		g.appendLogLocked(types.LogEntry{
@@ -640,10 +692,21 @@ func (g *Game) startTurnForLocked(userID string) (alive bool) {
 		return false
 	}
 
+	// Overflow carries some of what was left of the last turn into this one.
+	carried := 0
+	if b := p.Character.Blessings; b.Overflow > 0 && g.hadTurn[userID] {
+		carried = min(b.Overflow, max(0, p.Character.ActionPoints))
+	}
+	g.hadTurn[userID] = true
 	p.Character.ActionPoints, p.Character.MovementPoints = g.turnPoints(p.Character)
-	// A Momentum rune gets its carrier moving on the first turn of the fight.
+	p.Character.ActionPoints += carried + g.sharedAPLocked(userID)
+	// A Momentum rune gets its carrier moving on the first turn of the fight,
+	// and so does a Head Start.
 	if rune, ok := g.runeOf(p.Character, types.RuneOpeningMP); ok && g.turnNumber == 1 {
 		p.Character.MovementPoints += rune.Value
+	}
+	if g.turnNumber == 1 {
+		p.Character.MovementPoints += p.Character.Blessings.OpeningMP
 	}
 	if slowed && p.Character.MovementPoints > 0 {
 		p.Character.MovementPoints = max(0, p.Character.MovementPoints-WaterSlow)
@@ -747,8 +810,10 @@ func (g *Game) beginPlacementLocked() {
 		}
 	}
 	g.obstacles = make(map[types.Position]bool)
-	for _, p := range GenerateObstacles(reserved, g.rng) {
-		g.obstacles[p] = true
+	if g.twists == nil || !g.twists.NoCover {
+		for _, p := range GenerateObstacles(reserved, g.rng) {
+			g.obstacles[p] = true
+		}
 	}
 	// The island's ground goes down over the cover. A plain arena draws
 	// nothing more from the random source, so its boards are the ones they
@@ -760,6 +825,7 @@ func (g *Game) beginPlacementLocked() {
 			g.ground[cell.Position] = cell
 		}
 	}
+	g.layTwistsLocked(reserved)
 
 	// Bots take their starting cell immediately; a human never waits on them.
 	g.placeBotsLocked()
@@ -816,6 +882,7 @@ func (g *Game) beginPlayLocked() {
 	g.status = types.StatusPlaying
 	g.turnNumber = 1
 	g.raiseOpeningShieldsLocked()
+	g.raisePartyShieldsLocked()
 	g.turnIdx = 0
 	g.applyTurnFlagsLocked()
 	g.turnEndsAt = g.now().Add(g.turnDuration)

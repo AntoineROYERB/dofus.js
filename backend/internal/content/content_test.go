@@ -24,6 +24,7 @@ const (
 	talismansPath = "../../config/talismans.json"
 	championsPath = "../../config/champions.json"
 	cosmeticsPath = "../../config/cosmetics.json"
+	dreamsPath    = "../../config/dreams.json"
 	balancePath   = "../../config/balance.json"
 )
 
@@ -31,6 +32,7 @@ var shippedPaths = Paths{
 	Spells: spellsPath, Islands: islandsPath,
 	Outfits: outfitsPath, Grimoires: grimoiresPath, Runes: runesPath,
 	Talismans: talismansPath, Champions: championsPath, Cosmetics: cosmeticsPath,
+	Dreams: dreamsPath,
 }
 
 // shippedCatalogue loads the files exactly as the server does at startup.
@@ -180,10 +182,16 @@ func TestShippedChampionsKeepTheirElementalIdentity(t *testing.T) {
 
 	// A basic attack an outfit carries may be on no champion's bar: those are
 	// won in the portals (ADR 2). So may an ultimate a talisman carries: the
-	// legendaries' are loot. Every other spell is some champion's.
+	// legendaries' are loot. So may a spell a dream's boon grants. Every
+	// other spell is some champion's.
 	worn := map[string]bool{}
 	for _, o := range cat.Outfits {
 		worn[o.BasicAttack] = true
+	}
+	for _, b := range cat.Dream.Boons {
+		if b.Effect.Kind == types.BoonGrantSpell {
+			worn[b.Effect.Spell] = true
+		}
 	}
 	for _, tl := range cat.Talismans {
 		worn[tl.Ultimate] = true
@@ -516,6 +524,7 @@ func shippedSources(t *testing.T) Sources {
 		Talismans: named("talismans.json", talismansPath),
 		Champions: named("champions.json", championsPath),
 		Cosmetics: named("cosmetics.json", cosmeticsPath),
+		Dreams:    named("dreams.json", dreamsPath),
 	}
 }
 
@@ -532,6 +541,7 @@ func sources(spells, islands []byte) Sources {
 		{&src.Outfits, "outfits.json", outfitsPath}, {&src.Grimoires, "grimoires.json", grimoiresPath},
 		{&src.Runes, "runes.json", runesPath}, {&src.Talismans, "talismans.json", talismansPath},
 		{&src.Champions, "champions.json", championsPath}, {&src.Cosmetics, "cosmetics.json", cosmeticsPath},
+		{&src.Dreams, "dreams.json", dreamsPath},
 	} {
 		data, err := os.ReadFile(f.path)
 		if err != nil {
@@ -547,6 +557,7 @@ func (s *Sources) of(list string) *Source {
 	return map[string]*Source{
 		"outfits": &s.Outfits, "grimoires": &s.Grimoires, "runes": &s.Runes,
 		"talismans": &s.Talismans, "champions": &s.Champions, "cosmetics": &s.Cosmetics,
+		"monsters": &s.Dreams, "twists": &s.Dreams, "boons": &s.Dreams,
 	}[list]
 }
 

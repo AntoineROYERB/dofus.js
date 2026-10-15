@@ -217,6 +217,7 @@ func replayUnder(rec Recording, original *Game) (*Game, error) {
 		Clock:        func() time.Time { return time.UnixMilli(at) },
 		Island:       rec.Island,
 		Seats:        rec.Seats,
+		Twists:       rec.Twists,
 		Content:      &original.catalogue,
 	})
 	for _, cmd := range rec.Commands {

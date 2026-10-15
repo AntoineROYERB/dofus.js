@@ -128,7 +128,7 @@ func fighterOf(p types.Player) fighter {
 		// rooted enemy walks nowhere — so it is never read as "unknown".
 		maxAP:  c.MaxActionPoints,
 		maxMP:  c.MaxMovementPoints,
-		shield: effectTotal(c, types.EffectShield),
+		shield: effectTotal(c, types.EffectShield) + c.Blessings.Guard,
 		player: &p,
 	}
 	for _, e := range c.Effects {
@@ -142,9 +142,10 @@ func fighterOf(p types.Player) fighter {
 		if kit, err := Content().Kit(c.Loadout); err == nil {
 			f.meleeBonus = kit.Grimoire.MeleeBonus
 			f.element = kit.Element
+			f.pushResist = c.Blessings.PushResist
 			switch kit.Rune.Effect.Kind {
 			case types.RunePushResist:
-				f.pushResist = kit.Rune.Effect.Value
+				f.pushResist += kit.Rune.Effect.Value
 			case types.RuneFinisher:
 				f.finisher, f.finisherBelow = kit.Rune.Effect.Value, kit.Rune.Effect.Threshold
 			}
