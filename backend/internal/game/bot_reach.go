@@ -219,8 +219,10 @@ var steps = [4]types.Position{{X: 1}, {X: -1}, {Y: 1}, {Y: -1}}
 // walkFrom is, for every cell, the cheapest walk from it to the nearest of
 // the given cells, priced as the server prices a step: by the cell entered.
 // The bot's own cell is always one a walk can start from, whatever it stands
-// on.
+// on. So can the bot's own pylon, which it can trade places with, though no
+// walk goes through it.
 func (b *botBoard) walkFrom(ends []types.Position, taken occupied) *cellMap {
+	relay, hasRelay := b.myRelay()
 	dist := newCellMap()
 	open := &frontier{}
 	for _, e := range ends {
@@ -235,7 +237,8 @@ func (b *botBoard) walkFrom(ends []types.Position, taken occupied) *cellMap {
 		cost := b.enterCost(n.pos)
 		for _, step := range steps {
 			prev := types.Position{X: n.pos.X + step.X, Y: n.pos.Y + step.Y}
-			if prev != b.me.pos && !b.free(prev, taken) {
+			pylon := hasRelay && prev == relay
+			if prev != b.me.pos && !pylon && !b.free(prev, taken) {
 				continue
 			}
 			d := n.priority + cost
@@ -243,7 +246,9 @@ func (b *botBoard) walkFrom(ends []types.Position, taken occupied) *cellMap {
 				continue
 			}
 			dist.set(prev, d)
-			heap.Push(open, node{pos: prev, priority: d})
+			if !pylon {
+				heap.Push(open, node{pos: prev, priority: d})
+			}
 		}
 	}
 	return dist
@@ -304,7 +309,7 @@ func (b *botBoard) mobility(f fighter) []getAbout {
 	}
 	moves := []getAbout{{mp: f.maxMP, ap: f.maxAP}}
 	for _, key := range b.bar(f) {
-		spell, ok := b.state.Spells[key]
+		spell, ok := b.spellOf(f, key)
 		if !ok || f.player.Spells[key].CooldownLeft > 1 || spell.APCost >= f.maxAP {
 			continue
 		}
@@ -332,7 +337,7 @@ func (b *botBoard) bar(f fighter) []string {
 // usableNextTurn is a damaging spell on a fighter's bar that it will be able
 // to cast when its next turn starts. A cooldown of one runs out as it does.
 func (b *botBoard) usableNextTurn(f fighter, key, spent string) (types.Spell, bool) {
-	spell, ok := b.state.Spells[key]
+	spell, ok := b.spellOf(f, key)
 	st := f.player.Spells[key]
 	if key == spent || !ok || spell.Damage <= 0 || spell.APCost <= 0 || st.CooldownLeft > 1 {
 		return types.Spell{}, false

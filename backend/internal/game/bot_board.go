@@ -1,6 +1,8 @@
 package game
 
 import (
+	"sort"
+
 	"game-server/internal/types"
 )
 
@@ -20,6 +22,13 @@ type fighter struct {
 	pushResist        int
 	maxAP, maxMP      int
 	meleeBonus        int
+	// shield is what its shield soaks off every hit, as absorb reads it.
+	shield int
+	// element is what its kit wears, which a legendary's ultimate takes on.
+	element string
+	// finisher is an Opportunist rune: so much more damage, in percent,
+	// against a target below threshold percent of its health.
+	finisher, finisherBelow int
 	// player is a pointer so that copying a fighter, which the planner
 	// does at every branch, copies a few words rather than a whole player.
 	player *types.Player
@@ -37,7 +46,9 @@ type botBoard struct {
 	obstacles map[types.Position]bool
 	terrain   map[types.Position]types.TerrainCell
 	ground    map[types.Position]types.GroundCell
-	relay     *types.Position
+	// things are the pylons and pillars on the board, in a fixed order: the
+	// planner wears them down and moves them as it thinks.
+	things []thing
 
 	threatCache   map[types.Position]int
 	offenseCache  map[types.Position]int
@@ -47,6 +58,7 @@ type botBoard struct {
 	mobilityCache map[string][]getAbout
 	barCache      map[string][]string
 	firingCache   map[string][]firing
+	wallsInCache  map[types.Position]bool
 }
 
 func readBoard(state types.GameState, botID string, mind botMind) *botBoard {
@@ -63,6 +75,7 @@ func readBoard(state types.GameState, botID string, mind botMind) *botBoard {
 		mobilityCache: map[string][]getAbout{},
 		barCache:      map[string][]string{},
 		firingCache:   map[string][]firing{},
+		wallsInCache:  map[types.Position]bool{},
 	}
 	for _, cell := range state.Ground {
 		b.ground[cell.Position] = cell
@@ -72,11 +85,11 @@ func readBoard(state types.GameState, botID string, mind botMind) *botBoard {
 	}
 	for _, cell := range state.Terrain {
 		b.terrain[cell.Position] = cell
-		if cell.Kind == types.TerrainRelay && cell.Owner == botID {
-			relay := cell.Position
-			b.relay = &relay
+		if isThing(cell.Kind) {
+			b.things = append(b.things, thing{pos: cell.Position, kind: cell.Kind, owner: cell.Owner, health: cell.Health})
 		}
 	}
+	sortThings(b.things)
 	for _, id := range sortedKeys(state.Players) {
 		p := state.Players[id]
 		if !p.Character.IsAlive {
@@ -109,6 +122,7 @@ func fighterOf(p types.Player) fighter {
 		// rooted enemy walks nowhere — so it is never read as "unknown".
 		maxAP:  c.MaxActionPoints,
 		maxMP:  c.MaxMovementPoints,
+		shield: effectTotal(c, types.EffectShield),
 		player: &p,
 	}
 	for _, e := range c.Effects {
@@ -121,8 +135,12 @@ func fighterOf(p types.Player) fighter {
 	if !c.Loadout.IsZero() {
 		if kit, err := Content().Kit(c.Loadout); err == nil {
 			f.meleeBonus = kit.Grimoire.MeleeBonus
-			if kit.Rune.Effect.Kind == types.RunePushResist {
+			f.element = kit.Element
+			switch kit.Rune.Effect.Kind {
+			case types.RunePushResist:
 				f.pushResist = kit.Rune.Effect.Value
+			case types.RuneFinisher:
+				f.finisher, f.finisherBelow = kit.Rune.Effect.Value, kit.Rune.Effect.Threshold
 			}
 		}
 	}
@@ -139,35 +157,82 @@ func (b *botBoard) solid(pos types.Position) bool {
 // refuses such a cast, and a bot that did not know kept asking for it, turn
 // after turn, while the turn it lost each time ran out.
 func (b *botBoard) wallsIn(extra types.Position) bool {
-	blocked := func(p types.Position) bool { return p == extra || b.solid(p) }
-	cells := boardCells()
-	free := 0
-	start, found := types.Position{}, false
-	for _, p := range cells {
-		if blocked(p) {
+	return wallsIn(b.solid, extra)
+}
+
+// wallsInCached is wallsIn on the board as it is, asked once a cell: the
+// planner asks it of every cell a pylon could go on, at every branch.
+func (b *botBoard) wallsInCached(extra types.Position) bool {
+	if v, ok := b.wallsInCache[extra]; ok {
+		return v
+	}
+	v := b.wallsIn(extra)
+	b.wallsInCache[extra] = v
+	return v
+}
+
+func wallsIn(solid func(types.Position) bool, extra types.Position) bool {
+	// Each cell is asked once, and the walk is over arrays: the planner asks
+	// this often enough that maps were most of what it cost.
+	var open, seen [boardSide * boardSide]bool
+	var queue [boardSide * boardSide]types.Position
+	free, n := 0, 0
+	for _, p := range allCells {
+		if p == extra || solid(p) {
 			continue
 		}
-		free++
-		if !found {
-			start, found = p, true
+		open[cellIndex(p)] = true
+		if free == 0 {
+			seen[cellIndex(p)] = true
+			queue[n] = p
+			n++
 		}
+		free++
 	}
-	if !found {
+	if free == 0 {
 		return false
 	}
-	seen := map[types.Position]bool{start: true}
-	queue := []types.Position{start}
-	for len(queue) > 0 {
-		cur := queue[0]
-		queue = queue[1:]
-		for _, n := range Neighbours(cur) {
-			if InGrid(n) && !blocked(n) && !seen[n] {
-				seen[n] = true
-				queue = append(queue, n)
+	for head := 0; head < n; head++ {
+		cur := queue[head]
+		for _, step := range steps {
+			next := types.Position{X: cur.X + step.X, Y: cur.Y + step.Y}
+			if !InGrid(next) {
+				continue
+			}
+			if i := cellIndex(next); open[i] && !seen[i] {
+				seen[i] = true
+				queue[n] = next
+				n++
 			}
 		}
 	}
-	return len(seen) != free
+	return n != free
+}
+
+// myRelay is where the bot's own pylon stands on the board as it is.
+func (b *botBoard) myRelay() (types.Position, bool) {
+	for _, t := range b.things {
+		if t.kind == types.TerrainRelay && t.owner == b.botID {
+			return t.pos, true
+		}
+	}
+	return types.Position{}, false
+}
+
+// isThing reports terrain that stands on its cell rather than covering it: a
+// pylon, a pillar, a rock.
+func isThing(kind string) bool {
+	return kind == types.TerrainRelay || kind == types.TerrainPillar
+}
+
+func sortThings(list []thing) {
+	sort.Slice(list, func(i, j int) bool {
+		a, b := list[i].pos, list[j].pos
+		if a.X != b.X {
+			return a.X < b.X
+		}
+		return a.Y < b.Y
+	})
 }
 
 // opaque is what stops a line of sight, whoever is where.
@@ -362,12 +427,13 @@ func (b *botBoard) walkEnd(from, to types.Position) walk {
 			w.caught = true
 			return w
 		}
-		if end, slid := b.slide(b.terrainAt, pos, dir, others, b.botID); slid {
+		open := func(p types.Position) bool { return b.free(p, others) }
+		if end, slid := b.slide(b.terrainAt, pos, dir, open, b.botID); slid {
 			w.end = end
 			w.caught = caught(b.terrainAt, end, b.botID)
 			return w
 		}
-		if end, slid := b.iceCarries(pos, dir, others); slid {
+		if end, slid := b.iceCarries(pos, dir, open); slid {
 			w.end = end
 			return w
 		}
@@ -384,14 +450,16 @@ func caught(terrain func(types.Position) types.TerrainCell, pos types.Position, 
 
 // slide mirrors Game.slideLocked: spell ice carries whoever is on it along
 // until it ends or something is in the way.
-func (b *botBoard) slide(terrain func(types.Position) types.TerrainCell, pos, dir types.Position, taken occupied, who string) (types.Position, bool) {
+// What counts as free is the caller's: the planner's board has moved on from
+// the snapshot's.
+func (b *botBoard) slide(terrain func(types.Position) types.TerrainCell, pos, dir types.Position, free func(types.Position) bool, who string) (types.Position, bool) {
 	if dir == (types.Position{}) {
 		return pos, false
 	}
 	slid := 0
 	for slid < 2*GridRadius && terrain(pos).Kind == types.TerrainIce {
 		next := types.Position{X: pos.X + dir.X, Y: pos.Y + dir.Y}
-		if !b.free(next, taken) {
+		if !free(next) {
 			break
 		}
 		pos = next
@@ -404,12 +472,12 @@ func (b *botBoard) slide(terrain func(types.Position) types.TerrainCell, pos, di
 }
 
 // iceCarries mirrors the island's ice: one cell further, once.
-func (b *botBoard) iceCarries(pos, dir types.Position, taken occupied) (types.Position, bool) {
+func (b *botBoard) iceCarries(pos, dir types.Position, free func(types.Position) bool) (types.Position, bool) {
 	if dir == (types.Position{}) || b.groundKind(pos) != GroundIce {
 		return pos, false
 	}
 	next := types.Position{X: pos.X + dir.X, Y: pos.Y + dir.Y}
-	if !b.free(next, taken) {
+	if !free(next) {
 		return pos, false
 	}
 	return next, true

@@ -361,31 +361,12 @@
         "userId": "bot-1",
         "kind": "cast",
         "payload": {
-          "spellId": 1,
+          "spellId": 3,
           "target": {
             "x": -5,
             "y": 0
           }
         }
-      },
-      {
-        "seq": 36,
-        "at": 35063,
-        "userId": "bot-1",
-        "kind": "cast",
-        "payload": {
-          "spellId": 1,
-          "target": {
-            "x": -5,
-            "y": 0
-          }
-        }
-      },
-      {
-        "seq": 37,
-        "at": 36134,
-        "userId": "bot-1",
-        "kind": "timeout"
       }
     ]
   },
@@ -431,14 +412,7 @@
           "health": 0,
           "maxHealth": 90,
           "isAlive": false,
-          "effects": [
-            {
-              "kind": "burn",
-              "value": 3,
-              "turnsLeft": 3,
-              "source": "Burn"
-            }
-          ]
+          "effects": null
         },
         "isCurrentTurn": false,
         "hasPositioned": true,
@@ -496,7 +470,7 @@
             "x": -2,
             "y": 2
           },
-          "actionPoints": 0,
+          "actionPoints": 2,
           "movementPoints": 4,
           "maxActionPoints": 6,
           "maxMovementPoints": 4,
@@ -533,7 +507,7 @@
         "isBot": true,
         "spells": {
           "1": {
-            "castsThisTurn": 2,
+            "castsThisTurn": 0,
             "cooldownLeft": 0,
             "spent": false
           },
@@ -543,7 +517,7 @@
             "spent": false
           },
           "3": {
-            "castsThisTurn": 0,
+            "castsThisTurn": 1,
             "cooldownLeft": 0,
             "spent": false
           },
@@ -1860,9 +1834,9 @@
         "turn": 4,
         "actor": "Ashka the Kindled",
         "kind": "cast",
-        "text": "cast Kindle",
-        "damage": 7,
-        "spellId": 1,
+        "text": "cast Combustion",
+        "damage": 16,
+        "spellId": 3,
         "origin": {
           "x": -2,
           "y": 2
@@ -1875,44 +1849,12 @@
       {
         "seq": 55,
         "turn": 4,
-        "actor": "Ashka the Kindled",
-        "kind": "cast",
-        "text": "cast Kindle",
-        "damage": 7,
-        "spellId": 1,
-        "origin": {
-          "x": -2,
-          "y": 2
-        },
-        "target": {
-          "x": -5,
-          "y": 0
-        }
-      },
-      {
-        "seq": 56,
-        "turn": 4,
-        "actor": "Alice",
-        "kind": "effect",
-        "text": "is standing in fire"
-      },
-      {
-        "seq": 57,
-        "turn": 4,
-        "actor": "Alice",
-        "kind": "effect",
-        "text": "suffers from its wounds",
-        "damage": 12
-      },
-      {
-        "seq": 58,
-        "turn": 4,
         "actor": "Alice",
         "kind": "death",
         "text": "is out of the fight"
       },
       {
-        "seq": 59,
+        "seq": 56,
         "turn": 4,
         "actor": "Ashka the Kindled",
         "kind": "end",

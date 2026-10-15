@@ -4,6 +4,7 @@ import (
 	"errors"
 	"reflect"
 	"sort"
+	"strconv"
 	"testing"
 	"time"
 
@@ -90,6 +91,37 @@ func TestTheBotLeapsInToHammer(t *testing.T) {
 	}
 	if Distance(action.Target, types.Position{Y: 5}) != 1 {
 		t.Errorf("leap lands on %+v, want next to b, where the hammer reaches", action.Target)
+	}
+}
+
+// A windwalker's pylon is somewhere it can be in an instant. Before the bot
+// knew, it never traded places with it: the pylon's cell is solid, so the bot
+// took it for somewhere it could never stand.
+func TestTheBotTradesPlacesWithItsPylonToGetCloser(t *testing.T) {
+	g := duel(t, types.Position{X: -6}, types.Position{X: 3})
+	asChampion(g, "a", "sef")
+	setBar(g, "a", strconv.Itoa(spellTransfer))
+	points(g, "a", 1, 0)
+	placeRelay(g, "a", types.Position{X: 1}, RelayHealth)
+
+	action := decide(g, "a")
+	if action.Kind != BotCast || action.SpellID != spellTransfer || action.Target != (types.Position{X: 1}) {
+		t.Fatalf("action = %+v, want Transfer onto the pylon, next to b", action)
+	}
+}
+
+// An enemy's pylon is what makes their air spells hit hard; with nothing
+// else in reach, breaking it is the best use of a turn.
+func TestTheBotShootsDownAPylonItCanBreak(t *testing.T) {
+	g := duel(t, types.Position{Y: -3}, types.Position{Y: 6})
+	asChampion(g, "b", "sef")
+	setBar(g, "a", strconv.Itoa(spellKindle))
+	points(g, "a", 6, 0)
+	placeRelay(g, "b", types.Position{X: 2}, RelayHealth)
+
+	action := decide(g, "a")
+	if action.Kind != BotCast || action.SpellID != spellKindle || action.Target != (types.Position{X: 2}) {
+		t.Fatalf("action = %+v, want Kindle on b's pylon, twice enough to break it", action)
 	}
 }
 

@@ -89,7 +89,7 @@ func decideBotAction(state types.GameState, botID string, roll uint64) BotAction
 	}
 	// It has to respect cooldowns, per-turn limits and line of sight like
 	// anyone else, or it would spend its turn on casts the server refuses.
-	ready := readySpells(state, me)
+	ready := readySpells(state, me, b.me.element)
 	stands := b.stands()
 	mp := me.Character.MovementPoints
 
@@ -209,7 +209,7 @@ func (b *botBoard) cover(ready []types.Spell) (BotAction, bool) {
 	if now == 0 {
 		return BotAction{}, false
 	}
-	s := &sim{b: b, me: b.me, foes: b.foes}
+	s := b.newSim(b.me.pos, nil, nil)
 	best, bestSpell, bestGain := types.Position{}, 0, minCoverGain-1
 	for _, spell := range ready {
 		pillar := spell.Special == types.SpecialPillar
@@ -248,7 +248,7 @@ func (b *botBoard) cover(ready []types.Spell) (BotAction, bool) {
 // layTerrain spends what is left of a turn putting slowing ground on an
 // enemy: water or traps.
 func (b *botBoard) layTerrain(ready []types.Spell) (BotAction, bool) {
-	s := &sim{b: b, me: b.me, foes: b.foes}
+	s := b.newSim(b.me.pos, nil, nil)
 	for _, spell := range ready {
 		if spell.Damage > 0 || (spell.Terrain != types.TerrainWater && spell.Terrain != types.TerrainTrap) {
 			continue
@@ -265,15 +265,17 @@ func (b *botBoard) layTerrain(ready []types.Spell) (BotAction, bool) {
 // readySpells lists the spells on the bot's bar it could cast this turn if the
 // target were in reach: affordable, off cooldown, with casts left, and — for
 // an ultimate — unlocked and unused. The catalogue carries every loadout's
-// spells, so the bar is the only place a bot of any loadout looks.
-func readySpells(state types.GameState, me types.Player) []types.Spell {
+// spells, so the bar is the only place a bot of any loadout looks. A
+// legendary's ultimate is weighed as the server will cast it, infused with
+// the element the bot wears.
+func readySpells(state types.GameState, me types.Player, element string) []types.Spell {
 	var ready []types.Spell
 	for _, key := range sortedKeys(state.Spells) {
 		st, onBar := me.Spells[key]
 		if !onBar {
 			continue
 		}
-		spell := state.Spells[key]
+		spell := infused(state.Spells[key], element)
 		if spell.APCost > me.Character.ActionPoints || st.CooldownLeft > 0 {
 			continue
 		}
@@ -286,6 +288,21 @@ func readySpells(state types.GameState, me types.Player) []types.Spell {
 		ready = append(ready, spell)
 	}
 	return ready
+}
+
+// infused mirrors CastSpell's infusion: a legendary's ultimate takes on the
+// element its caster wears.
+func infused(spell types.Spell, element string) types.Spell {
+	if _, ok := spell.Infusions[element]; ok {
+		return spell.Infused(element)
+	}
+	return spell
+}
+
+// spellOf is a spell on a fighter's bar as it would cast it.
+func (b *botBoard) spellOf(f fighter, key string) (types.Spell, bool) {
+	spell, ok := b.state.Spells[key]
+	return infused(spell, f.element), ok
 }
 
 // stepToward picks the reachable cell that gets closest to the target. It uses

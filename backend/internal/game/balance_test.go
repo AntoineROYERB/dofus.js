@@ -14,10 +14,10 @@ import (
 // champion, each in its set, by the server's own bot, over enough seeded
 // matches that one lucky critical does not decide the result.
 //
-// The bot plays by rules of thumb: it never trades places with its pylon,
-// never guards it, never lures anyone onto a trap. What it wins says how it
-// plays, not how people will, so win rates are reported and not enforced;
-// the kits are tuned by hand, from human games. What it still catches is a
+// The bot plays by rules of thumb: it trades places with its pylon to get
+// closer, never to get away, and never lures anyone onto a trap. What it wins
+// says how it plays, not how people will, so win rates are reported and not
+// enforced; the kits are tuned by hand, from human games. What it still catches is a
 // fight that ends in three turns or never ends at all.
 const (
 	// matchesPerPairing is per ordered pair of champions; initiative is rolled
