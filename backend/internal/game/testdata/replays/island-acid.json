@@ -168,8 +168,8 @@
         "kind": "move",
         "payload": {
           "position": {
-            "x": -3,
-            "y": 1
+            "x": -2,
+            "y": 0
           }
         }
       },
@@ -200,8 +200,8 @@
         "payload": {
           "spellId": 1,
           "target": {
-            "x": -3,
-            "y": 1
+            "x": -2,
+            "y": 0
           }
         }
       },
@@ -342,8 +342,8 @@
         "kind": "move",
         "payload": {
           "position": {
-            "x": -3,
-            "y": 1
+            "x": -2,
+            "y": 0
           }
         }
       },
@@ -361,8 +361,8 @@
         "payload": {
           "spellId": 5,
           "target": {
-            "x": -3,
-            "y": 1
+            "x": -2,
+            "y": 0
           }
         }
       },
@@ -393,7 +393,7 @@
         "payload": {
           "spellId": 1,
           "target": {
-            "x": -3,
+            "x": -2,
             "y": 1
           }
         }
@@ -412,7 +412,7 @@
         "payload": {
           "spellId": 3,
           "target": {
-            "x": -3,
+            "x": -2,
             "y": 1
           }
         }
@@ -436,7 +436,7 @@
             "talisman": "ashkas-heart"
           },
           "position": {
-            "x": -3,
+            "x": -2,
             "y": 1
           },
           "actionPoints": 1,
@@ -1804,8 +1804,8 @@
           "y": -3
         },
         "target": {
-          "x": -3,
-          "y": 1
+          "x": -2,
+          "y": 0
         }
       },
       {
@@ -1813,11 +1813,24 @@
         "turn": 2,
         "actor": "Alice",
         "kind": "effect",
-        "text": "slams into something",
-        "damage": 6
+        "text": "catches fire"
       },
       {
         "seq": 40,
+        "turn": 2,
+        "actor": "Alice",
+        "kind": "effect",
+        "text": "is thrown back"
+      },
+      {
+        "seq": 41,
+        "turn": 3,
+        "actor": "Alice",
+        "kind": "effect",
+        "text": "is standing in fire"
+      },
+      {
+        "seq": 42,
         "turn": 3,
         "actor": "Alice",
         "kind": "effect",
@@ -1825,21 +1838,21 @@
         "damage": 12
       },
       {
-        "seq": 41,
+        "seq": 43,
         "turn": 3,
         "actor": "Alice",
         "kind": "turn",
         "text": "starts their turn"
       },
       {
-        "seq": 42,
+        "seq": 44,
         "turn": 3,
         "actor": "Alice",
         "kind": "cast",
         "text": "cast Smokescreen",
         "spellId": 4,
         "origin": {
-          "x": -3,
+          "x": -2,
           "y": 1
         },
         "target": {
@@ -1848,7 +1861,7 @@
         }
       },
       {
-        "seq": 43,
+        "seq": 45,
         "turn": 3,
         "actor": "Alice",
         "kind": "cast",
@@ -1856,16 +1869,24 @@
         "damage": 6,
         "spellId": 1,
         "origin": {
-          "x": -3,
+          "x": -2,
           "y": 1
         },
         "target": {
-          "x": -3,
+          "x": -2,
           "y": 1
         }
       },
       {
-        "seq": 44,
+        "seq": 46,
+        "turn": 3,
+        "actor": "Alice",
+        "kind": "effect",
+        "text": "is eaten by the acid",
+        "damage": 4
+      },
+      {
+        "seq": 47,
         "turn": 3,
         "actor": "Bob",
         "kind": "effect",
@@ -1873,14 +1894,14 @@
         "damage": 12
       },
       {
-        "seq": 45,
+        "seq": 48,
         "turn": 3,
         "actor": "Bob",
         "kind": "turn",
         "text": "starts their turn"
       },
       {
-        "seq": 46,
+        "seq": 49,
         "turn": 3,
         "actor": "Bob",
         "kind": "cast",
@@ -1892,19 +1913,19 @@
           "y": -3
         },
         "target": {
-          "x": -3,
+          "x": -2,
           "y": 1
         }
       },
       {
-        "seq": 47,
+        "seq": 50,
         "turn": 3,
         "actor": "Alice",
         "kind": "death",
         "text": "is out of the fight"
       },
       {
-        "seq": 48,
+        "seq": 51,
         "turn": 3,
         "actor": "Bob",
         "kind": "end",
@@ -1980,14 +2001,6 @@
       },
       {
         "position": {
-          "x": -5,
-          "y": 1
-        },
-        "kind": "fire",
-        "owner": "bob"
-      },
-      {
-        "position": {
           "x": -4,
           "y": -3
         },
@@ -2053,7 +2066,7 @@
       {
         "position": {
           "x": -3,
-          "y": 3
+          "y": 1
         },
         "kind": "fire",
         "owner": "bob"
@@ -2072,7 +2085,7 @@
           "y": -2
         },
         "kind": "fire",
-        "owner": "alice"
+        "owner": "bob"
       },
       {
         "position": {
@@ -2080,14 +2093,14 @@
           "y": -1
         },
         "kind": "fire",
-        "owner": "alice"
+        "owner": "bob"
       },
       {
         "position": {
           "x": -2,
           "y": 0
         },
-        "kind": "fire",
+        "kind": "crater",
         "owner": "bob"
       },
       {
@@ -2117,7 +2130,31 @@
       {
         "position": {
           "x": -1,
+          "y": -1
+        },
+        "kind": "fire",
+        "owner": "bob"
+      },
+      {
+        "position": {
+          "x": -1,
+          "y": 0
+        },
+        "kind": "fire",
+        "owner": "bob"
+      },
+      {
+        "position": {
+          "x": -1,
           "y": 1
+        },
+        "kind": "fire",
+        "owner": "bob"
+      },
+      {
+        "position": {
+          "x": 0,
+          "y": 0
         },
         "kind": "fire",
         "owner": "bob"

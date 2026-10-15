@@ -92,6 +92,11 @@ type Player struct {
 	// it always said — the recorded fights in testdata still replay byte for
 	// byte, which they should: none of them changed.
 	IsDummy bool `json:"isDummy,omitempty"`
+	// BotLevel and Boss are how a bot plays: easy, normal or hard, and which
+	// ruler of an island it is, if any. They stay on the server: the level is
+	// the bot's own business, and a boss already shows under its own name.
+	BotLevel string `json:"-"`
+	Boss     string `json:"-"`
 	// Spells tracks per-spell usage, keyed the same way as the catalogue, so
 	// the client can grey out what cannot be cast right now. A spell missing
 	// from it is not on this player's bar, and casting it is refused.

@@ -54,13 +54,21 @@ const (
 	BotEnd  = "end"
 )
 
-// DecideBotAction picks the bot's next step: hit the nearest living enemy as
-// hard as it can if anything lands, otherwise set up a hit (leap next to it,
-// put a relay in reach), otherwise close the distance, otherwise lay down
-// whatever terrain it has on the enemy, otherwise pass. It is deliberately
-// simple — the point is that a lone visitor can play a whole match, not that
-// the opponent is hard to beat.
+// DecideBotAction picks the bot's next step at the default level, with no
+// roll to bend it. Tests ask it about a board; a game asks decideBotAction,
+// which knows the bot's level and has a roll to give it.
 func DecideBotAction(state types.GameState, botID string) BotAction {
+	return decideBotAction(state, botID, 0)
+}
+
+// decideBotAction picks the bot's next step. It weighs every cell it can walk
+// to — the best run of casts from there, then the best place to end the turn
+// within what walking it leaves — and takes the first step of the best: the
+// cast, or the walk to where the casting is better. With nothing to cast from
+// anywhere it readies something that will reach (more movement), walks to
+// where its turn is best ended, and spends what is left on cover or slowing
+// ground before it hands the turn back.
+func decideBotAction(state types.GameState, botID string, roll uint64) BotAction {
 	me, ok := state.Players[botID]
 	if !ok || !me.Character.IsAlive || me.Character.Position == nil {
 		return BotAction{Kind: BotEnd}
@@ -70,380 +78,185 @@ func DecideBotAction(state types.GameState, botID string) BotAction {
 	if me.IsDummy {
 		return BotAction{Kind: BotEnd}
 	}
-	from := *me.Character.Position
-
-	target, found := nearestEnemy(state, botID, from)
-	if !found {
+	mind := mindOf(me, roll)
+	c := me.Character
+	if acted := c.ActionPoints < c.MaxActionPoints || c.MovementPoints < c.MaxMovementPoints; acted && mind.idles > 0 && int(splitmix(roll)%100) < mind.idles {
 		return BotAction{Kind: BotEnd}
 	}
-
-	board := readBoard(state, botID)
-	// Best spell the bot can actually cast right now, strongest first. It has
-	// to respect cooldowns, per-turn limits and line of sight like anyone else,
-	// or it would spend its turn on casts the server refuses.
+	b := readBoard(state, botID, mind)
+	if len(b.foes) == 0 {
+		return b.seek()
+	}
+	// It has to respect cooldowns, per-turn limits and line of sight like
+	// anyone else, or it would spend its turn on casts the server refuses.
 	ready := readySpells(state, me)
+	stands := b.stands()
+	mp := me.Character.MovementPoints
 
-	// A leap that puts a heavier hit in reach comes before a lighter hit that
-	// is in reach already.
-	if action, ok := board.leapIn(me, from, target, ready); ok {
-		return action
-	}
-	if action, ok := board.bestAttack(me, from, target, ready); ok {
-		return action
-	}
-	if action, ok := board.setUp(me, from, target, ready); ok {
-		return action
-	}
-
-	if mp := me.Character.MovementPoints; mp > 0 {
-		// The bot's own cell stops being in the way the moment it leaves it,
-		// and it does not walk into what the enemy left on the ground.
-		walkable := func(pos types.Position) bool {
-			return pos != from && (board.blocked(pos) || board.hazard(pos))
+	nth := 0
+	bestAt, bestScore := -1, 0
+	var best plan
+	for i, st := range stands {
+		p := b.planFrom(st.at, ready, &nth)
+		score := p.value - stepCost*(mp-st.mpLeft) - st.fires*fireCost
+		if len(p.casts) > 0 {
+			score += b.restWithin(p.endAt, st.mpLeft, stands)
+		} else {
+			score += b.rest(st.at)
 		}
-		if dest, ok := board.stepIntoRange(from, target, mp, ready, walkable); ok {
-			return BotAction{Kind: BotMove, Target: dest}
-		}
-		if dest, ok := stepToward(from, target, mp, walkable, board.enterCost); ok {
-			return BotAction{Kind: BotMove, Target: dest}
+		nth++
+		score = b.mind.bend(score, nth)
+		if bestAt == -1 || score > bestScore {
+			bestAt, bestScore, best = i, score, p
 		}
 	}
 
-	if action, ok := board.layTerrain(from, target, ready); ok {
+	if len(best.casts) == 0 {
+		// Nothing lands from anywhere this turn: more movement may change
+		// that, so that comes before walking.
+		if action, ok := b.speedUp(ready); ok {
+			return action
+		}
+	}
+	if st := stands[bestAt]; st.at != b.me.pos {
+		return BotAction{Kind: BotMove, Target: st.walkTo}
+	}
+	if len(best.casts) > 0 {
+		first := best.casts[0]
+		return BotAction{Kind: BotCast, SpellID: first.spell.ID, Target: first.aim}
+	}
+	if action, ok := b.cover(ready); ok {
+		return action
+	}
+	if action, ok := b.layTerrain(ready); ok {
 		return action
 	}
 	return BotAction{Kind: BotEnd}
 }
 
-// botBoard is what the bot reads off a snapshot to decide with.
-type botBoard struct {
-	state      types.GameState
-	botID      string
-	obstacles  map[types.Position]bool
-	terrain    map[types.Position]types.TerrainCell
-	ground     map[types.Position]types.GroundCell
-	relay      *types.Position
-	meleeBonus int
-}
-
-func readBoard(state types.GameState, botID string) botBoard {
-	b := botBoard{
-		state:     state,
-		botID:     botID,
-		obstacles: make(map[types.Position]bool, len(state.Obstacles)),
-		terrain:   make(map[types.Position]types.TerrainCell, len(state.Terrain)),
-		ground:    make(map[types.Position]types.GroundCell, len(state.Ground)),
-	}
-	for _, cell := range state.Ground {
-		b.ground[cell.Position] = cell
-	}
-	for _, o := range state.Obstacles {
-		b.obstacles[o] = true
-	}
-	for _, cell := range state.Terrain {
-		b.terrain[cell.Position] = cell
-		if cell.Kind == types.TerrainRelay && cell.Owner == botID {
-			relay := cell.Position
-			b.relay = &relay
+// restWithin is the best place to end the turn a few steps from a cell: the
+// cells it could walk on to once its casts are done.
+func (b *botBoard) restWithin(from types.Position, mpLeft int, stands []stand) int {
+	best := b.rest(from)
+	for _, st := range stands {
+		if st.at != from && Distance(from, st.at) <= mpLeft {
+			best = max(best, b.rest(st.at))
 		}
 	}
-	if kit, err := Content().Kit(state.Players[botID].Character.Loadout); err == nil && !state.Players[botID].Character.Loadout.IsZero() {
-		b.meleeBonus = kit.Grimoire.MeleeBonus
-	}
-	return b
+	return best
 }
 
-func (b botBoard) occupied(pos types.Position) bool {
-	for _, p := range b.state.Players {
-		if p.Character.IsAlive && p.Character.Position != nil && *p.Character.Position == pos {
-			return true
-		}
+// seek is what the bot does with nobody in sight: walk towards the tall grass
+// it cannot see into, where whoever is left must be hiding.
+func (b *botBoard) seek() BotAction {
+	mp := b.me.player.Character.MovementPoints
+	if !b.hidden || mp <= 0 {
+		return BotAction{Kind: BotEnd}
 	}
-	return false
-}
-
-// blocked reports what the board refuses to a walker: cover, solid ground and
-// characters.
-func (b botBoard) blocked(pos types.Position) bool {
-	if !InGrid(pos) || b.obstacles[pos] || isSolidTerrain(b.terrain[pos].Kind) || b.groundRule(pos, GroundRule.Solid) {
-		return true
-	}
-	return b.occupied(pos)
-}
-
-// blocksSight is the same, with smoke and pylons instead of solid ground.
-func (b botBoard) blocksSight(pos types.Position) bool {
-	if b.obstacles[pos] || terrainBlocksSight(b.terrain[pos].Kind) || b.groundRule(pos, GroundRule.BlocksSight) {
-		return true
-	}
-	return b.occupied(pos)
-}
-
-// groundRule asks the rule of the island's ground on a cell something, false
-// where there is none.
-func (b botBoard) groundRule(pos types.Position, ask func(GroundRule) bool) bool {
-	cell, ok := b.ground[pos]
-	if !ok {
-		return false
-	}
-	rule, ok := groundRules[cell.Kind]
-	return ok && ask(rule)
-}
-
-// enterCost is what the server charges for a step onto a cell.
-func (b botBoard) enterCost(pos types.Position) int {
-	if cell, ok := b.ground[pos]; ok {
-		if rule, ok := groundRules[cell.Kind]; ok {
-			return rule.EnterCost()
-		}
-	}
-	return 1
-}
-
-func (b botBoard) free(pos types.Position) bool {
-	return !b.blocked(pos)
-}
-
-// lands reports whether a spell cast from one cell hits the target without
-// catching its caster in the blast. Friendly fire is real — a cross cast at
-// an adjacent enemy hits both of them — and a bot that never noticed used to
-// trade itself out of fights it was winning.
-func (b botBoard) lands(from, caster, target types.Position, spell types.Spell) bool {
-	if spell.Targeting == types.TargetSelf {
-		return from == caster && containsPosition(AffectedPositions(spell, caster, caster), target)
-	}
-	if spell.Targeting == types.TargetEmpty {
-		return false
-	}
-	if Distance(from, target) > spell.Range {
-		return false
-	}
-	if spell.NeedsLineOfSight && !HasLineOfSight(from, target, b.blocksSight) {
-		return false
-	}
-	return spell.Damage == 0 || !containsPosition(AffectedPositions(spell, target, from), caster)
-}
-
-// origins are the cells a spell may be cast from: where the bot stands, and
-// its relay for a spell that can use one.
-func (b botBoard) origins(from types.Position, spell types.Spell) []types.Position {
-	if spell.Relayed && b.relay != nil {
-		return []types.Position{from, *b.relay}
-	}
-	return []types.Position{from}
-}
-
-// estimate is roughly what a spell will take off the target, which is all
-// the bot ranks its options by.
-func (b botBoard) estimate(caster, target types.Position, spell types.Spell) int {
-	amount := spell.Damage
-	if spell.Relayed && b.relay != nil && b.lands(*b.relay, caster, target, spell) {
-		amount = amount * (100 + RelayBonus) / 100
-	}
-	if spell.Special == types.SpecialDetonate {
-		for _, id := range sortedKeys(b.state.Players) {
-			c := b.state.Players[id].Character
-			if c.Position != nil && *c.Position == target {
-				for _, e := range c.Effects {
-					if e.Kind == types.EffectBurn {
-						amount += e.Value * e.TurnsLeft * BurnDamagePerStack
-					}
-				}
-			}
-		}
-	}
-	if spell.Effect != nil && spell.Effect.Kind == types.EffectBurn && !spell.Effect.OnSelf {
-		amount += spell.Effect.Value * BurnDamagePerStack
-	}
-	if spell.Conducts && b.terrain[target].Kind == types.TerrainWater {
-		amount = amount * (100 + ConductBonus) / 100
-	}
-	if b.meleeBonus > 0 && Distance(caster, target) == 1 {
-		amount = amount * (100 + b.meleeBonus) / 100
-	}
-	// Where the target ends up counts too. A kit that hits hardest up close
-	// wants it dragged in; anyone else wants it thrown off their doorstep.
-	switch {
-	case spell.Push > 0 && Distance(caster, target) == 1 && b.meleeBonus == 0:
-		dir := stepTowards(caster, target)
-		if b.free(types.Position{X: target.X + dir.X, Y: target.Y + dir.Y}) {
-			amount += 8
-		}
-	case spell.Push < 0 && Distance(caster, target) > 1 && b.meleeBonus > 0:
-		amount += 6
-	}
-	return amount
-}
-
-// hazard reports ground the bot should not walk into: fire, whoever lit it,
-// and the enemy's traps.
-func (b botBoard) hazard(pos types.Position) bool {
-	cell, ok := b.terrain[pos]
-	if !ok {
-		return false
-	}
-	return cell.Kind == types.TerrainFire || (cell.Kind == types.TerrainTrap && cell.Owner != b.botID)
-}
-
-// bestAttack is the hardest-hitting spell that lands on the target right now.
-func (b botBoard) bestAttack(me types.Player, from, target types.Position, ready []types.Spell) (BotAction, bool) {
-	best, bestID, bestScore := types.Position{}, 0, 0
-	for _, spell := range ready {
-		if spell.Damage <= 0 {
+	from := b.me.pos
+	target, found := types.Position{}, false
+	for _, cell := range boardCells() {
+		if !b.groundIs(cell, GroundRule.Conceals) || Distance(from, cell) <= GrassSightRange {
 			continue
 		}
-		for _, origin := range b.origins(from, spell) {
-			if !b.lands(origin, from, target, spell) {
-				continue
-			}
-			aim := target
-			if spell.Targeting == types.TargetSelf {
-				aim = from
-			}
-			if score := b.estimate(from, target, spell); bestID == 0 || score > bestScore {
-				best, bestID, bestScore = aim, spell.ID, score
-			}
-			break
+		if !found || Distance(from, cell) < Distance(from, target) {
+			target, found = cell, true
 		}
 	}
-	if bestID == 0 {
+	if !found {
+		return BotAction{Kind: BotEnd}
+	}
+	walkable := func(pos types.Position) bool {
+		return pos != from && (!b.free(pos, b.standing) || caught(b.terrainAt, pos, b.botID))
+	}
+	if dest, ok := stepToward(from, target, mp, walkable, b.enterCost); ok {
+		return BotAction{Kind: BotMove, Target: dest}
+	}
+	return BotAction{Kind: BotEnd}
+}
+
+// speedUp catches the wind to walk further, when something that hits is
+// still affordable after.
+func (b *botBoard) speedUp(ready []types.Spell) (BotAction, bool) {
+	ap := b.me.player.Character.ActionPoints
+	if b.me.player.Character.MovementPoints <= 0 {
 		return BotAction{}, false
 	}
-	return BotAction{Kind: BotCast, SpellID: bestID, Target: best}, true
-}
-
-// leapIn leaps next to the target when a melee spell is still affordable
-// once it has landed.
-func (b botBoard) leapIn(me types.Player, from, target types.Position, ready []types.Spell) (BotAction, bool) {
-	if Distance(from, target) <= 1 {
-		return BotAction{}, false
-	}
-	for _, leap := range ready {
-		if leap.Special != types.SpecialLeap {
-			continue
-		}
-		melee := false
-		for _, other := range ready {
-			if other.Range == 1 && other.Damage > 0 && other.APCost <= me.Character.ActionPoints-leap.APCost {
-				melee = true
-			}
-		}
-		if !melee {
-			continue
-		}
-		if cell, ok := b.landing(from, target, leap); ok {
-			return BotAction{Kind: BotCast, SpellID: leap.ID, Target: cell}, true
-		}
-	}
-	return BotAction{}, false
-}
-
-// landing is the free, safe cell next to the target a leap can reach,
-// nearest the bot first.
-func (b botBoard) landing(from, target types.Position, leap types.Spell) (types.Position, bool) {
-	cells := Neighbours(target)
-	sortPositions(cells)
-	best, bestDist := types.Position{}, -1
-	for _, cell := range cells {
-		d := Distance(from, cell)
-		if b.free(cell) && !b.hazard(cell) && d <= leap.Range && d > 0 && (bestDist == -1 || d < bestDist) {
-			best, bestDist = cell, d
-		}
-	}
-	return best, bestDist != -1
-}
-
-// setUp is a cast that does no harm by itself but makes the next one land:
-// leaping next to the target, or putting a relay within reach of it, or
-// catching the wind to walk further.
-func (b botBoard) setUp(me types.Player, from, target types.Position, ready []types.Spell) (BotAction, bool) {
-	ap := me.Character.ActionPoints
 	for _, spell := range ready {
-		// Only worth it if something that hits is still affordable after.
-		followUp := false
+		if spell.GrantMP <= 0 {
+			continue
+		}
 		for _, other := range ready {
 			if other.ID != spell.ID && other.Damage > 0 && other.APCost <= ap-spell.APCost {
-				followUp = true
+				return BotAction{Kind: BotCast, SpellID: spell.ID, Target: b.me.pos}, true
 			}
-		}
-		if !followUp {
-			continue
-		}
-
-		switch {
-		case spell.Special == types.SpecialLeap && Distance(from, target) > 1:
-			if cell, ok := b.landing(from, target, spell); ok {
-				return BotAction{Kind: BotCast, SpellID: spell.ID, Target: cell}, true
-			}
-
-		case spell.Special == types.SpecialRelay:
-			if cell, ok := b.relayCell(from, target, spell, ready, ap-spell.APCost); ok {
-				return BotAction{Kind: BotCast, SpellID: spell.ID, Target: cell}, true
-			}
-
-		case spell.GrantMP > 0 && me.Character.MovementPoints > 0:
-			return BotAction{Kind: BotCast, SpellID: spell.ID, Target: from}, true
 		}
 	}
 	return BotAction{}, false
 }
 
-// relayCell finds where a relay would let a relayed spell land on the target,
-// nearest the bot first. None is offered when the current relay already does.
-func (b botBoard) relayCell(from, target types.Position, relaySpell types.Spell, ready []types.Spell, apLeft int) (types.Position, bool) {
-	var relayed []types.Spell
+// cover puts smoke or a pillar in the enemy's line of fire, where it takes
+// the most off what the enemy could deal the bot next turn.
+func (b *botBoard) cover(ready []types.Spell) (BotAction, bool) {
+	if !b.mind.covers {
+		return BotAction{}, false
+	}
+	from := b.me.pos
+	now := 0
+	for _, foe := range b.foes {
+		now += b.threatFrom(foe, from, nil)
+	}
+	if now == 0 {
+		return BotAction{}, false
+	}
+	s := &sim{b: b, me: b.me, foes: b.foes}
+	best, bestSpell, bestGain := types.Position{}, 0, minCoverGain-1
 	for _, spell := range ready {
-		if spell.Relayed && spell.Damage > 0 && spell.APCost <= apLeft {
-			relayed = append(relayed, spell)
+		pillar := spell.Special == types.SpecialPillar
+		if !pillar && spell.Terrain != types.TerrainSmoke {
+			continue
 		}
-	}
-	if len(relayed) == 0 {
-		return types.Position{}, false
-	}
-	if b.relay != nil {
-		for _, spell := range relayed {
-			if b.lands(*b.relay, from, target, spell) {
-				return types.Position{}, false
-			}
-		}
-	}
-
-	var cells []types.Position
-	for x := -GridRadius; x <= GridRadius; x++ {
-		for y := -GridRadius; y <= GridRadius; y++ {
-			cell := types.Position{X: x, Y: y}
-			d := Distance(from, cell)
-			if !InGrid(cell) || d == 0 || d > relaySpell.Range || !b.free(cell) {
+		for _, cell := range boardCells() {
+			if Distance(from, cell) > spell.Range || Distance(from, cell) == 0 {
 				continue
 			}
-			if relaySpell.NeedsLineOfSight && !HasLineOfSight(from, cell, b.blocksSight) {
+			if !b.free(cell, b.standing) || (spell.NeedsLineOfSight && !s.reach(from, cell, spell)) {
 				continue
 			}
-			cells = append(cells, cell)
-		}
-	}
-	sortPositions(cells)
-	sort.SliceStable(cells, func(i, j int) bool { return Distance(from, cells[i]) < Distance(from, cells[j]) })
-	for _, cell := range cells {
-		for _, spell := range relayed {
-			if b.lands(cell, from, target, spell) {
-				return cell, true
+			if pillar && b.wallsIn(cell) {
+				continue
+			}
+			screen := []types.Position{cell}
+			if !pillar {
+				screen = AffectedPositions(spell, cell, from)
+			}
+			after := 0
+			for _, foe := range b.foes {
+				after += b.threatFrom(foe, from, screen)
+			}
+			if gain := now - after; gain > bestGain {
+				best, bestSpell, bestGain = cell, spell.ID, gain
 			}
 		}
 	}
-	return types.Position{}, false
+	if bestSpell == 0 {
+		return BotAction{}, false
+	}
+	return BotAction{Kind: BotCast, SpellID: bestSpell, Target: best}, true
 }
 
-// layTerrain spends what is left of a turn putting slowing ground on the
-// target: water or traps. Smoke and pillars need more judgement than this bot
-// has, so it leaves them alone.
-func (b botBoard) layTerrain(from, target types.Position, ready []types.Spell) (BotAction, bool) {
+// layTerrain spends what is left of a turn putting slowing ground on an
+// enemy: water or traps.
+func (b *botBoard) layTerrain(ready []types.Spell) (BotAction, bool) {
+	s := &sim{b: b, me: b.me, foes: b.foes}
 	for _, spell := range ready {
 		if spell.Damage > 0 || (spell.Terrain != types.TerrainWater && spell.Terrain != types.TerrainTrap) {
 			continue
 		}
-		if b.lands(from, from, target, spell) {
-			return BotAction{Kind: BotCast, SpellID: spell.ID, Target: target}, true
+		for _, f := range b.foes {
+			if s.reach(b.me.pos, f.pos, spell) && !containsPosition(AffectedPositions(spell, f.pos, b.me.pos), b.me.pos) {
+				return BotAction{Kind: BotCast, SpellID: spell.ID, Target: f.pos}, true
+			}
 		}
 	}
 	return BotAction{}, false
@@ -473,65 +286,6 @@ func readySpells(state types.GameState, me types.Player) []types.Spell {
 		ready = append(ready, spell)
 	}
 	return ready
-}
-
-// reaches reports whether a spell cast from one cell can land on another on a
-// board with nothing but the given blockers on it.
-func reaches(from, target types.Position, spell types.Spell, blocked func(types.Position) bool) bool {
-	if Distance(from, target) > spell.Range {
-		return false
-	}
-	if spell.NeedsLineOfSight && !HasLineOfSight(from, target, blocked) {
-		return false
-	}
-	return spell.Damage == 0 || !containsPosition(AffectedPositions(spell, target, from), from)
-}
-
-// stepIntoRange finds the nearest reachable cell from which a damaging spell
-// the bot can still afford would land. Walking closer is not the same thing:
-// two characters either side of a single block of cover can be two cells
-// apart with no line between them, and a bot that only ever shortens the
-// distance stands there forever.
-func (b botBoard) stepIntoRange(from, target types.Position, mp int, ready []types.Spell, blocked func(types.Position) bool) (types.Position, bool) {
-	reachable := Reachable(from, mp, blocked, b.enterCost)
-	cells := make([]types.Position, 0, len(reachable))
-	for cell := range reachable {
-		cells = append(cells, cell)
-	}
-	sortPositions(cells)
-
-	best, bestSteps := types.Position{}, -1
-	for _, cell := range cells {
-		steps := reachable[cell]
-		if bestSteps != -1 && steps >= bestSteps {
-			continue
-		}
-		for _, spell := range ready {
-			if spell.Damage > 0 && b.lands(cell, cell, target, spell) {
-				best, bestSteps = cell, steps
-				break
-			}
-		}
-	}
-	return best, bestSteps != -1
-}
-
-func nearestEnemy(state types.GameState, botID string, from types.Position) (types.Position, bool) {
-	// Ties go to the lowest user id rather than to whichever key Go's map
-	// happened to hand out first.
-	best := types.Position{}
-	bestDist := -1
-	for _, id := range sortedKeys(state.Players) {
-		p := state.Players[id]
-		if id == botID || !p.Character.IsAlive || p.Character.Position == nil {
-			continue
-		}
-		d := Distance(from, *p.Character.Position)
-		if bestDist == -1 || d < bestDist {
-			best, bestDist = *p.Character.Position, d
-		}
-	}
-	return best, bestDist >= 0
 }
 
 // stepToward picks the reachable cell that gets closest to the target. It uses
@@ -623,10 +377,31 @@ func (g *Game) AddBot() (string, error) {
 	return g.AddBotChampion("", BotFights)
 }
 
-// AddBotChampion drops a server-played opponent into the room, already ready
-// to start. It plays the champion it is given, in that champion's set and
-// under its name and colours; empty means the first champion.
+// AddBotChampion drops a champion into the room as an opponent, in that
+// champion's set and at the level the island sets; empty means the first
+// champion.
 func (g *Game) AddBotChampion(championID string, mode BotMode) (string, error) {
+	return g.AddBotOf(BotSpec{Champion: championID, Mode: mode})
+}
+
+// BotSpec is who a server-played opponent is and how it plays.
+type BotSpec struct {
+	// Champion is the champion whose set it fights in; empty means the first
+	// champion, or the boss's own.
+	Champion string
+	Mode     BotMode
+	// Level is how well it plays; empty means the island's level, or
+	// DefaultBotLevel off the islands.
+	Level BotLevel
+	// Boss is a ruler of an island from the bestiary, which brings its own
+	// set, name and way of fighting. Empty for an ordinary opponent.
+	Boss string
+}
+
+// AddBotOf drops a server-played opponent into the room, already ready to
+// start. It plays in its champion's set, under the champion's name and its
+// outfit's colours, or under the boss's name when it is one.
+func (g *Game) AddBotOf(spec BotSpec) (string, error) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
@@ -636,7 +411,21 @@ func (g *Game) AddBotChampion(championID string, mode BotMode) (string, error) {
 	if len(g.players) >= MaxPlayersPerRoom {
 		return "", ErrRoomFull
 	}
-	champion, err := g.championLocked(championID)
+	if _, ok := ParseBotLevel(string(spec.Level)); !ok {
+		return "", ErrUnknownBotLevel
+	}
+	var boss types.Monster
+	if spec.Boss != "" {
+		var ok bool
+		if boss, ok = g.catalogue.Monster(spec.Boss); !ok || boss.Rank == types.RankMonster {
+			return "", ErrUnknownBoss
+		}
+		if spec.Champion != "" && spec.Champion != boss.Champion {
+			return "", ErrBossChampion
+		}
+		spec.Champion = boss.Champion
+	}
+	champion, err := g.championLocked(spec.Champion)
 	if err != nil {
 		return "", err
 	}
@@ -644,17 +433,30 @@ func (g *Game) AddBotChampion(championID string, mode BotMode) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	if spec.Level == "" {
+		spec.Level = DefaultBotLevel
+		if island, ok := g.catalogue.Island(g.island); ok && island.OpponentLevel != "" {
+			spec.Level = BotLevel(island.OpponentLevel)
+		}
+	}
 
 	id := fmt.Sprintf("%s%d", BotIDPrefix, len(g.players)+1)
-	g.recordLocked(id, CmdAddBot, addBotPayload{Champion: champion.ID, Mode: string(mode)})
+	// The level is written down as it was resolved, so a recording replays
+	// the same opponent even after the island's level is retuned.
+	g.recordLocked(id, CmdAddBot, addBotPayload{Champion: champion.ID, Mode: string(spec.Mode), Level: string(spec.Level), Boss: spec.Boss})
 	name := champion.Name
+	if boss.Name != "" {
+		name = boss.Name
+	}
 	p := newPlayer(id, name, kit, types.Character{
 		Name:   name,
 		Color:  kit.Outfit.Palette.Primary,
 		Symbol: strings.ToUpper(string([]rune(name)[:1])),
 	})
 	p.IsBot = true
-	p.IsDummy = mode == BotStandsStill
+	p.IsDummy = spec.Mode == BotStandsStill
+	p.BotLevel = string(spec.Level)
+	p.Boss = spec.Boss
 	g.players[id] = p
 	g.startPlacementIfReadyLocked()
 	return id, nil
@@ -717,8 +519,12 @@ func (g *Game) PlayBotStep() (acted bool) {
 	}
 
 	// The bot sees what a player in its place would: nobody hidden in tall
-	// grass beyond arm's reach.
-	action := DecideBotAction(g.SnapshotFor(id), id)
+	// grass beyond arm's reach. Its roll comes from the seed and how far into
+	// the match it is, never from the game's own source.
+	g.mu.RLock()
+	roll := botRoll(g.seed, g.cmdSeq)
+	g.mu.RUnlock()
+	action := decideBotAction(g.SnapshotFor(id), id, roll)
 	switch action.Kind {
 	case BotCast:
 		if err := g.CastSpell(id, action.SpellID, action.Target); err == nil {

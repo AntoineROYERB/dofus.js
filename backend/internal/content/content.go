@@ -102,6 +102,11 @@ func (c Catalogue) Island(id string) (types.Island, bool) {
 	return find(c.Islands, id, func(is types.Island) string { return is.ID })
 }
 
+// Monster looks a sheet of the bestiary up by id.
+func (c Catalogue) Monster(id string) (types.Monster, bool) {
+	return find(c.Bestiary, id, func(m types.Monster) string { return m.ID })
+}
+
 // DefaultChampion is who stands in when nobody picked: the first champion in
 // the file. Validation guarantees there is one.
 func (c Catalogue) DefaultChampion() types.Champion {
@@ -277,8 +282,8 @@ func Parse(src Sources, balance config.Balance, bounds Bounds) (Catalogue, error
 
 	v := &validator{}
 	spells := v.spells(src.Spells.Name, sf, bounds)
-	v.world(src.Islands.Name, wf)
 	cat := v.loadouts(src, loadoutFiles{of, gf, rf, tf, chf, cf}, spells, balance)
+	v.world(src.Islands.Name, wf, cat.Champions)
 	if len(v.problems) > 0 {
 		return Catalogue{}, errors.Join(v.problems...)
 	}

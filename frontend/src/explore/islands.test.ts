@@ -46,7 +46,7 @@ describe("the world's islands, from the catalogue", () => {
     const shipped = shippedWorld();
     const lagoon = {
       id: "lagoon", name: "Lagoon", element: "Water", terrains: ["shallow_water"], palette: "water",
-      lineage: ["poulpinet"], boss: "boss_kraken", armour: "tidewalker", fights: 3,
+      lineage: ["poulpinet"], boss: "boss_kraken", armour: "tidewalker", fights: 3, opponentLevel: "normal" as const,
     };
     setWorldContent({ ...shipped, islands: [...shipped.islands, lagoon] });
 

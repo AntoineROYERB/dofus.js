@@ -28,12 +28,18 @@
     { "id": "gloop", "name": "Gloop", "rank": "monster" },
     { "id": "gloop_2", "name": "Gloop", "rank": "monster" },
     { "id": "gloop_3", "name": "Gloop", "rank": "monster" },
-    { "id": "boss_monolithe", "name": "Monolithe", "rank": "boss" },
-    { "id": "boss_kraken", "name": "Kraken", "rank": "boss" },
-    { "id": "boss_coeur_hiver", "name": "Heart of Winter", "rank": "boss" },
-    { "id": "boss_oeil_nuee", "name": "Eye of the Swarm", "rank": "boss" },
-    { "id": "boss_mere_gloop", "name": "Mother Gloop", "rank": "boss" },
-    { "id": "legend_roi_cendre", "name": "Ash King", "rank": "legend" }
+    { "id": "boss_monolithe", "name": "Monolithe", "rank": "boss", "champion": "old-grund",
+      "tactic": "Walls itself in with pillars and waits behind the rock for you to come within its leap." },
+    { "id": "boss_kraken", "name": "Kraken", "rank": "boss", "champion": "mother-brine",
+      "tactic": "Throws you into the shallows, then fights you while you wade." },
+    { "id": "boss_coeur_hiver", "name": "Heart of Winter", "rank": "boss", "champion": "mother-brine",
+      "tactic": "Freezes the ground under you first, then blasts you across the ice." },
+    { "id": "boss_oeil_nuee", "name": "Eye of the Swarm", "rank": "boss", "champion": "sef",
+      "tactic": "Never ends its turn within five cells of you, and strikes from its relay." },
+    { "id": "boss_mere_gloop", "name": "Mother Gloop", "rank": "boss", "champion": "old-grund",
+      "tactic": "Drags you into her acid and waits beside it for you to climb out." },
+    { "id": "legend_roi_cendre", "name": "Ash King", "rank": "legend", "champion": "ashka",
+      "tactic": "Lets three burns pile up on you before he sets them off, and throws you against the lava." }
   ],
   "armours": [
     { "id": "starter", "name": "Starter outfit", "element": "Neutral" },
@@ -159,12 +165,12 @@
     }
   },
   "islands": [
-    { "id": "prairie", "name": "Prairie", "element": "Neutral", "terrains": ["tall_grass"], "palette": "prairie", "lineage": ["bouflaine", "bouflaine_2", "souchon", "souchon_2"], "boss": "", "armour": "starter", "fights": 2 },
-    { "id": "earth", "name": "Earth", "element": "Earth", "terrains": ["rock"], "palette": "earth", "lineage": ["caillou", "caillou_2", "caillou_3"], "boss": "boss_monolithe", "armour": "monolithe", "fights": 4 },
-    { "id": "water", "name": "Water", "element": "Water", "terrains": ["shallow_water"], "palette": "water", "lineage": ["poulpinet", "poulpinet_2", "poulpinet_3"], "boss": "boss_kraken", "armour": "kraken", "fights": 4 },
-    { "id": "ice", "name": "Ice", "element": "Water", "terrains": ["ice", "shallow_water"], "palette": "ice", "lineage": ["givrelle", "givrelle_2", "givrelle_3"], "boss": "boss_coeur_hiver", "armour": "coeur_hiver", "fights": 4 },
-    { "id": "air", "name": "Air", "element": "Air", "terrains": ["air_current", "rock"], "palette": "air", "lineage": ["chauvolet", "chauvolet_2", "chauvolet_3"], "boss": "boss_oeil_nuee", "armour": "oeil_nuee", "fights": 4 },
-    { "id": "acid", "name": "Acid", "element": "Earth", "terrains": ["acid_pool"], "palette": "acid", "lineage": ["gloop", "gloop_2", "gloop_3"], "boss": "boss_mere_gloop", "armour": "mere_gloop", "fights": 4 },
-    { "id": "fire", "name": "Fire", "element": "Fire", "terrains": ["lava"], "palette": "fire", "lineage": [], "boss": "legend_roi_cendre", "armour": "roi_cendre", "fights": 4 }
+    { "id": "prairie", "name": "Prairie", "element": "Neutral", "terrains": ["tall_grass"], "palette": "prairie", "lineage": ["bouflaine", "bouflaine_2", "souchon", "souchon_2"], "boss": "", "armour": "starter", "fights": 2, "opponentLevel": "easy" },
+    { "id": "earth", "name": "Earth", "element": "Earth", "terrains": ["rock"], "palette": "earth", "lineage": ["caillou", "caillou_2", "caillou_3"], "boss": "boss_monolithe", "armour": "monolithe", "fights": 4, "opponentLevel": "easy" },
+    { "id": "water", "name": "Water", "element": "Water", "terrains": ["shallow_water"], "palette": "water", "lineage": ["poulpinet", "poulpinet_2", "poulpinet_3"], "boss": "boss_kraken", "armour": "kraken", "fights": 4, "opponentLevel": "normal" },
+    { "id": "ice", "name": "Ice", "element": "Water", "terrains": ["ice", "shallow_water"], "palette": "ice", "lineage": ["givrelle", "givrelle_2", "givrelle_3"], "boss": "boss_coeur_hiver", "armour": "coeur_hiver", "fights": 4, "opponentLevel": "normal" },
+    { "id": "air", "name": "Air", "element": "Air", "terrains": ["air_current", "rock"], "palette": "air", "lineage": ["chauvolet", "chauvolet_2", "chauvolet_3"], "boss": "boss_oeil_nuee", "armour": "oeil_nuee", "fights": 4, "opponentLevel": "normal" },
+    { "id": "acid", "name": "Acid", "element": "Earth", "terrains": ["acid_pool"], "palette": "acid", "lineage": ["gloop", "gloop_2", "gloop_3"], "boss": "boss_mere_gloop", "armour": "mere_gloop", "fights": 4, "opponentLevel": "hard" },
+    { "id": "fire", "name": "Fire", "element": "Fire", "terrains": ["lava"], "palette": "fire", "lineage": [], "boss": "legend_roi_cendre", "armour": "roi_cendre", "fights": 4, "opponentLevel": "hard" }
   ]
 }

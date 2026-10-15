@@ -69,6 +69,12 @@ type CreateRoomIn struct {
 	// BotMode is how that opponent behaves: "fight", the default, or "dummy",
 	// which stands still and takes it. Anything else is refused.
 	BotMode string `json:"botMode,omitempty"`
+	// BotLevel is how well it fights: "easy", "normal" or "hard". Empty
+	// leaves it to the island, which rises across the campaign.
+	BotLevel string `json:"botLevel,omitempty"`
+	// Boss makes it one of the rulers of the islands, by bestiary id, with
+	// its own set and way of fighting. BotChampion is then left empty.
+	Boss string `json:"boss,omitempty"`
 	// Island is what the fight is played on, which decides its ground. Empty
 	// is a plain arena; an island the catalogue does not know is refused.
 	Island string `json:"island,omitempty"`

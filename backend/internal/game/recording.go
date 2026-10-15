@@ -93,6 +93,12 @@ type (
 		// Mode is empty on every recording made before opponents could stand
 		// still, which replays as the fighting opponent they were.
 		Mode string `json:"mode,omitempty"`
+		// Level and Boss are empty on every recording made before opponents
+		// had either: those replay at the island's level, as nobody in
+		// particular. Neither changes what a replay shows, only how the bot
+		// would have chosen, and its choices are in the recording already.
+		Level string `json:"level,omitempty"`
+		Boss  string `json:"boss,omitempty"`
 	}
 	connectPayload struct {
 		Connected bool `json:"connected"`
@@ -365,7 +371,11 @@ func (g *Game) applyCommand(cmd Command) error {
 		if !ok {
 			return fmt.Errorf("recording asks for opponent mode %q", p.Mode)
 		}
-		id, err := g.AddBotChampion(p.Champion, mode)
+		level, ok := ParseBotLevel(p.Level)
+		if !ok {
+			return fmt.Errorf("recording asks for opponent level %q", p.Level)
+		}
+		id, err := g.AddBotOf(BotSpec{Champion: p.Champion, Mode: mode, Level: level, Boss: p.Boss})
 		if err != nil {
 			return err
 		}

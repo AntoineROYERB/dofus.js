@@ -62,7 +62,7 @@ func handleCreateRoom(h *Hub, c *Client, data []byte) {
 
 	// An opponent that cannot be seated is refused before the room exists,
 	// rather than leaving the player alone in a solo room with nobody in it.
-	botMode := game.BotFights
+	bot := game.BotSpec{Champion: in.BotChampion, Mode: game.BotFights, Boss: in.Boss}
 	if in.WithBot {
 		if in.BotChampion != "" {
 			if _, ok := game.Content().Champion(in.BotChampion); !ok {
@@ -75,7 +75,22 @@ func handleCreateRoom(h *Hub, c *Client, data []byte) {
 			h.reject(c, "create_room", in.MessageID, game.ErrUnknownBotMode)
 			return
 		}
-		botMode = mode
+		bot.Mode = mode
+		level, ok := game.ParseBotLevel(in.BotLevel)
+		if !ok {
+			h.reject(c, "create_room", in.MessageID, game.ErrUnknownBotLevel)
+			return
+		}
+		bot.Level = level
+		if in.Boss != "" {
+			if m, ok := game.Content().Monster(in.Boss); !ok || m.Rank == types.RankMonster {
+				h.reject(c, "create_room", in.MessageID, game.ErrUnknownBoss)
+				return
+			} else if in.BotChampion != "" && in.BotChampion != m.Champion {
+				h.reject(c, "create_room", in.MessageID, game.ErrBossChampion)
+				return
+			}
+		}
 	}
 
 	if in.Island != "" {
@@ -92,10 +107,11 @@ func handleCreateRoom(h *Hub, c *Client, data []byte) {
 	}
 
 	if in.WithBot {
-		if botID, err := room.Game.AddBotChampion(in.BotChampion, botMode); err != nil {
+		if botID, err := room.Game.AddBotOf(bot); err != nil {
 			slog.Warn("could not add bot", "component", "handler", "match_id", room.ID, "error", err)
 		} else {
-			slog.Info("bot added", "component", "handler", "match_id", room.ID, "bot_id", botID, "bot_mode", string(botMode))
+			slog.Info("bot added", "component", "handler", "match_id", room.ID, "bot_id", botID,
+				"bot_mode", string(bot.Mode), "bot_level", string(bot.Level), "boss", bot.Boss)
 		}
 	}
 

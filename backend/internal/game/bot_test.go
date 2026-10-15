@@ -10,17 +10,23 @@ import (
 
 func TestBotCastsTheStrongestSpellItCanAfford(t *testing.T) {
 	g := twoPlayerGame(t)
-	// Ranged spells only, so a leap into melee is not an option.
+	// Ranged spells only, so a leap into melee is not an option, and points
+	// for one cast only, so there is no turn to plan beyond it.
 	setBar(g, "a", "1", "7", "11", "14")
+	g.mu.Lock()
+	p := g.players["a"]
+	p.Character.ActionPoints = 3
+	g.players["a"] = p
+	g.mu.Unlock()
 
-	// "a" stands at (0,0), "b" at (0,3): within Geyser's range of 6, and
-	// nothing else in reach hits as hard.
+	// "a" stands at (0,0), "b" at (0,3): within Hydro Cannon's range of 5,
+	// and nothing else in reach hits as hard.
 	action := DecideBotAction(g.Snapshot(), "a")
 	if action.Kind != BotCast {
 		t.Fatalf("action = %+v, want a cast", action)
 	}
 	if action.SpellID != 11 {
-		t.Errorf("spell = %d, want 11 (Geyser, the most damaging affordable one)", action.SpellID)
+		t.Errorf("spell = %d, want 11 (Hydro Cannon, the most damaging affordable one)", action.SpellID)
 	}
 	if action.Target != (types.Position{X: 0, Y: 3}) {
 		t.Errorf("target = %+v, want the enemy's cell", action.Target)

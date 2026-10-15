@@ -25,7 +25,10 @@ backend/
   config/               *.json content (spells, classes, islands), embedded and loaded at boot
   internal/content/     loads and validates the content; a bad file stops the server
   internal/game/        the rules: game.go, cast.go, mechanics.go (terrain spells leave),
-                        ground.go (island terrain), bot.go, recording.go (replays)
+                        ground.go (island terrain), recording.go (replays), and the
+                        opponent: bot.go (decision, seating), bot_plan.go (the turn
+                        planner), bot_board.go and bot_reach.go (what it reads off
+                        the board), bot_minds.go (levels, boss profiles)
   internal/websocket/   hub, sessions, message handlers
   internal/api/         HTTP: /api/classes (all content), match history
 frontend/src/
@@ -48,6 +51,11 @@ docs/ART_DIRECTION.md   the visual charter
 - **Content is data.** A new spell, class, island or terrain is a change to
   `backend/config/*.json`, validated in `internal/content`. Every new field
   gets a validation and a test of the case it refuses.
+- **The bot mirrors the rules, and never rolls.** It predicts walks, pushes
+  and slides without playing them; a change to how one resolves changes its
+  mirror in `bot_board.go` / `bot_plan.go` too, and the mirror tests say so.
+  It must never draw from `g.rng`: a replay applies its recorded commands
+  without asking it again.
 - **Rules change the fingerprint.** Every number a fight depends on goes into
   `rulesFingerprint` in `recording.go`. Changing one invalidates the golden
   replays in `internal/game/testdata/replays`. Regenerate them with

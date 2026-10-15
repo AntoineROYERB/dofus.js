@@ -37,6 +37,14 @@ type Monster struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
 	Rank string `json:"rank"`
+	// Champion is the champion whose set a boss or a legend fights in. Every
+	// ruler of an island has one; a plain monster has none yet. Boss outfits
+	// of their own come later (#85).
+	Champion string `json:"champion,omitempty"`
+	// Tactic is a ruler's way of fighting, in the one sentence a player
+	// reads before facing it: the pattern to learn and break. The server
+	// plays it from a profile of the same id; a test holds the two together.
+	Tactic string `json:"tactic,omitempty"`
 }
 
 // Armour is what an island unlocks and what a player wears into a fight.
@@ -85,4 +93,7 @@ type Island struct {
 	Armour string `json:"armour"`
 	// Fights is how many fights the chapter has, the boss's included.
 	Fights int `json:"fights"`
+	// OpponentLevel is how well the island's opponents fight: easy, normal
+	// or hard, rising across the campaign.
+	OpponentLevel string `json:"opponentLevel"`
 }

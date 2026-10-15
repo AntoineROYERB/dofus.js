@@ -175,11 +175,30 @@ each terrain's name and rule from the catalogue. The ground's numbers are part
 of the rules fingerprint, and a recorded fight on every island replays exactly.
 Until the campaign map chooses the island, `/lobby?island=ice` opens solo
 fights on one.
-Balance is a test rather than an opinion: every champion is played against
-every champion, each in its set, by the server's own bot over seeded matches,
-and CI fails if any champion
-wins more than 65% of a matchup or fights stop lasting four to eight turns. The
-shipped sets sit between 40% and 60%, over fights of five turns.
+
+**The opponent plans its turn.** The server's bot weighs every cell it can
+walk to — predicting, as the server will, where ice carries it and where a
+trap holds it — and the best run of casts from each: a burn before the
+detonation, a leap before the hammer, the push last so the rest still lands,
+an enemy thrown onto lava or ice. Then it weighs where to end its turn: acid,
+lava, fire and the wind on one side, and on the other, for the harder levels,
+what the enemy could deal it next turn against what it could deal back. It
+plays at three levels — easy misjudges and leaves points unspent, normal
+plans and reads the ground, hard keeps out of reach and raises cover — and
+each island sets its own in `islands.json`, rising across the campaign. The
+rulers of the islands each fight their own way, in the set of the champion
+their bestiary sheet names and from a profile of the same id, whose `tactic`
+is the sentence a player reads about it: the Ash King waits for three burns
+before he sets them off, Mother Gloop drags you into her acid. The bot never
+touches the match's dice, so a match between bots is the same match every
+time from the same seed, and its recording replays.
+Balance is measured rather than argued: every champion is played against
+every champion, each in its set, by the server's own bot over seeded matches.
+CI fails if fights stop lasting four to eight turns, and flags any champion
+that wins more than 65% of a matchup. Under the planning bot several do, and
+Sef wins too little: the planner does not yet play the pylon swap, the
+menhirs or the cage, so those numbers say as much about the bot as about the
+sets.
 
 **Rendering is hand-written.** No game engine: the isometric projection, the
 back-to-front draw order, the screen-to-grid hit test and the sprite-sheet

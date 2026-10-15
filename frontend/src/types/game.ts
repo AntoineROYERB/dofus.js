@@ -1,4 +1,4 @@
-import { Effect, Loadout, SpellState } from "./message";
+import { Effect, Loadout, OpponentLevel, SpellState } from "./message";
 
 export type Position = {
   x: number;
@@ -113,6 +113,10 @@ export interface CreateRoomAction extends ActionEnvelope {
   botChampion?: string;
   /** How it behaves: "fight", the default, or "dummy", which stands still. */
   botMode?: "fight" | "dummy";
+  /** How well it fights. Empty leaves it to the island. */
+  botLevel?: OpponentLevel;
+  /** A ruler of an island, by bestiary id, with its own set and tactic. */
+  boss?: string;
   /** The island to fight on, which decides the ground. Empty is a plain arena. */
   island?: string;
 }

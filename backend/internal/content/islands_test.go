@@ -109,6 +109,15 @@ func TestMalformedIslandsAreRefused(t *testing.T) {
 			d["palettes"].(map[string]any)["ice"].(map[string]any)["accent"] = "blue"
 		}, `palettes["ice"].accent`, "#rrggbb"},
 		{"misspelt field", func(d map[string]any) { island(d, 1)["bos"] = "x" }, "(document)", `unknown field "bos"`},
+		{"unknown opponent level", func(d map[string]any) {
+			island(d, 1)["opponentLevel"] = "nightmare"
+		}, "islands[1].opponentLevel", `unknown level "nightmare"`},
+		{"no opponent level", func(d map[string]any) { delete(island(d, 1), "opponentLevel") }, "islands[1].opponentLevel", `unknown level ""`},
+		{"boss with no champion", func(d map[string]any) { delete(monster(d, "boss_kraken"), "champion") }, "bestiary[20].champion", "needs the champion whose set it fights in"},
+		{"boss of an unknown champion", func(d map[string]any) {
+			monster(d, "boss_kraken")["champion"] = "necromancer"
+		}, "bestiary[20].champion", `unknown champion "necromancer"`},
+		{"boss with no tactic", func(d map[string]any) { monster(d, "legend_roi_cendre")["tactic"] = " " }, "bestiary[24].tactic", "must not be empty"},
 	}
 
 	for _, tc := range cases {
@@ -127,7 +136,7 @@ func TestANewIslandIsOnlyData(t *testing.T) {
 		d["armours"] = append(d["armours"].([]any), map[string]any{"id": "tidewalker", "name": "Tidewalker", "element": "Water"})
 		d["islands"] = append(d["islands"].([]any), map[string]any{
 			"id": "lagoon", "name": "Lagoon", "element": "Water", "terrains": []any{"shallow_water", "tall_grass"},
-			"palette": "water", "lineage": []any{"poulpinet"}, "boss": "", "armour": "tidewalker", "fights": 3,
+			"palette": "water", "lineage": []any{"poulpinet"}, "boss": "", "armour": "tidewalker", "fights": 3, "opponentLevel": "normal",
 		})
 	})
 	cat, err := Parse(sources(validSpells(t), data), config.DefaultBalance, testBounds)
@@ -160,4 +169,14 @@ func mutateIslands(t *testing.T, mutate func(map[string]any)) []byte {
 
 func island(doc map[string]any, i int) map[string]any {
 	return doc["islands"].([]any)[i].(map[string]any)
+}
+
+// monster is the bestiary entry of an id, to mutate.
+func monster(d map[string]any, id string) map[string]any {
+	for _, m := range d["bestiary"].([]any) {
+		if entry := m.(map[string]any); entry["id"] == id {
+			return entry
+		}
+	}
+	panic("no monster " + id)
 }

@@ -110,16 +110,36 @@ func TestChampionBalanceUnderSimulation(t *testing.T) {
 		n = 10
 	}
 
+	// Every pairing is played on its own, at once: the bot thinks hard enough
+	// now that playing them one after the other took most of a minute under
+	// the race detector. Each pairing's results are kept apart and tallied
+	// once they are all in, in a fixed order.
+	results := make([][]matchResult, len(cat.Champions)*len(cat.Champions))
+	t.Run("pairings", func(t *testing.T) {
+		for i, a := range cat.Champions {
+			for j, b := range cat.Champions {
+				t.Run(a.ID+"-"+b.ID, func(t *testing.T) {
+					t.Parallel()
+					out := make([]matchResult, n)
+					for k := 0; k < n; k++ {
+						out[k] = simulateMatch(t, cat, int64(1_000_000+i*10_000+j*1_000+k), a.ID, b.ID)
+					}
+					results[i*len(cat.Champions)+j] = out
+				})
+			}
+		}
+	})
+	if t.Failed() {
+		return
+	}
+
 	wins := map[[2]string]int{}
 	played := map[[2]string]int{}
 	var lengths []int
 	perChampionLengths := map[string][]int{}
-
 	for i, a := range cat.Champions {
 		for j, b := range cat.Champions {
-			for k := 0; k < n; k++ {
-				seed := int64(1_000_000 + i*10_000 + j*1_000 + k)
-				r := simulateMatch(t, cat, seed, a.ID, b.ID)
+			for _, r := range results[i*len(cat.Champions)+j] {
 				lengths = append(lengths, r.turns)
 				perChampionLengths[a.ID] = append(perChampionLengths[a.ID], r.turns)
 				if a.ID == b.ID {
