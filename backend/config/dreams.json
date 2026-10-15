@@ -18,11 +18,11 @@
   "floors": {
     "bossEvery": 5,
     "baseThreat": 20,
-    "threatPerFloor": 6,
+    "threatPerFloor": 5,
     "partyThreat": [
       100,
-      180,
-      250
+      190,
+      280
     ],
     "maxMonsters": 6,
     "healthPerFloor": 4,
@@ -76,12 +76,44 @@
       }
     ],
     "bossHealth": [
-      150,
-      220,
-      290
+      110,
+      200,
+      280
     ],
     "escortFrom": 10,
-    "secondTwistFrom": 10
+    "secondTwistFrom": 10,
+    "monsterBoons": [
+      {
+        "from": 8,
+        "boon": "sharpened"
+      },
+      {
+        "from": 11,
+        "boon": "thick-skin"
+      },
+      {
+        "from": 14,
+        "boon": "sharpened"
+      },
+      {
+        "from": 17,
+        "boon": "focus"
+      },
+      {
+        "from": 20,
+        "boon": "sharpened"
+      },
+      {
+        "from": 23,
+        "boon": "thick-skin"
+      }
+    ],
+    "bossBoons": [
+      {
+        "from": 10,
+        "boon": "early-ultimate"
+      }
+    ]
   },
   "monsters": [
     {

@@ -156,8 +156,21 @@ type DreamFloors struct {
 	BossHealth []int `json:"bossHealth"`
 	// EscortFrom is the first floor a boss brings monsters of its island.
 	EscortFrom int `json:"escortFrom"`
-	// TwistFrom is the floor from which a room may carry a second twist.
+	// SecondTwistFrom is the floor from which a room may carry a second
+	// twist.
 	SecondTwistFrom int `json:"secondTwistFrom"`
+	// MonsterBoons are boons every monster and ruler carries from a floor
+	// on: what keeps them a match for a party that has been taking boons of
+	// its own all the way up.
+	MonsterBoons []DreamFloorBoon `json:"monsterBoons"`
+	// BossBoons are boons the rulers alone carry from a floor on.
+	BossBoons []DreamFloorBoon `json:"bossBoons"`
+}
+
+// DreamFloorBoon is a boon the dream's side carries from a floor on.
+type DreamFloorBoon struct {
+	From int    `json:"from"`
+	Boon string `json:"boon"`
 }
 
 // DreamDifficulty is one kind of room: how much more threat it carries, how

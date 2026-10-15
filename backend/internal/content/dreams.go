@@ -59,7 +59,11 @@ func (v *validator) dream(file string, d types.Dream, cat Catalogue) {
 	v.dreamMonsters(file, d, cat)
 	v.dreamTwists(file, d)
 	v.dreamBoons(file, d, cat)
-	v.dreamFloors(file, d.Floors)
+	boonIDs := map[string]bool{}
+	for _, b := range d.Boons {
+		boonIDs[b.ID] = true
+	}
+	v.dreamFloors(file, d.Floors, boonIDs)
 	v.dreamWorld(file, d, cat)
 }
 
@@ -236,7 +240,7 @@ func (v *validator) dreamBoons(file string, d types.Dream, cat Catalogue) {
 	}
 }
 
-func (v *validator) dreamFloors(file string, f types.DreamFloors) {
+func (v *validator) dreamFloors(file string, f types.DreamFloors, boonIDs map[string]bool) {
 	field := func(name string) string { return "floors." + name }
 	if f.BossEvery < 2 {
 		v.add(file, field("bossEvery"), "is %d, must be at least 2", f.BossEvery)
@@ -311,6 +315,17 @@ func (v *validator) dreamFloors(file string, f types.DreamFloors) {
 	}
 	if f.SecondTwistFrom < 1 {
 		v.add(file, field("secondTwistFrom"), "is %d, must be a floor", f.SecondTwistFrom)
+	}
+	for list, boons := range map[string][]types.DreamFloorBoon{"monsterBoons": f.MonsterBoons, "bossBoons": f.BossBoons} {
+		for i, b := range boons {
+			at := field(fmt.Sprintf("%s[%d]", list, i))
+			if b.From < 1 {
+				v.add(file, at+".from", "is %d, must be a floor", b.From)
+			}
+			if !boonIDs[b.Boon] {
+				v.add(file, at+".boon", "unknown boon %q", b.Boon)
+			}
+		}
 	}
 }
 
