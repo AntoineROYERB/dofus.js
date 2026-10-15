@@ -195,10 +195,10 @@ time from the same seed, and its recording replays.
 Balance is measured rather than argued: every champion is played against
 every champion, each in its set, by the server's own bot over seeded matches.
 CI fails if fights stop lasting four to eight turns, and flags any champion
-that wins more than 65% of a matchup. Under the planning bot several do, and
-Sef wins too little: the planner does not yet play the pylon swap, the
-menhirs or the cage, so those numbers say as much about the bot as about the
-sets.
+that wins more than 65% of a matchup. The planner now plays every mechanic
+the sets carry, so what the flag shows is the sets themselves: Mother Brine
+wins too much (up to 78% against Sef) and Old Grund loses to her, which is a
+tuning job for the content rather than for the bot.
 
 **Rendering is hand-written.** No game engine: the isometric projection, the
 back-to-front draw order, the screen-to-grid hit test and the sprite-sheet
