@@ -106,7 +106,7 @@ func (l *Lobby) List() []types.RoomSummary {
 			ID:         room.ID,
 			Name:       room.Name,
 			Players:    room.Game.PlayerCount(),
-			MaxPlayers: MaxPlayersPerRoom,
+			MaxPlayers: room.Game.Capacity(),
 			Status:     room.Game.Status(),
 		})
 	}
@@ -124,7 +124,7 @@ func (r *Room) CanJoin() error {
 	if r.Game.Status() != types.StatusCreatingPlayer {
 		return ErrRoomStarted
 	}
-	if r.Game.PlayerCount() >= MaxPlayersPerRoom {
+	if r.Game.PlayerCount() >= r.Game.Capacity() {
 		return ErrRoomFull
 	}
 	return nil

@@ -78,7 +78,9 @@ type Recording struct {
 	// Island is what the match was fought on, which decided the ground it was
 	// dealt. Absent on a plain arena, and on every recording made before
 	// islands had ground.
-	Island   string    `json:"island,omitempty"`
+	Island string `json:"island,omitempty"`
+	// Seats is how many fighters the fight held, absent on a duel.
+	Seats    int       `json:"seats,omitempty"`
 	Commands []Command `json:"commands"`
 }
 
@@ -87,6 +89,9 @@ type (
 	joinPayload struct {
 		UserName  string                    `json:"userName"`
 		Character types.CharacterAppearance `json:"character"`
+		// Team is empty in a duel, which is every recording made before
+		// fights had sides.
+		Team string `json:"team,omitempty"`
 	}
 	addBotPayload struct {
 		Champion string `json:"champion"`
@@ -99,6 +104,7 @@ type (
 		// would have chosen, and its choices are in the recording already.
 		Level string `json:"level,omitempty"`
 		Boss  string `json:"boss,omitempty"`
+		Team  string `json:"team,omitempty"`
 	}
 	connectPayload struct {
 		Connected bool `json:"connected"`
@@ -262,8 +268,18 @@ func (g *Game) Recording() Recording {
 		TurnDurationMS: g.turnDuration.Milliseconds(),
 		Rules:          rulesFingerprint(g.catalogue),
 		Island:         g.island,
+		Seats:          g.recordedSeatsLocked(),
 		Commands:       append([]Command(nil), g.commands...),
 	}
+}
+
+// recordedSeatsLocked is the seat count as a recording writes it: nothing for
+// a duel, so a duel's recording is the one it always was.
+func (g *Game) recordedSeatsLocked() int {
+	if g.seats == MinPlayers {
+		return 0
+	}
+	return g.seats
 }
 
 // CommandCount reports how many commands the match has accepted, which is the
@@ -315,6 +331,7 @@ func newReplayGame(rec Recording) (*Game, *int64, error) {
 		TurnDuration: time.Duration(rec.TurnDurationMS) * time.Millisecond,
 		Clock:        func() time.Time { return time.UnixMilli(at) },
 		Island:       rec.Island,
+		Seats:        rec.Seats,
 	})
 	return g, &at, nil
 }
@@ -358,7 +375,7 @@ func (g *Game) applyCommand(cmd Command) error {
 		if err := json.Unmarshal(cmd.Payload, &p); err != nil {
 			return err
 		}
-		return g.AddPlayer(cmd.UserID, p.UserName, p.Character)
+		return g.AddPlayerOnTeam(cmd.UserID, p.UserName, p.Character, p.Team)
 
 	case CmdAddBot:
 		var p addBotPayload
@@ -375,7 +392,7 @@ func (g *Game) applyCommand(cmd Command) error {
 		if !ok {
 			return fmt.Errorf("recording asks for opponent level %q", p.Level)
 		}
-		id, err := g.AddBotOf(BotSpec{Champion: p.Champion, Mode: mode, Level: level, Boss: p.Boss})
+		id, err := g.AddBotOf(BotSpec{Champion: p.Champion, Mode: mode, Level: level, Boss: p.Boss, Team: p.Team})
 		if err != nil {
 			return err
 		}

@@ -265,6 +265,11 @@ func (b *botBoard) othersThan(id string) occupied {
 				return true
 			}
 		}
+		for _, f := range b.allies {
+			if f.id != id && f.pos == p {
+				return true
+			}
+		}
 		return false
 	}
 }

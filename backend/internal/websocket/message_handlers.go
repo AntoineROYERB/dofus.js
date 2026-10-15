@@ -213,7 +213,7 @@ func handleCreateCharacter(h *Hub, c *Client, data []byte) {
 	if !ok {
 		return
 	}
-	if room.Game.PlayerCount() >= game.MaxPlayersPerRoom && !room.Game.HasPlayer(c.ID) {
+	if room.Game.PlayerCount() >= room.Game.Capacity() && !room.Game.HasPlayer(c.ID) {
 		h.reject(c, "create_character", in.MessageID, game.ErrRoomFull)
 		return
 	}

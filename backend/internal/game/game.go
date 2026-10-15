@@ -90,7 +90,12 @@ type Game struct {
 	// rematch cannot hand out a sequence number twice.
 	logSeq int64
 	winner string
-	rng    *rand.Rand
+	// winnerTeam is the team that won a fight between teams; empty in a duel.
+	winnerTeam string
+	// seats is how many fighters this fight holds, and how many have to be
+	// seated before placement opens: two for a duel.
+	seats int
+	rng   *rand.Rand
 
 	turnDuration time.Duration
 	turnEndsAt   time.Time
@@ -134,6 +139,9 @@ type Options struct {
 	// it is dealt. Empty, or an island the catalogue does not know, is a
 	// plain arena with no ground at all.
 	Island string
+	// Seats is how many fighters the fight holds, and how many have to be
+	// seated before it starts. Zero is a duel.
+	Seats int
 }
 
 func New() *Game { return NewWithSeed(NewSeed()) }
@@ -162,7 +170,14 @@ func NewWithOptions(opts Options) *Game {
 		cat = *opts.Content
 	}
 
+	if opts.Seats < MinPlayers {
+		opts.Seats = MinPlayers
+	}
+	if opts.Seats > MaxSeats {
+		opts.Seats = MaxSeats
+	}
 	g := &Game{
+		seats:        opts.Seats,
 		status:       types.StatusCreatingPlayer,
 		players:      make(map[string]types.Player),
 		catalogue:    cat,
@@ -211,7 +226,8 @@ func (g *Game) SnapshotFor(viewerID string) types.GameState {
 	state := g.snapshotLocked()
 	if g.status == types.StatusPositionCharacters {
 		for id, p := range state.Players {
-			if id == viewerID {
+			// A teammate's cell is no secret: the party places together.
+			if g.sameSideLocked(id, viewerID) {
 				continue
 			}
 			p.Character.Position = nil
@@ -326,6 +342,12 @@ func (g *Game) Winner() (string, bool) {
 // from the loadout: the client only chooses a name, a colour, a symbol and
 // what its character wears and carries.
 func (g *Game) AddPlayer(userID, userName string, look types.CharacterAppearance) error {
+	return g.AddPlayerOnTeam(userID, userName, look, "")
+}
+
+// AddPlayerOnTeam seats a player on one side of a fight between teams. An
+// empty team is a duel's seat.
+func (g *Game) AddPlayerOnTeam(userID, userName string, look types.CharacterAppearance, team string) error {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
@@ -334,6 +356,9 @@ func (g *Game) AddPlayer(userID, userName string, look types.CharacterAppearance
 	}
 	if _, exists := g.players[userID]; exists {
 		return ErrAlreadyHasCharacter
+	}
+	if len(g.players) >= g.capacityLocked() {
+		return ErrRoomFull
 	}
 	if !namePattern.MatchString(look.Name) {
 		return ErrInvalidName
@@ -351,13 +376,15 @@ func (g *Game) AddPlayer(userID, userName string, look types.CharacterAppearance
 	// played rather than leaving "the default" to be worked out again on
 	// replay.
 	look.Loadout = kit.Loadout
-	g.recordLocked(userID, CmdJoin, joinPayload{UserName: userName, Character: look})
+	g.recordLocked(userID, CmdJoin, joinPayload{UserName: userName, Character: look, Team: team})
 
-	g.players[userID] = newPlayer(userID, userName, kit, types.Character{
+	p := newPlayer(userID, userName, kit, types.Character{
 		Name:   look.Name,
 		Color:  look.Color,
 		Symbol: symbol,
 	})
+	p.Team = team
+	g.players[userID] = p
 	g.startPlacementIfReadyLocked()
 	return nil
 }
@@ -462,7 +489,7 @@ func (g *Game) RemovePlayer(userID string) bool {
 			g.applyTurnFlagsLocked()
 		}
 	case types.StatusPositionCharacters:
-		if len(g.players) < MinPlayers {
+		if len(g.players) < MinPlayers || g.sidesSeatedLocked() < 2 {
 			g.returnToLobbyLocked()
 			return true
 		}
@@ -534,6 +561,7 @@ func (g *Game) returnToLobbyLocked() {
 	g.turnIdx = 0
 	g.turnOrder = nil
 	g.winner = ""
+	g.winnerTeam = ""
 	g.turnEndsAt = time.Time{}
 	g.log = nil
 	g.obstacles = nil
@@ -672,7 +700,7 @@ func (g *Game) HasPlayer(userID string) bool {
 // decide is where to stand. The button that used to say Ready said nothing
 // the act of joining had not already said.
 func (g *Game) startPlacementIfReadyLocked() {
-	if g.status != types.StatusCreatingPlayer || len(g.players) < MinPlayers {
+	if g.status != types.StatusCreatingPlayer || len(g.players) < g.capacityLocked() {
 		return
 	}
 	g.beginPlacementLocked()
@@ -681,22 +709,42 @@ func (g *Game) startPlacementIfReadyLocked() {
 func (g *Game) beginPlacementLocked() {
 	ids := g.sortedPlayerIDsLocked()
 
-	// Initiative is rolled once and then fixed. It used to be re-derived from
-	// Go map iteration order on every turn, which reshuffled it each time.
-	g.rng.Shuffle(len(ids), func(i, j int) { ids[i], ids[j] = ids[j], ids[i] })
-	g.turnOrder = ids
+	if g.teamedLocked() {
+		// A fight between teams takes turns team by team, and each team
+		// starts from a block of its own.
+		teams, rosters := g.teamRostersLocked()
+		g.turnOrder = g.teamInitiativeLocked(teams, rosters)
+		blocks := DealTeamPositions(teams, rosters, g.rng)
+		for _, team := range teams {
+			for _, id := range rosters[team] {
+				p := g.players[id]
+				p.Character.InitialPositions = append([]types.Position(nil), blocks[team]...)
+				g.players[id] = p
+			}
+		}
+	} else {
+		// Initiative is rolled once and then fixed. It used to be re-derived
+		// from Go map iteration order on every turn, which reshuffled it each
+		// time.
+		g.rng.Shuffle(len(ids), func(i, j int) { ids[i], ids[j] = ids[j], ids[i] })
+		g.turnOrder = ids
 
-	for id, positions := range DealInitialPositions(ids, g.rng) {
-		p := g.players[id]
-		p.Character.InitialPositions = positions
-		g.players[id] = p
+		for id, positions := range DealInitialPositions(ids, g.rng) {
+			p := g.players[id]
+			p.Character.InitialPositions = positions
+			g.players[id] = p
+		}
 	}
 
 	// Cover is scattered once the starting cells are known, so nobody is walled
 	// in before the match begins.
 	reserved := make([]types.Position, 0, len(ids)*InitialPositionChoices)
 	for _, id := range ids {
-		reserved = append(reserved, g.players[id].Character.InitialPositions...)
+		for _, cell := range g.players[id].Character.InitialPositions {
+			if !containsPosition(reserved, cell) {
+				reserved = append(reserved, cell)
+			}
+		}
 	}
 	g.obstacles = make(map[types.Position]bool)
 	for _, p := range GenerateObstacles(reserved, g.rng) {
@@ -924,8 +972,13 @@ func (g *Game) advanceTurnLocked() {
 		return
 	}
 
+	// Counted from where the turn was, not from wherever the search has got
+	// to: a fighter who falls to their own wounds as their turn opens moves
+	// turnIdx on to them, and counting from there skipped whoever came next.
+	// A duel never saw it, because that fall ends the fight.
+	from := g.turnIdx
 	for step := 1; step <= n; step++ {
-		idx := (g.turnIdx + step) % n
+		idx := (from + step) % n
 		// Passing index 0 means initiative wrapped around: a full round elapsed,
 		// whether or not the player at that index is the one who ends up acting.
 		if idx == 0 {
@@ -974,21 +1027,23 @@ func (g *Game) checkGameOverLocked() bool {
 		return g.status == types.StatusGameOver
 	}
 
-	alive := make([]string, 0, len(g.players))
-	for id, p := range g.players {
-		if p.Character.IsAlive {
-			alive = append(alive, id)
-		}
-	}
-	if len(alive) > 1 {
+	// The fight is over once a single side is left on its feet. In a duel a
+	// side is one fighter, so that is the last one standing, as it always was.
+	sides := g.sidesStandingLocked()
+	if len(sides) > 1 {
 		return false
 	}
 
 	g.status = types.StatusGameOver
-	if len(alive) == 1 {
-		g.winner = g.players[alive[0]].Character.Name
+	for _, alive := range sides {
+		g.winner = g.winnerNamesLocked(alive)
+		g.winnerTeam = g.players[alive[0]].Team
+		text := "wins the fight"
+		if len(alive) > 1 {
+			text = "win the fight"
+		}
 		g.appendLogLocked(types.LogEntry{
-			Actor: g.players[alive[0]].Character.Name, Kind: types.LogEnd, Text: "wins the fight",
+			Actor: g.winner, Kind: types.LogEnd, Text: text,
 		})
 	}
 	for id, p := range g.players {
@@ -1027,8 +1082,11 @@ func (g *Game) requireActingPlayerLocked(userID string) (types.Player, error) {
 }
 
 func (g *Game) playerAtLocked(pos types.Position) (string, bool) {
+	// Only the living stand anywhere. A duel is over the moment someone
+	// falls, so it never mattered; once a fight holds more than two, a fallen
+	// fighter lying on a cell would wall it off for the rest of the fight.
 	for id, p := range g.players {
-		if p.Character.Position != nil && *p.Character.Position == pos {
+		if p.Character.IsAlive && p.Character.Position != nil && *p.Character.Position == pos {
 			return id, true
 		}
 	}

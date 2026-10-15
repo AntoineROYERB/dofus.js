@@ -97,6 +97,11 @@ type Player struct {
 	// the bot's own business, and a boss already shows under its own name.
 	BotLevel string `json:"-"`
 	Boss     string `json:"-"`
+	// Team is the side a fighter is on when a fight is more than a duel: a
+	// party of players against a room of monsters. Empty in a duel, where
+	// every fighter is their own side, so a duel's snapshot says exactly
+	// what it always said.
+	Team string `json:"team,omitempty"`
 	// Spells tracks per-spell usage, keyed the same way as the catalogue, so
 	// the client can grey out what cannot be cast right now. A spell missing
 	// from it is not on this player's bar, and casting it is refused.

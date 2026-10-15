@@ -413,6 +413,8 @@ type BotSpec struct {
 	// Boss is a ruler of an island from the bestiary, which brings its own
 	// set, name and way of fighting. Empty for an ordinary opponent.
 	Boss string
+	// Team is the side it fights on; empty in a duel.
+	Team string
 }
 
 // AddBotOf drops a server-played opponent into the room, already ready to
@@ -425,7 +427,7 @@ func (g *Game) AddBotOf(spec BotSpec) (string, error) {
 	if g.status != types.StatusCreatingPlayer {
 		return "", ErrGameInProgress
 	}
-	if len(g.players) >= MaxPlayersPerRoom {
+	if len(g.players) >= g.capacityLocked() {
 		return "", ErrRoomFull
 	}
 	if _, ok := ParseBotLevel(string(spec.Level)); !ok {
@@ -457,10 +459,18 @@ func (g *Game) AddBotOf(spec BotSpec) (string, error) {
 		}
 	}
 
-	id := fmt.Sprintf("%s%d", BotIDPrefix, len(g.players)+1)
+	// Named by seat. In a duel the seat is free by construction; in a room
+	// that fills and empties before a fight between teams starts, the next
+	// free number is taken instead.
+	n := len(g.players) + 1
+	id := fmt.Sprintf("%s%d", BotIDPrefix, n)
+	for _, taken := g.players[id]; taken; _, taken = g.players[id] {
+		n++
+		id = fmt.Sprintf("%s%d", BotIDPrefix, n)
+	}
 	// The level is written down as it was resolved, so a recording replays
 	// the same opponent even after the island's level is retuned.
-	g.recordLocked(id, CmdAddBot, addBotPayload{Champion: champion.ID, Mode: string(spec.Mode), Level: string(spec.Level), Boss: spec.Boss})
+	g.recordLocked(id, CmdAddBot, addBotPayload{Champion: champion.ID, Mode: string(spec.Mode), Level: string(spec.Level), Boss: spec.Boss, Team: spec.Team})
 	name := champion.Name
 	if boss.Name != "" {
 		name = boss.Name
@@ -474,6 +484,7 @@ func (g *Game) AddBotOf(spec BotSpec) (string, error) {
 	p.IsDummy = spec.Mode == BotStandsStill
 	p.BotLevel = string(spec.Level)
 	p.Boss = spec.Boss
+	p.Team = spec.Team
 	g.players[id] = p
 	g.startPlacementIfReadyLocked()
 	return id, nil
