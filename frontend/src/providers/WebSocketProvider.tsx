@@ -1,7 +1,19 @@
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import { WebSocketContext } from "../context/WebSocketContext";
-import { ChatMessage, GameState, Message, RoomSummary } from "../types/message";
+import {
+  ChatMessage,
+  DreamView,
+  GameState,
+  Message,
+  RoomSummary,
+} from "../types/message";
 import { GameAction } from "../types/game";
+import {
+  forgetDreamTicket,
+  readDreamTicket,
+  saveDreamTicket,
+} from "../utils/dreamStorage";
+import { generateMessageId } from "../utils/messageUtils";
 
 type WebSocketProviderProps = {
   children: React.ReactNode;
@@ -84,6 +96,9 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
     at: number;
   } | null>(null);
 
+  // The dream this player is climbing, as the server last told it.
+  const [dream, setDream] = useState<DreamView | null>(null);
+
   // Only the latest snapshot is kept. Every state the server ever sent used to
   // pile up in an array that was copied on each message.
   const [gameState, setGameState] = useState<GameState | null>(null);
@@ -95,12 +110,30 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 
   const handleMessage = useCallback((data: Message) => {
     switch (data.type) {
-      case "user_init":
+      case "user_init": {
         // The token is what lets a reload or a dropped connection come back as
         // the same player instead of as a brand new guest.
         localStorage.setItem(TOKEN_KEY, data.token);
         setUserId(data.user.id);
         setUserName(data.user.name);
+        // A server that no longer knows this session may still hold the
+        // run, saved: the member's key takes them back into it.
+        const ticket = readDreamTicket();
+        if (!data.resumed && ticket) {
+          const { messageId, timestamp } = generateMessageId();
+          wsRef.current?.send(
+            JSON.stringify({ type: "dream_resume", messageId, timestamp, ...ticket })
+          );
+        }
+        break;
+      }
+      case "dream_state":
+        setDream(data.run);
+        if (data.run) {
+          saveDreamTicket({ runId: data.run.id, key: data.run.key });
+        } else {
+          forgetDreamTicket();
+        }
         break;
       case "lobby_state":
         setRooms(data.rooms);
@@ -242,6 +275,7 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
         roomName,
         winner,
         rejection,
+        dream,
       }}
     >
       {children}

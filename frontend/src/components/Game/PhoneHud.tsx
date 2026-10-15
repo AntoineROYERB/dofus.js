@@ -11,6 +11,7 @@ import { BOARD } from "../../constants";
 
 const ULTIMATE = "#c99a1a";
 import { SpellCard } from "./SpellCard";
+import { sameSide } from "../../utils/sides";
 import { TurnClock } from "./TurnClock";
 
 /*
@@ -51,7 +52,7 @@ export const TurnBar: React.FC<{
               className={`grid h-7 w-7 place-items-center rounded-full border-2 font-display text-[12px] font-bold text-white ${
                 p.isCurrentTurn ? "border-vermilion" : "border-panel"
               } ${p.character.isAlive ? "" : "opacity-40"}`}
-              style={{ backgroundColor: id === userId ? BOARD.socle.mine : BOARD.socle.theirs }}
+              style={{ backgroundColor: sameSide(players, id, userId) ? BOARD.socle.mine : BOARD.socle.theirs }}
             >
               {p.character.name[0]?.toUpperCase()}
             </span>
@@ -224,7 +225,7 @@ const SpellButton: React.FC<{
         className={locked ? "opacity-40" : undefined}
         style={{ color: selected ? spell.color : spell.ultimate ? "#8a6a10" : undefined }}
       >
-        <SpellGlyph spellId={spell.id} fallback={spell.icon} className="h-6 w-6" />
+        <SpellGlyph spellId={spell.baseId ?? spell.id} fallback={spell.icon} className="h-6 w-6" />
       </span>
       <span className="absolute -bottom-1 -right-1 grid h-[18px] min-w-[18px] place-items-center rounded-full bg-pa px-1 font-mono text-[10px] font-semibold text-white">
         {spell.APCost}

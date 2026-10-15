@@ -10,6 +10,8 @@ interface LeaveDialogProps {
    * pressing Leave and a player pressing something that turned out to.
    */
   replay?: boolean;
+  /** A dream's floor: the party fights on, and a party all gone loses it. */
+  dream?: boolean;
 }
 
 /**
@@ -20,6 +22,7 @@ export const LeaveDialog: React.FC<LeaveDialogProps> = ({
   onConfirm,
   onCancel,
   replay = false,
+  dream = false,
 }) => (
   <div
     role="dialog"
@@ -44,7 +47,9 @@ export const LeaveDialog: React.FC<LeaveDialogProps> = ({
       <p className="mt-3 text-[13.5px] text-graphite">
         {replay
           ? "It counts as a loss, and a fresh tutorial match opens against an opponent that stands still."
-          : "It counts as a loss, and you go back to the lobby."}
+          : dream
+            ? "Your party fights this floor without you; if nobody is left in it, the dream ends."
+            : "It counts as a loss, and you go back to the lobby."}
       </p>
       <div className="mt-6 flex gap-3">
         <button

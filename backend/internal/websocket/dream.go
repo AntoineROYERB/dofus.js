@@ -351,6 +351,11 @@ func handleDreamLeave(h *Hub, c *Client, data []byte) {
 
 // leaveRun takes a member out of their run, for good.
 func (h *Hub) leaveRun(sess *Session, userID string, run *dream.Run) {
+	// A run already over is only let go of: its result stays what it was.
+	if run.Over() {
+		sess.RunID = ""
+		return
+	}
 	if err := run.Leave(userID, game.Content(), time.Now()); err != nil {
 		return
 	}

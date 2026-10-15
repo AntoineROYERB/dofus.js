@@ -55,6 +55,11 @@ export interface ChatMessage {
  */
 export type Spell = {
   id: number;
+  /**
+   * The catalogue spell a fighter's own was made from, when a dream's boon
+   * changed it: what it is drawn and animated as.
+   */
+  baseId?: number;
   name: string;
   color: string;
   icon: string;
@@ -76,7 +81,7 @@ export type Spell = {
   /** Cast once a fight, and not before turn 2. */
   ultimate: boolean;
   /** Any cell in range, the caster's own, or a cell with nothing on it. */
-  targeting: "any" | "self" | "empty";
+  targeting: "any" | "self" | "empty" | "fallen";
   /** Cells everyone hit is thrown back; negative drags them in. */
   push: number;
   /** Terrain left on the covered cells for the rest of the fight. */
@@ -126,7 +131,9 @@ export type SpellSpecial =
   /** A menhir on each side of the target, across the cast. */
   | "flank"
   /** Rocks round the target for a while, open towards the caster. */
-  | "cage";
+  | "cage"
+  /** Stands a fallen ally back up where they fell, once a fight. */
+  | "revive";
 
 /** Terrain a spell spreads over its area. */
 export type SpreadTerrain = "fire" | "smoke" | "water" | "ice" | "trap";
@@ -397,6 +404,54 @@ export type Island = {
   opponentLevel: OpponentLevel;
 };
 
+export type Rarity = "common" | "rare" | "legendary";
+
+export type DreamMonster = {
+  id: string;
+  loadout: Loadout;
+  bar: string[];
+  health: number;
+  actionPoints: number;
+  movementPoints: number;
+  threat: number;
+  color: string;
+};
+
+export type DreamTwist = {
+  id: string;
+  name: string;
+  description: string;
+  kind: string;
+};
+
+export type DreamBoon = {
+  id: string;
+  name: string;
+  description: string;
+  rarity: Rarity;
+  icon: string;
+  grimoire?: string;
+  stacks?: boolean;
+  effect: { kind: string; value?: number };
+};
+
+export type DreamDifficulty = {
+  id: string;
+  name: string;
+  threat: number;
+  twists: number;
+  rarities: Rarity[];
+};
+
+export type DreamContent = {
+  monsters: DreamMonster[];
+  twists: DreamTwist[];
+  boons: DreamBoon[];
+  floors: { bossEvery: number; difficulties: DreamDifficulty[] };
+  islands: string[];
+  bosses: string[];
+};
+
 export type ContentResponse = {
   spells: SpellBook;
   outfits: Outfit[];
@@ -412,6 +467,8 @@ export type ContentResponse = {
   palettes: { [id: string]: IslandPalette };
   /** In campaign order: the first is the Prairie in the middle of the world. */
   islands: Island[];
+  /** Endless Dreams' monsters, twists, boons and floors. */
+  dream?: DreamContent;
 };
 
 export interface GameState {
@@ -470,7 +527,91 @@ export interface ActionRejectedMessage {
   reason: string;
 }
 
+/** One monster of a dream's room, as it will be seated. */
+export type DreamMonsterSeat = {
+  monster: string;
+  name: string;
+  stats: { health: number; actionPoints: number; movementPoints: number };
+  level: OpponentLevel;
+  color: string;
+  element: string;
+  spells: string[];
+  boons: string[];
+};
+
+export type DreamBossSeat = {
+  boss: string;
+  name: string;
+  champion: string;
+  tactic: string;
+  stats: { health: number; actionPoints: number; movementPoints: number };
+  level: OpponentLevel;
+  boons: string[];
+  element: string;
+};
+
+export type DreamRoom = {
+  index: number;
+  island: string;
+  difficulty: string;
+  monsters: DreamMonsterSeat[] | null;
+  boss?: DreamBossSeat;
+  twists: string[];
+  rarities: Rarity[];
+  turnSeconds?: number;
+};
+
+export type DreamPhase = "gathering" | "room" | "fighting" | "boons" | "over";
+
+export type DreamMember = {
+  userId: string;
+  name: string;
+  color: string;
+  loadout: Loadout;
+  boons: string[];
+  left: boolean;
+  connected: boolean;
+  leader: boolean;
+  pointed: number;
+  chose: boolean;
+};
+
+/** A run as this player is shown it. */
+export type DreamView = {
+  id: string;
+  phase: DreamPhase;
+  floor: number;
+  cleared: number;
+  startSize: number;
+  members: DreamMember[];
+  offer: { floor: number; boss: boolean; rooms: DreamRoom[]; party: number } | null;
+  chosen: number;
+  boonDeadline: number;
+  turns: number;
+  matchIds: string[];
+  you: number;
+  key: string;
+  boonOffer: string[];
+};
+
+export interface DreamStateMessage {
+  type: "dream_state";
+  run: DreamView | null;
+}
+
+export type LeaderboardEntry = {
+  runId: string;
+  size: number;
+  floor: number;
+  turns: number;
+  names: string[];
+  grimoires: string[];
+  matchIds: string[];
+  endedAt: string;
+};
+
 export type Message =
+  | DreamStateMessage
   | UserInitMessage
   | ChatMessage
   | GameStateMessage

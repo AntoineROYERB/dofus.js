@@ -195,11 +195,14 @@ export const spec = (spell: Spell): string => {
   if (spell.targeting === "self") parts.push("on yourself");
   else if (spell.special === "swap") parts.push("on your pylon");
   else if (spell.targeting === "empty") parts.push(`a free cell within ${spell.range}`);
+  else if (spell.targeting === "fallen") parts.push(`a fallen ally within ${spell.range}`);
   else parts.push(`range ${spell.range}`);
   if (spell.relayed) parts.push("or from your relay");
   const shape = shapes[spell.areaOfEffect];
   if (shape) parts.push(shape);
-  if (spell.ultimate) {
+  if (spell.special === "revive") {
+    parts.push("once a fight");
+  } else if (spell.ultimate) {
     parts.push(`once a fight, from turn ${RULES.ultimateFromTurn}`);
   } else if (spell.cooldown > 0) {
     parts.push(`${spell.cooldown} turn cooldown`);

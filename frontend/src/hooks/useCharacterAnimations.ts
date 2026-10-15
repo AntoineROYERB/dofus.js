@@ -207,7 +207,12 @@ export const useCharacterAnimations = (
             type: "attack",
             startTime: Date.now(),
             direction: direction,
-            spellId: cast?.spellId,
+            // A fighter's own spell, changed by a boon, plays as the spell
+            // it was made from.
+            spellId:
+              cast?.spellId !== undefined
+                ? latestGameState.spells?.[String(cast.spellId)]?.baseId ?? cast.spellId
+                : undefined,
           };
         }
       }
@@ -427,7 +432,9 @@ export const useCharacterAnimations = (
         for (const playerId in players) {
           if (currentAnimations[playerId]) continue;
 
-          if (players[playerId].character?.position) {
+          // A fighter who fell stays down once their fall has played: only
+          // the living stand on the board. A revive brings them back.
+          if (players[playerId].character?.position && players[playerId].character.isAlive) {
             newRenderState[playerId] = {
               screenPosition: getCharacterScreenPos(
                 players[playerId].character.position,

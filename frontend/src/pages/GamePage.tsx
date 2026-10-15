@@ -52,19 +52,21 @@ import { infusedBook, unavailableReason } from "../utils/spellUtils";
 import { markDefeated, readDefeated } from "../utils/progressStorage";
 import { useContent } from "../hooks/useContent";
 import { hapticGameOver, hapticTurnStart } from "../lib/native";
+import { sameSide, teamed } from "../utils/sides";
+import { RULES } from "../utils/terrain";
 
 /** Why the match is being left: back to the list, or into a fresh tutorial. */
 type LeaveIntent = "lobby" | "tutorial";
 
 /** What the turn zone says above the countdown. */
-const phaseLabel = (status: GameStatus, isMyTurn: boolean | undefined) => {
+const phaseLabel = (status: GameStatus, isMyTurn: boolean | undefined, allyTurn = false) => {
   switch (status) {
     case GAME_STATUS.CREATING_PLAYER:
       return "Getting ready";
     case GAME_STATUS.POSITION_CHARACTERS:
       return "Placement";
     case GAME_STATUS.PLAYING:
-      return isMyTurn ? "Your turn" : "Opponent's turn";
+      return isMyTurn ? "Your turn" : allyTurn ? "Ally's turn" : "Opponent's turn";
     default:
       return "Over";
   }
@@ -80,8 +82,16 @@ function GamePage() {
     roomName,
     winner,
     rejection,
+    dream,
   } = useWebSocket();
   const navigate = useNavigate();
+  /*
+   * A floor of Endless Dreams. The server seats the party itself, the run
+   * moves on win or lose — no rematch — and the solo arc and the tutorial
+   * have nothing to do with it.
+   */
+  const dreaming = !!dream && dream.phase !== "over";
+  const dreamFight = dreaming || teamed(gameState?.players);
 
   const [selectedSpellId, setSelectedSpellId] = useState<number | null>(null);
   const [selectedPosition, setSelectedPosition] = useState<Position | null>(
@@ -137,7 +147,7 @@ function GamePage() {
   const [tutorialStep, setTutorialStep] = useState(0);
   const tutorialSettled = useRef(false);
   const [peeks, setPeeks] = useState(0);
-  const facingBot = !!bot;
+  const facingBot = !!bot && !dreamFight;
   const positioned = !!isPlayerPositioned;
   useEffect(() => {
     if (!facingBot || tutorialSettled.current) return;
@@ -185,6 +195,17 @@ function GamePage() {
     markTutorialSeen();
     disarmTutorialMatch();
   };
+  /*
+   * The turn as an ultimate reads it. A dream's Early Ultimate opens it from
+   * the first turn, and the bar, the arc and the tour all ask the same
+   * question of the turn number, so they are handed the answer.
+   */
+  const earlyUltimate = !!currentPlayer?.boons?.some(
+    (id) => content?.dream?.boons.find((b) => b.id === id)?.effect.kind === "earlyUltimate"
+  );
+  const ultimateTurn = earlyUltimate
+    ? Math.max(gameState?.turnNumber ?? 0, RULES.ultimateFromTurn)
+    : (gameState?.turnNumber ?? 0);
   // Whether anything on the bar could be cast at all: the same rules the bar
   // itself greys a slot with, so the tour and the slot never disagree.
   const canCast = barSpells(currentPlayer, spellBook).some(
@@ -193,7 +214,7 @@ function GamePage() {
         spell,
         currentPlayer?.spells?.[String(spell.id)],
         currentCharacter?.actionPoints ?? 0,
-        gameState?.turnNumber ?? 0
+        ultimateTurn
       )
   );
   const tutorialFacts: TutorialFacts = {
@@ -221,7 +242,7 @@ function GamePage() {
       setSoloResult(null);
       return;
     }
-    if (!wonAgainstBot || !content) return;
+    if (!wonAgainstBot || !content || dreamFight) return;
     // The computer plays a champion in that champion's own set, so the set
     // says who was beaten.
     const beaten = content.champions.find((c) => c.id === botChampion);
@@ -235,7 +256,7 @@ function GamePage() {
         : unlockedBy(content.champions, beaten.id).map((c) => c.name),
     });
     // Once per result: the bot's snapshot changes every tick, its set does not.
-  }, [winner, wonAgainstBot, botChampion, content]);
+  }, [winner, wonAgainstBot, botChampion, content, dreamFight]);
 
   // On the iOS app the phone buzzes as the turn comes round and as the fight
   // ends; a player can look away from the board without missing either.
@@ -248,10 +269,11 @@ function GamePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [winner]);
 
-  // The server owns room membership; if we are not in one, go back to the list.
+  // The server owns room membership; if we are not in one, go back to the
+  // list — or to the dream, between two of its floors.
   useEffect(() => {
-    if (!roomId) navigate("/lobby", { replace: true });
-  }, [roomId, navigate]);
+    if (!roomId) navigate(dream ? "/dream" : "/lobby", { replace: true });
+  }, [roomId, navigate, dream]);
 
   useEffect(() => {
     if (!character) navigate("/", { replace: true });
@@ -260,6 +282,8 @@ function GamePage() {
   useEffect(() => {
     if (!connected || !roomId || !character) return;
     if (userHasCharacter || characterRequested.current) return;
+    // A dream's party is seated by the server, carrying its boons.
+    if (dreaming) return;
 
     // A saved loadout is sent whole once the content says what it resolves
     // to; without the content the server is left to deal its default set.
@@ -273,9 +297,11 @@ function GamePage() {
       timestamp,
       character: { ...character, loadout },
     });
-  }, [connected, roomId, character, userHasCharacter, sendGameAction, content, contentFailed]);
+  }, [connected, roomId, character, userHasCharacter, sendGameAction, content, contentFailed, dreaming]);
 
   const act = (action: GameAction) => sendGameAction(action);
+  const playing = gameState?.turnOrder.find((id) => gameState.players[id]?.isCurrentTurn);
+  const allyTurn = !!playing && playing !== userId && sameSide(gameState?.players, userId, playing);
 
   const handleSelectedPosition = (position: Position | null) =>
     setSelectedPosition(position);
@@ -492,16 +518,28 @@ function GamePage() {
         {winner && (
           <GameOverModal
             winner={winner}
-            onPlayAgain={handlePlayAgain}
+            onPlayAgain={dreamFight ? undefined : handlePlayAgain}
             onExit={() => handleLeave()}
             farewell={soloResult?.farewell}
             unlocked={soloResult?.unlocked}
+            dream={
+              dreamFight
+                ? {
+                    won: !!currentPlayer?.team &&
+                      Object.values(gameState?.players ?? {}).some(
+                        (p) => p.character.isAlive && p.team === currentPlayer.team
+                      ),
+                    floor: dream?.floor ?? 0,
+                  }
+                : undefined
+            }
           />
         )}
 
         {leaveAsked && !winner && (
           <LeaveDialog
             replay={leaveAsked === "tutorial"}
+            dream={dreamFight}
             onConfirm={() => handleLeave(leaveAsked)}
             onCancel={() => setLeaveAsked(null)}
           />
@@ -570,7 +608,7 @@ function GamePage() {
             <TurnBar
               gameState={gameState}
               userId={userId}
-              phase={phaseLabel(gameStatus, isMyTurn)}
+              phase={phaseLabel(gameStatus, isMyTurn, allyTurn)}
             />
           </div>
           <div className="pointer-events-auto absolute right-[max(12px,env(safe-area-inset-right))] top-[max(8px,env(safe-area-inset-top))] flex gap-2">
@@ -594,7 +632,7 @@ function GamePage() {
             main={main}
             isMyTurn={!!isMyTurn}
             turnEndsAt={gameState?.turnEndsAt ?? 0}
-            turnNumber={gameState?.turnNumber ?? 0}
+            turnNumber={ultimateTurn}
             hasRelay={!!relayOf(gameState?.terrain, userId)}
             status={gameStatus}
             onPeek={() => setPeeks((n) => n + 1)}
@@ -667,7 +705,7 @@ function GamePage() {
             selectedSpellId={selectedSpellId}
             currentPlayer={currentPlayer}
             spells={spellBook}
-            turnNumber={gameState?.turnNumber ?? 0}
+            turnNumber={ultimateTurn}
             hasRelay={!!relayOf(gameState?.terrain, userId)}
             onPeek={() => setPeeks((n) => n + 1)}
           />
@@ -682,7 +720,7 @@ function GamePage() {
               Turn
             </span>
             <span className="hidden truncate font-mono text-[9.5px] uppercase tracking-label text-ink sm:inline">
-              {phaseLabel(gameStatus, isMyTurn)}
+              {phaseLabel(gameStatus, isMyTurn, allyTurn)}
             </span>
             {/* Where the big countdown does not fit, a small one still must. */}
             <span className="sm:hidden">
@@ -693,7 +731,7 @@ function GamePage() {
             </span>
           </div>
           <div className="mt-1 truncate font-mono text-[9.5px] uppercase tracking-label text-ink sm:hidden">
-            {phaseLabel(gameStatus, isMyTurn)}
+            {phaseLabel(gameStatus, isMyTurn, allyTurn)}
           </div>
           <div className="mt-2 hidden sm:block">
             <TurnClock

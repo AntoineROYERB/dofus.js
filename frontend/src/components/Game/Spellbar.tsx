@@ -100,7 +100,7 @@ const SpellSlot: React.FC<{
         style={spell.ultimate ? { color: "#8a6a10" } : undefined}
       >
         <SpellGlyph
-          spellId={spell.id}
+          spellId={spell.baseId ?? spell.id}
           fallback={spell.icon}
           className="h-6 w-6 sm:h-7 sm:w-7"
         />

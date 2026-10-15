@@ -220,6 +220,10 @@ export const SpellFXLayer: React.FC<SpellFXLayerProps> = ({
       };
     };
 
+    // What a spell is drawn as: a fighter's own spell, changed by a boon,
+    // plays the sheets of the spell it was made from.
+    const lookOf = (id: number | undefined) => String(spells[String(id)]?.baseId ?? id);
+
     const highest = log.reduce((max, entry) => Math.max(max, entry.seq), 0);
 
     // A rematch resets the server's log to empty. The canvas only ever gets
@@ -241,7 +245,7 @@ export const SpellFXLayer: React.FC<SpellFXLayerProps> = ({
        */
       for (const entry of log) {
         const event = toEvent(entry);
-        if (event && !manifest?.spells[String(entry.spellId)]) fx.restore(event);
+        if (event && !manifest?.spells[lookOf(entry.spellId)]) fx.restore(event);
       }
       seenSeq.current = highest;
       draw();
@@ -279,7 +283,7 @@ export const SpellFXLayer: React.FC<SpellFXLayerProps> = ({
       }
       const event = toEvent(entry);
       if (!event) continue;
-      const drawn = sheets && manifest?.spells[String(entry.spellId)];
+      const drawn = sheets && manifest?.spells[lookOf(entry.spellId)];
       if (!sheets || !drawn) {
         fx.play(event);
         lastOrigin = event.via ?? event.origin;

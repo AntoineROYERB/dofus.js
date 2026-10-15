@@ -167,8 +167,10 @@ const islandFromUrl = (): string => {
 };
 
 const LobbyPage: React.FC = () => {
-  const { connected, rooms, roomId, sendGameAction, rejection } =
+  const { connected, rooms, roomId, sendGameAction, rejection, dream } =
     useWebSocket();
+  // Endless Dreams opens once the tutorial has been played.
+  const dreamsOpen = hasSeenTutorial() || !!dream;
   const navigate = useNavigate();
   const [newRoomName, setNewRoomName] = useState("");
   const [roomNameFocused, setRoomNameFocused] = useState(false);
@@ -403,6 +405,8 @@ const LobbyPage: React.FC = () => {
           onOpenRooms={() => setSheet("rooms")}
           onOpenHistory={() => navigate("/matches")}
           onOpenHelp={() => setHowToPlayOpen(true)}
+          onOpenDream={dreamsOpen ? () => navigate("/dream") : undefined}
+          dreaming={!!dream && dream.phase !== "over"}
         />
         {sheet === "opponents" && (
           <Sheet title="Rivals" onClose={() => setSheet(null)}>
@@ -506,6 +510,28 @@ const LobbyPage: React.FC = () => {
             ))}
           </div>
         )}
+
+        {/*
+          The climb, once the tutorial has taught the buttons. A dream under
+          way is picked back up from here too.
+        */}
+        <button
+          type="button"
+          onClick={() => navigate("/dream")}
+          disabled={!dreamsOpen}
+          className="mt-3 flex w-full items-baseline justify-between border border-ink px-4 py-3 text-left transition-colors hover:bg-ink hover:text-paper disabled:cursor-not-allowed disabled:border-hairline disabled:text-muted disabled:hover:bg-transparent"
+        >
+          <span className="font-display text-[16px] font-bold">
+            {dream && dream.phase !== "over" ? "Back to your dream" : "Endless Dreams"}
+          </span>
+          <span className="font-mono text-[9.5px] uppercase tracking-label">
+            {!dreamsOpen
+              ? "after the tutorial"
+              : dream && dream.phase !== "over"
+                ? `floor ${Math.max(1, dream.floor)}`
+                : "up to 3 players"}
+          </span>
+        </button>
 
         {champions.length > 1 && (
           <details className="mt-3 border-t border-hairline">
