@@ -169,14 +169,14 @@ func TestBurnsNeverStackPastTheCap(t *testing.T) {
 }
 
 func TestCombustionCashesInTheBurns(t *testing.T) {
-	g := duel(t, types.Position{}, types.Position{Y: 3})
+	g := duel(t, types.Position{}, types.Position{Y: 1})
 	g.mu.Lock()
 	b := g.players["b"]
 	addBurn(&b.Character, 2)
 	g.players["b"] = b
 	g.mu.Unlock()
 
-	cast(t, g, "a", spellCombustion, types.Position{Y: 3})
+	cast(t, g, "a", spellCombustion, types.Position{Y: 1})
 
 	want := StartingHealth - (damageOf(g, spellCombustion) + 2*BurnDuration*BurnDamagePerStack)
 	if hp := health(t, g, "b"); hp != want {
@@ -184,6 +184,21 @@ func TestCombustionCashesInTheBurns(t *testing.T) {
 	}
 	if stacks, _ := burnOf(character(g, "b")); stacks != 0 {
 		t.Errorf("the burn is still there with %d stacks after going off", stacks)
+	}
+}
+
+// Combustion from across the board let a Pyromancer cash in every burn from
+// safety; it now asks them to walk up to the target first.
+func TestCombustionOnlyReachesTheNextCell(t *testing.T) {
+	g := duel(t, types.Position{}, types.Position{Y: 2})
+	g.mu.Lock()
+	b := g.players["b"]
+	addBurn(&b.Character, 2)
+	g.players["b"] = b
+	g.mu.Unlock()
+
+	if err := g.CastSpell("a", spellCombustion, types.Position{Y: 2}); !errors.Is(err, ErrOutOfRange) {
+		t.Errorf("Combustion two cells away: %v, want ErrOutOfRange", err)
 	}
 }
 

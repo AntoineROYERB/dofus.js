@@ -54,7 +54,7 @@ func decide(g *Game, id string) BotAction {
 // ---------------------------------------------------------------------------
 
 func TestTheBotBurnsBeforeItDetonates(t *testing.T) {
-	g := duel(t, types.Position{}, types.Position{Y: 4})
+	g := duel(t, types.Position{}, types.Position{Y: 1})
 	setBar(g, "a", "1", "3")
 	// Room for a Kindle and a Combustion. Combustion hits as hard on its
 	// own, but only the burn the Kindle leaves gives it something to set off.
@@ -378,7 +378,7 @@ func TestTheAshKingWaitsForThreeBurns(t *testing.T) {
 		{"legend_roi_cendre", 2, spellKindle},     // the Ash King piles on a third
 		{"legend_roi_cendre", 3, spellCombustion}, // and then sets them off
 	} {
-		g := duel(t, types.Position{}, types.Position{Y: 4})
+		g := duel(t, types.Position{}, types.Position{Y: 1})
 		setBar(g, "a", "1", "3")
 		playsAs(g, "a", BotHard, tc.boss)
 		burning(g, "b", tc.burns)
