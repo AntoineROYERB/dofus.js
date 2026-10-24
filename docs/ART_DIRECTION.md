@@ -84,7 +84,10 @@ Use the token name, never the hex value, in components.
 not by player: the ring under your fighter and your dot in the turn order are
 `amber` (`BOARD.socle.mine`), and the other side's are `foe` red
 (`BOARD.socle.theirs`). Two fighters in the same outfit therefore never share
-a ring. Nothing tints a fighter's sprite: an outfit keeps its own trims.
+a ring. Nothing tints a fighter's sprite: an outfit keeps its own trims. In a
+fight between teams (Endless Dreams), your side is you and your allies: their
+rings and dots are `amber` too, and where an ally fell their broken ring stays
+on the board until they stand again.
 
 **Elements have one colour and one icon each**, and they show wherever an
 element does: spells, grimoires, sets, the wardrobe, the drums and wards they
@@ -267,6 +270,14 @@ circling a fighter is drawn at the same pixel size as the fighter.
 - A lineage is a name and its variants (`gloop`, `gloop_2`, `gloop_3`), which
   are recolours of the same shapes. Every sheet belongs to an island's lineage
   or boss in `islands.json`.
+- **In a fight, a dream's monster is drawn as itself**, from its bestiary
+  sheet, scaled up by a whole number with no smoothing so it lands on the
+  fighters' pixel grid (a frame of 64 art pixels at four times a hero's
+  scale). Its set only decides what it casts; the outfit's sheet is never
+  drawn for it. The rulers still fight in their champion's sheet until they
+  have fight sheets of their own (11.5).
+- **A boon's rarity** is shown as one, two or three filled pips and its word
+  (`common`, `rare`, `legendary`), never as a colour.
 
 ### 6.4 What a new sprite must pass
 

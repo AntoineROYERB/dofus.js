@@ -3,6 +3,7 @@ import SpriteAnimation, { Direction } from "../SpriteAnimation";
 import { Position } from "../../../types/game";
 import { SPRITE } from "../../../constants";
 import { AttackKind, outfitSheet } from "../../../utils/fxManifest";
+import { CREATURE_FEET, ROWS, artOf } from "../../../explore/sprites";
 
 interface CharacterProps {
   screenPosition: Position;
@@ -21,6 +22,11 @@ interface CharacterProps {
   outfit?: string;
   /** For an attack in an outfit: which of its two poses the spell strikes. */
   attack?: AttackKind;
+  /**
+   * A creature of the bestiary, by sheet name: a dream's monster is drawn as
+   * itself rather than in the outfit of the set it fights with.
+   */
+  creature?: string;
 }
 
 /**
@@ -80,6 +86,51 @@ const animationConfig = {
   },
 };
 
+/**
+ * A bestiary sheet: 24 frames by 8 directions, a frame as wide as its art
+ * (64 pixels for a monster), with the feet at 0.78 of its height
+ * (ART_DIRECTION.md, 6.3). A hero's frame is the same art drawn four times
+ * over, so a creature is drawn at four times the hero's scale to stand on
+ * the same pixel grid.
+ */
+const Creature: React.FC<{
+  name: string;
+  screenPosition: Position;
+  direction: Direction;
+  scale: number;
+  opacity: number;
+  dying: boolean;
+}> = ({ name, screenPosition, direction, scale, opacity, dying }) => {
+  const art = artOf(name);
+  const zoom = scale * 4;
+  return (
+    <div
+      className="absolute"
+      style={{
+        left: `${screenPosition.x - art * zoom * 0.5}px`,
+        top: `${screenPosition.y - art * zoom * CREATURE_FEET}px`,
+        width: `${art * zoom}px`,
+        height: `${art * zoom}px`,
+        pointerEvents: "none",
+        opacity,
+        transform: dying ? `translateY(${(1 - opacity) * scale * 40}px) scale(${1 - (1 - opacity) * 0.25})` : undefined,
+        transition: dying ? "opacity 80ms linear, transform 80ms linear" : undefined,
+      }}
+    >
+      <SpriteAnimation
+        spriteSheet={`/bestiary/${name}.png`}
+        framesPerDirection={24}
+        frameWidth={art}
+        frameHeight={art}
+        direction={direction}
+        directionMap={ROWS}
+        scale={zoom}
+        pixelated
+      />
+    </div>
+  );
+};
+
 export const Character: React.FC<CharacterProps> = ({
   screenPosition,
   animation,
@@ -89,7 +140,20 @@ export const Character: React.FC<CharacterProps> = ({
   opacity = 1,
   outfit,
   attack = "ranged",
+  creature,
 }) => {
+  if (creature) {
+    return (
+      <Creature
+        name={creature}
+        screenPosition={screenPosition}
+        direction={direction}
+        scale={scale}
+        opacity={opacity}
+        dying={animation === "die"}
+      />
+    );
+  }
   // No dedicated death sheet — the idle pose sinking and fading away reads
   // fine on its own, and it is what "die" borrows for its frames. A spell
   // that strikes no pose — a gust of wind at your own feet — keeps it idle.

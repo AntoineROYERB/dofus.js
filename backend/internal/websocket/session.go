@@ -21,6 +21,8 @@ type Session struct {
 
 	// RoomID is the room this player belongs to, remembered across a drop.
 	RoomID string
+	// RunID is the dream this player is climbing, if any.
+	RunID string
 	// forfeit fires once the grace period expires with no reconnection.
 	forfeit *time.Timer
 }
@@ -67,6 +69,18 @@ func (s *Sessions) Resume(token string) (*Session, bool) {
 	defer s.mu.Unlock()
 	sess, ok := s.byTok[token]
 	return sess, ok
+}
+
+// ByUser finds the session behind a player id.
+func (s *Sessions) ByUser(userID string) (*Session, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, sess := range s.byTok {
+		if sess.UserID == userID {
+			return sess, true
+		}
+	}
+	return nil, false
 }
 
 func (s *Sessions) Drop(token string) {

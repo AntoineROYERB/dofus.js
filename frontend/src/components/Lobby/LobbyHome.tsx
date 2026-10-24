@@ -43,6 +43,7 @@ const ICONS = {
   history: "M3 12a9 9 0 1 0 3-6.7M3 4v5h5M12 7v5l3 2",
   help: "M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14M12 17.5v.01M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z",
   gear: "M9 4l3 2 3-2 5 3-2 4-2-1v10H8V10l-2 1-2-4z",
+  dream: "M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z",
 } as const;
 
 /** A square tile on the side rails: an icon over a mono label. */
@@ -89,6 +90,10 @@ interface LobbyHomeProps {
   onOpenRooms: () => void;
   onOpenHistory: () => void;
   onOpenHelp: () => void;
+  /** Endless Dreams, once the tutorial has been played. */
+  onOpenDream?: () => void;
+  /** Whether a dream is under way, waiting to be picked back up. */
+  dreaming?: boolean;
 }
 
 export const LobbyHome: React.FC<LobbyHomeProps> = ({
@@ -108,6 +113,8 @@ export const LobbyHome: React.FC<LobbyHomeProps> = ({
   onOpenRooms,
   onOpenHistory,
   onOpenHelp,
+  onOpenDream,
+  dreaming,
 }) => (
   <div className="relative h-[100dvh] select-none overflow-hidden bg-paper text-ink">
     {/* A pool of light under the fighter, so the middle reads as a stage. */}
@@ -220,6 +227,9 @@ export const LobbyHome: React.FC<LobbyHomeProps> = ({
           onClick={onOpenRooms}
           badge={openRooms > 0 ? openRooms : undefined}
         />
+        {onOpenDream && (
+          <HomeTile icon="dream" label="Dreams" onClick={onOpenDream} badge={dreaming ? "on" : undefined} />
+        )}
         <HomeTile icon="help" label="Help" onClick={onOpenHelp} />
       </nav>
 

@@ -59,6 +59,10 @@ type Catalogue struct {
 	Armours  []types.Armour
 	Palettes map[string]types.IslandPalette
 	Islands  []types.Island
+
+	// Dream is Endless Dreams, from dreams.json: its monsters, twists, boons
+	// and floors.
+	Dream types.Dream
 }
 
 // find returns the first item whose id matches.
@@ -105,6 +109,21 @@ func (c Catalogue) Island(id string) (types.Island, bool) {
 // Monster looks a sheet of the bestiary up by id.
 func (c Catalogue) Monster(id string) (types.Monster, bool) {
 	return find(c.Bestiary, id, func(m types.Monster) string { return m.ID })
+}
+
+// DreamMonster looks a monster's fighting sheet up by bestiary id.
+func (c Catalogue) DreamMonster(id string) (types.DreamMonster, bool) {
+	return find(c.Dream.Monsters, id, func(m types.DreamMonster) string { return m.ID })
+}
+
+// DreamTwist looks a twist up by id.
+func (c Catalogue) DreamTwist(id string) (types.DreamTwist, bool) {
+	return find(c.Dream.Twists, id, func(t types.DreamTwist) string { return t.ID })
+}
+
+// DreamBoon looks a boon up by id.
+func (c Catalogue) DreamBoon(id string) (types.DreamBoon, bool) {
+	return find(c.Dream.Boons, id, func(b types.DreamBoon) string { return b.ID })
 }
 
 // DefaultChampion is who stands in when nobody picked: the first champion in
@@ -175,6 +194,7 @@ type Paths struct {
 	Talismans string
 	Champions string
 	Cosmetics string
+	Dreams    string
 }
 
 // Source is one content file's bytes, and the name to report problems under.
@@ -193,6 +213,7 @@ type Sources struct {
 	Talismans Source
 	Champions Source
 	Cosmetics Source
+	Dreams    Source
 }
 
 // each pairs every source with the file it comes from, for the two readers.
@@ -210,6 +231,7 @@ func (s *Sources) each(visit func(into *Source, diskPath, shippedName string) er
 		{&s.Talismans, p.Talismans, shipped.TalismansFile},
 		{&s.Champions, p.Champions, shipped.ChampionsFile},
 		{&s.Cosmetics, p.Cosmetics, shipped.CosmeticsFile},
+		{&s.Dreams, p.Dreams, shipped.DreamsFile},
 	} {
 		if err := visit(f.into, f.disk, f.shipped); err != nil {
 			return err
@@ -267,6 +289,7 @@ func Parse(src Sources, balance config.Balance, bounds Bounds) (Catalogue, error
 		tf  talismansFile
 		chf championsFile
 		cf  cosmeticsFile
+		df  types.Dream
 	)
 	for _, d := range []struct {
 		src  Source
@@ -274,6 +297,7 @@ func Parse(src Sources, balance config.Balance, bounds Bounds) (Catalogue, error
 	}{
 		{src.Spells, &sf}, {src.Islands, &wf}, {src.Outfits, &of}, {src.Grimoires, &gf},
 		{src.Runes, &rf}, {src.Talismans, &tf}, {src.Champions, &chf}, {src.Cosmetics, &cf},
+		{src.Dreams, &df},
 	} {
 		if err := decodeStrict(d.src.Data, d.into); err != nil {
 			return Catalogue{}, &Problem{File: d.src.Name, Field: "(document)", Problem: err.Error()}
@@ -284,15 +308,21 @@ func Parse(src Sources, balance config.Balance, bounds Bounds) (Catalogue, error
 	spells := v.spells(src.Spells.Name, sf, bounds)
 	cat := v.loadouts(src, loadoutFiles{of, gf, rf, tf, chf, cf}, spells, balance)
 	v.world(src.Islands.Name, wf, cat.Champions)
-	if len(v.problems) > 0 {
-		return Catalogue{}, errors.Join(v.problems...)
-	}
 	cat.Spells = spells
 	cat.Terrains = wf.Terrains
 	cat.Bestiary = wf.Bestiary
 	cat.Armours = wf.Armours
 	cat.Palettes = wf.Palettes
 	cat.Islands = wf.Islands
+	// A dream cites everything else: sets, spells, islands and their
+	// rulers. It is checked last, against the rest as it was built.
+	cat.Dream = df
+	if len(v.problems) == 0 {
+		v.dream(src.Dreams.Name, df, cat)
+	}
+	if len(v.problems) > 0 {
+		return Catalogue{}, errors.Join(v.problems...)
+	}
 	return cat, nil
 }
 

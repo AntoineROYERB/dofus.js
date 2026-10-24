@@ -331,7 +331,8 @@ func (g *Game) groundAtTurnEndLocked(id string) (over bool) {
 // another: it stands in terrain that hides it, and the viewer is further than
 // GrassSightRange — or has nobody on the board to see from.
 func (g *Game) concealedFromLocked(viewerID, id string) bool {
-	if viewerID == id {
+	// Nobody hides from their own side.
+	if g.sameSideLocked(viewerID, id) {
 		return false
 	}
 	c := g.players[id].Character

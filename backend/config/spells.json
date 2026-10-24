@@ -761,6 +761,24 @@
           }
         }
       }
+    },
+    "33": {
+      "name": "Wake Up",
+      "icon": "🌅",
+      "element": "Water",
+      "role": "Revive",
+      "description": "Stands a fallen ally back up where they fell, at 40% of their health. Once a fight.",
+      "APCost": 3,
+      "range": 4,
+      "damage": 0,
+      "areaOfEffect": "none",
+      "needsLineOfSight": false,
+      "maxCastsPerTurn": 1,
+      "cooldown": 0,
+      "criticalChance": 0,
+      "criticalDamage": 0,
+      "targeting": "fallen",
+      "special": "revive"
     }
   }
 }

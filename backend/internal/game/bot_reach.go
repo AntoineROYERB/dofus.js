@@ -265,6 +265,11 @@ func (b *botBoard) othersThan(id string) occupied {
 				return true
 			}
 		}
+		for _, f := range b.allies {
+			if f.id != id && f.pos == p {
+				return true
+			}
+		}
 		return false
 	}
 }
@@ -342,7 +347,7 @@ func (b *botBoard) usableNextTurn(f fighter, key, spent string) (types.Spell, bo
 	if key == spent || !ok || spell.Damage <= 0 || spell.APCost <= 0 || st.CooldownLeft > 1 {
 		return types.Spell{}, false
 	}
-	if spell.Ultimate && (st.Spent || b.state.TurnNumber+1 < UltimateFromTurn) {
+	if spell.Ultimate && (st.Spent || (b.state.TurnNumber+1 < UltimateFromTurn && !f.player.Character.Blessings.EarlyUltimate)) {
 		return types.Spell{}, false
 	}
 	return spell, true

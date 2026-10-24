@@ -95,6 +95,21 @@ displacement), the **Tidecaller** (control: traps, ice and water) and the
 In solo play four champions fight in a full set each, and beating one unlocks
 the next.
 
+Once the tutorial is done, **Endless Dreams** opens from the lobby: a climb,
+alone or with up to two friends who join by a party code. Each floor offers
+three rooms, on three islands, and says what is behind each door — the
+island's monsters, the twists that bend the fight (fire already burning, a
+band of smoke, no cover, shorter turns…) and how rare the boons it pays are.
+The leader picks; the others can point at the room they would take. A room
+holds one to six monsters, more and stronger the higher the floor and the
+bigger the party, and every fifth floor a ruler of the islands waits instead.
+After a win everyone stands again at full health and takes one boon of three
+for the rest of the run: more health or points, cheaper or longer spells, a
+shield for the whole party, Wake Up to stand a fallen ally back up, a Second
+Wind once a run. The climb ends when the whole party falls, and how high it
+got goes on the leaderboard — Solo, Duo and Trio — written by the server
+alone, each line linking to its fights' replays. Spells hit allies too.
+
 Spells change the board and what they leave stays for the rest of the fight:
 fire that burns whoever walks in, smoke nothing is seen through, water that
 slows enemies and puts fire out, ice you slide across, bubble traps, pillars,
@@ -226,17 +241,19 @@ look is a change to those two files.
 backend/
   cmd/server/          entry point: config, HTTP, graceful shutdown
   internal/config/     environment-driven settings
-  config/              balance.json, spells.json, islands.json and the loadout files — the game's numbers
-  internal/content/    loads and validates spells, loadout items and islands
-  internal/game/       rules, lobby, computer opponent, balance simulation
-  internal/websocket/  hub, sessions, per-connection pumps, handlers
+  config/              balance.json, spells.json, islands.json, dreams.json and the loadout files — the game's numbers
+  internal/content/    loads and validates spells, loadout items, islands and dreams
+  internal/game/       rules (teams included), lobby, computer opponent, balance simulation
+  internal/dream/      Endless Dreams: floors, rooms, boons, the run, the climb test
+  internal/websocket/  hub, sessions, per-connection pumps, handlers, dream parties
   internal/types/      wire format shared by every layer
 frontend/src/
-  pages/               landing, lobby, board
+  pages/               landing, lobby, board, dream, dream leaderboard
   components/Game/     board, tiles, characters, spell bar, turn order, log,
                        the phone HUD (spell arc, fighter status) and spell cards
   components/Lobby/    the phone home screen: line-up of sets, rename dialog
   components/Chat/     the rail's chat section
+  components/Dream/    what the dream's screens draw of the bestiary
   hooks/               animation loop, grid interaction, tile sizing
   lib/native.ts        what the iOS app does that a browser cannot (haptics)
   utils/               isometric maths, pathing, spell areas
@@ -263,6 +280,7 @@ Copy `.env.example` to `.env`. Everything has a working default.
 | `TALISMANS_FILE` | `config/talismans.json` | Every talisman: name, the ultimate it carries (a spell id that is an ultimate) and the orbiting sprite. |
 | `CHAMPIONS_FILE` | `config/champions.json` | The named solo opponents, in challenge order: name, two lines, the full set they fight in and give away, and which champion unlocks them. The first champion's set is what a character gets when it names no loadout. |
 | `COSMETICS_FILE` | `config/cosmetics.json` | Looks with no effect in a fight: kind (pet, aura, wings, title), name, sprite. The schema has no field a fight could read. |
+| `DREAMS_FILE` | `config/dreams.json` | Endless Dreams: a fighting sheet for every monster of the islands' lineages (its set, a bar of one to three of that set's spells, health, AP, MP, a threat cost and a colour), the twists a room can carry, the boons in three rarities, the islands and rulers a dream is fought among, and every number the floors grow harder by (threat budgets, boss health, boons the monsters take from a floor on). Validated at startup like `SPELLS_FILE`; the climb's difficulty is a test (`internal/dream`). |
 | `ISLANDS_FILE` | `config/islands.json` | The world of the campaign: the terrain library (id, name, icon, the one rule a player reads), the bestiary (each sprite sheet with its rank: monster, boss or legend), the armours, the palettes the world is painted in, and the islands in campaign order — the first is the Prairie in the middle of the world. An island names its element, 1 or 2 terrains, a palette, its lineage, its boss, the armour it unlocks and how many fights it has. Validated at startup like `SPELLS_FILE`. |
 | `LOG_FORMAT` | `json` | Server log format: `json` for an aggregator, `text` for a terminal |
 | `LOG_LEVEL` | `info` | Minimum log level: `debug`, `info`, `warn` or `error` |

@@ -45,6 +45,7 @@ type Config struct {
 	TalismansFile string
 	ChampionsFile string
 	CosmeticsFile string
+	DreamsFile    string
 	// DatabaseURL, when set, switches match persistence from the in-memory
 	// store to Postgres. Empty means no database: the game must run
 	// without one, so this is a deliberate default, not a missing
@@ -78,6 +79,7 @@ func Load() Config {
 		TalismansFile:  envString("TALISMANS_FILE", "config/talismans.json"),
 		ChampionsFile:  envString("CHAMPIONS_FILE", "config/champions.json"),
 		CosmeticsFile:  envString("COSMETICS_FILE", "config/cosmetics.json"),
+		DreamsFile:     envString("DREAMS_FILE", "config/dreams.json"),
 		DatabaseURL:    envString("DATABASE_URL", ""),
 		LogFormat:      envString("LOG_FORMAT", "json"),
 		LogLevel:       envString("LOG_LEVEL", "info"),

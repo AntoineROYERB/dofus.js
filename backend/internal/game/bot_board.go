@@ -37,12 +37,15 @@ type fighter struct {
 // botBoard is the board from one bot's eyes: what it can see, and nothing
 // the snapshot kept from it.
 type botBoard struct {
-	state     types.GameState
-	botID     string
-	mind      botMind
-	me        fighter
-	foes      []fighter // living and in sight, by id
-	hidden    bool      // someone living is hidden from it in tall grass
+	state types.GameState
+	botID string
+	mind  botMind
+	me    fighter
+	foes  []fighter // living and in sight, by id
+	// allies are the bot's own side, living and in sight, by id: in the way
+	// of its walks like anyone, and never worth hitting.
+	allies    []fighter
+	hidden    bool // someone living is hidden from it in tall grass
 	obstacles map[types.Position]bool
 	terrain   map[types.Position]types.TerrainCell
 	ground    map[types.Position]types.GroundCell
@@ -102,9 +105,12 @@ func readBoard(state types.GameState, botID string, mind botMind) *botBoard {
 			continue
 		}
 		f := fighterOf(p)
-		if id == botID {
+		switch {
+		case id == botID:
 			b.me = f
-		} else {
+		case p.Team != "" && p.Team == state.Players[botID].Team:
+			b.allies = append(b.allies, f)
+		default:
 			b.foes = append(b.foes, f)
 		}
 	}
@@ -122,7 +128,7 @@ func fighterOf(p types.Player) fighter {
 		// rooted enemy walks nowhere — so it is never read as "unknown".
 		maxAP:  c.MaxActionPoints,
 		maxMP:  c.MaxMovementPoints,
-		shield: effectTotal(c, types.EffectShield),
+		shield: effectTotal(c, types.EffectShield) + c.Blessings.Guard,
 		player: &p,
 	}
 	for _, e := range c.Effects {
@@ -136,9 +142,10 @@ func fighterOf(p types.Player) fighter {
 		if kit, err := Content().Kit(c.Loadout); err == nil {
 			f.meleeBonus = kit.Grimoire.MeleeBonus
 			f.element = kit.Element
+			f.pushResist = c.Blessings.PushResist
 			switch kit.Rune.Effect.Kind {
 			case types.RunePushResist:
-				f.pushResist = kit.Rune.Effect.Value
+				f.pushResist += kit.Rune.Effect.Value
 			case types.RuneFinisher:
 				f.finisher, f.finisherBelow = kit.Rune.Effect.Value, kit.Rune.Effect.Threshold
 			}
@@ -296,6 +303,27 @@ func (b *botBoard) standing(pos types.Position) bool {
 		return true
 	}
 	for _, f := range b.foes {
+		if f.pos == pos {
+			return true
+		}
+	}
+	return b.allyAt(pos)
+}
+
+// isAlly reports whether a fighter is on the bot's own side, itself aside.
+func (b *botBoard) isAlly(id string) bool {
+	for _, f := range b.allies {
+		if f.id == id {
+			return true
+		}
+	}
+	return false
+}
+
+// allyAt reports whether one of the bot's own side stands on a cell. Allies
+// do not move while the bot thinks, so the board answers this on its own.
+func (b *botBoard) allyAt(pos types.Position) bool {
+	for _, f := range b.allies {
 		if f.pos == pos {
 			return true
 		}

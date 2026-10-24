@@ -1,0 +1,744 @@
+{
+  "islands": [
+    "prairie",
+    "earth",
+    "water",
+    "ice",
+    "air",
+    "acid"
+  ],
+  "bosses": [
+    "boss_monolithe",
+    "boss_kraken",
+    "boss_coeur_hiver",
+    "boss_oeil_nuee",
+    "boss_mere_gloop",
+    "legend_roi_cendre"
+  ],
+  "floors": {
+    "bossEvery": 5,
+    "baseThreat": 20,
+    "threatPerFloor": 5,
+    "partyThreat": [
+      100,
+      190,
+      280
+    ],
+    "maxMonsters": 6,
+    "healthPerFloor": 4,
+    "difficulties": [
+      {
+        "id": "calm",
+        "name": "Calm",
+        "threat": 100,
+        "twists": 0,
+        "rarities": [
+          "common",
+          "common",
+          "common"
+        ]
+      },
+      {
+        "id": "restless",
+        "name": "Restless",
+        "threat": 130,
+        "twists": 1,
+        "rarities": [
+          "common",
+          "common",
+          "rare"
+        ]
+      },
+      {
+        "id": "nightmare",
+        "name": "Nightmare",
+        "threat": 165,
+        "twists": 1,
+        "rarities": [
+          "rare",
+          "rare",
+          "legendary"
+        ]
+      }
+    ],
+    "levels": [
+      {
+        "from": 1,
+        "level": "easy"
+      },
+      {
+        "from": 5,
+        "level": "normal"
+      },
+      {
+        "from": 15,
+        "level": "hard"
+      }
+    ],
+    "bossHealth": [
+      110,
+      200,
+      280
+    ],
+    "escortFrom": 10,
+    "secondTwistFrom": 10,
+    "monsterBoons": [
+      {
+        "from": 8,
+        "boon": "sharpened"
+      },
+      {
+        "from": 11,
+        "boon": "thick-skin"
+      },
+      {
+        "from": 14,
+        "boon": "sharpened"
+      },
+      {
+        "from": 17,
+        "boon": "focus"
+      },
+      {
+        "from": 20,
+        "boon": "sharpened"
+      },
+      {
+        "from": 23,
+        "boon": "thick-skin"
+      }
+    ],
+    "bossBoons": [
+      {
+        "from": 10,
+        "boon": "early-ultimate"
+      }
+    ]
+  },
+  "monsters": [
+    {
+      "id": "bouflaine",
+      "loadout": {
+        "outfit": "rock-flail",
+        "grimoire": "stonewarden",
+        "rune": "anchor",
+        "talisman": "old-grunds-stone"
+      },
+      "bar": [
+        "27"
+      ],
+      "health": 28,
+      "actionPoints": 4,
+      "movementPoints": 3,
+      "threat": 1,
+      "color": "#e8dcc8"
+    },
+    {
+      "id": "bouflaine_2",
+      "loadout": {
+        "outfit": "old-grund",
+        "grimoire": "stonewarden",
+        "rune": "anchor",
+        "talisman": "old-grunds-stone"
+      },
+      "bar": [
+        "17",
+        "16"
+      ],
+      "health": 42,
+      "actionPoints": 6,
+      "movementPoints": 3,
+      "threat": 2,
+      "color": "#d8c4a0"
+    },
+    {
+      "id": "souchon",
+      "loadout": {
+        "outfit": "drowned-queen-orb",
+        "grimoire": "tidecaller",
+        "rune": "momentum",
+        "talisman": "mother-brines-conch"
+      },
+      "bar": [
+        "26"
+      ],
+      "health": 30,
+      "actionPoints": 6,
+      "movementPoints": 2,
+      "threat": 1,
+      "color": "#8a6a48"
+    },
+    {
+      "id": "souchon_2",
+      "loadout": {
+        "outfit": "drowned-queen-orb",
+        "grimoire": "tidecaller",
+        "rune": "momentum",
+        "talisman": "mother-brines-conch"
+      },
+      "bar": [
+        "26",
+        "12"
+      ],
+      "health": 42,
+      "actionPoints": 6,
+      "movementPoints": 2,
+      "threat": 2,
+      "color": "#6e5238"
+    },
+    {
+      "id": "caillou",
+      "loadout": {
+        "outfit": "rock-stone",
+        "grimoire": "stonewarden",
+        "rune": "anchor",
+        "talisman": "old-grunds-stone"
+      },
+      "bar": [
+        "28"
+      ],
+      "health": 30,
+      "actionPoints": 6,
+      "movementPoints": 2,
+      "threat": 1,
+      "color": "#9b958b"
+    },
+    {
+      "id": "caillou_2",
+      "loadout": {
+        "outfit": "rock-stone",
+        "grimoire": "stonewarden",
+        "rune": "anchor",
+        "talisman": "old-grunds-stone"
+      },
+      "bar": [
+        "28",
+        "19"
+      ],
+      "health": 44,
+      "actionPoints": 6,
+      "movementPoints": 2,
+      "threat": 2,
+      "color": "#7f7a72"
+    },
+    {
+      "id": "caillou_3",
+      "loadout": {
+        "outfit": "old-grund",
+        "grimoire": "stonewarden",
+        "rune": "anchor",
+        "talisman": "old-grunds-stone"
+      },
+      "bar": [
+        "17",
+        "16",
+        "18"
+      ],
+      "health": 60,
+      "actionPoints": 6,
+      "movementPoints": 3,
+      "threat": 3,
+      "color": "#5e5a62"
+    },
+    {
+      "id": "poulpinet",
+      "loadout": {
+        "outfit": "drowned-queen-trident",
+        "grimoire": "tidecaller",
+        "rune": "momentum",
+        "talisman": "mother-brines-conch"
+      },
+      "bar": [
+        "25"
+      ],
+      "health": 30,
+      "actionPoints": 6,
+      "movementPoints": 3,
+      "threat": 1,
+      "color": "#5aaad8"
+    },
+    {
+      "id": "poulpinet_2",
+      "loadout": {
+        "outfit": "mother-brine",
+        "grimoire": "tidecaller",
+        "rune": "momentum",
+        "talisman": "mother-brines-conch"
+      },
+      "bar": [
+        "11"
+      ],
+      "health": 40,
+      "actionPoints": 6,
+      "movementPoints": 3,
+      "threat": 2,
+      "color": "#3a8ac0"
+    },
+    {
+      "id": "poulpinet_3",
+      "loadout": {
+        "outfit": "mother-brine",
+        "grimoire": "tidecaller",
+        "rune": "momentum",
+        "talisman": "mother-brines-conch"
+      },
+      "bar": [
+        "11",
+        "12",
+        "13"
+      ],
+      "health": 56,
+      "actionPoints": 6,
+      "movementPoints": 3,
+      "threat": 3,
+      "color": "#2a6aa0"
+    },
+    {
+      "id": "givrelle",
+      "loadout": {
+        "outfit": "drowned-queen-orb",
+        "grimoire": "tidecaller",
+        "rune": "momentum",
+        "talisman": "mother-brines-conch"
+      },
+      "bar": [
+        "14"
+      ],
+      "health": 26,
+      "actionPoints": 4,
+      "movementPoints": 3,
+      "threat": 1,
+      "color": "#c6dcfa"
+    },
+    {
+      "id": "givrelle_2",
+      "loadout": {
+        "outfit": "drowned-queen-orb",
+        "grimoire": "tidecaller",
+        "rune": "momentum",
+        "talisman": "mother-brines-conch"
+      },
+      "bar": [
+        "26",
+        "14"
+      ],
+      "health": 38,
+      "actionPoints": 6,
+      "movementPoints": 3,
+      "threat": 2,
+      "color": "#a8c2e8"
+    },
+    {
+      "id": "givrelle_3",
+      "loadout": {
+        "outfit": "mother-brine",
+        "grimoire": "tidecaller",
+        "rune": "momentum",
+        "talisman": "mother-brines-conch"
+      },
+      "bar": [
+        "11",
+        "14",
+        "12"
+      ],
+      "health": 52,
+      "actionPoints": 6,
+      "movementPoints": 3,
+      "threat": 3,
+      "color": "#8ab4e0"
+    },
+    {
+      "id": "chauvolet",
+      "loadout": {
+        "outfit": "winged-knight-wings",
+        "grimoire": "windwalker",
+        "rune": "second-skin",
+        "talisman": "sefs-feather"
+      },
+      "bar": [
+        "24"
+      ],
+      "health": 24,
+      "actionPoints": 6,
+      "movementPoints": 4,
+      "threat": 1,
+      "color": "#c38ff0"
+    },
+    {
+      "id": "chauvolet_2",
+      "loadout": {
+        "outfit": "sef",
+        "grimoire": "windwalker",
+        "rune": "second-skin",
+        "talisman": "sefs-feather"
+      },
+      "bar": [
+        "7",
+        "8"
+      ],
+      "health": 36,
+      "actionPoints": 6,
+      "movementPoints": 4,
+      "threat": 2,
+      "color": "#a070d0"
+    },
+    {
+      "id": "chauvolet_3",
+      "loadout": {
+        "outfit": "sef",
+        "grimoire": "windwalker",
+        "rune": "second-skin",
+        "talisman": "sefs-feather"
+      },
+      "bar": [
+        "7",
+        "8",
+        "6"
+      ],
+      "health": 50,
+      "actionPoints": 6,
+      "movementPoints": 4,
+      "threat": 3,
+      "color": "#8050b0"
+    },
+    {
+      "id": "gloop",
+      "loadout": {
+        "outfit": "rock-flail",
+        "grimoire": "stonewarden",
+        "rune": "anchor",
+        "talisman": "old-grunds-stone"
+      },
+      "bar": [
+        "27"
+      ],
+      "health": 32,
+      "actionPoints": 4,
+      "movementPoints": 3,
+      "threat": 1,
+      "color": "#9ce04a"
+    },
+    {
+      "id": "gloop_2",
+      "loadout": {
+        "outfit": "rock-flail",
+        "grimoire": "stonewarden",
+        "rune": "anchor",
+        "talisman": "old-grunds-stone"
+      },
+      "bar": [
+        "27",
+        "18"
+      ],
+      "health": 44,
+      "actionPoints": 6,
+      "movementPoints": 3,
+      "threat": 2,
+      "color": "#7ec82e"
+    },
+    {
+      "id": "gloop_3",
+      "loadout": {
+        "outfit": "old-grund",
+        "grimoire": "stonewarden",
+        "rune": "anchor",
+        "talisman": "old-grunds-stone"
+      },
+      "bar": [
+        "17",
+        "18",
+        "19"
+      ],
+      "health": 60,
+      "actionPoints": 6,
+      "movementPoints": 3,
+      "threat": 3,
+      "color": "#4e9a1e"
+    }
+  ],
+  "twists": [
+    {
+      "id": "burning-ground",
+      "name": "Burning Ground",
+      "description": "Six cells are already on fire when the fight begins.",
+      "kind": "terrain",
+      "terrain": "fire",
+      "pattern": "scatter",
+      "value": 6
+    },
+    {
+      "id": "fog",
+      "name": "Fog",
+      "description": "A band of smoke lies across the middle of the board. Nothing is seen through it.",
+      "kind": "terrain",
+      "terrain": "smoke",
+      "pattern": "band",
+      "value": 7
+    },
+    {
+      "id": "frozen-edge",
+      "name": "Frozen Edge",
+      "description": "The rim of the board is ice: whoever walks onto it slides.",
+      "kind": "terrain",
+      "terrain": "ice",
+      "pattern": "edge",
+      "value": 12
+    },
+    {
+      "id": "thick-hide",
+      "name": "Thick Hide",
+      "description": "The monsters have 30% more health.",
+      "kind": "monsterHealth",
+      "value": 30
+    },
+    {
+      "id": "heavy-limbs",
+      "name": "Heavy Limbs",
+      "description": "Everyone has 1 MP less and 1 AP more.",
+      "kind": "points",
+      "ap": 1,
+      "mp": -1
+    },
+    {
+      "id": "short-night",
+      "name": "Short Night",
+      "description": "Every turn lasts 30 seconds.",
+      "kind": "turnSeconds",
+      "value": 30
+    },
+    {
+      "id": "open-field",
+      "name": "Open Field",
+      "description": "There is no cover on the board.",
+      "kind": "noCover"
+    },
+    {
+      "id": "swarm",
+      "name": "Swarm",
+      "description": "One more of the weakest monster joins the room.",
+      "kind": "extraMonster",
+      "value": 1
+    }
+  ],
+  "boons": [
+    {
+      "id": "vigor",
+      "name": "Vigor",
+      "description": "+10 max health.",
+      "rarity": "common",
+      "icon": "❤️",
+      "effect": {
+        "kind": "health",
+        "value": 10
+      },
+      "stacks": true
+    },
+    {
+      "id": "stride",
+      "name": "Stride",
+      "description": "+1 MP every turn.",
+      "rarity": "common",
+      "icon": "👣",
+      "effect": {
+        "kind": "mp",
+        "value": 1
+      }
+    },
+    {
+      "id": "thick-skin",
+      "name": "Thick Skin",
+      "description": "Every hit you take does 1 less damage.",
+      "rarity": "common",
+      "icon": "🛡️",
+      "effect": {
+        "kind": "guard",
+        "value": 1
+      },
+      "stacks": true
+    },
+    {
+      "id": "sharpened",
+      "name": "Sharpened",
+      "description": "Your spells deal 10% more damage.",
+      "rarity": "common",
+      "icon": "🗡️",
+      "effect": {
+        "kind": "damage",
+        "value": 10
+      },
+      "stacks": true
+    },
+    {
+      "id": "long-arm",
+      "name": "Long Arm",
+      "description": "+1 range on every spell that reaches 2 cells or more.",
+      "rarity": "common",
+      "icon": "🏹",
+      "effect": {
+        "kind": "range",
+        "value": 1
+      }
+    },
+    {
+      "id": "quick-hands",
+      "name": "Quick Hands",
+      "description": "Your basic attack costs 1 AP less.",
+      "rarity": "common",
+      "icon": "✋",
+      "effect": {
+        "kind": "basicDiscount",
+        "value": 1
+      }
+    },
+    {
+      "id": "head-start",
+      "name": "Head Start",
+      "description": "+2 MP on your first turn of every fight.",
+      "rarity": "common",
+      "icon": "🏃",
+      "effect": {
+        "kind": "openingMP",
+        "value": 2
+      }
+    },
+    {
+      "id": "focus",
+      "name": "Focus",
+      "description": "+1 AP every turn.",
+      "rarity": "rare",
+      "icon": "✨",
+      "effect": {
+        "kind": "ap",
+        "value": 1
+      }
+    },
+    {
+      "id": "wake-up",
+      "name": "Wake Up",
+      "description": "A new spell: stand a fallen ally back up at 40% of their health, once a fight.",
+      "rarity": "rare",
+      "icon": "🌅",
+      "effect": {
+        "kind": "grantSpell",
+        "spell": "33"
+      }
+    },
+    {
+      "id": "shared-strength",
+      "name": "Shared Strength",
+      "description": "Allies within 2 cells of you start their turn with +1 AP.",
+      "rarity": "rare",
+      "icon": "🤝",
+      "effect": {
+        "kind": "sharedAP",
+        "value": 1,
+        "range": 2
+      }
+    },
+    {
+      "id": "twice",
+      "name": "Twice",
+      "description": "Your basic attack can be cast once more each turn.",
+      "rarity": "rare",
+      "icon": "✌️",
+      "effect": {
+        "kind": "basicTwice",
+        "value": 1
+      }
+    },
+    {
+      "id": "lore-of-embers",
+      "name": "Lore of Embers",
+      "description": "Combustion costs 1 AP less.",
+      "rarity": "rare",
+      "icon": "🔥",
+      "effect": {
+        "kind": "spellMod",
+        "spell": "3",
+        "apCost": -1
+      },
+      "grimoire": "pyromancer"
+    },
+    {
+      "id": "lore-of-the-wind",
+      "name": "Lore of the Wind",
+      "description": "Updraft sets your pylon 2 cells further.",
+      "rarity": "rare",
+      "icon": "🌀",
+      "effect": {
+        "kind": "spellMod",
+        "spell": "6",
+        "spellRange": 2
+      },
+      "grimoire": "windwalker"
+    },
+    {
+      "id": "lore-of-the-tide",
+      "name": "Lore of the Tide",
+      "description": "Bubble Trap costs 1 AP less.",
+      "rarity": "rare",
+      "icon": "🫧",
+      "effect": {
+        "kind": "spellMod",
+        "spell": "12",
+        "apCost": -1
+      },
+      "grimoire": "tidecaller"
+    },
+    {
+      "id": "lore-of-stone",
+      "name": "Lore of Stone",
+      "description": "Pushes carry you 1 cell less.",
+      "rarity": "rare",
+      "icon": "🪨",
+      "effect": {
+        "kind": "pushResist",
+        "value": 1
+      },
+      "grimoire": "stonewarden"
+    },
+    {
+      "id": "second-wind",
+      "name": "Second Wind",
+      "description": "Once this run, a blow that would take you down leaves you at 1 health instead.",
+      "rarity": "legendary",
+      "icon": "💨",
+      "effect": {
+        "kind": "secondWind"
+      }
+    },
+    {
+      "id": "early-ultimate",
+      "name": "Early Ultimate",
+      "description": "Your ultimate can be cast from the first turn.",
+      "rarity": "legendary",
+      "icon": "⚡",
+      "effect": {
+        "kind": "earlyUltimate"
+      }
+    },
+    {
+      "id": "dream-shield",
+      "name": "Dream Shield",
+      "description": "Your whole party starts every fight shielded: 3 less from every hit, until the end of each one's first turn.",
+      "rarity": "legendary",
+      "icon": "🌙",
+      "effect": {
+        "kind": "partyShield",
+        "value": 3,
+        "duration": 2
+      }
+    },
+    {
+      "id": "overflow",
+      "name": "Overflow",
+      "description": "Up to 2 AP you leave unspent carry over to your next turn.",
+      "rarity": "legendary",
+      "icon": "🌊",
+      "effect": {
+        "kind": "overflow",
+        "value": 2
+      }
+    }
+  ]
+}

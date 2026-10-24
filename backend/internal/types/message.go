@@ -103,6 +103,43 @@ type DisconnectIn struct {
 	BaseMessage
 }
 
+// Endless Dreams. A party is made, then climbs; every message here is about
+// the caller's own run, which the server finds from the connection.
+
+// DreamCreateIn opens a party with the caller as its leader.
+type DreamCreateIn struct {
+	BaseMessage
+	Character CharacterAppearance `json:"character"`
+}
+
+// DreamJoinIn joins a party still gathering, by the code its leader shared.
+type DreamJoinIn struct {
+	BaseMessage
+	Code      string              `json:"code"`
+	Character CharacterAppearance `json:"character"`
+}
+
+// DreamResumeIn takes a member back into their run with the key they were
+// given, after a reload or a server restart.
+type DreamResumeIn struct {
+	BaseMessage
+	RunID string `json:"runId"`
+	Key   string `json:"key"`
+}
+
+// DreamRoomIn names one of a floor's rooms: to point at it, or, for the
+// leader, to enter it.
+type DreamRoomIn struct {
+	BaseMessage
+	Room int `json:"room"`
+}
+
+// DreamBoonIn takes one of the boons offered.
+type DreamBoonIn struct {
+	BaseMessage
+	Boon string `json:"boon"`
+}
+
 // ---------------------------------------------------------------------------
 // Outbound: server -> client
 // ---------------------------------------------------------------------------

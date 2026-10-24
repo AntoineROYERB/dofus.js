@@ -18,6 +18,11 @@ interface SpriteAnimationProps {
    * trims only. Ignored when `color` is given.
    */
   accent?: string;
+  /**
+   * Scaled up with no smoothing, the way the world's pixel art is drawn:
+   * for a sheet drawn at its art size rather than four times over.
+   */
+  pixelated?: boolean;
 }
 
 const SpriteAnimation: React.FC<SpriteAnimationProps> = ({
@@ -30,6 +35,7 @@ const SpriteAnimation: React.FC<SpriteAnimationProps> = ({
   scale = 1,
   color,
   accent,
+  pixelated = false,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   // Kept across runs so a resize or a change of direction does not restart the
@@ -51,6 +57,8 @@ const SpriteAnimation: React.FC<SpriteAnimationProps> = ({
     const CANVAS_HEIGHT = (canvas.height = Math.round(frameHeight * scale));
 
     const directionRow = directionMap[direction] ?? 0;
+    // Sizing the canvas resets its context, smoothing included.
+    ctx.imageSmoothingEnabled = !pixelated;
 
     const playerImage = new Image();
     playerImage.src = spriteSheet;
@@ -143,6 +151,7 @@ const SpriteAnimation: React.FC<SpriteAnimationProps> = ({
     scale,
     color,
     accent,
+    pixelated,
   ]);
 
   return (

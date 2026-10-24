@@ -7,7 +7,7 @@
 // internal/config, which reads the environment. The server itself still loads
 // these files from disk at boot (see SPELLS_FILE, ISLANDS_FILE and the
 // loadout files: OUTFITS_FILE, GRIMOIRES_FILE, RUNES_FILE, TALISMANS_FILE,
-// CHAMPIONS_FILE, COSMETICS_FILE), so they can be edited in a deployed image
+// CHAMPIONS_FILE, COSMETICS_FILE, and DREAMS_FILE), so they can be edited in a deployed image
 // without a rebuild.
 package shipped
 
@@ -15,7 +15,7 @@ import "embed"
 
 // Files holds every content file exactly as it is checked in.
 //
-//go:embed spells.json islands.json outfits.json grimoires.json runes.json talismans.json champions.json cosmetics.json
+//go:embed spells.json islands.json outfits.json grimoires.json runes.json talismans.json champions.json cosmetics.json dreams.json
 var Files embed.FS
 
 const (
@@ -27,4 +27,5 @@ const (
 	TalismansFile = "talismans.json"
 	ChampionsFile = "champions.json"
 	CosmeticsFile = "cosmetics.json"
+	DreamsFile    = "dreams.json"
 )

@@ -1,5 +1,5 @@
 import { createContext, useContext } from "react";
-import { ChatMessage, GameState, RoomSummary } from "../types/message";
+import { ChatMessage, DreamView, GameState, RoomSummary } from "../types/message";
 import { GameAction } from "../types/game";
 
 interface WebSocketContextType {
@@ -18,6 +18,8 @@ interface WebSocketContextType {
   winner: string | null;
   /** Last action the server refused, with the moment it arrived so repeats re-show. */
   rejection: { reason: string; at: number } | null;
+  /** The dream this player is climbing, or null. */
+  dream: DreamView | null;
 }
 
 export const WebSocketContext = createContext<WebSocketContextType | null>(

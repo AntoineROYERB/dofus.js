@@ -228,7 +228,7 @@ export const SpellCard: React.FC<SpellCardProps> = ({ spell, blocked }) => {
               style={{ color: spell.color }}
             >
               <SpellGlyph
-                spellId={spell.id}
+                spellId={spell.baseId ?? spell.id}
                 fallback={spell.icon}
                 className="h-6 w-6"
               />

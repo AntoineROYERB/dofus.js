@@ -27,6 +27,7 @@ var knownEffects = map[string]bool{
 
 var knownTargeting = map[string]bool{
 	types.TargetAny: true, types.TargetSelf: true, types.TargetEmpty: true,
+	types.TargetFallen: true,
 }
 
 // Terrain a spell may leave. Craters and fissures are dug by specials, never
@@ -42,6 +43,7 @@ var knownSpecials = map[string]bool{
 	types.SpecialDetonate: true, types.SpecialLeap: true, types.SpecialRelay: true,
 	types.SpecialPillar: true, types.SpecialCrater: true, types.SpecialQuake: true,
 	types.SpecialSwap: true, types.SpecialFlank: true, types.SpecialCage: true,
+	types.SpecialRevive: true,
 }
 
 // Specials that act on the cell they are aimed at, which therefore has to be
@@ -221,6 +223,14 @@ func (v *validator) mechanics(file, key string, s spellEntry, bounds Bounds) {
 	}
 	if s.Special == types.SpecialSwap && s.Targeting != "" && s.Targeting != types.TargetAny {
 		v.add(file, field("targeting"), "the swap special is aimed at its caster's relay, so targeting must be %q", types.TargetAny)
+	}
+	// Standing someone back up and aiming at where they fell are one thing:
+	// neither makes sense without the other, and neither with damage.
+	if (s.Special == types.SpecialRevive) != (s.Targeting == types.TargetFallen) {
+		v.add(file, field("targeting"), "the revive special and %q targeting go together", types.TargetFallen)
+	}
+	if s.Special == types.SpecialRevive && (s.Damage != 0 || s.Push != 0 || s.Terrain != "" || s.Zone != nil || s.Effect != nil) {
+		v.add(file, field("special"), "a revive does nothing but stand an ally back up: no damage, push, terrain, zone or effect")
 	}
 	if s.Special == types.SpecialQuake && s.Targeting != types.TargetSelf {
 		v.add(file, field("targeting"), "the quake special opens fissures around its caster, so targeting must be %q", types.TargetSelf)

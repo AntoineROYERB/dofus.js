@@ -53,6 +53,7 @@ func shippedContent(t *testing.T) content.Catalogue {
 		Talismans: "../../config/talismans.json",
 		Champions: "../../config/champions.json",
 		Cosmetics: "../../config/cosmetics.json",
+		Dreams:    "../../config/dreams.json",
 	}, balance, ContentBounds())
 	if err != nil {
 		t.Fatalf("the shipped content does not load:\n%v", err)

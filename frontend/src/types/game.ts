@@ -53,6 +53,15 @@ export interface Player {
   spells: { [spellId: string]: SpellState } | null;
   /** This player's spell ids in bar order, which number keys follow. */
   spellBar?: string[] | null;
+  /**
+   * The side a fighter is on in a fight between teams: "party" or "dream".
+   * Absent in a duel, where everyone is their own side.
+   */
+  team?: string;
+  /** A dream's boons this fighter carries. */
+  boons?: string[];
+  /** The bestiary sheet a dream's monster is drawn from. */
+  monster?: string;
 }
 
 /**
@@ -138,7 +147,44 @@ export interface PlayAgainAction extends ActionEnvelope {
   type: "play_again";
 }
 
+type DreamCharacter = { character: CharacterAppearance };
+
+export interface DreamCreateAction extends ActionEnvelope, DreamCharacter {
+  type: "dream_create";
+}
+
+export interface DreamJoinAction extends ActionEnvelope, DreamCharacter {
+  type: "dream_join";
+  code: string;
+}
+
+export interface DreamResumeAction extends ActionEnvelope {
+  type: "dream_resume";
+  runId: string;
+  key: string;
+}
+
+export interface DreamPlainAction extends ActionEnvelope {
+  type: "dream_leave" | "dream_start";
+}
+
+export interface DreamRoomAction extends ActionEnvelope {
+  type: "dream_point" | "dream_enter";
+  room: number;
+}
+
+export interface DreamBoonAction extends ActionEnvelope {
+  type: "dream_boon";
+  boon: string;
+}
+
 export type GameAction =
+  | DreamCreateAction
+  | DreamJoinAction
+  | DreamResumeAction
+  | DreamPlainAction
+  | DreamRoomAction
+  | DreamBoonAction
   | CreateRoomAction
   | JoinRoomAction
   | LeaveRoomAction

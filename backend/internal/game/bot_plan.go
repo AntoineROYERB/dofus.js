@@ -171,7 +171,7 @@ func (s *sim) taken(pos types.Position) bool {
 			return true
 		}
 	}
-	return false
+	return s.b.allyAt(pos)
 }
 
 func (s *sim) terrainAt(pos types.Position) types.TerrainCell {
@@ -511,6 +511,15 @@ func (s *sim) cast(spell types.Spell, idx int, aim types.Position) (int, *sim, b
 		if !spare && spell.Damage > 0 && containsPosition(cells, landing) {
 			return 0, nil, false // friendly fire on itself is never worth it
 		}
+		// Nor on its own side: a spell lands on whoever stands under it, and
+		// a monster that hit the monster beside it would only be helping.
+		if hurts(spell) {
+			for _, cell := range cells {
+				if b.allyAt(cell) {
+					return 0, nil, false
+				}
+			}
+		}
 		hits := false
 		for _, cell := range cells {
 			if cell != landing && (s.foeAt(cell) >= 0 || s.struck(cell)) {
@@ -617,6 +626,12 @@ func (s *sim) cast(spell types.Spell, idx int, aim types.Position) (int, *sim, b
 	return value, n, true
 }
 
+// hurts reports whether a spell does anyone standing under it any harm:
+// damage, a shove, or an effect laid on them rather than on its caster.
+func hurts(spell types.Spell) bool {
+	return spell.Damage > 0 || spell.Push != 0 || (spell.Effect != nil && !spell.Effect.OnSelf)
+}
+
 // struck reports whether a cast on a cell wears down something of the
 // enemy's standing there: a pylon, or a pillar that still holds.
 func (s *sim) struck(cell types.Position) bool {
@@ -625,7 +640,7 @@ func (s *sim) struck(cell types.Position) bool {
 		return false
 	}
 	t := s.things[i]
-	return t.owner != s.me.id && (t.kind == types.TerrainRelay || t.health > 0)
+	return t.owner != s.me.id && !s.b.isAlly(t.owner) && (t.kind == types.TerrainRelay || t.health > 0)
 }
 
 // strike mirrors Game.strikeLocked: the cast's damage and effects on every

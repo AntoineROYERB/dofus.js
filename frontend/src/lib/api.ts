@@ -1,4 +1,4 @@
-import { ContentResponse } from "../types/message";
+import { ContentResponse, LeaderboardEntry } from "../types/message";
 import {
   MatchPage,
   MatchRecording,
@@ -51,3 +51,8 @@ export const fetchMatchRecording = (id: string): Promise<MatchRecording> =>
 
 export const fetchContent = (): Promise<ContentResponse> =>
   getJSON<ContentResponse>("/api/content");
+
+export const fetchLeaderboard = (
+  size: number
+): Promise<{ size: number; entries: LeaderboardEntry[] }> =>
+  getJSON(`/api/dreams/leaderboard?size=${size}`);

@@ -25,6 +25,9 @@ type ContentResponse struct {
 	Armours   []types.Armour                 `json:"armours"`
 	Palettes  map[string]types.IslandPalette `json:"palettes"`
 	Islands   []types.Island                 `json:"islands"`
+	// Dream is Endless Dreams: its monsters, twists, boons and floors, for
+	// the rooms' and the boons' cards.
+	Dream types.Dream `json:"dream"`
 }
 
 // RegisterContentRoutes serves the content the server loaded at startup:
@@ -48,6 +51,7 @@ func RegisterContentRoutes(mux *http.ServeMux, cat content.Catalogue) {
 		Armours:   cat.Armours,
 		Palettes:  cat.Palettes,
 		Islands:   cat.Islands,
+		Dream:     cat.Dream,
 	}
 	mux.HandleFunc("GET /api/content", func(w http.ResponseWriter, r *http.Request) {
 		// Content only changes with a restart, so a browser may keep it for a

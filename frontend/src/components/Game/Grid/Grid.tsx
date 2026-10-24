@@ -42,6 +42,7 @@ import { usePinchZoom } from "../../../hooks/usePinchZoom";
 import { CAMERA, centreOf, followPan } from "../../../utils/camera";
 import { GameState } from "../../../types/message";
 import { bubblePlacement, confirmActionFor } from "../../../utils/touchConfirm";
+import { sameSide, teamed } from "../../../utils/sides";
 
 interface GridProps {
   gridSize: number;
@@ -146,7 +147,8 @@ export const Grid: React.FC<GridProps> = ({
 
     Object.entries(players).forEach(([playerId, playerData]) => {
       const isCurrentPlayer = playerId === userId;
-      const playerColor = isCurrentPlayer ? BOARD.socle.mine : BOARD.socle.theirs;
+      // A teammate's block is your side's block.
+      const playerColor = sameSide(players, playerId, userId) ? BOARD.socle.mine : BOARD.socle.theirs;
 
       playerData?.character.initialPositions?.forEach((position) => {
         positionsWithOwners.push({
@@ -167,10 +169,23 @@ export const Grid: React.FC<GridProps> = ({
   const occupied = React.useMemo(
     () =>
       Object.values(players ?? {})
+        // The fallen stand nowhere: the server walks over where they lie.
+        .filter((p) => p.character.isAlive)
         .map((p) => p.character.position)
         .filter((p): p is Position => !!p),
     [players]
   );
+  /*
+   * Where a fallen fighter of this player's side lies, in a fight between
+   * teams: a revive is aimed there, and the broken ring that marks the spot
+   * stays on the board until they stand again.
+   */
+  const fallenAllies = React.useMemo(() => {
+    if (!teamed(players)) return [];
+    return Object.entries(players ?? {})
+      .filter(([id, p]) => id !== userId && !p.character.isAlive && !!p.character.position && sameSide(players, id, userId))
+      .map(([id, p]) => ({ id, position: p.character.position! }));
+  }, [players, userId]);
   const blocked = React.useMemo(
     () => blockedBy(obstacles, occupied, terrain, ground),
     [obstacles, occupied, terrain, ground]
@@ -484,10 +499,17 @@ export const Grid: React.FC<GridProps> = ({
       ) {
         return;
       }
+      // A revive lands only where an ally fell, and nobody stands now.
+      if (
+        selectedSpell.targeting === "fallen" &&
+        (blocked(cell) || !fallenAllies.some((f) => f.position.x === x && f.position.y === y))
+      ) {
+        return;
+      }
       inRange.add(`${x},${y}`);
     });
     return inRange;
-  }, [characterPosition, selectedSpell, blocked, sightBlocked, relay, terrainAt, sortedCoordinates]);
+  }, [characterPosition, selectedSpell, blocked, sightBlocked, relay, terrainAt, sortedCoordinates, fallenAllies]);
 
   /*
    * In range and unseen. Kept apart from `castable` rather than folded into
@@ -703,6 +725,22 @@ export const Grid: React.FC<GridProps> = ({
           containerRef={containerRef}
         />
         {/*
+          Where an ally fell, in a fight between teams: their broken ring
+          stays, so the party knows where to aim a revive.
+        */}
+        {fallenAllies
+          .filter((f) => !characterRenderState[f.id])
+          .map((f) => (
+            <Socle
+              key={`fallen-${f.id}`}
+              screenPosition={isoToScreen(f.position.x, f.position.y, tileSize, centerX, centerY)}
+              tileSize={tileSize}
+              color={BOARD.socle.mine}
+              isPlaying={false}
+              isAlive={false}
+            />
+          ))}
+        {/*
           Above the scars rather than under them: a scorch mark is scenery, and
           the ring is the one thing on the board that says which fighter is
           which. Not drawn while starting cells are being picked, where the
@@ -720,7 +758,7 @@ export const Grid: React.FC<GridProps> = ({
               key={`socle-${playerId}`}
               screenPosition={renderData.screenPosition}
               tileSize={tileSize}
-              color={playerId === userId ? BOARD.socle.mine : BOARD.socle.theirs}
+              color={sameSide(players, playerId, userId) ? BOARD.socle.mine : BOARD.socle.theirs}
               isPlaying={player.isCurrentTurn}
               isAlive={player.character.isAlive}
               opacity={renderData.opacity}
@@ -738,6 +776,7 @@ export const Grid: React.FC<GridProps> = ({
               scale={tileSize.width / 256}
               opacity={renderData.opacity}
               outfit={kitOf(players?.[playerId]?.character.loadout, content)?.outfit.sprite}
+              creature={players?.[playerId]?.monster}
               attack={attackKindOf(renderData.spellId, fxManifest)}
             />
           );
@@ -749,7 +788,8 @@ export const Grid: React.FC<GridProps> = ({
         {Object.entries(characterRenderState).map(([playerId, renderData]) => {
           const player = players?.[playerId];
           const kit = kitOf(player?.character.loadout, content);
-          if (!renderData || !player?.character.isAlive || !kit || isPositioningPhase) return null;
+          // A monster carries no ultimate, and so no talisman.
+          if (!renderData || !player?.character.isAlive || !kit || isPositioningPhase || player.monster) return null;
           const ultimate = kit.talisman.ultimate;
           const state: TalismanState = player.spells?.[ultimate]?.spent
             ? "spent"
