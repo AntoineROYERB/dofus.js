@@ -184,8 +184,82 @@ export const playImpact = ({ element, pan, heavy, damage, crit }: LandSound) => 
   }
 };
 
-/** A fighter taking a blow: the body, under the spell's own impact. */
-export const playHurt = (pan: number, amount: number) => {
+/** The formants of a vowel: centre, sharpness, level. */
+type Vowel = [number, number, number][];
+
+// "Uh" for a knock, "ah" for a real blow: the open vowel is the one a body
+// makes when the air is driven out of it.
+const UH: Vowel = [[520, 6, 1], [1000, 8, 0.45], [2400, 10, 0.12]];
+const AH: Vowel = [[760, 6, 1], [1200, 8, 0.55], [2600, 10, 0.18]];
+
+/**
+ * A voice crying out: a buzzing throat at `pitch`, shaped into a vowel by
+ * three band-pass filters, with a jolt of breath at the start. The pitch
+ * jumps up as the blow lands and falls away by `fall`, which is what makes
+ * it read as pain rather than as a note.
+ */
+const cry = (
+  m: Mixer,
+  out: AudioNode,
+  t: number,
+  pitch: number,
+  seconds: number,
+  v: number,
+  vowel: Vowel,
+  fall: number
+) => {
+  const { ctx } = m;
+  const throat = ctx.createOscillator();
+  throat.type = "sawtooth";
+  throat.frequency.setValueAtTime(pitch * 1.3, t);
+  throat.frequency.exponentialRampToValueAtTime(pitch * 1.1, t + 0.04);
+  throat.frequency.exponentialRampToValueAtTime(pitch * fall, t + seconds);
+  // A fast, shallow wobble: the rasp of a strained voice.
+  const rasp = ctx.createOscillator();
+  rasp.frequency.value = 27 + Math.random() * 8;
+  const raspDepth = gainAt(ctx, 35);
+  rasp.connect(raspDepth).connect(throat.detune);
+
+  const amp = gainAt(ctx);
+  amp.gain.setValueAtTime(0, t);
+  amp.gain.linearRampToValueAtTime(v, t + 0.015);
+  amp.gain.setTargetAtTime(v * 0.7, t + 0.03, seconds * 0.4);
+  amp.gain.exponentialRampToValueAtTime(0.0008, t + seconds);
+  for (const [f, q, level] of vowel) {
+    const band = ctx.createBiquadFilter();
+    band.type = "bandpass";
+    band.frequency.value = f;
+    band.Q.value = q;
+    const share = gainAt(ctx, level * 1.6);
+    throat.connect(band).connect(share).connect(amp);
+  }
+  amp.connect(out);
+  for (const o of [throat, rasp]) {
+    o.start(t);
+    o.stop(t + seconds + 0.05);
+  }
+  sweep(m, out, t, "bandpass", 1800, 900, 0.12, v * 0.25, 1, 0.006);
+};
+
+/**
+ * A fighter crying out as they take a blow. `pitch` is their own voice
+ * (cues.ts gives every fighter one); a bigger blow is a louder, longer, more
+ * open cry.
+ */
+export const playCry = (pan: number, amount: number, pitch = 150, delay = 0) => {
+  const m = getMixer();
+  if (!m) return;
+  const out = outlet(m, pan);
+  const t = m.ctx.currentTime + 0.01 + delay;
+  const heavy = amount >= 18;
+  // Loud enough to be heard over the spell that caused it: a cry lost under
+  // the explosion tells the player nothing.
+  const v = Math.min(1.1, 0.6 + amount / 40);
+  cry(m, out, t, pitch * (0.95 + Math.random() * 0.1), heavy ? 0.42 : 0.24, v, heavy ? AH : UH, heavy ? 0.7 : 0.82);
+};
+
+/** A fighter taking a blow: the body under the spell's impact, and their cry. */
+export const playHurt = (pan: number, amount: number, pitch?: number) => {
   const m = getMixer();
   if (!m) return;
   const out = outlet(m, pan);
@@ -193,6 +267,8 @@ export const playHurt = (pan: number, amount: number) => {
   const v = Math.min(1, 0.4 + amount / 50);
   thump(m, out, t, 210, 85, 0.1, 0.45 * v, 0.18);
   burst(m, out, t, "bandpass", 1600, 0.3 * v, 0.06, 1.2);
+  // Just after the blow, not on it, so the impact does not swallow it.
+  playCry(pan, amount, pitch, 0.06);
 };
 
 /** Health coming back: a rising sparkle. */
@@ -227,11 +303,13 @@ export const playDrain = (pan: number) => {
 };
 
 /** A fighter falling. */
-export const playDeath = (pan: number) => {
+export const playDeath = (pan: number, pitch = 150) => {
   const m = getMixer();
   if (!m) return;
   const out = outlet(m, pan);
   const t = m.ctx.currentTime + 0.01;
+  // A last long cry, sinking, before the body lands.
+  cry(m, out, t, pitch * 1.1, 0.85, 0.7, AH, 0.5);
   glide(m, out, t, "sawtooth", 330, 55, 0.9, 0.09);
   glide(m, out, t, "sine", 220, 40, 1.1, 0.25);
   thump(m, out, t + 0.35, 120, 35, 0.25, 0.6, 0.6);

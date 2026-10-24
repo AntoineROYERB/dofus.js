@@ -1,7 +1,7 @@
 import { Player } from "../types/game";
 import { GameState, LogEntry } from "../types/message";
 import { makeSpell } from "../test/fixtures";
-import { fightCues, panOf, surfaceOf } from "./cues";
+import { fightCues, panOf, surfaceOf, voiceOf } from "./cues";
 
 const fighter = (id: string, overrides: Partial<Player["character"]> = {}, turn = false): Player => ({
   userId: id,
@@ -71,7 +71,7 @@ describe("fightCues", () => {
     expect(seen).toBe(2);
     expect(cues).toEqual([
       expect.objectContaining({ kind: "cast", element: "Fire", heavy: false, damage: 12, moves: false }),
-      { kind: "hurt", at: { x: 0, y: -3 }, amount: 12 },
+      { kind: "hurt", at: { x: 0, y: -3 }, amount: 12, voice: voiceOf(after.players.foe) },
     ]);
   });
 
@@ -98,7 +98,9 @@ describe("fightCues", () => {
   it("hears a fall, not the blow that caused it", () => {
     const before = state([fighter("me"), fighter("foe")]);
     const after = state([fighter("me"), fighter("foe", { health: 0, isAlive: false })]);
-    expect(fightCues(before, after, "me", 0).cues).toEqual([{ kind: "death", at: { x: 0, y: -3 } }]);
+    expect(fightCues(before, after, "me", 0).cues).toEqual([
+      { kind: "death", at: { x: 0, y: -3 }, voice: voiceOf(after.players.foe) },
+    ]);
   });
 
   it("hears a heal and a shield", () => {
@@ -155,5 +157,22 @@ describe("surfaceOf", () => {
   it("falls back on turf on an island, and flagstones in the arena", () => {
     expect(surfaceOf(ground, "isle", { x: 0, y: 0 })).toBe("grass");
     expect(surfaceOf(null, undefined, { x: 0, y: 0 })).toBe("stone");
+  });
+});
+
+describe("voiceOf", () => {
+  it("gives each fighter one voice for the whole fight, in a speaking range", () => {
+    const a = voiceOf(fighter("Ashka"));
+    expect(voiceOf(fighter("Ashka"))).toBe(a);
+    expect(voiceOf(fighter("Tester"))).not.toBe(a);
+    for (const name of ["a", "Ashka the Kindled", "Tester", "Zz"]) {
+      const pitch = voiceOf(fighter(name));
+      expect(pitch).toBeGreaterThanOrEqual(115);
+      expect(pitch).toBeLessThan(230);
+    }
+  });
+
+  it("gives a dream's monsters a lower voice", () => {
+    expect(voiceOf({ ...fighter("Gobball"), monster: "gobball" })).toBeCloseTo(voiceOf(fighter("Gobball")) * 0.6);
   });
 });
