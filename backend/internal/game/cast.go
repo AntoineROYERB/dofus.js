@@ -46,7 +46,7 @@ func (g *Game) CastSpell(userID string, spellID int, target types.Position) erro
 	if caster.Character.ActionPoints < spell.APCost {
 		return ErrNotEnoughAP
 	}
-	if spell.Special == types.SpecialRevive && state.Spent {
+	if oncePerFight(spell) && state.Spent {
 		return ErrSpentThisFight
 	}
 	if spell.Ultimate {
@@ -105,7 +105,7 @@ func (g *Game) CastSpell(userID string, spellID int, target types.Position) erro
 	caster.Character.MovementPoints += spell.GrantMP
 	state.CastsThisTurn++
 	state.CooldownLeft = spell.Cooldown
-	if spell.Ultimate || spell.Special == types.SpecialRevive {
+	if spell.Ultimate || oncePerFight(spell) {
 		state.Spent = true
 	}
 	caster.Spells[key] = state
@@ -426,6 +426,13 @@ func (g *Game) reshapeBoardLocked(userID string, spell types.Spell, target, orig
 			TurnsLeft: spell.Zone.Duration,
 			Element:   spell.Element,
 			SpellID:   spell.ID,
+		}
+		// The ground turns over into its caster's element, whatever the
+		// spell itself is drawn in.
+		if zone.Kind == types.ZoneUpheaval {
+			if kit, ok := g.kitOf(g.players[userID].Character); ok {
+				zone.Element = kit.Element
+			}
 		}
 		// In the air the drums follow whoever they first struck.
 		if zone.Kind == types.ZoneDrums && spell.Element == "Air" && len(victims) > 0 {

@@ -680,6 +680,7 @@ func (g *Game) startTurnForLocked(userID string) (alive bool) {
 	before := g.aliveLocked()
 
 	g.drumsLocked(userID)
+	g.upheavalLocked(userID)
 	g.ageZonesLocked(userID)
 	g.ageTerrainLocked(userID)
 	g.zonesActOnLocked(userID)

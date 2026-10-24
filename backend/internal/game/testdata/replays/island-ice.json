@@ -5,7 +5,7 @@
     "seed": 35,
     "startedAt": 1700000000000,
     "turnDurationMs": 3000,
-    "rules": "410de06afced0130a603352266e953df82ba87e2afe01316b1b598e33281e8fc",
+    "rules": "66f341752be1955586b833bfbb94c21a74bd6b2cbe36dbea1c26df59f432d55d",
     "island": "ice",
     "commands": [
       {
@@ -1653,6 +1653,37 @@
         "zone": null,
         "grantMP": 0,
         "special": "revive",
+        "relayed": false,
+        "conducts": false
+      },
+      "34": {
+        "id": 34,
+        "name": "Upheaval",
+        "color": "#a8702a",
+        "icon": "⛏️",
+        "APCost": 5,
+        "range": 4,
+        "damage": 0,
+        "areaOfEffect": "cross",
+        "element": "Earth",
+        "description": "Digs up a cross of ground. At the start of your next turn it turns over into your element: fire for fire, water for water, bare earth otherwise. Once a fight.",
+        "needsLineOfSight": false,
+        "maxCastsPerTurn": 1,
+        "cooldown": 0,
+        "criticalChance": 0,
+        "criticalDamage": 0,
+        "effect": null,
+        "role": "Terraform",
+        "ultimate": false,
+        "targeting": "any",
+        "push": 0,
+        "terrain": "",
+        "zone": {
+          "kind": "upheaval",
+          "duration": 1
+        },
+        "grantMP": 0,
+        "special": "upheaval",
         "relayed": false,
         "conducts": false
       },

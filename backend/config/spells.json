@@ -780,6 +780,28 @@
       "criticalDamage": 0,
       "targeting": "fallen",
       "special": "revive"
+    },
+    "34": {
+      "name": "Upheaval",
+      "icon": "⛏️",
+      "element": "Earth",
+      "role": "Terraform",
+      "description": "Digs up a cross of ground. At the start of your next turn it turns over into your element: fire for fire, water for water, bare earth otherwise. Once a fight.",
+      "APCost": 5,
+      "range": 4,
+      "damage": 0,
+      "areaOfEffect": "cross",
+      "needsLineOfSight": false,
+      "maxCastsPerTurn": 1,
+      "cooldown": 0,
+      "criticalChance": 0,
+      "criticalDamage": 0,
+      "targeting": "any",
+      "special": "upheaval",
+      "zone": {
+        "kind": "upheaval",
+        "duration": 1
+      }
     }
   }
 }

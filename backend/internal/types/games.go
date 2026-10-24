@@ -160,9 +160,9 @@ type GameState struct {
 	Zones []Zone `json:"zones"`
 	// Island is the island this fight is played on, empty for a plain arena.
 	Island string `json:"island,omitempty"`
-	// Ground is the island's terrain, laid when the board is dealt and fixed
-	// for the fight: at most two kinds, from the library in islands.json.
-	// Unlike Terrain nothing a spell does changes it. Always an array.
+	// Ground is the island's terrain, laid when the board is dealt: at most
+	// two kinds, from the library in islands.json. Only an upheaval, a
+	// legendary boon of Endless Dreams, ever digs it up. Always an array.
 	Ground []GroundCell `json:"ground"`
 }
 
@@ -235,6 +235,9 @@ const (
 	// turns, harder on the last beat. What else each beat does depends on the
 	// element it was cast in.
 	ZoneDrums = "drums"
+	// ZoneUpheaval marks ground dug up, which turns over into its owner's
+	// element at the start of their next turn.
+	ZoneUpheaval = "upheaval"
 )
 
 // LogEntry is one line of the combat log. The client renders these; without
@@ -426,6 +429,7 @@ const (
 	SpecialCage     = "cage"     // walls the target in with rocks for a while, open towards the caster
 	SpecialQuake    = "quake"    // opens fissures around the caster
 	SpecialRevive   = "revive"   // stands a fallen ally back up, once a fight
+	SpecialUpheaval = "upheaval" // digs the ground up, to turn it over into its caster's element; once a fight
 )
 
 // SpellZone is the weather a spell leaves behind.

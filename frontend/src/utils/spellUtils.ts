@@ -283,7 +283,8 @@ export const spellMechanics = (spell: Spell): string[] => {
   if (spell.hits && spell.hits > 1) out.push(`strikes ${spell.hits} times`);
   if (spell.special === "leap") out.push("leap");
   if (spell.special === "detonate") out.push("sets burns off");
-  if (spell.zone) {
+  if (spell.special === "upheaval") out.push("turns the ground over next turn");
+  if (spell.zone && spell.zone.kind !== "upheaval") {
     out.push(`${ZONE_INFO[spell.zone.kind].name.toLowerCase()} · ${spell.zone.duration} turns`);
   }
   if (spell.grantMP > 0) out.push(`+${spell.grantMP} MP now`);
@@ -335,9 +336,12 @@ export const spellSummary = (spell: Spell): string => {
     case "quake":
       out.push("fissures");
       break;
+    case "upheaval":
+      out.push("terraform");
+      break;
   }
   if (spell.terrain) out.push(TERRAIN_INFO[spell.terrain].name.toLowerCase());
-  if (spell.zone) out.push(`${ZONE_INFO[spell.zone.kind].name.toLowerCase()} ${spell.zone.duration}t`);
+  if (spell.zone && spell.zone.kind !== "upheaval") out.push(`${ZONE_INFO[spell.zone.kind].name.toLowerCase()} ${spell.zone.duration}t`);
   return out.join(" · ");
 };
 

@@ -710,6 +710,17 @@
       }
     },
     {
+      "id": "upheaval",
+      "name": "Upheaval",
+      "description": "A new spell: dig up a cross of ground, which turns over into your element at the start of your next turn. Once a fight.",
+      "rarity": "legendary",
+      "icon": "⛏️",
+      "effect": {
+        "kind": "grantSpell",
+        "spell": "34"
+      }
+    },
+    {
       "id": "early-ultimate",
       "name": "Early Ultimate",
       "description": "Your ultimate can be cast from the first turn.",

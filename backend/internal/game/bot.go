@@ -286,8 +286,9 @@ func readySpells(state types.GameState, me types.Player, element string) []types
 		if spell.Ultimate && (st.Spent || (state.TurnNumber < UltimateFromTurn && !me.Character.Blessings.EarlyUltimate)) {
 			continue
 		}
-		// Standing an ally back up is not something the planner weighs.
-		if spell.Special == types.SpecialRevive {
+		// Standing an ally back up, or turning the ground over, is not
+		// something the planner weighs.
+		if oncePerFight(spell) {
 			continue
 		}
 		ready = append(ready, spell)

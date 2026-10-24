@@ -615,6 +615,51 @@ func (g *Game) ageZonesLocked(owner string) {
 	}
 }
 
+// oncePerFight reports a spell that can be cast once a fight and no more: a
+// boon's revive, and its upheaval, which is worth a whole fight's planning.
+func oncePerFight(spell types.Spell) bool {
+	return spell.Special == types.SpecialRevive || spell.Special == types.SpecialUpheaval
+}
+
+// upheavalLocked turns over the ground its owner dug up the turn before, at
+// the start of their turn. Fire laid on water used to go out and leave only
+// its damage: the island's ground and whatever spells left loose on it are
+// cleared, and the caster's element laid in their place — fire for fire,
+// water for water, bare earth for the others. Rock, cover, holes and what
+// stands on a cell (a pylon, a pillar, a trap) stay.
+func (g *Game) upheavalLocked(owner string) {
+	for _, z := range g.zones {
+		if z.Kind != types.ZoneUpheaval || z.Owner != owner {
+			continue
+		}
+		center := z.Center
+		g.appendLogLocked(types.LogEntry{
+			Actor: g.players[owner].Character.Name, Kind: types.LogEffect, Text: "turns the ground over",
+			SpellID: z.SpellID, Origin: &center, Target: &center, Infusion: z.Element,
+		})
+		for _, cell := range z.Cells {
+			if !InGrid(cell) || g.obstacles[cell] || g.solidGroundLocked(cell) {
+				continue
+			}
+			delete(g.ground, cell)
+			if t, ok := g.terrain[cell]; ok {
+				switch t.Kind {
+				case types.TerrainFire, types.TerrainWater, types.TerrainIce, types.TerrainSmoke:
+					delete(g.terrain, cell)
+				default:
+					continue
+				}
+			}
+			switch z.Element {
+			case "Fire":
+				g.placeTerrainLocked(cell, types.TerrainFire, owner)
+			case "Water":
+				g.placeTerrainLocked(cell, types.TerrainWater, owner)
+			}
+		}
+	}
+}
+
 // drumsLocked beats every drum its owner keeps up, at the start of the
 // owner's turn: whoever stands under a beat is struck, harder on the last.
 // The element the drums were cast in adds to each beat.

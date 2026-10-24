@@ -133,7 +133,9 @@ export type SpellSpecial =
   /** Rocks round the target for a while, open towards the caster. */
   | "cage"
   /** Stands a fallen ally back up where they fell, once a fight. */
-  | "revive";
+  | "revive"
+  /** Digs the ground up, to turn it over into its caster's element next turn; once a fight. */
+  | "upheaval";
 
 /** Terrain a spell spreads over its area. */
 export type SpreadTerrain = "fire" | "smoke" | "water" | "ice" | "trap";
@@ -160,7 +162,7 @@ export type TerrainCell = {
   veiled?: boolean;
 };
 
-export type ZoneKind = "storm" | "maelstrom" | "drums";
+export type ZoneKind = "storm" | "maelstrom" | "drums" | "upheaval";
 
 export type Zone = {
   kind: ZoneKind;

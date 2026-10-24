@@ -757,6 +757,32 @@ export const TerrainLayer: React.FC<TerrainLayerProps> = ({
           const onto = zone.kind === "storm" ? t : g;
           if (drawSheet(onto, s.manifest, zoneKey, c, tw, time, 0)) continue;
         }
+        if (zone.kind === "upheaval") {
+          // Ground dug up and waiting to turn over: furrows in the colour of
+          // the element it will become, so both sides see what is coming.
+          const ink = ELEMENTS[zone.element ?? "Earth"]?.color ?? EARTH;
+          for (const cell of zone.cells) {
+            const p = at(cell);
+            diamond(g, cell, 0.82);
+            g.strokeStyle = ink;
+            g.globalAlpha = 0.7;
+            g.lineWidth = 2;
+            g.setLineDash([tw * 0.05, tw * 0.05]);
+            g.stroke();
+            g.setLineDash([]);
+            g.strokeStyle = SOIL_DARK;
+            g.globalAlpha = 0.45;
+            g.lineWidth = 1.5;
+            for (let i = -1; i <= 1; i++) {
+              g.beginPath();
+              g.moveTo(p.x - tw * 0.16 + i * tw * 0.1, p.y - th * 0.08);
+              g.lineTo(p.x - tw * 0.04 + i * tw * 0.1, p.y + th * 0.1);
+              g.stroke();
+            }
+            g.globalAlpha = 1;
+          }
+          continue;
+        }
         if (zone.kind === "drums") {
           // Fulgor's drums: the cells the next beat falls on, marked in the
           // element they were cast in, and a pip for every beat still to come.

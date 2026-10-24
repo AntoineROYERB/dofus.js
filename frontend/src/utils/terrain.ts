@@ -98,4 +98,8 @@ export const ZONE_INFO: Record<ZoneKind, { name: string; text: string }> = {
     name: "Thunder drums",
     text: "Struck again at the start of each of its owner's turns, harder on the last beat.",
   },
+  upheaval: {
+    name: "Dug-up ground",
+    text: "Turns over into its owner's element at the start of their next turn: fire, water, or bare earth.",
+  },
 };
