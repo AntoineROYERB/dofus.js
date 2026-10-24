@@ -167,8 +167,8 @@
         "kind": "move",
         "payload": {
           "position": {
-            "x": -3,
-            "y": 1
+            "x": -2,
+            "y": 0
           }
         }
       },
@@ -186,8 +186,8 @@
         "payload": {
           "spellId": 5,
           "target": {
-            "x": -3,
-            "y": 1
+            "x": -2,
+            "y": 0
           }
         }
       },
@@ -218,8 +218,8 @@
         "payload": {
           "spellId": 4,
           "target": {
-            "x": -3,
-            "y": 2
+            "x": -2,
+            "y": 1
           }
         }
       },
@@ -241,7 +241,7 @@
         "userId": "bob",
         "kind": "cast",
         "payload": {
-          "spellId": 3,
+          "spellId": 1,
           "target": {
             "x": -3,
             "y": -3
@@ -374,8 +374,8 @@
         "kind": "move",
         "payload": {
           "position": {
-            "x": -3,
-            "y": 1
+            "x": -2,
+            "y": 0
           }
         }
       },
@@ -393,8 +393,8 @@
         "payload": {
           "spellId": 4,
           "target": {
-            "x": -3,
-            "y": 1
+            "x": -2,
+            "y": 0
           }
         }
       },
@@ -411,8 +411,8 @@
         "kind": "move",
         "payload": {
           "position": {
-            "x": -4,
-            "y": 1
+            "x": -2,
+            "y": -1
           }
         }
       },
@@ -443,8 +443,8 @@
         "payload": {
           "spellId": 3,
           "target": {
-            "x": -4,
-            "y": 1
+            "x": -2,
+            "y": -1
           }
         }
       },
@@ -462,26 +462,14 @@
         "payload": {
           "spellId": 3,
           "target": {
-            "x": -4,
-            "y": 1
+            "x": -2,
+            "y": -1
           }
         }
       },
       {
         "seq": 43,
         "at": 39861,
-        "userId": "alice",
-        "kind": "move",
-        "payload": {
-          "position": {
-            "x": -3,
-            "y": 0
-          }
-        }
-      },
-      {
-        "seq": 44,
-        "at": 40603,
         "userId": "alice",
         "kind": "end_turn"
       }
@@ -504,11 +492,11 @@
             "talisman": "ashkas-heart"
           },
           "position": {
-            "x": -3,
-            "y": 0
+            "x": -2,
+            "y": -1
           },
           "actionPoints": 2,
-          "movementPoints": 2,
+          "movementPoints": 4,
           "maxActionPoints": 6,
           "maxMovementPoints": 4,
           "isCurrentTurn": false,
@@ -1912,8 +1900,8 @@
           "y": -3
         },
         "target": {
-          "x": -3,
-          "y": 1
+          "x": -2,
+          "y": 0
         }
       },
       {
@@ -1940,8 +1928,8 @@
         "damage": 6,
         "spellId": 1,
         "origin": {
-          "x": -4,
-          "y": 1
+          "x": -2,
+          "y": -1
         },
         "target": {
           "x": -3,
@@ -1983,8 +1971,8 @@
           "y": -3
         },
         "target": {
-          "x": -4,
-          "y": 1
+          "x": -2,
+          "y": -1
         }
       },
       {
@@ -2003,12 +1991,12 @@
         "damage": 6,
         "spellId": 3,
         "origin": {
-          "x": -4,
-          "y": 1
+          "x": -2,
+          "y": -1
         },
         "target": {
-          "x": -4,
-          "y": 1
+          "x": -2,
+          "y": -1
         }
       },
       {
@@ -2134,14 +2122,6 @@
       },
       {
         "position": {
-          "x": -4,
-          "y": 1
-        },
-        "kind": "smoke",
-        "owner": "bob"
-      },
-      {
-        "position": {
           "x": -3,
           "y": -3
         },
@@ -2174,22 +2154,6 @@
       },
       {
         "position": {
-          "x": -3,
-          "y": 1
-        },
-        "kind": "smoke",
-        "owner": "bob"
-      },
-      {
-        "position": {
-          "x": -3,
-          "y": 2
-        },
-        "kind": "smoke",
-        "owner": "bob"
-      },
-      {
-        "position": {
           "x": -2,
           "y": -3
         },
@@ -2209,8 +2173,16 @@
           "x": -2,
           "y": -1
         },
-        "kind": "fire",
-        "owner": "alice"
+        "kind": "smoke",
+        "owner": "bob"
+      },
+      {
+        "position": {
+          "x": -2,
+          "y": 0
+        },
+        "kind": "smoke",
+        "owner": "bob"
       },
       {
         "position": {
@@ -2227,6 +2199,14 @@
         },
         "kind": "fire",
         "owner": "alice"
+      },
+      {
+        "position": {
+          "x": -1,
+          "y": 0
+        },
+        "kind": "smoke",
+        "owner": "bob"
       }
     ],
     "zones": [],

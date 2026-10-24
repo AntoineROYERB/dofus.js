@@ -36,6 +36,10 @@ func islandElement(e string) bool {
 
 var knownRanks = map[string]bool{types.RankMonster: true, types.RankBoss: true, types.RankLegend: true}
 
+// OpponentLevels are the levels an island's opponents may fight at. The game
+// package plays them; a test there holds the two lists together.
+var OpponentLevels = map[string]bool{"easy": true, "normal": true, "hard": true}
+
 // How many colours each shade of a palette has. The painter indexes into
 // them, so a short list would draw undefined rather than fail.
 var paletteShades = []struct {
@@ -53,8 +57,13 @@ var paletteShades = []struct {
 	{"liquid", 4, func(p types.IslandPalette) []string { return p.Liquid }},
 }
 
-// world checks islands.json on its own: it cites nothing from the other files.
-func (v *validator) world(file string, wf islandsFile) {
+// world checks islands.json. The only thing it cites from the other files is
+// the champion in whose set each ruler of an island fights.
+func (v *validator) world(file string, wf islandsFile, champions []types.Champion) {
+	knownChampions := map[string]bool{}
+	for _, c := range champions {
+		knownChampions[c.ID] = true
+	}
 	terrains := v.uniqueIDs(file, "terrains", len(wf.Terrains), func(i int) string { return wf.Terrains[i].ID })
 	for i, t := range wf.Terrains {
 		field := func(name string) string { return fmt.Sprintf("terrains[%d].%s", i, name) }
@@ -68,6 +77,18 @@ func (v *validator) world(file string, wf islandsFile) {
 		v.nonEmpty(file, fmt.Sprintf("bestiary[%d].name", i), m.Name)
 		if !knownRanks[m.Rank] {
 			v.add(file, fmt.Sprintf("bestiary[%d].rank", i), "unknown rank %q (known: %s)", m.Rank, knownList(knownRanks))
+		}
+		// A ruler is fought by the server, which needs to know with what and
+		// how; the player needs telling how too.
+		ruler := m.Rank == types.RankBoss || m.Rank == types.RankLegend
+		switch {
+		case ruler && m.Champion == "":
+			v.add(file, fmt.Sprintf("bestiary[%d].champion", i), "a %s needs the champion whose set it fights in", m.Rank)
+		case m.Champion != "" && !knownChampions[m.Champion]:
+			v.add(file, fmt.Sprintf("bestiary[%d].champion", i), "unknown champion %q (known: %s)", m.Champion, knownList(knownChampions))
+		}
+		if ruler {
+			v.nonEmpty(file, fmt.Sprintf("bestiary[%d].tactic", i), m.Tactic)
 		}
 	}
 
@@ -159,6 +180,10 @@ func (v *validator) world(file string, wf islandsFile) {
 			v.add(file, field("armour"), "%q is already unlocked by islands[%d]", is.Armour, prev)
 		} else {
 			armourOf[is.Armour] = i
+		}
+
+		if !OpponentLevels[is.OpponentLevel] {
+			v.add(file, field("opponentLevel"), "unknown level %q (known: %s)", is.OpponentLevel, knownList(OpponentLevels))
 		}
 
 		if is.Fights < 1 {

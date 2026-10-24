@@ -6,7 +6,10 @@ import (
 	"flag"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+
+	"game-server/internal/types"
 )
 
 // Golden recordings. These are real matches — every command in them went
@@ -45,20 +48,26 @@ var goldenMatches = []struct {
 	withBot     bool
 	island      string
 	description string
+	// exercises is what the island's ground has to be seen doing somewhere
+	// in the match: a line of the log, or "grass" for someone standing in
+	// tall grass. Matches are played by the bot, so a change to the bot
+	// changes them, and a regenerated seed can stop doing what it was chosen
+	// for without anything else noticing.
+	exercises string
 }{
-	{"duel.json", 3, false, "", "two humans, played to a winner and then a rematch"},
-	{"duel-long.json", 9, false, "", "two humans, a longer fight with turns left to expire"},
-	{"bot-match.json", 4, true, "", "a lone human against the server's own opponent"},
-	{"bot-match-rematch.json", 6, true, "", "a bot match, restarted and played again"},
+	{"duel.json", 3, false, "", "two humans, played to a winner and then a rematch", ""},
+	{"duel-long.json", 9, false, "", "two humans, a longer fight with turns left to expire", ""},
+	{"bot-match.json", 4, true, "", "a lone human against the server's own opponent", ""},
+	{"bot-match-rematch.json", 6, true, "", "a bot match, restarted and played again", ""},
 	// One fight per island that between them deal every terrain of the
 	// library, so each terrain's rule is frozen too. The seeds are ones where
 	// the rule actually comes into play: someone hides in the grass, slides,
 	// is carried by the wind, eaten by acid, scorched by lava.
-	{"island-prairie.json", 31, true, "prairie", "a bot match in the Prairie's tall grass"},
-	{"island-ice.json", 33, false, "ice", "a duel on the Ice island: ice and shallow water"},
-	{"island-air.json", 32, true, "air", "a bot match on the Air island: air currents and rock"},
-	{"island-acid.json", 34, false, "acid", "a duel on the Acid island's pools"},
-	{"island-fire.json", 31, true, "fire", "a bot match on the Fire island, round its lava"},
+	{"island-prairie.json", 31, true, "prairie", "a bot match in the Prairie's tall grass", "grass"},
+	{"island-ice.json", 35, false, "ice", "a duel on the Ice island: ice and shallow water", "slides on the ice"},
+	{"island-air.json", 32, true, "air", "a bot match on the Air island: air currents and rock", "is carried by the wind"},
+	{"island-acid.json", 34, false, "acid", "a duel on the Acid island's pools", "is eaten by the acid"},
+	{"island-fire.json", 2, true, "fire", "a bot match on the Fire island, round its lava", "is scorched by the lava"},
 }
 
 func TestRecordedMatchesStillReplay(t *testing.T) {
@@ -89,6 +98,58 @@ func TestRecordedMatchesStillReplay(t *testing.T) {
 			}
 		})
 	}
+}
+
+// Each island's recording has to show its ground at work, or freezing it
+// freezes nothing about the ground.
+func TestEachIslandRecordingShowsItsGroundAtWork(t *testing.T) {
+	for _, match := range goldenMatches {
+		if match.exercises == "" {
+			continue
+		}
+		t.Run(match.file, func(t *testing.T) {
+			raw, err := os.ReadFile(filepath.Join(goldenDir, match.file))
+			if err != nil {
+				t.Fatal(err)
+			}
+			var fixture replayFixture
+			if err := json.Unmarshal(raw, &fixture); err != nil {
+				t.Fatal(err)
+			}
+			snapshots, err := ReplaySnapshots(fixture.Recording)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !showsAtWork(snapshots, match.exercises) {
+				t.Errorf("%s never shows %q: pick a seed where it does", match.file, match.exercises)
+			}
+		})
+	}
+}
+
+func showsAtWork(snapshots []types.GameState, what string) bool {
+	for _, snap := range snapshots {
+		if what == "grass" {
+			grass := map[types.Position]bool{}
+			for _, cell := range snap.Ground {
+				if cell.Kind == GroundTallGrass {
+					grass[cell.Position] = true
+				}
+			}
+			for _, p := range snap.Players {
+				if p.Character.IsAlive && p.Character.Position != nil && grass[*p.Character.Position] {
+					return true
+				}
+			}
+			continue
+		}
+		for _, entry := range snap.Log {
+			if strings.Contains(entry.Text, what) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func writeGoldenMatches(t *testing.T) {

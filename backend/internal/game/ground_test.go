@@ -84,9 +84,16 @@ func TestTallGrassHidesFromMoreThanTwoCellsAway(t *testing.T) {
 func TestTheBotCannotSeeIntoTallGrass(t *testing.T) {
 	g := duel(t, types.Position{X: 0, Y: 0}, types.Position{X: 5, Y: 0})
 	groundOn(g, GroundTallGrass, nil, types.Position{X: 5, Y: 0})
-	// b is in the grass; a, the one deciding, is five cells off.
-	if action := DecideBotAction(g.SnapshotFor("a"), "a"); action.Kind != BotEnd {
-		t.Errorf("a bot with nobody in sight chose %+v, want it to end its turn", action)
+	// b is in the grass; a, the one deciding, is five cells off. It cannot
+	// aim at what it cannot see, so all it can do is go and look.
+	action := DecideBotAction(g.SnapshotFor("a"), "a")
+	switch action.Kind {
+	case BotCast:
+		t.Errorf("a bot with nobody in sight cast %+v", action)
+	case BotMove:
+		if Distance(action.Target, types.Position{X: 5, Y: 0}) >= 5 {
+			t.Errorf("a bot looking for someone in the grass walked to %+v, no nearer the grass", action.Target)
+		}
 	}
 }
 

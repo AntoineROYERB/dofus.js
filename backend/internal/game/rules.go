@@ -175,17 +175,21 @@ func HasLineOfSight(from, to types.Position, blocked func(types.Position) bool) 
 	}
 	steps *= 2 // half-cell resolution: never jumps a corner
 
-	seen := make(map[types.Position]bool, steps)
+	// Both coordinates only ever move one way along the segment, so a cell,
+	// once left, never comes round again: remembering the last one is enough
+	// to test each once. The bot asks this thousands of times a decision, and
+	// a map per question was most of what it cost.
+	last := from
 	for i := 1; i < steps; i++ {
 		t := float64(i) / float64(steps)
 		cell := types.Position{
 			X: from.X + int(roundHalf(float64(dx)*t)),
 			Y: from.Y + int(roundHalf(float64(dy)*t)),
 		}
-		if cell == from || cell == to || seen[cell] {
+		if cell == from || cell == to || cell == last {
 			continue
 		}
-		seen[cell] = true
+		last = cell
 		if blocked(cell) {
 			return false
 		}

@@ -341,7 +341,17 @@ export type Terrain = {
 };
 
 /** One sheet of the bestiary, by the name of its sprite. */
-export type Monster = { id: string; name: string; rank: "monster" | "boss" | "legend" };
+export type OpponentLevel = "easy" | "normal" | "hard";
+
+export type Monster = {
+  id: string;
+  name: string;
+  rank: "monster" | "boss" | "legend";
+  /** The champion whose set a boss or a legend fights in. */
+  champion?: string;
+  /** A ruler's way of fighting, in the one sentence a player reads first. */
+  tactic?: string;
+};
 
 export type Armour = { id: string; name: string; element: string };
 
@@ -383,6 +393,8 @@ export type Island = {
   /** What finishing it unlocks. */
   armour: string;
   fights: number;
+  /** How well the island's opponents fight, rising across the campaign. */
+  opponentLevel: OpponentLevel;
 };
 
 export type ContentResponse = {

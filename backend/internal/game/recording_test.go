@@ -411,3 +411,19 @@ func TestALeaverIsRecordedAndReplayed(t *testing.T) {
 	}
 	assertSameSnapshot(t, g, replayed, len(rec.Commands))
 }
+
+// nearestEnemy is the closest living character to a cell, ties to the lowest
+// user id.
+func nearestEnemy(state types.GameState, id string, from types.Position) (types.Position, bool) {
+	best, bestDist := types.Position{}, -1
+	for _, other := range sortedKeys(state.Players) {
+		p := state.Players[other]
+		if other == id || !p.Character.IsAlive || p.Character.Position == nil {
+			continue
+		}
+		if d := Distance(from, *p.Character.Position); bestDist == -1 || d < bestDist {
+			best, bestDist = *p.Character.Position, d
+		}
+	}
+	return best, bestDist >= 0
+}
