@@ -161,18 +161,26 @@ describe("surfaceOf", () => {
 });
 
 describe("voiceOf", () => {
-  it("gives each fighter one voice for the whole fight, in a speaking range", () => {
+  it("gives each fighter one of the recorded voices, kept for the whole fight", () => {
     const a = voiceOf(fighter("Ashka"));
-    expect(voiceOf(fighter("Ashka"))).toBe(a);
-    expect(voiceOf(fighter("Tester"))).not.toBe(a);
-    for (const name of ["a", "Ashka the Kindled", "Tester", "Zz"]) {
-      const pitch = voiceOf(fighter(name));
-      expect(pitch).toBeGreaterThanOrEqual(115);
-      expect(pitch).toBeLessThan(230);
+    expect(voiceOf(fighter("Ashka"))).toEqual(a);
+    const names = ["a", "Ashka the Kindled", "Tester", "Zz", "Gobball", "Kwak", "Arachnee", "Tofu"];
+    for (const name of names) {
+      const { singer, rate } = voiceOf(fighter(name));
+      expect(Number.isInteger(singer)).toBe(true);
+      expect(singer).toBeGreaterThanOrEqual(0);
+      expect(singer).toBeLessThan(4);
+      expect(rate).toBeGreaterThanOrEqual(0.92);
+      expect(rate).toBeLessThan(1.1);
     }
+    // Different names do not all land on the same voice.
+    expect(new Set(names.map((n) => JSON.stringify(voiceOf(fighter(n))))).size).toBeGreaterThan(4);
   });
 
-  it("gives a dream's monsters a lower voice", () => {
-    expect(voiceOf({ ...fighter("Gobball"), monster: "gobball" })).toBeCloseTo(voiceOf(fighter("Gobball")) * 0.6);
+  it("plays a dream's monsters deeper", () => {
+    const plain = voiceOf(fighter("Gobball"));
+    const monster = voiceOf({ ...fighter("Gobball"), monster: "gobball" });
+    expect(monster.singer).toBe(plain.singer);
+    expect(monster.rate).toBeCloseTo(plain.rate * 0.72);
   });
 });

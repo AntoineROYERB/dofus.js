@@ -1,6 +1,7 @@
 import type { Element } from "../vfx/spellFx";
 import { getMixer, Mixer } from "./engine";
 import { burst, frequencyOf, noise, thump } from "./voices";
+import { CRIES, pick, playSample, SpellSample } from "./samples";
 
 /**
  * Every sound the game makes that is not music. Each one answers something
@@ -78,13 +79,6 @@ const glide = (
 const tone = (m: Mixer, out: AudioNode, t: number, f: number, v: number, ring: number, type: OscillatorType = "sine") =>
   glide(m, out, t, type, f, f * 0.999, ring, v);
 
-/** Fire's crackle: a scatter of tiny clicks after the blast. */
-const crackle = (m: Mixer, out: AudioNode, t: number, count: number, spread: number, v: number) => {
-  for (let i = 0; i < count; i++) {
-    burst(m, out, t + Math.random() * spread, "highpass", 2500 + Math.random() * 3000, v * (0.4 + Math.random() * 0.6), 0.012);
-  }
-};
-
 const bubbles = (m: Mixer, out: AudioNode, t: number, count: number, v: number) => {
   for (let i = 0; i < count; i++) {
     const f = 380 + Math.random() * 600;
@@ -104,35 +98,28 @@ export type CastSound = {
   heavy: boolean;
 };
 
-/** The spell leaving its caster. */
+/**
+ * What each element sounds like when it lands, from the recordings. Air in
+ * this game is lightning as much as wind, so it lands as thunder.
+ */
+const BLAST: Record<Element, SpellSample> = { Fire: "fire", Air: "thunder", Water: "water", Earth: "earth" };
+
+/** The thunder recording is quieter at its peak than the others; this evens them out. */
+const LOUDNESS: Record<Element, number> = { Fire: 1, Air: 1.5, Water: 1.2, Earth: 1 };
+
+/**
+ * How fast the rush of air that carries each element is played: low and heavy
+ * for earth, quick and high for air.
+ */
+const RUSH: Record<Element, number> = { Fire: 0.85, Air: 1.25, Water: 0.95, Earth: 0.7 };
+
+/** The spell leaving its caster: a rush of air, and for an ultimate, a charge. */
 export const playCast = ({ element, pan, heavy }: CastSound) => {
   const m = getMixer();
   if (!m) return;
   const out = outlet(m, pan);
-  const t = m.ctx.currentTime + 0.01;
-  const big = heavy ? 1.5 : 1;
-  switch (element) {
-    case "Fire":
-      sweep(m, out, t, "bandpass", 300, 2200, 0.32 * big, 0.5, 1.2, 0.08);
-      thump(m, out, t, 90, 45, 0.25, 0.35, 0.35 * big);
-      break;
-    case "Air":
-      sweep(m, out, t, "bandpass", 900, 3800, 0.35 * big, 0.45, 9, 0.12);
-      sweep(m, out, t, "highpass", 3000, 6000, 0.2, 0.12);
-      break;
-    case "Water":
-      sweep(m, out, t, "lowpass", 500, 2600, 0.3 * big, 0.55, 2, 0.06);
-      bubbles(m, out, t, 3, 0.6);
-      break;
-    case "Earth":
-      sweep(m, out, t, "lowpass", 220, 700, 0.35 * big, 0.65, 1.5, 0.05);
-      thump(m, out, t, 70, 38, 0.3, 0.45, 0.45 * big);
-      break;
-  }
-  if (heavy) {
-    // The air drawn in before something large: a swell under the element.
-    sweep(m, out, t, "bandpass", 200, 1200, 0.6, 0.35, 0.8, 0.5);
-  }
+  playSample(m, out, "wind", { gain: 0.45, rate: RUSH[element], length: 0.45 });
+  if (heavy) playSample(m, out, "charge", { gain: 0.5, length: 0.55, rate: 1.1 });
 };
 
 export type LandSound = CastSound & {
@@ -141,135 +128,48 @@ export type LandSound = CastSound & {
   crit: boolean;
 };
 
-/** The spell arriving where it was aimed. */
+/** The spell arriving where it was aimed: its element's blast. */
 export const playImpact = ({ element, pan, heavy, damage, crit }: LandSound) => {
   const m = getMixer();
   if (!m) return;
   const out = outlet(m, pan);
-  const t = m.ctx.currentTime + 0.01;
-  // Louder for a bigger number, but a scratch is still heard.
-  const v = Math.min(1, 0.55 + damage / 60) * (heavy ? 1.25 : 1);
-  const ring = heavy ? 1.6 : 1;
-  switch (element) {
-    case "Fire":
-      sweep(m, out, t, "lowpass", 3200, 260, 0.55 * ring, 0.6 * v, 0.8, 0.004);
-      thump(m, out, t, 110, 40, 0.2, 0.55 * v, 0.45 * ring);
-      crackle(m, out, t + 0.05, heavy ? 22 : 12, 0.5 * ring, 0.25 * v);
-      break;
-    case "Air":
-      glide(m, out, t, "square", 2400, 160, 0.13, 0.12 * v);
-      sweep(m, out, t, "highpass", 6000, 2000, 0.18 * ring, 0.5 * v, 0.7, 0.002);
-      thump(m, out, t, 180, 60, 0.1, 0.35 * v, 0.25);
-      break;
-    case "Water":
-      sweep(m, out, t, "lowpass", 3800, 500, 0.45 * ring, 0.55 * v, 1, 0.004);
-      bubbles(m, out, t + 0.05, heavy ? 10 : 6, v);
-      thump(m, out, t, 130, 70, 0.1, 0.3 * v, 0.2);
-      break;
-    case "Earth":
-      thump(m, out, t, 130, 34, 0.3, 0.8 * v, 0.6 * ring);
-      sweep(m, out, t, "lowpass", 1400, 180, 0.4 * ring, 0.5 * v, 0.9, 0.004);
-      crackle(m, out, t + 0.03, 6, 0.25, 0.18 * v);
-      break;
-  }
-  if (crit) {
-    // A critical rings: a struck metal shimmer over the blow.
-    tone(m, out, t, 1244, 0.12, 0.7);
-    tone(m, out, t + 0.01, 1865, 0.08, 0.55);
-    tone(m, out, t + 0.02, 2490, 0.05, 0.4);
-  }
+  // A spell that only moves or marks still lands, more quietly than a hit.
+  const gain = damage > 0 ? Math.min(1, 0.75 + damage / 80) : 0.55;
   if (heavy) {
-    thump(m, out, t, 80, 28, 0.6, 0.6, 1.4);
-    sweep(m, out, t + 0.05, "lowpass", 900, 120, 1.4, 0.3, 0.7, 0.05);
+    // Slowed down, a blast becomes a bigger one; the earth's rumble under it
+    // is the ground taking the weight.
+    playSample(m, out, BLAST[element], { gain: 1, rate: 0.8 });
+    if (element !== "Earth") playSample(m, out, "earth", { gain: 0.6, rate: 0.75 });
+  } else {
+    playSample(m, out, BLAST[element], { gain: gain * LOUDNESS[element], length: 1.4 });
   }
+  // A critical shatters: the ice blast's crack, sped up, over the blow.
+  if (crit) playSample(m, out, "ice", { gain: 0.55, rate: 1.35, length: 0.8 });
 };
 
-/** The formants of a vowel: centre, sharpness, level. */
-type Vowel = [number, number, number][];
+/** A fighter's voice: which recorded voice, and how high it is played. */
+export type CryVoice = { singer: number; rate: number };
 
-// "Uh" for a knock, "ah" for a real blow: the open vowel is the one a body
-// makes when the air is driven out of it.
-const UH: Vowel = [[520, 6, 1], [1000, 8, 0.45], [2400, 10, 0.12]];
-const AH: Vowel = [[760, 6, 1], [1200, 8, 0.55], [2600, 10, 0.18]];
+const DEFAULT_VOICE: CryVoice = { singer: 0, rate: 1 };
 
-/**
- * A voice crying out: a buzzing throat at `pitch`, shaped into a vowel by
- * three band-pass filters, with a jolt of breath at the start. The pitch
- * jumps up as the blow lands and falls away by `fall`, which is what makes
- * it read as pain rather than as a note.
- */
-const cry = (
-  m: Mixer,
-  out: AudioNode,
-  t: number,
-  pitch: number,
-  seconds: number,
-  v: number,
-  vowel: Vowel,
-  fall: number
-) => {
-  const { ctx } = m;
-  const throat = ctx.createOscillator();
-  throat.type = "sawtooth";
-  throat.frequency.setValueAtTime(pitch * 1.3, t);
-  throat.frequency.exponentialRampToValueAtTime(pitch * 1.1, t + 0.04);
-  throat.frequency.exponentialRampToValueAtTime(pitch * fall, t + seconds);
-  // A fast, shallow wobble: the rasp of a strained voice.
-  const rasp = ctx.createOscillator();
-  rasp.frequency.value = 27 + Math.random() * 8;
-  const raspDepth = gainAt(ctx, 35);
-  rasp.connect(raspDepth).connect(throat.detune);
+/** Below this much damage a fighter grunts; above it they scream. */
+const SCREAM = 8;
 
-  const amp = gainAt(ctx);
-  amp.gain.setValueAtTime(0, t);
-  amp.gain.linearRampToValueAtTime(v, t + 0.015);
-  amp.gain.setTargetAtTime(v * 0.7, t + 0.03, seconds * 0.4);
-  amp.gain.exponentialRampToValueAtTime(0.0008, t + seconds);
-  for (const [f, q, level] of vowel) {
-    const band = ctx.createBiquadFilter();
-    band.type = "bandpass";
-    band.frequency.value = f;
-    band.Q.value = q;
-    const share = gainAt(ctx, level * 1.6);
-    throat.connect(band).connect(share).connect(amp);
-  }
-  amp.connect(out);
-  for (const o of [throat, rasp]) {
-    o.start(t);
-    o.stop(t + seconds + 0.05);
-  }
-  sweep(m, out, t, "bandpass", 1800, 900, 0.12, v * 0.25, 1, 0.006);
-};
-
-/**
- * A fighter crying out as they take a blow. `pitch` is their own voice
- * (cues.ts gives every fighter one); a bigger blow is a louder, longer, more
- * open cry.
- */
-export const playCry = (pan: number, amount: number, pitch = 150, delay = 0) => {
+/** A fighter crying out at a blow: a grunt for a scratch, a scream for the rest. */
+export const playCry = (pan: number, amount: number, voice: CryVoice = DEFAULT_VOICE, delay = 0) => {
   const m = getMixer();
   if (!m) return;
-  const out = outlet(m, pan);
-  const t = m.ctx.currentTime + 0.01 + delay;
-  const heavy = amount >= 18;
-  // Loud enough to be heard over the spell that caused it: a cry lost under
-  // the explosion tells the player nothing.
-  const v = Math.min(1.1, 0.6 + amount / 40);
-  cry(m, out, t, pitch * (0.95 + Math.random() * 0.1), heavy ? 0.42 : 0.24, v, heavy ? AH : UH, heavy ? 0.7 : 0.82);
+  const set = CRIES[voice.singer % CRIES.length];
+  playSample(m, outlet(m, pan), pick(amount < SCREAM ? set.light : set.heavy), {
+    // A bigger blow is a louder cry, and a hint higher: the voice straining.
+    gain: Math.min(1.25, 0.95 + amount / 60),
+    rate: voice.rate * (amount >= 25 ? 1.06 : 1),
+    delay,
+  });
 };
 
-/** A fighter taking a blow: the body under the spell's impact, and their cry. */
-export const playHurt = (pan: number, amount: number, pitch?: number) => {
-  const m = getMixer();
-  if (!m) return;
-  const out = outlet(m, pan);
-  const t = m.ctx.currentTime + 0.01;
-  const v = Math.min(1, 0.4 + amount / 50);
-  thump(m, out, t, 210, 85, 0.1, 0.45 * v, 0.18);
-  burst(m, out, t, "bandpass", 1600, 0.3 * v, 0.06, 1.2);
-  // Just after the blow, not on it, so the impact does not swallow it.
-  playCry(pan, amount, pitch, 0.06);
-};
+/** A fighter taking a blow: their cry, just after the spell lands so it is not swallowed. */
+export const playHurt = (pan: number, amount: number, voice?: CryVoice) => playCry(pan, amount, voice, 0.07);
 
 /** Health coming back: a rising sparkle. */
 export const playHeal = (pan: number) => {
@@ -302,18 +202,15 @@ export const playDrain = (pan: number) => {
   glide(m, out, t + 0.05, "sine", 660, 165, 0.22, 0.08);
 };
 
-/** A fighter falling. */
-export const playDeath = (pan: number, pitch = 150) => {
+/** A fighter falling: a last scream, and the body landing. */
+export const playDeath = (pan: number, voice: CryVoice = DEFAULT_VOICE) => {
   const m = getMixer();
   if (!m) return;
   const out = outlet(m, pan);
-  const t = m.ctx.currentTime + 0.01;
-  // A last long cry, sinking, before the body lands.
-  cry(m, out, t, pitch * 1.1, 0.85, 0.7, AH, 0.5);
-  glide(m, out, t, "sawtooth", 330, 55, 0.9, 0.09);
-  glide(m, out, t, "sine", 220, 40, 1.1, 0.25);
-  thump(m, out, t + 0.35, 120, 35, 0.25, 0.6, 0.6);
-  sweep(m, out, t + 0.35, "lowpass", 900, 150, 0.4, 0.3, 0.8, 0.004);
+  const set = CRIES[voice.singer % CRIES.length];
+  playSample(m, out, pick(set.death), { gain: 1, rate: voice.rate * 0.97 });
+  // The earth blast, sped up and cut short, is a body hitting the ground.
+  playSample(m, out, "earth", { gain: 0.45, rate: 1.5, delay: 0.75, length: 0.5 });
 };
 
 /** A body thrown across the board, or one leaping. */
