@@ -144,8 +144,16 @@ type DreamFloors struct {
 	// MaxMonsters is the most monsters a room holds.
 	MaxMonsters int `json:"maxMonsters"`
 	// HealthPerFloor is the percent more health monsters get every floor
-	// past the first: what keeps the climb climbing once rooms are full.
-	HealthPerFloor int `json:"healthPerFloor"`
+	// past the first, for a party of 1, 2 and 3: what keeps the climb
+	// climbing once rooms are full. A party carries a boon per player per
+	// floor, so a bigger one runs away from a curve that ignores it.
+	HealthPerFloor []int `json:"healthPerFloor"`
+	// DamagePerFloor is the same for the damage monsters deal, in percent
+	// per floor past the first, for a party of 1, 2 and 3.
+	DamagePerFloor []int `json:"damagePerFloor"`
+	// PartyBoonsEarlier is how many floors earlier MonsterBoons arrive for
+	// each player past the first.
+	PartyBoonsEarlier int `json:"partyBoonsEarlier"`
 	// Difficulties are the three kinds of room a floor offers, calmest
 	// first.
 	Difficulties []DreamDifficulty `json:"difficulties"`
@@ -210,6 +218,9 @@ type FighterStats struct {
 	Health         int `json:"health"`
 	ActionPoints   int `json:"actionPoints"`
 	MovementPoints int `json:"movementPoints"`
+	// Damage is how much harder, in percent, every spell of the fighter hits:
+	// what the floor adds to a monster.
+	Damage int `json:"damage,omitempty"`
 }
 
 // Blessings are a fighter's boons resolved into the numbers the rules read.

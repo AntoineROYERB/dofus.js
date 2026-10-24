@@ -298,3 +298,23 @@ func TestSharedStrengthLendsAPToAlliesNearby(t *testing.T) {
 		t.Fatalf("an ally six cells away gets %d AP, want none", extra)
 	}
 }
+
+// A monster seated with a damage bonus — what a high floor gives it — has
+// every spell on its bar dealt again that much harder.
+func TestAMonsterSeatedHarderHitsHarder(t *testing.T) {
+	cat := shippedContent(t)
+	g := NewWithOptions(Options{Seed: 1, TurnDuration: time.Hour, Content: &cat, Seats: 1})
+	m, _ := cat.DreamMonster("caillou")
+	id, err := g.AddBotOf(BotSpec{Monster: "caillou", Team: TeamDream, Mode: BotStandsStill,
+		Stats: &types.FighterStats{Health: m.Health, ActionPoints: m.ActionPoints, MovementPoints: m.MovementPoints, Damage: 50}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	snap := g.Snapshot()
+	p := snap.Players[id]
+	key := p.SpellBar[0]
+	got, base := snap.Spells[key], cat.Spells[m.Bar[0]]
+	if want := scaleDamage(base, 50).Damage; got.Damage != want {
+		t.Errorf("%s hits for %d, want %d: 50%% on %d", got.Name, got.Damage, want, base.Damage)
+	}
+}

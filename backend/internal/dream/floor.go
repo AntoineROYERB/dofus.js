@@ -153,9 +153,22 @@ func budget(f types.DreamFloors, floor, party, percent int) int {
 	return max(1, (tenths+5)/10)
 }
 
-// healthAt is a monster's health on a floor, with any twist's share on top.
-func healthAt(f types.DreamFloors, base, floor, extra int) int {
-	return max(1, base*(100+f.HealthPerFloor*(floor-1)+extra)/100)
+// healthAt is a monster's health on a floor against a party, with any
+// twist's share on top.
+func healthAt(f types.DreamFloors, base, floor, party, extra int) int {
+	return max(1, base*(100+f.HealthPerFloor[party-1]*(floor-1)+extra)/100)
+}
+
+// damageAt is how much harder, in percent, a monster hits on a floor against
+// a party.
+func damageAt(f types.DreamFloors, floor, party int) int {
+	return f.DamagePerFloor[party-1] * (floor - 1)
+}
+
+// boonFloor is the floor a party's monsters carry their boons as of: a
+// bigger party meets them earlier.
+func boonFloor(f types.DreamFloors, floor, party int) int {
+	return floor + f.PartyBoonsEarlier*(party-1)
 }
 
 func room(cat content.Catalogue, rng *rand.Rand, index int, island string, d types.DreamDifficulty, floor, party int) Room {
@@ -180,7 +193,7 @@ func room(cat content.Catalogue, rng *rand.Rand, index int, island string, d typ
 	}
 	lvl := level(f, floor)
 	for i := range r.Monsters {
-		r.Monsters[i] = dressMonster(cat, r.Monsters[i], floor, extraHealth, lvl)
+		r.Monsters[i] = dressMonster(cat, r.Monsters[i], floor, party, extraHealth, lvl)
 	}
 	return r
 }
@@ -210,19 +223,20 @@ func bossRoom(cat content.Catalogue, rng *rand.Rand, floor, party int) Room {
 		Boss: &BossSeat{
 			Boss: bossID, Name: sheet.Name, Champion: sheet.Champion, Tactic: sheet.Tactic,
 			Stats: types.FighterStats{
-				Health:         healthAt(f, health, floor, 0),
+				Health:         healthAt(f, health, floor, party, 0),
 				ActionPoints:   kit.Grimoire.ActionPoints,
 				MovementPoints: kit.Grimoire.MovementPoints,
+				Damage:         damageAt(f, floor, party),
 			},
 			Level:   lvl,
-			Boons:   append(floorBoons(f.MonsterBoons, floor), floorBoons(f.BossBoons, floor)...),
+			Boons:   append(floorBoons(f.MonsterBoons, boonFloor(f, floor, party)), floorBoons(f.BossBoons, floor)...),
 			Element: kit.Element,
 		},
 	}
 	if home, ok := cat.Island(island); ok && floor >= f.EscortFrom && len(home.Lineage) > 0 {
 		escort, _ := drawMonsters(cat, rng, home.Lineage, budget(f, floor, party, 50), min(f.MaxMonsters, content.MaxDreamMonsters-1), 0)
 		for _, m := range escort {
-			r.Monsters = append(r.Monsters, dressMonster(cat, m, floor, 0, lvl))
+			r.Monsters = append(r.Monsters, dressMonster(cat, m, floor, party, 0, lvl))
 		}
 	}
 	return r
@@ -336,7 +350,7 @@ func drawMonsters(cat content.Catalogue, rng *rand.Rand, lineage []string, budge
 
 // dressMonster fills in a monster's numbers for its floor, and what its
 // card shows.
-func dressMonster(cat content.Catalogue, seat MonsterSeat, floor, extraHealth int, lvl string) MonsterSeat {
+func dressMonster(cat content.Catalogue, seat MonsterSeat, floor, party, extraHealth int, lvl string) MonsterSeat {
 	m, _ := cat.DreamMonster(seat.Monster)
 	sheet, _ := cat.Monster(seat.Monster)
 	kit, _ := cat.Kit(m.Loadout)
@@ -345,11 +359,12 @@ func dressMonster(cat content.Catalogue, seat MonsterSeat, floor, extraHealth in
 	seat.Element = kit.Element
 	seat.Level = lvl
 	seat.Stats = types.FighterStats{
-		Health:         healthAt(cat.Dream.Floors, m.Health, floor, extraHealth),
+		Health:         healthAt(cat.Dream.Floors, m.Health, floor, party, extraHealth),
 		ActionPoints:   m.ActionPoints,
 		MovementPoints: m.MovementPoints,
+		Damage:         damageAt(cat.Dream.Floors, floor, party),
 	}
-	seat.Boons = floorBoons(cat.Dream.Floors.MonsterBoons, floor)
+	seat.Boons = floorBoons(cat.Dream.Floors.MonsterBoons, boonFloor(cat.Dream.Floors, floor, party))
 	seat.Spells = make([]string, 0, len(m.Bar))
 	for _, id := range m.Bar {
 		seat.Spells = append(seat.Spells, cat.Spells[id].Name)

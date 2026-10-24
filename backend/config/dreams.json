@@ -25,7 +25,9 @@
       280
     ],
     "maxMonsters": 6,
-    "healthPerFloor": 4,
+    "healthPerFloor": [4, 6, 7],
+    "damagePerFloor": [0, 4, 5],
+    "partyBoonsEarlier": 2,
     "difficulties": [
       {
         "id": "calm",

@@ -127,6 +127,15 @@ func TestABadDreamIsRefused(t *testing.T) {
 		{"a room of seven", "floors.maxMonsters", "between 1 and 6", func(d map[string]any) {
 			d["floors"].(map[string]any)["maxMonsters"] = 7
 		}},
+		{"a health curve missing a party size", "floors.healthPerFloor", "one per party size", func(d map[string]any) {
+			d["floors"].(map[string]any)["healthPerFloor"] = []any{4, 6}
+		}},
+		{"a trio's monsters hitting softer than a pair's", "floors.damagePerFloor[2]", "below a smaller party's", func(d map[string]any) {
+			d["floors"].(map[string]any)["damagePerFloor"] = []any{2, 4, 3}
+		}},
+		{"monster boons arriving later for a bigger party", "floors.partyBoonsEarlier", "must not be negative", func(d map[string]any) {
+			d["floors"].(map[string]any)["partyBoonsEarlier"] = -1
+		}},
 		{"levels that do not start at the bottom", "floors.levels", "must start at floor 1", func(d map[string]any) {
 			d["floors"].(map[string]any)["levels"] = []any{map[string]any{"from": 3, "level": "easy"}}
 		}},

@@ -529,11 +529,19 @@ export interface ActionRejectedMessage {
   reason: string;
 }
 
+/** A dream fighter's numbers; damage is how much harder, in percent, it hits. */
+export type FighterStats = {
+  health: number;
+  actionPoints: number;
+  movementPoints: number;
+  damage?: number;
+};
+
 /** One monster of a dream's room, as it will be seated. */
 export type DreamMonsterSeat = {
   monster: string;
   name: string;
-  stats: { health: number; actionPoints: number; movementPoints: number };
+  stats: FighterStats;
   level: OpponentLevel;
   color: string;
   element: string;
@@ -546,7 +554,7 @@ export type DreamBossSeat = {
   name: string;
   champion: string;
   tactic: string;
-  stats: { health: number; actionPoints: number; movementPoints: number };
+  stats: FighterStats;
   level: OpponentLevel;
   boons: string[];
   element: string;

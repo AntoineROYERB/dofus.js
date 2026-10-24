@@ -204,6 +204,8 @@ const RoomCard: React.FC<{
   onSelect: () => void;
 }> = ({ run, room, content, selected, onSelect }) => {
   const difficulty = content?.dream?.floors.difficulties.find((d) => d.id === room.difficulty);
+  // Every monster of a room is dealt the same bonus by its floor.
+  const harder = room.boss?.stats.damage ?? room.monsters?.[0]?.stats.damage ?? 0;
   const pointers = run.members.filter((m) => !m.left && m.pointed === room.index);
   return (
     <button
@@ -244,6 +246,12 @@ const RoomCard: React.FC<{
           </li>
         ))}
       </ul>
+
+      {harder > 0 && (
+        <p className="mt-1 font-mono text-[9.5px] uppercase tracking-label text-graphite">
+          Hits {harder}% harder
+        </p>
+      )}
 
       {room.twists.length > 0 && (
         <ul className="mt-2 flex flex-col gap-1 border-t border-hairline pt-2">
