@@ -89,8 +89,9 @@ improvement that works whatever the element) and **a talisman**, which circles
 you and carries your **ultimate**, cast once a fight from turn 2. The
 **wardrobe** changes each piece on its own. Four grimoires ship, one per
 element: the **Pyromancer** (burns that stack and then go off at once), the
-**Windwalker** (reach, through a relay it sets across the board, and
-displacement), the **Tidecaller** (control: traps, ice and water) and the
+**Windwalker** (reach, through a pylon it sets across the board and trades
+places with to kite; the pylon holds half its owner's health and hides in
+grass and smoke), the **Tidecaller** (control: traps, ice and water) and the
 **Stonewarden** (a brawler that leaps into reach and walls off the way out).
 In solo play four champions fight in a full set each, and beating one unlocks
 the next.
@@ -102,16 +103,20 @@ island's monsters, the twists that bend the fight (fire already burning, a
 band of smoke, no cover, shorter turns…) and how rare the boons it pays are.
 The leader picks; the others can point at the room they would take. A room
 holds one to six monsters, more and stronger the higher the floor and the
-bigger the party, and every fifth floor a ruler of the islands waits instead.
+bigger the party — in a party of two or three they also gain health and
+damage faster with each floor, and their floor boons come sooner — and every
+fifth floor a ruler of the islands waits instead.
 After a win everyone stands again at full health and takes one boon of three
 for the rest of the run: more health or points, cheaper or longer spells, a
 shield for the whole party, Wake Up to stand a fallen ally back up, a Second
-Wind once a run. The climb ends when the whole party falls, and how high it
+Wind once a run, or Upheaval, a legendary spell that digs up the ground once a
+fight and turns it over into your element the turn after. The climb ends when the whole party falls, and how high it
 got goes on the leaderboard — Solo, Duo and Trio — written by the server
 alone, each line linking to its fights' replays. Spells hit allies too.
 
 Spells change the board and what they leave stays for the rest of the fight:
-fire that burns whoever walks in, smoke nothing is seen through, water that
+fire that burns whoever walks in, smoke nothing is seen through and from which
+no spell reaches further than three cells, water that
 slows enemies and puts fire out, ice you slide across, bubble traps, pillars,
 craters and fissures nobody walks through. Hover a changed cell to read what
 it does.
