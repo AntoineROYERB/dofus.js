@@ -72,16 +72,22 @@ export const TurnBar: React.FC<{
   );
 };
 
-export const CornerButton: React.FC<{
-  label: string;
-  onClick: () => void;
-}> = ({ label, onClick }) => (
+/**
+ * The one way into everything a fight keeps off the board — the log, the
+ * chat, the doors out. It used to be two words side by side, Log and Leave,
+ * and the second was a forfeit one slip away from the first.
+ */
+export const MenuButton: React.FC<{ onClick: () => void }> = ({ onClick }) => (
   <button
     type="button"
     onClick={onClick}
-    className={`h-9 rounded-full px-3.5 font-mono text-[10px] uppercase tracking-label text-graphite ${HAIRLINE} ${PRESS}`}
+    aria-label="Menu: log, chat and leave"
+    className={`flex h-10 items-center gap-2 rounded-full pl-3 pr-3.5 font-mono text-[10px] uppercase tracking-label text-ink ${HAIRLINE} ${PRESS}`}
   >
-    {label}
+    <svg aria-hidden viewBox="0 0 16 16" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round">
+      <path d="M2.5 4h11M2.5 8h11M2.5 12h11" />
+    </svg>
+    Menu
   </button>
 );
 
@@ -359,24 +365,41 @@ export const SpellArc: React.FC<SpellArcProps> = ({
 
   return (
     <div className="pointer-events-none absolute inset-0">
+      {/*
+        Under the menu button rather than over the arc: up there it covered
+        the corner buttons on a phone only 360 pixels tall. A finger has no
+        Escape key, so the × here is how a picked spell is put back down.
+      */}
       {selected && (
         <div
-          className={`absolute max-w-[300px] rounded-2xl px-3 py-1.5 text-right ${HAIRLINE}`}
-          style={{ right: 16, bottom: CENTRE.bottom + 222 }}
+          className={`pointer-events-auto absolute flex max-w-[min(320px,50vw)] items-center gap-1 rounded-2xl py-1 pl-3 pr-1 text-right ${HAIRLINE}`}
+          style={{ right: 12, top: "max(56px, calc(env(safe-area-inset-top) + 48px))" }}
         >
-          <p className="font-mono text-[10px] uppercase tracking-label text-ink">
-            <b className="font-semibold">{selected.name}</b>
-            <span
-              className="ml-1.5"
-              style={{ color: selected.ultimate ? "#8a6a10" : selected.color }}
-            >
-              {selected.role}
-            </span>
-            <span className="text-muted"> · pick a target</span>
-          </p>
-          <p className="mt-0.5 font-mono text-[10.5px] tabular-nums text-graphite">
-            {spellSummary(selected)}
-          </p>
+          <div className="min-w-0">
+            <p className="truncate font-mono text-[10px] uppercase tracking-label text-ink">
+              <b className="font-semibold">{selected.name}</b>
+              <span
+                className="ml-1.5"
+                style={{ color: selected.ultimate ? "#8a6a10" : selected.color }}
+              >
+                {selected.role}
+              </span>
+              <span className="text-muted"> · pick a target</span>
+            </p>
+            <p className="mt-0.5 truncate font-mono text-[10.5px] tabular-nums text-graphite">
+              {spellSummary(selected)}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => onSelectSpell(selected.id)}
+            aria-label={`Put ${selected.name} down`}
+            className="grid h-9 w-9 flex-none place-items-center rounded-full text-graphite transition-transform active:scale-90"
+          >
+            <svg aria-hidden viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
+              <path d="M6 6l12 12M18 6L6 18" />
+            </svg>
+          </button>
         </div>
       )}
 

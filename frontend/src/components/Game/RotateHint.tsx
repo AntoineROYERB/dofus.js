@@ -48,7 +48,7 @@ export const RotateHint: React.FC = () => {
       <button
         type="button"
         onClick={dismiss}
-        className="flex-none font-mono text-[9.5px] uppercase tracking-label text-muted"
+        className="-my-2 flex-none px-2 py-3 font-mono text-[9.5px] uppercase tracking-label text-ink"
       >
         Got it
       </button>

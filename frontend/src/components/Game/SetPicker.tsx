@@ -45,7 +45,7 @@ export const SetPicker: React.FC<SetPickerProps> = ({
         <button
           type="button"
           onClick={onOpenWardrobe}
-          className="font-mono text-[9.5px] uppercase tracking-label text-ink underline decoration-rule underline-offset-4 transition-colors hover:text-vermilion"
+          className="-my-2 py-2 font-mono text-[9.5px] uppercase tracking-label text-ink underline decoration-rule underline-offset-4 transition-colors hover:text-vermilion"
         >
           Wardrobe
         </button>
@@ -98,13 +98,19 @@ export const SetPicker: React.FC<SetPickerProps> = ({
             {worn ? "" : " · your own set"}
           </p>
           <p className="mt-1 short:hidden">{kit.grimoire.lore}</p>
-          <p className="mt-1 text-[11.5px] text-ink">
+          {/*
+            On a phone held sideways the passive, the rune and the spells are
+            what pushed "Find a game" under the bottom of the screen. They are
+            all in the wardrobe, one tap away, which is where a player who
+            wants the detail already goes.
+          */}
+          <p className="mt-1 text-[11.5px] text-ink short:hidden">
             <span className="font-mono text-[9.5px] uppercase tracking-label text-muted">
               Passive{" "}
             </span>
             {kit.grimoire.passive}
           </p>
-          <p className="mt-1 text-[11.5px] text-ink">
+          <p className="mt-1 text-[11.5px] text-ink short:hidden">
             <span className="font-mono text-[9.5px] uppercase tracking-label text-muted">
               Rune{" "}
             </span>
@@ -112,7 +118,7 @@ export const SetPicker: React.FC<SetPickerProps> = ({
             <RelicIcon id={runeKey(kit.rune.id)} unit={1} className="-my-2 mr-0.5 inline-block align-middle" />
             {kit.rune.name} — {kit.rune.description}
           </p>
-          <p className="mt-1 truncate text-[11.5px] text-muted" title={spellNames}>
+          <p className="mt-1 truncate text-[11.5px] text-muted short:hidden" title={spellNames}>
             {spellNames}
           </p>
         </div>

@@ -409,7 +409,8 @@ export const GameTutorial: React.FC<GameTutorialProps> = ({
           <button
             type="button"
             onClick={onFinish}
-            className="pointer-events-auto font-mono text-[9.5px] uppercase tracking-label text-muted transition-colors hover:text-vermilion"
+            // The words stay small; the finger's target around them does not.
+            className="pointer-events-auto -my-3 -mr-2 px-2 py-3 font-mono text-[9.5px] uppercase tracking-label text-muted transition-colors hover:text-vermilion"
           >
             Skip tutorial
           </button>
@@ -443,7 +444,7 @@ export const GameTutorial: React.FC<GameTutorialProps> = ({
               <button
                 type="button"
                 onClick={advance}
-                className="pointer-events-auto font-mono text-[9.5px] uppercase tracking-label text-muted underline decoration-rule underline-offset-4 transition-colors hover:text-vermilion"
+                className="pointer-events-auto -my-3 -ml-2 px-2 py-3 font-mono text-[9.5px] uppercase tracking-label text-muted underline decoration-rule underline-offset-4 transition-colors hover:text-vermilion"
               >
                 Skip this step
               </button>

@@ -19,6 +19,7 @@ import {
 } from "../../utils/loadoutUtils";
 import { useFxManifest } from "../../utils/fxManifest";
 import { apiBaseUrl } from "../../lib/api";
+import { Modal } from "../Overlay";
 
 type Slot = "outfit" | "grimoire" | "rune" | "talisman";
 
@@ -160,31 +161,28 @@ export const Wardrobe: React.FC<WardrobeProps> = ({ content, failed, loadout, on
   }
   // Never a dead button: the wardrobe opens, and says why it is empty.
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-ink/40 p-4" onClick={onCancel}>
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="wardrobe-title"
-        onClick={(event) => event.stopPropagation()}
-        className="w-full max-w-md border border-rule bg-paper p-5"
+    <Modal
+      onClose={onCancel}
+      labelledBy="wardrobe-title"
+      closeButton={false}
+      className="max-w-md border border-rule bg-paper p-5"
+    >
+      <h2 id="wardrobe-title" className="font-display text-[20px] font-bold leading-none tracking-tight">
+        The wardrobe
+      </h2>
+      <p className="mt-3 text-[13px] leading-snug text-graphite">
+        {failed || content
+          ? `The server did not send the wardrobe. Is this branch's server running at ${apiBaseUrl()}?`
+          : "Bringing out the wardrobe…"}
+      </p>
+      <button
+        type="button"
+        onClick={onCancel}
+        className={`mt-4 border border-rule px-4 py-2 font-display text-[14px] font-bold hover:border-ink ${PRESS}`}
       >
-        <h2 id="wardrobe-title" className="font-display text-[20px] font-bold leading-none tracking-tight">
-          The wardrobe
-        </h2>
-        <p className="mt-3 text-[13px] leading-snug text-graphite">
-          {failed || content
-            ? `The server did not send the wardrobe. Is this branch's server running at ${apiBaseUrl()}?`
-            : "Bringing out the wardrobe…"}
-        </p>
-        <button
-          type="button"
-          onClick={onCancel}
-          className={`mt-4 border border-rule px-4 py-2 font-display text-[14px] font-bold hover:border-ink ${PRESS}`}
-        >
-          Close
-        </button>
-      </div>
-    </div>
+        Close
+      </button>
+    </Modal>
   );
 };
 
@@ -435,7 +433,7 @@ const WardrobeSheet: React.FC<Omit<WardrobeProps, "content" | "failed"> & { cont
             type="button"
             onClick={onCancel}
             aria-label="Leave the wardrobe"
-            className={`grid h-8 w-8 flex-none place-items-center border border-rule text-ink hover:border-ink ${PRESS}`}
+            className={`grid h-10 w-10 flex-none place-items-center border border-rule text-ink hover:border-ink ${PRESS}`}
           >
             <svg aria-hidden viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
               <path d="M15 5l-7 7 7 7" />

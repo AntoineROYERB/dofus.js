@@ -19,6 +19,7 @@ import { Champion, ContentResponse } from "../types/message";
 import { Wardrobe } from "../components/Game/Wardrobe";
 import { LobbyHome } from "../components/Lobby/LobbyHome";
 import { RenameDialog } from "../components/Lobby/RenameDialog";
+import { SideSheet } from "../components/Overlay";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { ElementGlyph } from "../components/Game/ElementGlyph";
 import {
@@ -122,39 +123,6 @@ const RoomRow: React.FC<{
     </li>
   );
 };
-
-/** A panel sliding in from the right, over the home screen. */
-const Sheet: React.FC<{
-  title: string;
-  onClose: () => void;
-  children: React.ReactNode;
-}> = ({ title, onClose, children }) => (
-  <div className="fixed inset-0 z-40">
-    <button
-      type="button"
-      aria-label="Close"
-      onClick={onClose}
-      className="absolute inset-0 bg-ink/40"
-    />
-    <aside
-      role="dialog"
-      aria-label={title}
-      className="absolute bottom-0 right-0 top-0 flex w-[min(420px,92vw)] flex-col border-l-2 border-ink bg-paper pb-[env(safe-area-inset-bottom)] pl-5 pr-[calc(1.25rem+env(safe-area-inset-right))] pt-[max(1rem,env(safe-area-inset-top))]"
-    >
-      <div className="flex flex-none items-baseline justify-between border-b-2 border-ink pb-1.5">
-        <span className="font-display text-[17px] font-bold">{title}</span>
-        <button
-          type="button"
-          onClick={onClose}
-          className="font-mono text-[9.5px] uppercase tracking-label text-ink transition-colors hover:text-vermilion"
-        >
-          Close
-        </button>
-      </div>
-      <div className="min-h-0 flex-1 overflow-y-auto pb-3">{children}</div>
-    </aside>
-  </div>
-);
 
 /**
  * The island a solo match starts on, from `?island=ice` on the lobby's URL.
@@ -409,14 +377,14 @@ const LobbyPage: React.FC = () => {
           dreaming={!!dream && dream.phase !== "over"}
         />
         {sheet === "opponents" && (
-          <Sheet title="Rivals" onClose={() => setSheet(null)}>
+          <SideSheet title="Rivals" width="w-[min(420px,92vw)]" onClose={() => setSheet(null)}>
             {opponentList(true)}
-          </Sheet>
+          </SideSheet>
         )}
         {sheet === "rooms" && (
-          <Sheet title="Rooms" onClose={() => setSheet(null)}>
+          <SideSheet title="Rooms" width="w-[min(420px,92vw)]" onClose={() => setSheet(null)}>
             {roomsPanel}
-          </Sheet>
+          </SideSheet>
         )}
         {renaming && (
           <RenameDialog
@@ -550,25 +518,29 @@ const LobbyPage: React.FC = () => {
 
         {roomsPanel}
 
-        <div className="my-4 flex gap-5">
+        {/*
+          Each link whole on its line: squeezed into one row on a phone, they
+          broke into stacks of single words that read as separate buttons.
+        */}
+        <div className="my-3 flex flex-wrap gap-x-5">
           <button
             type="button"
             onClick={() => setHowToPlayOpen(true)}
-            className="self-start font-mono text-[9.5px] uppercase tracking-label text-muted transition-colors hover:text-vermilion"
+            className="self-start whitespace-nowrap py-2 font-mono text-[9.5px] uppercase tracking-label text-muted transition-colors hover:text-vermilion"
           >
             How to play
           </button>
           <button
             type="button"
             onClick={() => navigate("/explore")}
-            className="self-start font-mono text-[9.5px] uppercase tracking-label text-muted transition-colors hover:text-vermilion"
+            className="self-start whitespace-nowrap py-2 font-mono text-[9.5px] uppercase tracking-label text-muted transition-colors hover:text-vermilion"
           >
             Open world
           </button>
           <button
             type="button"
             onClick={() => navigate("/matches")}
-            className="self-start font-mono text-[9.5px] uppercase tracking-label text-muted transition-colors hover:text-vermilion"
+            className="self-start whitespace-nowrap py-2 font-mono text-[9.5px] uppercase tracking-label text-muted transition-colors hover:text-vermilion"
           >
             Match history
           </button>
@@ -576,14 +548,14 @@ const LobbyPage: React.FC = () => {
             type="button"
             onClick={() => setWardrobeOpen(true)}
             disabled={!content}
-            className="self-start font-mono text-[9.5px] uppercase tracking-label text-muted transition-colors hover:text-vermilion"
+            className="self-start whitespace-nowrap py-2 font-mono text-[9.5px] uppercase tracking-label text-muted transition-colors hover:text-vermilion"
           >
             Wardrobe
           </button>
           <button
             type="button"
             onClick={() => navigate("/")}
-            className="self-start font-mono text-[9.5px] uppercase tracking-label text-muted transition-colors hover:text-vermilion"
+            className="self-start whitespace-nowrap py-2 font-mono text-[9.5px] uppercase tracking-label text-muted transition-colors hover:text-vermilion"
           >
             Change character
           </button>

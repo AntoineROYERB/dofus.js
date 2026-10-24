@@ -15,12 +15,13 @@ import { readCharacter } from "../utils/characterStorage";
 import { blockedBy, findPath, pathCost } from "../utils/board";
 import { stepCostOf } from "../utils/ground";
 import { RotateHint } from "../components/Game/RotateHint";
-import { SideRail } from "../components/Game/SideRail";
+import { RailBody, RailExits, SideRail } from "../components/Game/SideRail";
+import { SideSheet } from "../components/Overlay";
 import { useRejectionBanner } from "../hooks/useRejectionBanner";
 import { GameTutorial } from "../components/Game/GameTutorial";
 import { LeaveDialog } from "../components/Game/LeaveDialog";
 import {
-  CornerButton,
+  MenuButton,
   FighterStatus,
   SpellArc,
   TurnBar,
@@ -490,17 +491,11 @@ function GamePage() {
         )}
 
         {railOpen && (
-          <div className="fixed inset-0 z-40">
-            <button
-              type="button"
-              aria-label="Close the log"
-              onClick={() => setRailOpen(false)}
-              className="absolute inset-0 bg-ink/40"
-            />
-            <aside className="absolute bottom-0 right-0 top-0 flex w-[min(340px,88vw)] flex-col border-l-2 border-ink bg-paper pl-5 pr-[calc(1.25rem+env(safe-area-inset-right))] pt-4">
-              <SideRail
-                roomName={roomName}
-                latestGameState={gameState}
+          <SideSheet
+            title={roomName}
+            onClose={() => setRailOpen(false)}
+            footer={
+              <RailExits
                 onLeave={() => {
                   setRailOpen(false);
                   requestLeave();
@@ -509,10 +504,11 @@ function GamePage() {
                   setRailOpen(false);
                   requestLeave("tutorial");
                 }}
-                onClose={() => setRailOpen(false)}
               />
-            </aside>
-          </div>
+            }
+          >
+            <RailBody latestGameState={gameState} />
+          </SideSheet>
         )}
 
         {winner && (
@@ -612,8 +608,7 @@ function GamePage() {
             />
           </div>
           <div className="pointer-events-auto absolute right-[max(12px,env(safe-area-inset-right))] top-[max(8px,env(safe-area-inset-top))] flex gap-2">
-            <CornerButton label="Log" onClick={() => setRailOpen(true)} />
-            <CornerButton label="Leave" onClick={() => requestLeave()} />
+            <MenuButton onClick={() => setRailOpen(true)} />
           </div>
           <div
             id="tutorial-fighter-panel"
@@ -661,7 +656,6 @@ function GamePage() {
               latestGameState={gameState}
               userId={userId}
               onOpenRail={() => setRailOpen(true)}
-              onLeave={() => requestLeave()}
             />
           </div>
           <RotateHint />

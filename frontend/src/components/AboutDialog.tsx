@@ -1,4 +1,6 @@
 import React, { useEffect, useRef } from "react";
+import { CloseButton } from "./Overlay";
+import { useBackdropTap } from "../hooks/useDismiss";
 
 interface AboutDialogProps {
   open: boolean;
@@ -34,6 +36,7 @@ const facts: [string, string][] = [
  */
 export const AboutDialog: React.FC<AboutDialogProps> = ({ open, onClose }) => {
   const ref = useRef<HTMLDialogElement>(null);
+  const backdrop = useBackdropTap(onClose);
 
   useEffect(() => {
     const dialog = ref.current;
@@ -46,24 +49,16 @@ export const AboutDialog: React.FC<AboutDialogProps> = ({ open, onClose }) => {
     <dialog
       ref={ref}
       onClose={onClose}
-      // Clicking the backdrop lands on the dialog itself, never on its panel.
-      onClick={(event) => {
-        if (event.target === ref.current) onClose();
-      }}
-      className="m-0 max-h-none h-full w-full max-w-none bg-paper p-0 text-ink backdrop:bg-ink/50 sm:mx-auto sm:my-[6vh] sm:h-auto sm:max-h-[88vh] sm:w-[min(560px,92vw)] sm:border-2 sm:border-ink"
+      // A tap on the backdrop lands on the dialog itself, never on its panel.
+      {...backdrop}
+      className="m-0 max-h-none h-full w-full max-w-none bg-paper p-0 text-ink backdrop:bg-ink/50 sm:mx-auto sm:my-[6vh] sm:h-auto sm:max-h-[88vh] sm:w-[min(560px,92vw)] sm:border-2 sm:border-ink short:my-0 short:h-full short:max-h-full short:w-[min(640px,100vw)] short:border-y-0"
     >
       <div className="flex h-full max-h-full flex-col">
-        <div className="flex items-baseline justify-between gap-4 border-b-2 border-ink px-5 pb-2 pt-4 sm:px-7">
+        <div className="flex items-center justify-between gap-4 border-b-2 border-ink pl-5 pr-2 pt-[max(0.25rem,env(safe-area-inset-top))] sm:pl-7 sm:pr-3 sm:pt-1">
           <span className="font-mono text-[9.5px] uppercase tracking-label text-muted">
             About the project
           </span>
-          <button
-            type="button"
-            onClick={onClose}
-            className="font-mono text-[9.5px] uppercase tracking-label text-muted transition-colors hover:text-vermilion"
-          >
-            Close
-          </button>
+          <CloseButton onClick={onClose} />
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-7">

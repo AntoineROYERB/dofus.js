@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { NAME_RULE } from "../../utils/characterStorage";
+import { Modal } from "../Overlay";
 
 interface RenameDialogProps {
   name: string;
@@ -27,18 +28,13 @@ export const RenameDialog: React.FC<RenameDialogProps> = ({
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 px-6"
-      onClick={onCancel}
+    <Modal
+      onClose={onCancel}
+      labelledBy="rename-title"
+      closeButton={false}
+      className="max-w-xs border border-rule bg-panel"
     >
-      <form
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="rename-title"
-        onSubmit={save}
-        onClick={(event) => event.stopPropagation()}
-        className="w-full max-w-xs border border-rule bg-panel p-5"
-      >
+      <form onSubmit={save} className="p-5">
         <label
           id="rename-title"
           htmlFor="rename-input"
@@ -85,7 +81,7 @@ export const RenameDialog: React.FC<RenameDialogProps> = ({
           </button>
         </div>
       </form>
-    </div>
+    </Modal>
   );
 };
 

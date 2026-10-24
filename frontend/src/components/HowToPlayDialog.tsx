@@ -1,4 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
+import { CloseButton } from "./Overlay";
+import { useBackdropTap } from "../hooks/useDismiss";
 
 interface HowToPlayDialogProps {
   open: boolean;
@@ -136,6 +138,7 @@ export const HowToPlayDialog: React.FC<HowToPlayDialogProps> = ({
   onPlayTutorial,
 }) => {
   const ref = useRef<HTMLDialogElement>(null);
+  const backdrop = useBackdropTap(onClose);
   const [reading, setReading] = useState(!onPlayTutorial);
 
   useEffect(() => {
@@ -151,62 +154,63 @@ export const HowToPlayDialog: React.FC<HowToPlayDialogProps> = ({
     <dialog
       ref={ref}
       onClose={onClose}
-      onClick={(event) => {
-        if (event.target === ref.current) onClose();
-      }}
-      className="m-0 max-h-none h-full w-full max-w-none bg-paper p-0 text-ink backdrop:bg-ink/50 sm:mx-auto sm:my-[6vh] sm:h-auto sm:max-h-[88vh] sm:w-[min(560px,92vw)] sm:border-2 sm:border-ink"
+      // A tap on the backdrop lands on the dialog itself, never on its panel.
+      {...backdrop}
+      className="m-0 max-h-none h-full w-full max-w-none bg-paper p-0 text-ink backdrop:bg-ink/50 sm:mx-auto sm:my-[6vh] sm:h-auto sm:max-h-[88vh] sm:w-[min(560px,92vw)] sm:border-2 sm:border-ink short:my-0 short:h-full short:max-h-full short:w-[min(640px,100vw)] short:border-y-0"
     >
       <div className="flex h-full max-h-full flex-col">
-        <div className="flex items-baseline justify-between gap-4 border-b-2 border-ink px-5 pb-2 pt-4 sm:px-7">
+        <div className="flex items-center justify-between gap-4 border-b-2 border-ink pl-5 pr-2 pt-[max(0.25rem,env(safe-area-inset-top))] sm:pl-7 sm:pr-3 sm:pt-1">
           <span className="font-mono text-[9.5px] uppercase tracking-label text-muted">
             How to play
           </span>
-          <button
-            type="button"
-            onClick={onClose}
-            className="font-mono text-[9.5px] uppercase tracking-label text-muted transition-colors hover:text-vermilion"
-          >
-            Close
-          </button>
+          <CloseButton onClick={onClose} />
         </div>
 
         {!reading ? (
-          <div className="flex min-h-0 flex-1 flex-col justify-center px-5 py-7 sm:px-7">
-            <h2 className="font-display text-[30px] font-bold leading-none tracking-tight">
-              Learn it, or read it
-            </h2>
-            <p className="mt-3 text-[13.5px] leading-relaxed text-graphite">
-              Two fighters, one grid, turns until one side falls. Whichever of
-              these you pick takes about a minute.
-            </p>
+          // Centred with auto margins rather than justify-center, which on a
+          // screen shorter than the choice pushed its title up under the
+          // header instead of letting it scroll.
+          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-5 py-7 sm:px-7 short:py-4">
+            <div className="my-auto">
+              <h2 className="font-display text-[30px] font-bold leading-none tracking-tight">
+                Learn it, or read it
+              </h2>
+              <p className="mt-3 text-[13.5px] leading-relaxed text-graphite">
+                Two fighters, one grid, turns until one side falls. Whichever of
+                these you pick takes about a minute.
+              </p>
 
-            <button
-              type="button"
-              onClick={onPlayTutorial}
-              className="mt-6 w-full bg-vermilion px-4 py-4 text-left text-white transition-colors hover:bg-[#b93a25] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-            >
-              <span className="block font-display text-[17px] font-bold leading-none">
-                Play the tutorial
-              </span>
-              <span className="mt-1.5 block text-[12.5px] leading-snug text-white/85">
-                A real match against the computer, with five things to try. You
-                learn by doing them.
-              </span>
-            </button>
+              {/* Side by side on a phone held sideways, where two stacked did not fit. */}
+              <div className="mt-6 flex flex-col gap-3 short:mt-4 short:grid short:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={onPlayTutorial}
+                  className="w-full bg-vermilion px-4 py-4 text-left text-white transition-colors hover:bg-[#b93a25] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                >
+                  <span className="block font-display text-[17px] font-bold leading-none">
+                    Play the tutorial
+                  </span>
+                  <span className="mt-1.5 block text-[12.5px] leading-snug text-white/85">
+                    A real match against the computer, with five things to try. You
+                    learn by doing them.
+                  </span>
+                </button>
 
-            <button
-              type="button"
-              onClick={() => setReading(true)}
-              className="mt-3 w-full border border-ink px-4 py-4 text-left transition-colors hover:border-vermilion hover:text-vermilion"
-            >
-              <span className="block font-display text-[17px] font-bold leading-none">
-                Just the rules
-              </span>
-              <span className="mt-1.5 block text-[12.5px] leading-snug text-graphite">
-                Points, spells and what wins a fight, on one page — if you have
-                played something like this before.
-              </span>
-            </button>
+                <button
+                  type="button"
+                  onClick={() => setReading(true)}
+                  className="w-full border border-ink px-4 py-4 text-left transition-colors hover:border-vermilion hover:text-vermilion"
+                >
+                  <span className="block font-display text-[17px] font-bold leading-none">
+                    Just the rules
+                  </span>
+                  <span className="mt-1.5 block text-[12.5px] leading-snug text-graphite">
+                    Points, spells and what wins a fight, on one page — if you have
+                    played something like this before.
+                  </span>
+                </button>
+              </div>
+            </div>
           </div>
         ) : (
           <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-7">

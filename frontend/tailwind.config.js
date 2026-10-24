@@ -106,6 +106,22 @@ export default {
           "0%, 100%": { transform: "scale(1, 1) rotate(-3deg)" },
           "50%": { transform: "scale(0.92, 1.12) rotate(3deg)" },
         },
+        // An overlay arriving: the page dims, a card rises a few pixels and a
+        // sheet slides in from the edge it goes back to. Short enough to be
+        // over before a thumb can reach the card, and gone under reduced
+        // motion (the components ask for them with motion-safe:).
+        "fade-in": {
+          "0%": { opacity: "0" },
+          "100%": { opacity: "1" },
+        },
+        rise: {
+          "0%": { opacity: "0", transform: "translateY(10px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
+        "slide-in": {
+          "0%": { transform: "translateX(100%)" },
+          "100%": { transform: "translateX(0)" },
+        },
       },
       animation: {
         placeable: "placeable 1.9s ease-in-out infinite",
@@ -115,6 +131,9 @@ export default {
         "log-settle": "log-settle 2.4s ease-out 1",
         "wind-dash": "wind-dash 0.6s linear infinite",
         flicker: "flicker 0.45s ease-in-out infinite",
+        "fade-in": "fade-in 160ms ease-out 1",
+        rise: "rise 200ms cubic-bezier(.2,.8,.2,1) 1",
+        "slide-in": "slide-in 220ms cubic-bezier(.2,.8,.2,1) 1",
       },
     },
   },

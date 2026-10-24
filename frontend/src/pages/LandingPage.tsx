@@ -65,14 +65,14 @@ const LandingPage: React.FC = () => {
       <button
         type="button"
         onClick={() => setHowToPlayOpen(true)}
-        className="font-mono text-[9.5px] uppercase tracking-label text-ink underline decoration-rule underline-offset-4 transition-colors hover:text-vermilion"
+        className="-my-2 py-2 font-mono text-[9.5px] uppercase tracking-label text-ink underline decoration-rule underline-offset-4 transition-colors hover:text-vermilion"
       >
         How to play
       </button>
       <button
         type="button"
         onClick={() => setAboutOpen(true)}
-        className="font-mono text-[9.5px] uppercase tracking-label text-ink underline decoration-rule underline-offset-4 transition-colors hover:text-vermilion"
+        className="-my-2 py-2 font-mono text-[9.5px] uppercase tracking-label text-ink underline decoration-rule underline-offset-4 transition-colors hover:text-vermilion"
       >
         What is this?
       </button>

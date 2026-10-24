@@ -350,7 +350,14 @@ frame size, frame count, loop or one-shot, **layer** and **anchor**.
 - Body text on `paper` is `ink` or `graphite`. `muted` is only for labels and
   disabled text.
 - Touch targets are at least 36 px, and the board confirms a tap before it
-  acts (`touchConfirm.ts`).
+  acts (`touchConfirm.ts`). A word that is a button keeps its small type and
+  gets the target around it in padding.
+- **Every overlay closes the same three ways**: a 40 px × in its corner, a
+  tap on the dimmed page around it, and Escape (`components/Overlay.tsx`).
+  Sheets slide in from the right and also go back with a swipe to the
+  right. Only a question that must be answered, such as a fight's result,
+  has no ×. A forfeit is never next to a close: the ways out of a fight sit
+  at the foot of its menu, as buttons.
 
 ---
 
