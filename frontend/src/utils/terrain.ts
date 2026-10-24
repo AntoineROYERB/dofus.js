@@ -11,10 +11,10 @@ export const RULES = {
   waterHealing: 5,
   /** Extra damage, in percent, an air spell deals through its relay. */
   relayBonus: 75,
-  /** What a relay's pylon takes before it breaks. */
-  relayHealth: 12,
+  /** What a relay's pylon takes before it breaks, in percent of its owner's maximum health. */
+  relayHealthPercent: 50,
   /** What a breaking pylon does to each of its owner's enemies beside it. */
-  relayBlast: 10,
+  relayBlast: 14,
   /** What a Stonewarden's pillar soaks up for its owner before it crumbles. */
   pillarHealth: 15,
   /** Extra damage, in percent, water adds to lightning and storms. */
@@ -75,7 +75,7 @@ export const TERRAIN_INFO: Record<TerrainKind, { name: string; text: string }> =
   },
   relay: {
     name: "Pylon",
-    text: `Its owner's air spells go out from here whenever it reaches, ${RULES.relayBonus}% harder. Blocks the way and the view. Breaks after ${RULES.relayHealth} damage, and hurts every enemy beside it ${RULES.relayBlast}.`,
+    text: `Its owner's air spells go out from here whenever it reaches, ${RULES.relayBonus}% harder. Blocks the way and the view. Holds half its owner's health, hides in tall grass and smoke, and hurts every enemy beside it ${RULES.relayBlast} when it breaks.`,
   },
   crater: { name: "Crater", text: "Nobody can walk through it." },
   fissure: { name: "Fissure", text: "Nobody can walk through it." },

@@ -190,6 +190,9 @@ type TerrainCell struct {
 	// TurnsLeft counts down at the start of each of its owner's turns, and
 	// the cell clears when it runs out. Absent on terrain left for good.
 	TurnsLeft int `json:"turnsLeft,omitempty"`
+	// Veiled marks a relay raised on smoke. The smoke stays under it, hides
+	// it from afar, and is left behind when the pylon goes.
+	Veiled bool `json:"veiled,omitempty"`
 }
 
 // Terrain kinds.

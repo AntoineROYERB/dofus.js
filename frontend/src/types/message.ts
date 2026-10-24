@@ -156,6 +156,8 @@ export type TerrainCell = {
   health?: number;
   /** Counts down at the start of its owner's turns; absent is for good. */
   turnsLeft?: number;
+  /** A relay raised on smoke: the smoke stays under it and hides it. */
+  veiled?: boolean;
 };
 
 export type ZoneKind = "storm" | "maelstrom" | "drums";

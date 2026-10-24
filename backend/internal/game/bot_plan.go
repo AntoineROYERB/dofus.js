@@ -93,6 +93,8 @@ type thing struct {
 	kind   string // types.TerrainRelay or types.TerrainPillar
 	owner  string
 	health int
+	// veiled is a pylon standing in smoke, which it leaves behind.
+	veiled bool
 }
 
 // maxBar is the most spells the planner weighs at once; a bar holds five.
@@ -152,9 +154,12 @@ func (s *sim) myRelay() (types.Position, bool) {
 // removeThing takes a thing off the board. The server deletes the cell's
 // terrain with it, so what was under it does not come back either.
 func (s *sim) removeThing(i int) {
-	pos := s.things[i].pos
+	t := s.things[i]
 	s.things = append(s.things[:i:i], s.things[i+1:]...)
-	s.clearCell(pos)
+	s.clearCell(t.pos)
+	if t.veiled {
+		s.laid = append(s.laid, types.TerrainCell{Position: t.pos, Kind: types.TerrainSmoke, Owner: t.owner})
+	}
 	s.reshaped = true
 }
 
@@ -449,10 +454,11 @@ func (s *sim) relayCells(relaySpell types.Spell) []types.Position {
 // could wear it down.
 func (s *sim) exposure(pos types.Position) int {
 	threat := s.b.threat(pos)
-	if threat >= 10*RelayHealth {
+	whole := wholeRelay(s.b.me.player.Character)
+	if threat >= 10*whole {
 		return pylonKeptValue
 	}
-	return pylonKeptValue * threat / (10 * RelayHealth)
+	return pylonKeptValue * threat / (10 * whole)
 }
 
 // cast plays one cast on the simulated board, mirroring Game.CastSpell, and
@@ -894,7 +900,8 @@ func (s *sim) setRelay(pos types.Position) {
 			break
 		}
 	}
-	s.things = append(s.things, thing{pos: pos, kind: types.TerrainRelay, owner: s.me.id, health: RelayHealth})
+	veiled := s.terrainAt(pos).Kind == types.TerrainSmoke
+	s.things = append(s.things, thing{pos: pos, kind: types.TerrainRelay, owner: s.me.id, health: wholeRelay(s.b.me.player.Character), veiled: veiled})
 	s.reshaped = true
 }
 
@@ -904,9 +911,14 @@ func (s *sim) swap() {
 	s.ownThings()
 	for i, t := range s.things {
 		if t.kind == types.TerrainRelay && t.owner == s.me.id {
+			veiled := s.terrainAt(s.me.pos).Kind == types.TerrainSmoke
 			s.clearCell(t.pos)
 			s.clearCell(s.me.pos)
+			if t.veiled {
+				s.laid = append(s.laid, types.TerrainCell{Position: t.pos, Kind: types.TerrainSmoke, Owner: t.owner})
+			}
 			s.things[i].pos, s.me.pos = s.me.pos, t.pos
+			s.things[i].veiled = veiled
 			s.reshaped = true
 			return
 		}
@@ -1173,6 +1185,13 @@ func (b *botBoard) strikeRange() int {
 	for _, key := range b.bar(b.me) {
 		spell, ok := b.spellOf(b.me, key)
 		if !ok || spell.Ultimate || spell.Damage <= 0 || spell.Targeting != types.TargetAny {
+			continue
+		}
+		// Combustion only pays once another spell has set the target alight,
+		// and reaches the next cell only: taken for the bot's best hit, it
+		// had a Pyromancer refuse to stand anywhere but beside its target,
+		// and two bots wait each other out behind their fire for ever.
+		if spell.Special == types.SpecialDetonate {
 			continue
 		}
 		if dmg := expectedDamage(spell); dmg > best {

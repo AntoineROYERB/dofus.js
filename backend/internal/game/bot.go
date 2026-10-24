@@ -183,7 +183,8 @@ func (b *botBoard) speedUp(ready []types.Spell) (BotAction, bool) {
 		return BotAction{}, false
 	}
 	for _, spell := range ready {
-		if spell.GrantMP <= 0 {
+		// Transfer is aimed at the pylon, not cast on the spot to run.
+		if spell.GrantMP <= 0 || spell.Special == types.SpecialSwap {
 			continue
 		}
 		for _, other := range ready {

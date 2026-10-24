@@ -201,6 +201,8 @@ func rulesFingerprint(cat content.Catalogue) string {
 			"relayBonus":         RelayBonus,
 			"reviveHealth":       ReviveHealth,
 			"smokeRange":         SmokeRange,
+			"relayHealthPercent": RelayHealthPercent,
+			"relayBlast":         RelayBlast,
 		},
 		// So are the island's ground and what each island deals.
 		Ground: map[string]int{

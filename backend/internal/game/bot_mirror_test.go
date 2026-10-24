@@ -35,6 +35,12 @@ func placeRelay(g *Game, owner string, at types.Position, health int) {
 	g.setRelayLocked(at, owner, health)
 }
 
+func smokeOn(g *Game, at types.Position) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	g.placeTerrainLocked(at, types.TerrainSmoke, "a")
+}
+
 func placeCairn(g *Game, owner string, at types.Position) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
@@ -65,15 +71,34 @@ var mirrorCases = []mirrorCase{
 	// The pylon and the windwalker.
 	{name: "Sef trades places with its pylon", setUp: func(g *Game) {
 		asChampion(g, "a", "sef")
-		placeRelay(g, "a", types.Position{X: 3, Y: 1}, RelayHealth-4)
+		placeRelay(g, "a", types.Position{X: 3, Y: 1}, fullRelay(g, "a")-4)
 	}, spell: spellTransfer, aim: types.Position{X: 3, Y: 1}},
+	{name: "Sef trades places with a pylon in smoke, and stands in the smoke it leaves", setUp: func(g *Game) {
+		asChampion(g, "a", "sef")
+		smokeOn(g, types.Position{X: 3, Y: 1})
+		placeRelay(g, "a", types.Position{X: 3, Y: 1}, fullRelay(g, "a"))
+	}, spell: spellTransfer, aim: types.Position{X: 3, Y: 1}},
+	{name: "Sef trades places from smoke, and the pylon hides in it", setUp: func(g *Game) {
+		asChampion(g, "a", "sef")
+		smokeOn(g, types.Position{})
+		placeRelay(g, "a", types.Position{X: 3, Y: 1}, fullRelay(g, "a"))
+	}, spell: spellTransfer, aim: types.Position{X: 3, Y: 1}},
+	{name: "a pylon raised on smoke keeps it under it", setUp: func(g *Game) {
+		asChampion(g, "a", "sef")
+		smokeOn(g, types.Position{X: 2})
+	}, spell: spellUpdraft, aim: types.Position{X: 2}},
+	{name: "an enemy's pylon broken in smoke leaves the smoke", setUp: func(g *Game) {
+		asChampion(g, "b", "sef")
+		smokeOn(g, types.Position{X: 1})
+		placeRelay(g, "b", types.Position{X: 1}, damageOfSpell(spellKindle))
+	}, b: types.Position{X: 2, Y: 1}, spell: spellKindle, aim: types.Position{X: 1}},
 	{name: "a swap aimed anywhere but the pylon is refused", setUp: func(g *Game) {
 		asChampion(g, "a", "sef")
-		placeRelay(g, "a", types.Position{X: 3, Y: 1}, RelayHealth)
+		placeRelay(g, "a", types.Position{X: 3, Y: 1}, fullRelay(g, "a"))
 	}, spell: spellTransfer, aim: types.Position{X: 2, Y: 1}, refused: true},
 	{name: "a relayed push draws its victim into the pylon", setUp: func(g *Game) {
 		asChampion(g, "a", "sef")
-		placeRelay(g, "a", types.Position{Y: 5}, RelayHealth)
+		placeRelay(g, "a", types.Position{Y: 5}, fullRelay(g, "a"))
 	}, spell: spellGale, aim: types.Position{Y: 3}},
 	{name: "a pylon slammed into once too often breaks and goes off", setUp: func(g *Game) {
 		asChampion(g, "a", "sef")
@@ -81,11 +106,11 @@ var mirrorCases = []mirrorCase{
 	}, spell: spellGale, aim: types.Position{Y: 3}},
 	{name: "a relayed spell goes out from the pylon and hits harder", setUp: func(g *Game) {
 		asChampion(g, "a", "sef")
-		placeRelay(g, "a", types.Position{X: 2, Y: 4}, RelayHealth)
+		placeRelay(g, "a", types.Position{X: 2, Y: 4}, fullRelay(g, "a"))
 	}, b: types.Position{Y: 6}, spell: spellLightning, aim: types.Position{Y: 6}},
 	{name: "an enemy's pylon takes a hit and is worn down", setUp: func(g *Game) {
 		asChampion(g, "b", "sef")
-		placeRelay(g, "b", types.Position{X: 3}, RelayHealth)
+		placeRelay(g, "b", types.Position{X: 3}, fullRelay(g, "b"))
 	}, spell: spellKindle, aim: types.Position{X: 3}},
 	{name: "an enemy's pylon broken goes off on whoever stands beside it", setUp: func(g *Game) {
 		asChampion(g, "b", "sef")
@@ -93,7 +118,7 @@ var mirrorCases = []mirrorCase{
 	}, b: types.Position{X: 2, Y: 1}, spell: spellKindle, aim: types.Position{X: 1}},
 	{name: "an enemy's pylon stands in the line of fire", setUp: func(g *Game) {
 		asChampion(g, "b", "sef")
-		placeRelay(g, "b", types.Position{Y: 2}, RelayHealth)
+		placeRelay(g, "b", types.Position{Y: 2}, fullRelay(g, "b"))
 	}, spell: spellKindle, aim: types.Position{Y: 3}, refused: true},
 	{name: "a pylon set aside walls nothing off and stands whole", setUp: func(g *Game) {
 		asChampion(g, "a", "sef")
@@ -260,7 +285,7 @@ func mirrorDiffs(g *Game, predicted *sim) []string {
 	var standing []thing
 	for _, cell := range snap.Terrain {
 		if isThing(cell.Kind) {
-			standing = append(standing, thing{pos: cell.Position, kind: cell.Kind, owner: cell.Owner, health: cell.Health})
+			standing = append(standing, thing{pos: cell.Position, kind: cell.Kind, owner: cell.Owner, health: cell.Health, veiled: cell.Veiled})
 		}
 	}
 	expected := append([]thing(nil), predicted.things...)

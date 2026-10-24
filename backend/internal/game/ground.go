@@ -327,6 +327,26 @@ func (g *Game) groundAtTurnEndLocked(id string) (over bool) {
 	return g.checkGameOverLocked()
 }
 
+// relayConcealedFromLocked reports whether a relay cannot be seen by someone:
+// it is an enemy's, it stands in tall grass or smoke, and the viewer is
+// further than GrassSightRange — or has nobody on the board to see from. A
+// pylon anyone could see across the board was the first thing every monster
+// broke; now it can be tucked away the way its owner can.
+func (g *Game) relayConcealedFromLocked(viewerID string, cell types.TerrainCell) bool {
+	if cell.Kind != types.TerrainRelay || g.sameSideLocked(viewerID, cell.Owner) {
+		return false
+	}
+	_, rule, grass := g.groundAtLocked(cell.Position)
+	if !cell.Veiled && (!grass || !rule.Conceals()) {
+		return false
+	}
+	viewer, ok := g.players[viewerID]
+	if !ok || viewer.Character.Position == nil || !viewer.Character.IsAlive {
+		return true
+	}
+	return Distance(*viewer.Character.Position, cell.Position) > GrassSightRange
+}
+
 // concealedFromLocked reports whether one character cannot be seen by
 // another: it stands in terrain that hides it, and the viewer is further than
 // GrassSightRange — or has nobody on the board to see from.

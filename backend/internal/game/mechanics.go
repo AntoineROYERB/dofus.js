@@ -41,12 +41,14 @@ const (
 	// out through its caster's relay: the wind has had room to build. Air
 	// spells are weak without it, and this is what makes up for it.
 	RelayBonus = 75
-	// RelayHealth is what a relay takes before it breaks: two blows of a
-	// character driven into it, or one strong spell and one blow.
-	RelayHealth = 12
+	// RelayHealthPercent is what a relay takes before it breaks, as a share of
+	// its owner's maximum health. It used to be a flat 12, which any monster
+	// broke in one blow, so nobody ever bothered with Transfer; now it grows
+	// with whoever raised it, and is worth hiding and trading places with.
+	RelayHealthPercent = 50
 	// RelayBlast is what a breaking relay does to each of its owner's enemies
 	// standing next to it.
-	RelayBlast = 10
+	RelayBlast = 14
 	// RelayRecharge is the cooldown a broken relay puts on the spell that sets
 	// it: counted down at the start of its owner's turns, so the owner goes two
 	// turns without one.
@@ -164,12 +166,28 @@ func (g *Game) relayOfLocked(owner string) (types.Position, bool) {
 	return types.Position{}, false
 }
 
-// setRelayLocked stands a player's relay on a cell, whole.
+// wholeRelay is what a pylon raised by a character holds when whole.
+func wholeRelay(c types.Character) int {
+	return max(1, c.MaxHealth*RelayHealthPercent/100)
+}
+
+// setRelayLocked stands a player's relay on a cell with that much health.
+// Raised on smoke, it keeps the smoke under it.
 func (g *Game) setRelayLocked(pos types.Position, owner string, health int) {
 	if g.terrain == nil {
 		g.terrain = make(map[types.Position]types.TerrainCell)
 	}
-	g.terrain[pos] = types.TerrainCell{Position: pos, Kind: types.TerrainRelay, Owner: owner, Health: health}
+	veiled := g.terrain[pos].Kind == types.TerrainSmoke
+	g.terrain[pos] = types.TerrainCell{Position: pos, Kind: types.TerrainRelay, Owner: owner, Health: health, Veiled: veiled}
+}
+
+// liftRelayLocked takes a relay off its cell, leaving the smoke it stood in.
+func (g *Game) liftRelayLocked(pos types.Position) {
+	cell := g.terrain[pos]
+	delete(g.terrain, pos)
+	if cell.Veiled {
+		g.terrain[pos] = types.TerrainCell{Position: pos, Kind: types.TerrainSmoke, Owner: cell.Owner}
+	}
 }
 
 // hitRelayLocked takes health off the relay on a cell, and breaks it once it
@@ -192,7 +210,7 @@ func (g *Game) hitRelayLocked(pos types.Position, amount int) {
 // another for a while.
 func (g *Game) breakRelayLocked(pos types.Position) {
 	cell := g.terrain[pos]
-	delete(g.terrain, pos)
+	g.liftRelayLocked(pos)
 	owner, ok := g.players[cell.Owner]
 	if !ok {
 		return

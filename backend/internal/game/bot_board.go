@@ -89,7 +89,7 @@ func readBoard(state types.GameState, botID string, mind botMind) *botBoard {
 	for _, cell := range state.Terrain {
 		b.terrain[cell.Position] = cell
 		if isThing(cell.Kind) {
-			b.things = append(b.things, thing{pos: cell.Position, kind: cell.Kind, owner: cell.Owner, health: cell.Health})
+			b.things = append(b.things, thing{pos: cell.Position, kind: cell.Kind, owner: cell.Owner, health: cell.Health, veiled: cell.Veiled})
 		}
 	}
 	sortThings(b.things)
@@ -418,6 +418,17 @@ func (b *botBoard) stands() []stand {
 		}
 		seen[end] = len(out)
 		out = append(out, s)
+	}
+	// Boxed in by traps, with nowhere else to go, a bot that has waited long
+	// enough springs one rather than stand there for good: two bots that
+	// could not reach each other used to pass the turn back and forth for
+	// ever.
+	if len(out) == 1 && b.state.TurnNumber > patientTurns {
+		for _, n := range sortedNeighbours(from) {
+			if b.free(n, b.standing) && b.terrainAt(n).Kind == types.TerrainTrap {
+				return []stand{{at: n, walkTo: n}}
+			}
+		}
 	}
 	return out
 }

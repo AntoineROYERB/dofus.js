@@ -110,7 +110,7 @@
       "icon": "🌬️",
       "element": "Air",
       "role": "Reach",
-      "description": "Raises your copper pylon on a free cell. Your air spells and your basic attack go out from it whenever it reaches, 75% harder. It blocks the way and hides what is behind it; 12 health, and it goes off when it breaks.",
+      "description": "Raises your copper pylon on a free cell. Your air spells and your basic attack go out from it whenever it reaches, 75% harder. It blocks the way and hides what is behind it. It holds half your health, hides in tall grass and smoke, and goes off when it breaks.",
       "APCost": 2,
       "range": 5,
       "damage": 0,
@@ -170,7 +170,7 @@
       "icon": "🔀",
       "element": "Air",
       "role": "Swap",
-      "description": "Aim at your pylon, wherever it stands: you and it change places.",
+      "description": "Aim at your pylon, wherever it stands: you and it change places, and you get 2 MP to walk off with.",
       "APCost": 1,
       "range": 14,
       "damage": 0,
@@ -181,6 +181,7 @@
       "criticalChance": 0,
       "criticalDamage": 0,
       "targeting": "any",
+      "grantMP": 2,
       "special": "swap"
     },
     "10": {

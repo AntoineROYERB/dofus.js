@@ -319,7 +319,9 @@ func (b *botBoard) mobility(f fighter) []getAbout {
 			continue
 		}
 		switch {
-		case spell.GrantMP > 0:
+		// Transfer's MP come with a jump to the pylon, which is weighed as
+		// the swap it is, not as a dash from where the fighter stands.
+		case spell.GrantMP > 0 && spell.Special != types.SpecialSwap:
 			moves = append(moves, getAbout{mp: f.maxMP + spell.GrantMP, ap: f.maxAP - spell.APCost, spent: key})
 		case spell.Special == types.SpecialLeap:
 			moves = append(moves, getAbout{mp: f.maxMP, ap: f.maxAP - spell.APCost, leap: spell.Range, spent: key})

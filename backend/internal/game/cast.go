@@ -363,9 +363,9 @@ func (g *Game) reshapeBoardLocked(userID string, spell types.Spell, target, orig
 			break
 		}
 		if old, ok := g.relayOfLocked(userID); ok {
-			delete(g.terrain, old)
+			g.liftRelayLocked(old)
 		}
-		g.setRelayLocked(target, userID, RelayHealth)
+		g.setRelayLocked(target, userID, wholeRelay(g.players[userID].Character))
 	case types.SpecialFlank:
 		// Across the cast, one either side of where it landed.
 		side := Rotate(types.Position{X: 1}, facing(origin, target))
@@ -385,7 +385,7 @@ func (g *Game) reshapeBoardLocked(userID string, spell types.Spell, target, orig
 		if relay, ok := g.relayOfLocked(userID); ok {
 			standing := *g.players[userID].Character.Position
 			cell := g.terrain[relay]
-			delete(g.terrain, relay)
+			g.liftRelayLocked(relay)
 			g.setPositionLocked(userID, relay)
 			g.setRelayLocked(standing, userID, cell.Health)
 			g.arriveLocked(userID, types.Position{})

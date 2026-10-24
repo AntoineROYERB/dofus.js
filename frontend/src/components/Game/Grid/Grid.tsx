@@ -76,6 +76,14 @@ export const Grid: React.FC<GridProps> = ({
   const zoomLayerRef = useRef<HTMLDivElement>(null);
 
   const players = latestGameState?.players;
+  // A pylon holds half of its owner's maximum health, as the server rules.
+  const relayMax = React.useMemo(() => {
+    const out: Record<string, number> = {};
+    for (const [id, p] of Object.entries(players ?? {})) {
+      out[id] = Math.floor((p.character.maxHealth * RULES.relayHealthPercent) / 100);
+    }
+    return out;
+  }, [players]);
   // Memoised: a fresh `?? []` on every render would defeat the memos below.
   const obstacles = React.useMemo(
     () => latestGameState?.obstacles ?? [],
@@ -716,6 +724,7 @@ export const Grid: React.FC<GridProps> = ({
           containerRef={containerRef}
           userId={userId}
           relayActive={relayed && !!currentPlayer?.isCurrentTurn}
+          relayMax={relayMax}
         />
         {/*
           Sits between the floor and the characters: its ground layer puts scars

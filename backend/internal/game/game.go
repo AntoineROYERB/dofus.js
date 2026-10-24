@@ -256,6 +256,15 @@ func (g *Game) SnapshotFor(viewerID string) types.GameState {
 				state.Players[id] = p
 			}
 		}
+		// So is a pylon tucked away the same way. The bot reads this view
+		// too, so it only goes after the pylons it can see.
+		seen := make([]types.TerrainCell, 0, len(state.Terrain))
+		for _, cell := range state.Terrain {
+			if !g.relayConcealedFromLocked(viewerID, cell) {
+				seen = append(seen, cell)
+			}
+		}
+		state.Terrain = seen
 	}
 	return state
 }
