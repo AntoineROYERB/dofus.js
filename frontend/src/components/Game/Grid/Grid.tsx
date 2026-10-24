@@ -120,6 +120,10 @@ export const Grid: React.FC<GridProps> = ({
   const currentPlayer = players?.[userId];
   const movementPoints = currentPlayer?.character.movementPoints;
   const characterPosition = currentPlayer?.character.position;
+  // Smoke shortens what its caster can reach, as the server rules.
+  const smoked =
+    !!characterPosition &&
+    terrainAt.get(`${characterPosition.x},${characterPosition.y}`)?.kind === "smoke";
 
   // Get initial positions from the current player's character. Memoised for
   // the same reason as the lists above: a fresh `|| []` every render is a new
@@ -323,7 +327,8 @@ export const Grid: React.FC<GridProps> = ({
       hoveredPosition,
       characterPosition,
       sightBlocked,
-      relay
+      relay,
+      smoked
     );
     if (!origin) return null;
     const throughRelay =
@@ -354,6 +359,7 @@ export const Grid: React.FC<GridProps> = ({
     currentPlayer,
     sightBlocked,
     relay,
+    smoked,
     terrainAt,
     tileSize,
     centerX,
@@ -367,12 +373,12 @@ export const Grid: React.FC<GridProps> = ({
     if (!relayed || !relay || !characterPosition || !hoveredPosition || !selectedSpell) {
       return null;
     }
-    const origin = castOrigin(selectedSpell, hoveredPosition, characterPosition, sightBlocked, relay);
+    const origin = castOrigin(selectedSpell, hoveredPosition, characterPosition, sightBlocked, relay, smoked);
     if (!origin || origin.x !== relay.x || origin.y !== relay.y) return null;
     return [characterPosition, relay, hoveredPosition].map((p) =>
       isoToScreen(p.x, p.y, tileSize, centerX, centerY)
     );
-  }, [relayed, relay, characterPosition, hoveredPosition, selectedSpell, sightBlocked, tileSize, centerX, centerY]);
+  }, [relayed, relay, characterPosition, hoveredPosition, selectedSpell, sightBlocked, smoked, tileSize, centerX, centerY]);
 
   // What is lying on the cell under the pointer, when nobody is standing on
   // it: a scorch mark that means nothing reads as scenery, so ground that does
@@ -490,7 +496,7 @@ export const Grid: React.FC<GridProps> = ({
     if (!characterPosition || !selectedSpell) return inRange;
     sortedCoordinates.forEach(({ x, y }) => {
       const cell = { x, y };
-      if (!castOrigin(selectedSpell, cell, characterPosition, sightBlocked, relay)) {
+      if (!castOrigin(selectedSpell, cell, characterPosition, sightBlocked, relay, smoked)) {
         return;
       }
       if (
@@ -509,7 +515,7 @@ export const Grid: React.FC<GridProps> = ({
       inRange.add(`${x},${y}`);
     });
     return inRange;
-  }, [characterPosition, selectedSpell, blocked, sightBlocked, relay, terrainAt, sortedCoordinates, fallenAllies]);
+  }, [characterPosition, selectedSpell, blocked, sightBlocked, relay, smoked, terrainAt, sortedCoordinates, fallenAllies]);
 
   /*
    * In range and unseen. Kept apart from `castable` rather than folded into
@@ -522,12 +528,12 @@ export const Grid: React.FC<GridProps> = ({
     if (!characterPosition || !selectedSpell) return out;
     sortedCoordinates.forEach(({ x, y }) => {
       if (castable.has(`${x},${y}`)) return;
-      if (outOfSight(selectedSpell, { x, y }, characterPosition, sightBlocked, relay)) {
+      if (outOfSight(selectedSpell, { x, y }, characterPosition, sightBlocked, relay, smoked)) {
         out.add(`${x},${y}`);
       }
     });
     return out;
-  }, [characterPosition, selectedSpell, castable, sightBlocked, relay, sortedCoordinates]);
+  }, [characterPosition, selectedSpell, castable, sightBlocked, relay, smoked, sortedCoordinates]);
 
   /*
    * Only the centre a spell lands on needs a clear line to the caster — the
@@ -643,7 +649,7 @@ export const Grid: React.FC<GridProps> = ({
             !!selectedSpell &&
             !!characterPosition &&
             (() => {
-              const o = castOrigin(selectedSpell, { x, y }, characterPosition, sightBlocked, relay);
+              const o = castOrigin(selectedSpell, { x, y }, characterPosition, sightBlocked, relay, smoked);
               return !!o && !!relay && o.x === relay.x && o.y === relay.y;
             })();
 

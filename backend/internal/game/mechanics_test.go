@@ -249,6 +249,22 @@ func TestWaterPutsFireOutAndFireDoesNotTakeOnWater(t *testing.T) {
 	}
 }
 
+// Smoke laid for good let a caster sit in it and hit across the board. From
+// inside it, a spell now reaches SmokeRange cells and no further; one step
+// out, it has its whole range back.
+func TestSmokeShortensTheReachOfWhoeverStandsInIt(t *testing.T) {
+	g := duel(t, types.Position{}, types.Position{Y: 5})
+	g.mu.Lock()
+	g.placeTerrainLocked(types.Position{}, types.TerrainSmoke, "a")
+	g.mu.Unlock()
+
+	if err := g.CastSpell("a", spellKindle, types.Position{Y: 5}); !errors.Is(err, ErrOutOfRange) {
+		t.Fatalf("Kindle at 5 cells from inside smoke: %v, want ErrOutOfRange", err)
+	}
+	place(g, "b", types.Position{Y: SmokeRange})
+	cast(t, g, "a", spellKindle, types.Position{Y: SmokeRange})
+}
+
 func TestSmokeBlocksSightButNotFeet(t *testing.T) {
 	g := duel(t, types.Position{}, types.Position{Y: 4})
 	cast(t, g, "a", spellSmokescreen, types.Position{Y: 2})

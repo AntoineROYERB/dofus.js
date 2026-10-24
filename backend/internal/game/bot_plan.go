@@ -242,7 +242,7 @@ func (s *sim) foeAt(pos types.Position) int {
 
 // reach reports whether a spell cast from one cell may be aimed at another.
 func (s *sim) reach(from, aim types.Position, spell types.Spell) bool {
-	if Distance(from, aim) > spell.Range {
+	if Distance(from, aim) > rangeFrom(spell, s.terrainAt(from).Kind) {
 		return false
 	}
 	return !spell.NeedsLineOfSight || HasLineOfSight(from, aim, s.opaque)
@@ -334,7 +334,7 @@ func (s *sim) aims(spell types.Spell, idx int) []types.Position {
 			}
 			for _, cell := range sortedNeighbours(f.pos) {
 				d := Distance(s.me.pos, cell)
-				if d > 0 && d <= spell.Range && s.free(cell) && !s.b.hazard(cell) && !containsPosition(cells, cell) {
+				if d > 0 && d <= rangeFrom(spell, s.terrainAt(s.me.pos).Kind) && s.free(cell) && !s.b.hazard(cell) && !containsPosition(cells, cell) {
 					cells = append(cells, cell)
 				}
 			}
@@ -411,7 +411,7 @@ func (s *sim) relayCells(relaySpell types.Spell) []types.Position {
 	var cells []types.Position
 	for _, cell := range allCells {
 		d := Distance(s.me.pos, cell)
-		if d == 0 || d > relaySpell.Range || !s.free(cell) {
+		if d == 0 || d > rangeFrom(relaySpell, s.terrainAt(s.me.pos).Kind) || !s.free(cell) {
 			continue
 		}
 		if relaySpell.NeedsLineOfSight && !HasLineOfSight(s.me.pos, cell, s.opaque) {

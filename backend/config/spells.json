@@ -67,7 +67,7 @@
       "icon": "🌫️",
       "element": "Fire",
       "role": "Cover",
-      "description": "Fills a cross of cells with smoke that nothing can be seen through, for good.",
+      "description": "Fills a cross of cells with smoke that nothing can be seen through, for good. From inside it, spells reach 3 cells at most.",
       "APCost": 2,
       "range": 6,
       "damage": 0,

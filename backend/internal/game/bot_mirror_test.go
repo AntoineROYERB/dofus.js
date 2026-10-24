@@ -280,3 +280,23 @@ func mirrorDiffs(g *Game, predicted *sim) []string {
 	}
 	return diffs
 }
+
+// The planner shortens a spell cast from smoke as the server does: a bot that
+// thought it could reach from inside the cloud would spend its turn on a cast
+// the server refuses.
+func TestThePlannerKnowsSmokeShortensItsReach(t *testing.T) {
+	g := duel(t, types.Position{}, types.Position{Y: 5})
+	setBar(g, "a", "1")
+	points(g, "a", 3, 0)
+	g.mu.Lock()
+	g.placeTerrainLocked(types.Position{}, types.TerrainSmoke, "b")
+	g.mu.Unlock()
+
+	if action := decide(g, "a"); action.Kind == BotCast {
+		t.Errorf("action = %+v from inside smoke at 5 cells, want no cast", action)
+	}
+	place(g, "b", types.Position{Y: SmokeRange})
+	if action := decide(g, "a"); action.Kind != BotCast || action.SpellID != spellKindle {
+		t.Errorf("action = %+v at %d cells, want Kindle", action, SmokeRange)
+	}
+}

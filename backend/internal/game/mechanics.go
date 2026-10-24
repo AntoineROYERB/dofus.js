@@ -32,6 +32,11 @@ const (
 	// ConductBonus is the extra damage, in percent, water adds to a conducting
 	// spell and to a storm.
 	ConductBonus = 50
+	// SmokeRange is the furthest a spell goes out from a cell of smoke. Smoke
+	// laid for good let a caster sit inside it, unseen, and hit across the
+	// board; now whoever hides in it can only reach what is close. A pylon
+	// is not a caster standing in smoke, so it keeps its reach.
+	SmokeRange = 3
 	// RelayBonus is the extra damage, in percent, a spell deals when it goes
 	// out through its caster's relay: the wind has had room to build. Air
 	// spells are weak without it, and this is what makes up for it.
@@ -73,6 +78,17 @@ var quakeFissures = []types.Position{{X: 2, Y: 0}, {X: -2, Y: 0}, {X: 0, Y: 2}, 
 
 func isSolidTerrain(kind string) bool {
 	return kind == types.TerrainCrater || kind == types.TerrainFissure || kind == types.TerrainRelay
+}
+
+// rangeFrom is how far a spell reaches from a cell: its own range, or no more
+// than SmokeRange from a cell of smoke. Transfer is aimed at its caster's
+// pylon wherever it stands, and is the way out of the smoke, so it keeps its
+// reach.
+func rangeFrom(spell types.Spell, fromKind string) int {
+	if fromKind == types.TerrainSmoke && spell.Special != types.SpecialSwap {
+		return min(spell.Range, SmokeRange)
+	}
+	return spell.Range
 }
 
 // terrainBlocksSight reports whether what a spell left on a cell hides what is

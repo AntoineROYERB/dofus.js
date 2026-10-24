@@ -5,7 +5,7 @@
     "seed": 31,
     "startedAt": 1700000000000,
     "turnDurationMs": 3000,
-    "rules": "486c2b45c74488c242a278d5e04abc970fd32105c2486cc2979b3cae7312350c",
+    "rules": "1f96e88bbfe5791ff2685c5628a49e12d879103414f155d16224dc995010e5d9",
     "island": "prairie",
     "commands": [
       {
@@ -1663,7 +1663,7 @@
         "damage": 0,
         "areaOfEffect": "cross",
         "element": "Fire",
-        "description": "Fills a cross of cells with smoke that nothing can be seen through, for good.",
+        "description": "Fills a cross of cells with smoke that nothing can be seen through, for good. From inside it, spells reach 3 cells at most.",
         "needsLineOfSight": false,
         "maxCastsPerTurn": 1,
         "cooldown": 2,

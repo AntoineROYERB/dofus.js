@@ -217,7 +217,7 @@ func (b *botBoard) cover(ready []types.Spell) (BotAction, bool) {
 			continue
 		}
 		for _, cell := range boardCells() {
-			if Distance(from, cell) > spell.Range || Distance(from, cell) == 0 {
+			if Distance(from, cell) > rangeFrom(spell, b.terrain[from].Kind) || Distance(from, cell) == 0 {
 				continue
 			}
 			if !b.free(cell, b.standing) || (spell.NeedsLineOfSight && !s.reach(from, cell, spell)) {

@@ -19,6 +19,8 @@ export const RULES = {
   pillarHealth: 15,
   /** Extra damage, in percent, water adds to lightning and storms. */
   conductBonus: 50,
+  /** The furthest a spell reaches when cast from a cell of smoke. */
+  smokeRange: 3,
 } as const;
 
 /** Damage raised by a percentage bonus, rounded down like the server. */
@@ -58,7 +60,10 @@ export const TERRAIN_INFO: Record<TerrainKind, { name: string; text: string }> =
     name: "Fire",
     text: "One more burn to whoever walks in or starts a turn here. Water puts it out.",
   },
-  smoke: { name: "Smoke", text: "Nothing can be seen through it. It can be walked through." },
+  smoke: {
+    name: "Smoke",
+    text: "Nothing can be seen through it. It can be walked through. From inside it, spells reach 3 cells at most.",
+  },
   water: {
     name: "Water",
     text: `Enemies starting a turn here lose 1 MP; its owner heals ${RULES.waterHealing}. Puts burns out.`,

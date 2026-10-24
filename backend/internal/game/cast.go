@@ -219,7 +219,7 @@ func (g *Game) CastSpell(userID string, spellID int, target types.Position) erro
 // that is the cast the player was thinking of.
 func (g *Game) castOriginLocked(userID string, standing, target types.Position, spell types.Spell) (types.Position, *types.Position, error) {
 	reach := func(from types.Position) error {
-		if Distance(from, target) > spell.Range {
+		if Distance(from, target) > rangeFrom(spell, g.terrainKindLocked(from)) {
 			return ErrOutOfRange
 		}
 		if spell.NeedsLineOfSight && !HasLineOfSight(from, target, g.blocksSightLocked) {

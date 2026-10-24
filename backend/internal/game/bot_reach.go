@@ -70,7 +70,7 @@ func (b *botBoard) threatFrom(foe fighter, pos types.Position, screen []types.Po
 			amount := 0
 			for _, group := range [][]types.Position{landings, cells} {
 				for _, from := range group {
-					if from == pos || !reachesFrom(spell, from, pos, opaque) {
+					if from == pos || !reachesFrom(spell, from, pos, b.terrain[from].Kind, opaque) {
 						continue
 					}
 					hit := expectedDamage(spell)
@@ -158,7 +158,7 @@ func (b *botBoard) firingAt(foe fighter) []firing {
 		}
 		var from, beside []types.Position
 		for _, cell := range allCells {
-			if cell == foe.pos || !b.free(cell, taken) || !reachesFrom(spell, cell, foe.pos, b.opaque) {
+			if cell == foe.pos || !b.free(cell, taken) || !reachesFrom(spell, cell, foe.pos, b.terrain[cell].Kind, b.opaque) {
 				continue
 			}
 			from = append(from, cell)
