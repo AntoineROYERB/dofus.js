@@ -13,6 +13,7 @@ import { Loadout } from "../types/message";
 import { useContent } from "../hooks/useContent";
 import { PLAYER_COLORS } from "../constants";
 import { isNativeApp } from "../lib/native";
+import { useMusic } from "../audio/useSound";
 
 /**
  * One column, in the same order at every size: what the game is called, the
@@ -21,6 +22,7 @@ import { isNativeApp } from "../lib/native";
  * this?", because none of it is needed to start playing.
  */
 const LandingPage: React.FC = () => {
+  useMusic("overworld");
   // Coming back to change a character starts from the one already saved.
   const [saved] = useState(readCharacter);
   // A player no longer picks a colour: the one saved travels on unused.
