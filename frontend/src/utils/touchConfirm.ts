@@ -4,13 +4,16 @@ import { Spell } from "../types/message";
 export type ConfirmAction = {
   kind: "move" | "cast";
   label: string;
-  /** The cost or the damage, shown in the bubble's pill. */
+  /** The cost or the damage, shown on the gold disc under its label. */
   detail: string;
   /** Who a cast lands on, and what it would leave them with. */
   target?: string;
   /** What lies on the cell, when something does: a finger has no hover card. */
   ground?: string;
 };
+
+/** A confirm action, with the cell it would act on: what the gold disc does. */
+export type AimedAction = ConfirmAction & { cell: Position };
 
 interface ConfirmInput {
   touchMode: boolean;
@@ -38,9 +41,11 @@ interface ConfirmInput {
 }
 
 /**
- * What the confirm bubble over a tapped cell should offer, if anything.
- * Only for a finger — a mouse already previewed the cell by hovering — and
- * only for something this player can actually do right now.
+ * What the gold disc should offer for the aimed cell, if anything: a cast or
+ * a walk, with what it costs and whom it hits. It used to be a bubble beside
+ * the tapped cell, which sent the finger back across the board to press it;
+ * the disc is under the thumb. Only for something this player can actually
+ * do right now.
  */
 export const confirmActionFor = ({
   touchMode,
@@ -96,24 +101,4 @@ export const confirmActionFor = ({
   const cost = walkable.get(key);
   if (cost === undefined || cost === 0) return null;
   return { kind: "move", label: "Move", detail: `${cost} MP`, ground };
-};
-
-/**
- * Where the confirm bubble goes: beside the cell, never over it, so whoever
- * stands there and the area stay in view. It opens towards the wider side of
- * the board — for a cell on the right half, that is also away from the spell
- * arc in the bottom-right corner — and stays inside the board vertically.
- */
-export const bubblePlacement = (
-  cell: Position,
-  tile: { width: number; height: number },
-  board: { width: number; height: number }
-) => {
-  const offset = tile.width * 0.5 + 10;
-  const toLeft = cell.x > board.width * 0.5;
-  return {
-    toLeft,
-    left: toLeft ? cell.x - offset : cell.x + offset,
-    top: Math.min(Math.max(cell.y - tile.height * 0.9, 34), board.height - 34),
-  };
 };

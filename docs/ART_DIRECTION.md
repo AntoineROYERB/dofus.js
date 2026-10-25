@@ -177,6 +177,17 @@ On a phone held sideways and on a desk alike (`GamePage`, `PhoneHud.tsx`):
   ("−1 AP · +1 range"), read off the spell and the one it was made from
   (`utils/spellUpgrades.ts`). Its card says the same.
 - A phone held upright keeps the bar under the board, in the same colours.
+- **Aim, then confirm under the thumb.** Picking a spell aims it at once
+  at the cell that makes most sense for it (`utils/autoTarget.ts`): your
+  own cell for a spell cast on yourself, the most hurt ally for one that
+  helps, the enemy it would finish — else the weakest, the nearer on a tie —
+  for one that harms. The area is drawn there, and the gold disc says
+  "Cast" with what it takes off. A tap on another cell, or on a fighter's
+  body, which counts as its cell, aims elsewhere; with no spell picked, a
+  tap on a cell you can reach turns the disc into "Move" with its cost.
+  The disc confirms; so does a second tap on the same cell, and Space. A
+  disc that has just changed what it does ignores a press for a moment, so
+  a double tap never ends a turn. No bubble is drawn on the board.
 - **Nothing playable hides under a control.** The board starts where the
   deck ends, on a phone and on a desk.
 - **The gold disc carries the clock.** While it is your turn, the time

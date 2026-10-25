@@ -133,7 +133,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     title: "Walk",
     body: (touch) =>
       touch
-        ? "Tap a nearby cell to preview the walk, then tap it again to go. Every cell costs one MP."
+        ? "Tap a nearby cell to preview the walk, then press the gold Move button. Every cell costs one MP."
         : "Click a nearby cell to walk there. Every cell costs one MP — the green number on your fighter.",
     ready: myTurn,
     waiting: WAIT_FOR_TURN,
@@ -167,7 +167,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     title: "Cast it",
     body: (touch) =>
       touch
-        ? "Tap a spell, then tap your opponent. It costs AP — the blue number."
+        ? "Tap a spell: it aims at your opponent if they are in reach, or tap them. Press the gold Cast button. It costs AP — the blue number."
         : "Pick a spell — click it, or press its number key — then click your opponent. It costs AP, the blue number.",
     ready: myTurn,
     waiting: WAIT_FOR_TURN,

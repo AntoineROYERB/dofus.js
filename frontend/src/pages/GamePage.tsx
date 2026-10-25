@@ -8,7 +8,6 @@ import { GameAction, Position, GameStatus, GAME_STATUS } from "../types/game";
 import { FighterPanel } from "../components/Game/FighterPanel";
 import { TurnTimeline } from "../components/Game/TurnTimeline";
 import { TurnClock } from "../components/Game/TurnClock";
-import { MainButton } from "../components/Game/Button";
 import { GameOverModal } from "../components/Game/GameOverModal";
 import { useWebSocket } from "../context/WebSocketContext";
 import { readCharacter } from "../utils/characterStorage";
@@ -24,6 +23,7 @@ import { ShortcutSheet } from "../components/Game/ShortcutSheet";
 import {
   CommandDeck,
   MainAction,
+  MainActionProps,
   MenuButton,
   PortraitGauge,
   SpellHint,
@@ -32,6 +32,7 @@ import {
 } from "../components/Game/PhoneHud";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { shortcutFor } from "../utils/shortcuts";
+import { AimedAction } from "../utils/touchConfirm";
 import {
   armTutorialMatch,
   disarmTutorialMatch,
@@ -106,6 +107,8 @@ function GamePage() {
   const visibleRejection = useRejectionBanner(rejection);
   // Below lg the rail is a sheet: the board keeps the screen until asked.
   const [railOpen, setRailOpen] = useState(false);
+  // What the board says the gold disc would do: a cast or a move, and where.
+  const [aimed, setAimed] = useState<AimedAction | null>(null);
   // Declared up here because the keyboard reads it long before the Leave
   // button that sets it is laid out.
   const [leaveAsked, setLeaveAsked] = useState<LeaveIntent | null>(null);
@@ -352,16 +355,12 @@ function GamePage() {
 
   // Space does whatever the gold button currently does:
   // confirm a placement while positioning, end the turn once play starts.
+  // Read from a ref: the gold disc's action is worked out further down,
+  // once the board has said what is aimed at.
+  const mainRef = useRef<MainActionProps | null>(null);
   const handleMainButtonKey = () => {
-    if (gameStatus === GAME_STATUS.POSITION_CHARACTERS) {
-      if (connected && selectedPosition && !isPlayerPositioned) {
-        handleFightClick();
-      }
-      return;
-    }
-    if (gameStatus === GAME_STATUS.PLAYING && isMyTurn) {
-      handleEndTurnClick();
-    }
+    const main = mainRef.current;
+    if (main && !main.disabled) main.onClick();
   };
 
   // The fight's keyboard (utils/shortcuts.ts): number keys pick a spell,
@@ -512,6 +511,39 @@ function GamePage() {
     }
   };
 
+  /*
+   * The gold disc, and Space: one action, worked out from what is aimed at.
+   * A spell picked and a cell it can reach aimed: Cast. A cell to walk to
+   * tapped: Move. Otherwise the turn's own button: Fight, then End turn.
+   * With a spell picked and nothing in reach the disc waits for a tap on the
+   * board rather than ending the turn under a thumb that meant to cast.
+   */
+  const actOnAim = () => {
+    if (!aimed) return;
+    hapticTap();
+    handleCellClick(aimed.cell);
+  };
+  const main: MainActionProps | null =
+    gameStatus === GAME_STATUS.POSITION_CHARACTERS
+      ? {
+          label: isPlayerPositioned ? "Waiting…" : "Fight",
+          disabled: !connected || !selectedPosition || !!isPlayerPositioned,
+          onClick: handleFightClick,
+          beckon: connected && !!selectedPosition && !isPlayerPositioned,
+        }
+      : gameStatus === GAME_STATUS.PLAYING
+        ? isMyTurn && selectedSpellId !== null
+          ? aimed?.kind === "cast"
+            ? { label: "Cast", detail: aimed.detail, tone: "cast", disabled: false, onClick: actOnAim }
+            : { label: "Aim", detail: "tap a cell", disabled: true, onClick: () => {} }
+          : isMyTurn && aimed?.kind === "move"
+            ? { label: "Move", detail: aimed.detail, tone: "move", disabled: false, onClick: actOnAim }
+            : { label: "End turn", disabled: !isMyTurn, onClick: handleEndTurnClick }
+        : gameStatus === GAME_STATUS.GAME_OVER
+          ? null
+          : { label: connected ? "Waiting…" : "Offline", disabled: true, onClick: () => {} };
+  mainRef.current = main;
+
   // Everything laid over either layout: notices, the log sheet, the result,
   // the leave confirmation and the tutorial.
   const overlays = (
@@ -597,31 +629,11 @@ function GamePage() {
 
   /*
    * A phone held sideways: the board fills the screen and the controls sit
-   * over its corners, spells in an arc under the right thumb. A tap on a cell
-   * previews it and a bubble confirms it; holding a spell shows what it does.
+   * over its corners, the spells under the left thumb and the gold disc under
+   * the right. Picking a spell aims it; a tap on a cell aims elsewhere, and
+   * the disc confirms; holding a spell shows what it does.
    */
   if (compact) {
-    const main =
-      gameStatus === GAME_STATUS.POSITION_CHARACTERS
-        ? {
-            label: isPlayerPositioned ? "Waiting…" : "Fight",
-            disabled: !connected || !selectedPosition || !!isPlayerPositioned,
-            onClick: handleFightClick,
-            beckon: connected && !!selectedPosition && !isPlayerPositioned,
-          }
-        : gameStatus === GAME_STATUS.PLAYING
-          ? {
-              label: "End turn",
-              disabled: !isMyTurn,
-              onClick: handleEndTurnClick,
-            }
-          : gameStatus === GAME_STATUS.GAME_OVER
-            ? null
-            : {
-                label: connected ? "Waiting…" : "Offline",
-                disabled: true,
-                onClick: () => {},
-              };
 
     return (
       <div className="fixed inset-0 select-none overflow-hidden bg-paper text-ink">
@@ -640,6 +652,7 @@ function GamePage() {
             handleCellClick={handleCellClick}
             latestGameState={gameState}
             userId={userId}
+            onAimChange={setAimed}
           />
         </div>
 
@@ -704,17 +717,6 @@ function GamePage() {
    * never has to learn the screen twice.
    */
   if (wide) {
-    const main =
-      gameStatus === GAME_STATUS.POSITION_CHARACTERS
-        ? {
-            label: isPlayerPositioned ? "Waiting…" : "Fight",
-            disabled: !connected || !selectedPosition || !!isPlayerPositioned,
-            onClick: handleFightClick,
-            beckon: connected && !!selectedPosition && !isPlayerPositioned,
-          }
-        : gameStatus === GAME_STATUS.PLAYING
-          ? { label: "End turn", disabled: !isMyTurn, onClick: handleEndTurnClick }
-          : null;
 
     return (
       <div className="relative flex h-[100dvh] max-h-[100dvh] overflow-hidden bg-paper text-ink">
@@ -736,6 +738,7 @@ function GamePage() {
               handleCellClick={handleCellClick}
               latestGameState={gameState}
               userId={userId}
+              onAimChange={setAimed}
             />
           </div>
 
@@ -820,6 +823,7 @@ function GamePage() {
               handleCellClick={handleCellClick}
               latestGameState={gameState}
               userId={userId}
+              onAimChange={setAimed}
             />
           </div>
         </div>
@@ -887,15 +891,11 @@ function GamePage() {
             />
           </div>
           <div className="mt-auto narrow:pt-2">
-            <MainButton
-              gameStatus={gameStatus}
-              connected={connected}
-              handleEndTurnClick={handleEndTurnClick}
-              isMyTurn={isMyTurn}
-              handleFightClick={handleFightClick}
-              selectedPosition={selectedPosition ?? undefined}
-              isPlayerPositioned={isPlayerPositioned}
-            />
+            {main && (
+              <div className="grid place-items-center">
+                <MainAction {...main} turnEndsAt={gameState?.turnEndsAt} timed={gameStatus === GAME_STATUS.PLAYING} />
+              </div>
+            )}
           </div>
         </div>
       </div>

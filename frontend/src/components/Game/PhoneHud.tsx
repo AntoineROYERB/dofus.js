@@ -380,6 +380,14 @@ export const CommandDeck: React.FC<CommandDeckProps> = ({
   const catalogue = barSpells(player, spells);
   const [peek, setPeek] = useState<Spell | null>(null);
   const actionPoints = player?.character?.actionPoints ?? 0;
+  // A card that missed its pointerleave — the mouse leaving faster than the
+  // browser reports it — must still go: any press anywhere closes it.
+  useEffect(() => {
+    if (!peek) return;
+    const close = () => setPeek(null);
+    window.addEventListener("pointerdown", close, true);
+    return () => window.removeEventListener("pointerdown", close, true);
+  }, [peek]);
 
   return (
     <div className={`flex flex-col items-start ${shortcuts ? "w-[244px]" : "w-[216px]"}`}>
@@ -535,15 +543,33 @@ const useTurnLeft = (turnEndsAt: number | undefined, active: boolean) => {
  * round it as a ring, red for the last quarter, so the clock is where the
  * thumb already is. Where there is a keyboard it says which key presses it.
  */
-export const MainAction: React.FC<{
+export type MainActionProps = {
   label: string;
+  /** A second line: what a cast takes off, what a walk costs. */
+  detail?: string;
+  /** Whose colour the detail is written in: a cast's, or a walk's. */
+  tone?: "cast" | "move";
   disabled: boolean;
   onClick: () => void;
   beckon?: boolean;
-  /** When the turn runs out; the ring shows only while it is yours. */
-  turnEndsAt?: number;
-  timed?: boolean;
-}> = ({ label, disabled, onClick, beckon, turnEndsAt, timed = false }) => {
+};
+
+export const MainAction: React.FC<
+  MainActionProps & {
+    /** When the turn runs out; the ring shows only while it is yours. */
+    turnEndsAt?: number;
+    timed?: boolean;
+  }
+> = ({ label, detail, tone, disabled, onClick, beckon, turnEndsAt, timed = false }) => {
+  /*
+   * The disc changes what it does under the thumb — Move, Cast, End turn —
+   * so a press that lands just after it changed is dropped: a double tap on
+   * Move must never end the turn with its second half.
+   */
+  const changedAt = useRef(0);
+  useEffect(() => {
+    changedAt.current = Date.now();
+  }, [label]);
   const { share, seconds } = useTurnLeft(turnEndsAt, timed && !disabled);
   const hurry = timed && !disabled && seconds > 0 && seconds <= 10;
   const r = 47;
@@ -573,7 +599,10 @@ export const MainAction: React.FC<{
       )}
       <button
         type="button"
-        onClick={onClick}
+        onClick={() => {
+          if (Date.now() - changedAt.current < 350) return;
+          onClick();
+        }}
         disabled={disabled}
         className={`btn-gold absolute inset-[9px] flex flex-col items-center justify-center gap-0.5 rounded-full text-center font-display text-[16px] font-bold leading-[1.05] ${
           beckon ? "animate-beckon" : ""
@@ -588,7 +617,22 @@ export const MainAction: React.FC<{
             </>
           )}
         </span>
-        {!disabled && (
+        {detail && (
+          <span
+            className={`max-w-[72px] truncate rounded-full px-1.5 font-mono text-[10px] font-extrabold tabular-nums ${
+              disabled
+                ? "text-muted"
+                : tone === "cast"
+                  ? "bg-vermilion text-white"
+                  : tone === "move"
+                    ? "bg-[#1f7a35] text-white"
+                    : "text-[#2a1b00]/70"
+            }`}
+          >
+            {detail}
+          </span>
+        )}
+        {!disabled && !detail && (
           <span className="touch:hidden">
             <Keycap dark>Space</Keycap>
           </span>

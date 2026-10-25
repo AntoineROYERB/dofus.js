@@ -1,4 +1,4 @@
-import { bubblePlacement, confirmActionFor } from "./touchConfirm";
+import { confirmActionFor } from "./touchConfirm";
 import { Player } from "../types/game";
 import { Spell } from "../types/message";
 import { makeSpell } from "../test/fixtures";
@@ -130,36 +130,5 @@ describe("confirmActionFor", () => {
       detail: "2 AP",
       target: "on yourself",
     });
-  });
-});
-
-describe("bubblePlacement", () => {
-  const tile = { width: 80, height: 40 };
-  const board = { width: 844, height: 370 };
-  const offset = tile.width / 2 + 10;
-
-  it("opens to the right of a cell on the left half", () => {
-    const place = bubblePlacement({ x: 200, y: 200 }, tile, board);
-    expect(place.toLeft).toBe(false);
-    expect(place.left).toBe(200 + offset);
-  });
-
-  it("opens to the left of a cell on the right half, away from the arc", () => {
-    const place = bubblePlacement({ x: 600, y: 200 }, tile, board);
-    expect(place.toLeft).toBe(true);
-    expect(place.left).toBe(600 - offset);
-  });
-
-  it("always opens towards the side with more room", () => {
-    for (const x of [10, 300, 421, 423, 700, 834]) {
-      const place = bubblePlacement({ x, y: 200 }, tile, board);
-      const room = place.toLeft ? x : board.width - x;
-      expect(room).toBeGreaterThanOrEqual(board.width / 2);
-    }
-  });
-
-  it("stays within the board's height", () => {
-    expect(bubblePlacement({ x: 200, y: 0 }, tile, board).top).toBe(34);
-    expect(bubblePlacement({ x: 200, y: 999 }, tile, board).top).toBe(370 - 34);
   });
 });

@@ -41,7 +41,8 @@ import { useTileSize } from "../../../hooks/useTileSize";
 import { usePinchZoom } from "../../../hooks/usePinchZoom";
 import { CAMERA, centreOf, followPan } from "../../../utils/camera";
 import { GameState } from "../../../types/message";
-import { bubblePlacement, confirmActionFor } from "../../../utils/touchConfirm";
+import { AimedAction, confirmActionFor } from "../../../utils/touchConfirm";
+import { autoTarget } from "../../../utils/autoTarget";
 import { sameSide, teamed } from "../../../utils/sides";
 
 interface GridProps {
@@ -51,6 +52,12 @@ interface GridProps {
   latestGameState?: GameState | null;
   userId: string;
   selectedSpellId: number | null;
+  /**
+   * What the gold disc would do to the cell aimed at — a cast, a move — or
+   * null when nothing is aimed. The disc, not a bubble on the board, is what
+   * confirms: it sits under the thumb, and the board stays clear.
+   */
+  onAimChange?: (aimed: AimedAction | null) => void;
 }
 
 export const Grid: React.FC<GridProps> = ({
@@ -60,6 +67,7 @@ export const Grid: React.FC<GridProps> = ({
   latestGameState,
   userId,
   selectedSpellId,
+  onAimChange,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   /*
@@ -296,6 +304,7 @@ export const Grid: React.FC<GridProps> = ({
     confirmsTap,
     touchMode,
     clearPreview,
+    aimAt,
   } =
     useGridInteraction({
     containerRef,
@@ -564,27 +573,71 @@ export const Grid: React.FC<GridProps> = ({
     : new Set<string>();
 
   /*
-   * On a touch screen the first tap only previews a cell. Rather than asking
-   * for a second tap on the same small diamond, the preview carries a large
-   * bubble that says what confirming will do, and what it costs.
+   * The aimed cell: what the gold disc would act on. Picking a spell aims it
+   * straight away at the cell that makes most sense for it (utils/
+   * autoTarget), so a cast is often a tap on the spell and a tap on the
+   * disc. A tap elsewhere re-aims; with a mouse, resting on a cell the spell
+   * can reach does. A second tap on the aimed cell still acts at once.
    */
+  const isMyTurn = !!currentPlayer?.isCurrentTurn;
+  const [aim, setAim] = React.useState<Position | null>(null);
+  const spellKey = selectedSpell?.id;
+  React.useEffect(() => {
+    if (!selectedSpell || !characterPosition || !isMyTurn || isPositioningPhase) {
+      setAim(null);
+      if (touchMode) clearPreview();
+      return;
+    }
+    const target = autoTarget({
+      spell: selectedSpell,
+      castable,
+      caster: characterPosition,
+      players,
+      userId,
+    });
+    setAim(target);
+    aimAt(target);
+    // Only as a spell is picked (or the turn comes round with one picked):
+    // re-aiming on every tick would yank the aim from under the player.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [spellKey, isMyTurn, isPositioningPhase]);
+  React.useEffect(() => {
+    if (!hoveredPosition || !isMyTurn || isPositioningPhase) return;
+    if (touchMode) setAim(hoveredPosition);
+    else if (selectedSpell && castable.has(`${hoveredPosition.x},${hoveredPosition.y}`)) {
+      setAim(hoveredPosition);
+    }
+  }, [hoveredPosition, touchMode, selectedSpell, castable, isMyTurn, isPositioningPhase]);
+
+  const aimedHere =
+    !!aim && !!hoveredPosition && aim.x === hoveredPosition.x && aim.y === hoveredPosition.y;
   const confirmAction = confirmActionFor({
-    touchMode,
-    previewed: hoveredPosition,
+    touchMode: true,
+    previewed: aim,
     isPositioningPhase,
-    isMyTurn: !!currentPlayer?.isCurrentTurn,
+    isMyTurn,
     selectedSpell,
     castable,
     walkable,
     characterPosition,
-    standing: hoveredPosition
-      ? findPlayerOnCell(hoveredPosition.x, hoveredPosition.y)
-      : undefined,
+    standing: aim ? findPlayerOnCell(aim.x, aim.y) : undefined,
     userId,
-    expectedDamage: damagePreview?.damage,
-    damageNote: damagePreview?.throughRelay ? `via relay` : undefined,
-    ground: hoveredTerrain?.lines.map((line) => line.title).join(" · "),
+    expectedDamage: aimedHere ? damagePreview?.damage : undefined,
+    damageNote: aimedHere && damagePreview?.throughRelay ? `via relay` : undefined,
+    ground: aimedHere ? hoveredTerrain?.lines.map((line) => line.title).join(" · ") : undefined,
   });
+  // A walk is only ever aimed by a tap: a mouse resting on the board must
+  // not turn End turn into Move under the player's eyes.
+  const aimed: AimedAction | null =
+    confirmAction && aim && (confirmAction.kind === "cast" || touchMode)
+      ? { ...confirmAction, cell: aim }
+      : null;
+  const aimedKey = aimed ? JSON.stringify(aimed) : "";
+  const reportAim = useRef(onAimChange);
+  reportAim.current = onAimChange;
+  React.useEffect(() => {
+    reportAim.current?.(aimedKey ? (JSON.parse(aimedKey) as AimedAction) : null);
+  }, [aimedKey]);
 
   /** Which of a cell's four edges face out of the zone. */
   const zoneEdges = (x: number, y: number): boolean[] | undefined => {
@@ -834,7 +887,6 @@ export const Grid: React.FC<GridProps> = ({
           steals a click meant for the tile.
         */}
         {!isPositioningPhase &&
-          !confirmAction &&
           peekedCharacterEntry &&
           characterRenderState[peekedCharacterEntry[0]] && (
             <CharacterTooltip
@@ -900,7 +952,7 @@ export const Grid: React.FC<GridProps> = ({
           catalogue's base damage: a critical or a shield will move it, which is
           why it is shown as an estimate and not as a result.
         */}
-        {damagePreview && !confirmAction && (
+        {damagePreview && (
           <div
             className="absolute pointer-events-none font-display font-bold tabular-nums text-vermilion"
             style={{
@@ -924,68 +976,7 @@ export const Grid: React.FC<GridProps> = ({
           </div>
         )}
 
-        {confirmAction && hoveredPosition && (() => {
-          const at = isoToScreen(
-            hoveredPosition.x,
-            hoveredPosition.y,
-            tileSize,
-            centerX,
-            centerY
-          );
-          const cell = hoveredPosition;
-          const { toLeft, left, top } = bubblePlacement(at, tileSize, boardSize);
-          return (
-            <div
-              data-board-ui
-              className={`absolute z-30 flex items-center gap-1.5 ${
-                toLeft ? "flex-row-reverse" : ""
-              }`}
-              style={{
-                left: `${left}px`,
-                top: `${top}px`,
-                transform: `translate(${toLeft ? "-100%" : "0"}, -50%)`,
-              }}
-            >
-              <button
-                type="button"
-                onClick={() => {
-                  clearPreview();
-                  onCellClick(cell);
-                }}
-                className={`flex min-h-10 flex-col items-start justify-center rounded-2xl py-1.5 pl-4 pr-3 text-left text-white shadow-[0_4px_14px_rgba(23,24,26,0.18)] transition-transform active:scale-95 ${
-                  confirmAction.kind === "cast" ? "bg-vermilion" : "bg-pm"
-                }`}
-              >
-                <span className="flex items-center gap-2 font-display text-[15px] font-bold leading-tight">
-                  {confirmAction.label}
-                  <span className="rounded-full bg-white/20 px-2 py-0.5 font-mono text-[11px] font-medium tabular-nums">
-                    {confirmAction.detail}
-                  </span>
-                </span>
-                {confirmAction.target && (
-                  <span className="mt-0.5 whitespace-nowrap font-mono text-[10px] tabular-nums text-white/85">
-                    {confirmAction.target}
-                  </span>
-                )}
-                {confirmAction.ground && (
-                  <span className="mt-0.5 whitespace-nowrap font-mono text-[10px] text-white/85">
-                    on {confirmAction.ground.toLowerCase()}
-                  </span>
-                )}
-              </button>
-              <button
-                type="button"
-                aria-label="Cancel"
-                onClick={clearPreview}
-                className="grid h-8 w-8 place-items-center rounded-full border border-rule bg-panel text-graphite transition-transform active:scale-95"
-              >
-                <svg aria-hidden viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
-                  <path d="M6 6l12 12M18 6L6 18" />
-                </svg>
-              </button>
-            </div>
-          );
-        })()}
+
 
                 {/* The wind's route: from the caster, round the relay, to the target. */}
         {relayRoute && (
@@ -1012,7 +1003,7 @@ export const Grid: React.FC<GridProps> = ({
           </svg>
         )}
 
-                {!isPositioningPhase && !hoveredCharacterEntry && !confirmAction && hoveredTerrain && (
+                {!isPositioningPhase && !hoveredCharacterEntry && hoveredTerrain && (
           <div
             role="tooltip"
             className="pointer-events-none absolute z-20 w-[200px] border-2 border-ink bg-paper px-2 py-1.5 text-ink shadow-md"

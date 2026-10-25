@@ -2,6 +2,7 @@ import React from "react";
 import { Position } from "../../types/game";
 import { GameState } from "../../types/message";
 import { Grid } from "./Grid/Grid";
+import { AimedAction } from "../../utils/touchConfirm";
 
 interface GameBoardProps {
   gridSize: number;
@@ -11,6 +12,7 @@ interface GameBoardProps {
   handleCellClick: (position: Position) => void;
   latestGameState: GameState | null;
   userId: string;
+  onAimChange?: (aimed: AimedAction | null) => void;
 }
 
 export const GameBoard: React.FC<GameBoardProps> = ({
@@ -20,6 +22,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   latestGameState,
   userId,
   selectedSpellId,
+  onAimChange,
 }) => {
   return (
     <div className="absolute inset-0 z-0">
@@ -31,6 +34,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
           latestGameState={latestGameState}
           userId={userId}
           selectedSpellId={selectedSpellId}
+          onAimChange={onAimChange}
         />
       </div>
     </div>
