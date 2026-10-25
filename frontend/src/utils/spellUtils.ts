@@ -109,6 +109,16 @@ export function isInSpellRange(
 }
 
 /**
+ * How far a spell reaches from where its caster stands: no more than
+ * RULES.smokeRange from inside smoke, except Transfer, which is aimed at the pylon
+ * wherever it is. A pylon never stands in smoke, so it keeps its reach.
+ * Mirrors rangeFrom on the server.
+ */
+export function rangeFrom(spell: Spell, smoked: boolean): number {
+  return smoked && spell.special !== "swap" ? Math.min(spell.range, RULES.smokeRange) : spell.range;
+}
+
+/**
  * Where a spell aimed at `cell` would be cast from: the caster's relay, for a
  * spell that can use one and whenever the relay reaches, otherwise the
  * caster's own cell if it lands from there, otherwise nowhere. Mirrors
@@ -119,7 +129,8 @@ export function castOrigin(
   cell: Position,
   caster: Position,
   sightBlocked: (p: Position) => boolean,
-  relay: Position | null
+  relay: Position | null,
+  smoked = false
 ): Position | null {
   if (spell.targeting === "self") {
     return cell.x === caster.x && cell.y === caster.y ? caster : null;
@@ -128,11 +139,11 @@ export function castOrigin(
   if (spell.special === "swap") {
     return relay && cell.x === relay.x && cell.y === relay.y ? caster : null;
   }
-  const reaches = (from: Position) =>
-    distance(from, cell) <= spell.range &&
+  const reaches = (from: Position, range: number) =>
+    distance(from, cell) <= range &&
     (!spell.needsLineOfSight || hasLineOfSight(from, cell, sightBlocked));
-  if (spell.relayed && relay && reaches(relay)) return relay;
-  if (reaches(caster)) return caster;
+  if (spell.relayed && relay && reaches(relay, spell.range)) return relay;
+  if (reaches(caster, rangeFrom(spell, smoked))) return caster;
   return null;
 }
 
@@ -152,11 +163,17 @@ export function outOfSight(
   cell: Position,
   caster: Position,
   sightBlocked: (p: Position) => boolean,
-  relay: Position | null
+  relay: Position | null,
+  smoked = false
 ): boolean {
   if (!spell || !spell.needsLineOfSight || spell.targeting === "self") return false;
-  const origins = [caster, ...(spell.relayed && relay ? [relay] : [])];
-  const reaching = origins.filter((from) => distance(from, cell) <= spell.range);
+  const origins: [Position, number][] = [
+    [caster, rangeFrom(spell, smoked)],
+    ...(spell.relayed && relay ? [[relay, spell.range] as [Position, number]] : []),
+  ];
+  const reaching = origins
+    .filter(([from, range]) => distance(from, cell) <= range)
+    .map(([from]) => from);
   if (reaching.length === 0) return false;
   return !reaching.some((from) => hasLineOfSight(from, cell, sightBlocked));
 }
@@ -266,7 +283,8 @@ export const spellMechanics = (spell: Spell): string[] => {
   if (spell.hits && spell.hits > 1) out.push(`strikes ${spell.hits} times`);
   if (spell.special === "leap") out.push("leap");
   if (spell.special === "detonate") out.push("sets burns off");
-  if (spell.zone) {
+  if (spell.special === "upheaval") out.push("turns the ground over next turn");
+  if (spell.zone && spell.zone.kind !== "upheaval") {
     out.push(`${ZONE_INFO[spell.zone.kind].name.toLowerCase()} · ${spell.zone.duration} turns`);
   }
   if (spell.grantMP > 0) out.push(`+${spell.grantMP} MP now`);
@@ -318,9 +336,12 @@ export const spellSummary = (spell: Spell): string => {
     case "quake":
       out.push("fissures");
       break;
+    case "upheaval":
+      out.push("terraform");
+      break;
   }
   if (spell.terrain) out.push(TERRAIN_INFO[spell.terrain].name.toLowerCase());
-  if (spell.zone) out.push(`${ZONE_INFO[spell.zone.kind].name.toLowerCase()} ${spell.zone.duration}t`);
+  if (spell.zone && spell.zone.kind !== "upheaval") out.push(`${ZONE_INFO[spell.zone.kind].name.toLowerCase()} ${spell.zone.duration}t`);
   return out.join(" · ");
 };
 

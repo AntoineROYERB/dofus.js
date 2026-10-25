@@ -183,7 +183,8 @@ func (b *botBoard) speedUp(ready []types.Spell) (BotAction, bool) {
 		return BotAction{}, false
 	}
 	for _, spell := range ready {
-		if spell.GrantMP <= 0 {
+		// Transfer is aimed at the pylon, not cast on the spot to run.
+		if spell.GrantMP <= 0 || spell.Special == types.SpecialSwap {
 			continue
 		}
 		for _, other := range ready {
@@ -217,7 +218,7 @@ func (b *botBoard) cover(ready []types.Spell) (BotAction, bool) {
 			continue
 		}
 		for _, cell := range boardCells() {
-			if Distance(from, cell) > spell.Range || Distance(from, cell) == 0 {
+			if Distance(from, cell) > rangeFrom(spell, b.terrain[from].Kind) || Distance(from, cell) == 0 {
 				continue
 			}
 			if !b.free(cell, b.standing) || (spell.NeedsLineOfSight && !s.reach(from, cell, spell)) {
@@ -285,8 +286,9 @@ func readySpells(state types.GameState, me types.Player, element string) []types
 		if spell.Ultimate && (st.Spent || (state.TurnNumber < UltimateFromTurn && !me.Character.Blessings.EarlyUltimate)) {
 			continue
 		}
-		// Standing an ally back up is not something the planner weighs.
-		if spell.Special == types.SpecialRevive {
+		// Standing an ally back up, or turning the ground over, is not
+		// something the planner weighs.
+		if oncePerFight(spell) {
 			continue
 		}
 		ready = append(ready, spell)

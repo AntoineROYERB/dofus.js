@@ -262,8 +262,18 @@ func (v *validator) dreamFloors(file string, f types.DreamFloors, boonIDs map[st
 	if f.MaxMonsters < 1 || f.MaxMonsters > MaxDreamMonsters {
 		v.add(file, field("maxMonsters"), "is %d, must be between 1 and %d", f.MaxMonsters, MaxDreamMonsters)
 	}
-	if f.HealthPerFloor < 0 {
-		v.add(file, field("healthPerFloor"), "is %d, must not be negative", f.HealthPerFloor)
+	for name, curve := range map[string][]int{"healthPerFloor": f.HealthPerFloor, "damagePerFloor": f.DamagePerFloor} {
+		if len(curve) != MaxDreamParty {
+			v.add(file, field(name), "holds %d values, must hold one per party size, 1 to %d", len(curve), MaxDreamParty)
+		}
+		for i, p := range curve {
+			if p < 0 || (i > 0 && p < curve[i-1]) {
+				v.add(file, field(fmt.Sprintf("%s[%d]", name, i)), "is %d, must not be negative nor below a smaller party's", p)
+			}
+		}
+	}
+	if f.PartyBoonsEarlier < 0 {
+		v.add(file, field("partyBoonsEarlier"), "is %d, must not be negative", f.PartyBoonsEarlier)
 	}
 	if len(f.Difficulties) != 3 {
 		v.add(file, field("difficulties"), "holds %d, must hold three: a floor offers three rooms", len(f.Difficulties))

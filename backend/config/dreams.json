@@ -25,7 +25,9 @@
       280
     ],
     "maxMonsters": 6,
-    "healthPerFloor": 4,
+    "healthPerFloor": [4, 6, 7],
+    "damagePerFloor": [0, 4, 5],
+    "partyBoonsEarlier": 2,
     "difficulties": [
       {
         "id": "calm",
@@ -705,6 +707,17 @@
       "icon": "💨",
       "effect": {
         "kind": "secondWind"
+      }
+    },
+    {
+      "id": "upheaval",
+      "name": "Upheaval",
+      "description": "A new spell: dig up a cross of ground, which turns over into your element at the start of your next turn. Once a fight.",
+      "rarity": "legendary",
+      "icon": "⛏️",
+      "effect": {
+        "kind": "grantSpell",
+        "spell": "34"
       }
     },
     {

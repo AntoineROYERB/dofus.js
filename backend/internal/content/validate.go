@@ -37,13 +37,15 @@ var knownTerrain = map[string]bool{
 	types.TerrainIce: true, types.TerrainTrap: true,
 }
 
-var knownZones = map[string]bool{types.ZoneStorm: true, types.ZoneMaelstrom: true, types.ZoneDrums: true}
+var knownZones = map[string]bool{
+	types.ZoneStorm: true, types.ZoneMaelstrom: true, types.ZoneDrums: true, types.ZoneUpheaval: true,
+}
 
 var knownSpecials = map[string]bool{
 	types.SpecialDetonate: true, types.SpecialLeap: true, types.SpecialRelay: true,
 	types.SpecialPillar: true, types.SpecialCrater: true, types.SpecialQuake: true,
 	types.SpecialSwap: true, types.SpecialFlank: true, types.SpecialCage: true,
-	types.SpecialRevive: true,
+	types.SpecialRevive: true, types.SpecialUpheaval: true,
 }
 
 // Specials that act on the cell they are aimed at, which therefore has to be
@@ -231,6 +233,14 @@ func (v *validator) mechanics(file, key string, s spellEntry, bounds Bounds) {
 	}
 	if s.Special == types.SpecialRevive && (s.Damage != 0 || s.Push != 0 || s.Terrain != "" || s.Zone != nil || s.Effect != nil) {
 		v.add(file, field("special"), "a revive does nothing but stand an ally back up: no damage, push, terrain, zone or effect")
+	}
+	// Digging the ground up is what leaves the zone that turns it over, and
+	// all it does: the ground changes, nobody is hurt.
+	if (s.Special == types.SpecialUpheaval) != (s.Zone != nil && s.Zone.Kind == types.ZoneUpheaval) {
+		v.add(file, field("special"), "the upheaval special and an %q zone go together", types.ZoneUpheaval)
+	}
+	if s.Special == types.SpecialUpheaval && (s.Damage != 0 || s.Push != 0 || s.Terrain != "" || s.Effect != nil) {
+		v.add(file, field("special"), "an upheaval does nothing but turn the ground over: no damage, push, terrain or effect")
 	}
 	if s.Special == types.SpecialQuake && s.Targeting != types.TargetSelf {
 		v.add(file, field("targeting"), "the quake special opens fissures around its caster, so targeting must be %q", types.TargetSelf)

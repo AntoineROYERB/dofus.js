@@ -11,7 +11,6 @@ import {
   drawPylonShatter,
   gridPixel,
 } from "../../../vfx/pylon";
-import { RULES } from "../../../utils/terrain";
 import { ELEMENTS } from "../../../utils/elements";
 import { CAIRN_RISE, STONE_FALL, drawCairn, stonesLeft } from "../../../vfx/rampart";
 import { FX_ROOT, FxManifest, FxSheet, sheetOf, useFxManifest } from "../../../utils/fxManifest";
@@ -34,6 +33,8 @@ interface TerrainLayerProps {
   userId: string;
   /** A spell that goes through the relay is selected: make the relay call out. */
   relayActive?: boolean;
+  /** What each player's pylon holds when whole, by owner: half their health. */
+  relayMax?: Record<string, number>;
 }
 
 /*
@@ -79,6 +80,26 @@ const HOLE_SHRED = 800;
 const HOLE_SHOCK = 340;
 
 /** A stable pseudo-random number per cell, so a crack keeps its shape. */
+/** Three drifting puffs over a cell of smoke, on the layer above the fighters. */
+function drawSmoke(
+  t: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  tw: number,
+  th: number,
+  time: number,
+  x: number,
+  y: number
+) {
+  for (let i = 0; i < 3; i++) {
+    const drift = Math.sin(time * 0.7 + hash(x, y, i) * 6 + i) * tw * 0.08;
+    t.fillStyle = i % 2 ? "rgba(150,144,135,.62)" : "rgba(128,121,112,.62)";
+    t.beginPath();
+    t.ellipse(cx + (i - 1) * tw * 0.18 + drift, cy - th * (0.35 + i * 0.28), tw * 0.3, th * 0.5, 0, 0, TAU);
+    t.fill();
+  }
+}
+
 const hash = (x: number, y: number, salt = 0) => {
   const s = Math.sin(x * 127.1 + y * 311.7 + salt * 74.7) * 43758.5453;
   return s - Math.floor(s);
@@ -254,6 +275,7 @@ export const TerrainLayer: React.FC<TerrainLayerProps> = ({
   containerRef,
   userId,
   relayActive = false,
+  relayMax,
 }) => {
   const groundRef = useRef<HTMLCanvasElement>(null);
   const topRef = useRef<HTMLCanvasElement>(null);
@@ -283,8 +305,8 @@ export const TerrainLayer: React.FC<TerrainLayerProps> = ({
   const pillarHitAt = useRef(new Map<string, number>());
   const crumbles = useRef<{ at: Position; born: number }[]>([]);
   const seeded = useRef(false);
-  const state = useRef({ terrain, zones, tileSize, centerX, centerY, userId, relayActive, manifest });
-  state.current = { terrain, zones, tileSize, centerX, centerY, userId, relayActive, manifest };
+  const state = useRef({ terrain, zones, tileSize, centerX, centerY, userId, relayActive, relayMax, manifest });
+  state.current = { terrain, zones, tileSize, centerX, centerY, userId, relayActive, relayMax, manifest };
 
   useEffect(() => {
     const ground = groundRef.current;
@@ -576,13 +598,16 @@ export const TerrainLayer: React.FC<TerrainLayerProps> = ({
           const rise = (now - (relays.get(k) ?? -Infinity)) / PYLON_RISE;
           const lit = Math.max(0, 1 - (now - (relayHitAt.current.get(k) ?? -Infinity)) / PYLON_HIT);
           drawPylon(g, c.x, c.y, gridPixel(tw), time, rise, lit);
+          // A pylon raised in smoke keeps it, and is hidden in it from afar.
+          if (cell.veiled) drawSmoke(t, c.x, c.y, tw, th, time, x, y);
+          const whole = Math.max(s.relayMax?.[cell.owner] ?? 0, cell.health ?? 0, 1);
           drawPylonHealth(
             t,
             c.x,
             c.y,
             gridPixel(tw),
-            cell.health ?? RULES.relayHealth,
-            RULES.relayHealth,
+            cell.health ?? whole,
+            whole,
             mine ? WIND : ENEMY
           );
           continue;
@@ -719,21 +744,7 @@ export const TerrainLayer: React.FC<TerrainLayerProps> = ({
             // Drawn by the tile itself, as raised cover.
             break;
           case "smoke": {
-            for (let i = 0; i < 3; i++) {
-              const drift = Math.sin(time * 0.7 + hash(x, y, i) * 6 + i) * tw * 0.08;
-              t.fillStyle = i % 2 ? "rgba(150,144,135,.62)" : "rgba(128,121,112,.62)";
-              t.beginPath();
-              t.ellipse(
-                c.x + (i - 1) * tw * 0.18 + drift,
-                c.y - th * (0.35 + i * 0.28),
-                tw * 0.3,
-                th * 0.5,
-                0,
-                0,
-                TAU
-              );
-              t.fill();
-            }
+            drawSmoke(t, c.x, c.y, tw, th, time, x, y);
             break;
           }
         }
@@ -745,6 +756,32 @@ export const TerrainLayer: React.FC<TerrainLayerProps> = ({
         if (s.manifest && zoneKey) {
           const onto = zone.kind === "storm" ? t : g;
           if (drawSheet(onto, s.manifest, zoneKey, c, tw, time, 0)) continue;
+        }
+        if (zone.kind === "upheaval") {
+          // Ground dug up and waiting to turn over: furrows in the colour of
+          // the element it will become, so both sides see what is coming.
+          const ink = ELEMENTS[zone.element ?? "Earth"]?.color ?? EARTH;
+          for (const cell of zone.cells) {
+            const p = at(cell);
+            diamond(g, cell, 0.82);
+            g.strokeStyle = ink;
+            g.globalAlpha = 0.7;
+            g.lineWidth = 2;
+            g.setLineDash([tw * 0.05, tw * 0.05]);
+            g.stroke();
+            g.setLineDash([]);
+            g.strokeStyle = SOIL_DARK;
+            g.globalAlpha = 0.45;
+            g.lineWidth = 1.5;
+            for (let i = -1; i <= 1; i++) {
+              g.beginPath();
+              g.moveTo(p.x - tw * 0.16 + i * tw * 0.1, p.y - th * 0.08);
+              g.lineTo(p.x - tw * 0.04 + i * tw * 0.1, p.y + th * 0.1);
+              g.stroke();
+            }
+            g.globalAlpha = 1;
+          }
+          continue;
         }
         if (zone.kind === "drums") {
           // Fulgor's drums: the cells the next beat falls on, marked in the
@@ -896,7 +933,7 @@ export const TerrainLayer: React.FC<TerrainLayerProps> = ({
     };
     // Restarted whenever the board's contents change, so an idle board can
     // stop drawing without missing the next spell.
-  }, [containerRef, terrain, zones, tileSize, centerX, centerY, relayActive, manifest]);
+  }, [containerRef, terrain, zones, tileSize, centerX, centerY, relayActive, relayMax, manifest]);
 
   return (
     <>

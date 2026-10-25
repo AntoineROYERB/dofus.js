@@ -50,16 +50,16 @@
       "icon": "💥",
       "element": "Fire",
       "role": "Detonate",
-      "description": "Makes the target's burns go off at once: 6 damage, plus everything they had left to burn.",
+      "description": "Up close, makes the target's burns go off at once: 8 damage, plus everything they had left to burn.",
       "APCost": 4,
-      "range": 7,
-      "damage": 6,
+      "range": 1,
+      "damage": 8,
       "areaOfEffect": "none",
-      "needsLineOfSight": true,
+      "needsLineOfSight": false,
       "maxCastsPerTurn": 1,
       "cooldown": 0,
       "criticalChance": 10,
-      "criticalDamage": 9,
+      "criticalDamage": 11,
       "special": "detonate"
     },
     "4": {
@@ -67,7 +67,7 @@
       "icon": "🌫️",
       "element": "Fire",
       "role": "Cover",
-      "description": "Fills a cross of cells with smoke that nothing can be seen through, for good.",
+      "description": "Fills a cross of cells with smoke that nothing can be seen through, for good. From inside it, spells reach 3 cells at most.",
       "APCost": 2,
       "range": 6,
       "damage": 0,
@@ -110,7 +110,7 @@
       "icon": "🌬️",
       "element": "Air",
       "role": "Reach",
-      "description": "Raises your copper pylon on a free cell. Your air spells and your basic attack go out from it whenever it reaches, 75% harder. It blocks the way and hides what is behind it; 12 health, and it goes off when it breaks.",
+      "description": "Raises your copper pylon on a free cell. Your air spells and your basic attack go out from it whenever it reaches, 75% harder. It blocks the way and hides what is behind it. It holds half your health, hides in tall grass and smoke, and goes off when it breaks.",
       "APCost": 2,
       "range": 5,
       "damage": 0,
@@ -170,7 +170,7 @@
       "icon": "🔀",
       "element": "Air",
       "role": "Swap",
-      "description": "Aim at your pylon, wherever it stands: you and it change places.",
+      "description": "Aim at your pylon, wherever it stands: you and it change places, and you get 2 MP to walk off with.",
       "APCost": 1,
       "range": 14,
       "damage": 0,
@@ -181,6 +181,7 @@
       "criticalChance": 0,
       "criticalDamage": 0,
       "targeting": "any",
+      "grantMP": 2,
       "special": "swap"
     },
     "10": {
@@ -779,6 +780,28 @@
       "criticalDamage": 0,
       "targeting": "fallen",
       "special": "revive"
+    },
+    "34": {
+      "name": "Upheaval",
+      "icon": "⛏️",
+      "element": "Earth",
+      "role": "Terraform",
+      "description": "Digs up a cross of ground. At the start of your next turn it turns over into your element: fire for fire, water for water, bare earth otherwise. Once a fight.",
+      "APCost": 5,
+      "range": 4,
+      "damage": 0,
+      "areaOfEffect": "cross",
+      "needsLineOfSight": false,
+      "maxCastsPerTurn": 1,
+      "cooldown": 0,
+      "criticalChance": 0,
+      "criticalDamage": 0,
+      "targeting": "any",
+      "special": "upheaval",
+      "zone": {
+        "kind": "upheaval",
+        "duration": 1
+      }
     }
   }
 }

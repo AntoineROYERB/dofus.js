@@ -223,3 +223,26 @@ func TestSecondWindIsOnceARun(t *testing.T) {
 		t.Fatalf("after Second Wind caught them, seated with %v", seat.Boons)
 	}
 }
+
+// A pair climbing together found the middle floors too easy: they pick a
+// boon each per floor. Against a party, the same monster on the same floor
+// holds more health, hits harder and carries its boons sooner.
+func TestABiggerPartyMeetsTougherMonsters(t *testing.T) {
+	cat := shipped(t)
+	f := cat.Dream.Floors
+	m := cat.Dream.Monsters[0]
+	solo := dressMonster(cat, MonsterSeat{Monster: m.ID}, 9, 1, 0, "normal")
+	pair := dressMonster(cat, MonsterSeat{Monster: m.ID}, 9, 2, 0, "normal")
+	if pair.Stats.Health <= solo.Stats.Health {
+		t.Errorf("health on floor 9: pair %d, solo %d, want the pair's higher", pair.Stats.Health, solo.Stats.Health)
+	}
+	if pair.Stats.Damage <= solo.Stats.Damage {
+		t.Errorf("damage on floor 9: pair +%d%%, solo +%d%%, want the pair's higher", pair.Stats.Damage, solo.Stats.Damage)
+	}
+	if got, want := pair.Stats.Damage, f.DamagePerFloor[1]*8; got != want {
+		t.Errorf("a pair's monster on floor 9 hits %d%% harder, want %d%%", got, want)
+	}
+	if len(pair.Boons) <= len(solo.Boons) {
+		t.Errorf("boons on floor 9: pair %v, solo %v, want the pair's sooner", pair.Boons, solo.Boons)
+	}
+}

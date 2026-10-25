@@ -46,7 +46,7 @@ func (g *Game) CastSpell(userID string, spellID int, target types.Position) erro
 	if caster.Character.ActionPoints < spell.APCost {
 		return ErrNotEnoughAP
 	}
-	if spell.Special == types.SpecialRevive && state.Spent {
+	if oncePerFight(spell) && state.Spent {
 		return ErrSpentThisFight
 	}
 	if spell.Ultimate {
@@ -105,7 +105,7 @@ func (g *Game) CastSpell(userID string, spellID int, target types.Position) erro
 	caster.Character.MovementPoints += spell.GrantMP
 	state.CastsThisTurn++
 	state.CooldownLeft = spell.Cooldown
-	if spell.Ultimate || spell.Special == types.SpecialRevive {
+	if spell.Ultimate || oncePerFight(spell) {
 		state.Spent = true
 	}
 	caster.Spells[key] = state
@@ -219,7 +219,7 @@ func (g *Game) CastSpell(userID string, spellID int, target types.Position) erro
 // that is the cast the player was thinking of.
 func (g *Game) castOriginLocked(userID string, standing, target types.Position, spell types.Spell) (types.Position, *types.Position, error) {
 	reach := func(from types.Position) error {
-		if Distance(from, target) > spell.Range {
+		if Distance(from, target) > rangeFrom(spell, g.terrainKindLocked(from)) {
 			return ErrOutOfRange
 		}
 		if spell.NeedsLineOfSight && !HasLineOfSight(from, target, g.blocksSightLocked) {
@@ -363,9 +363,9 @@ func (g *Game) reshapeBoardLocked(userID string, spell types.Spell, target, orig
 			break
 		}
 		if old, ok := g.relayOfLocked(userID); ok {
-			delete(g.terrain, old)
+			g.liftRelayLocked(old)
 		}
-		g.setRelayLocked(target, userID, RelayHealth)
+		g.setRelayLocked(target, userID, wholeRelay(g.players[userID].Character))
 	case types.SpecialFlank:
 		// Across the cast, one either side of where it landed.
 		side := Rotate(types.Position{X: 1}, facing(origin, target))
@@ -385,7 +385,7 @@ func (g *Game) reshapeBoardLocked(userID string, spell types.Spell, target, orig
 		if relay, ok := g.relayOfLocked(userID); ok {
 			standing := *g.players[userID].Character.Position
 			cell := g.terrain[relay]
-			delete(g.terrain, relay)
+			g.liftRelayLocked(relay)
 			g.setPositionLocked(userID, relay)
 			g.setRelayLocked(standing, userID, cell.Health)
 			g.arriveLocked(userID, types.Position{})
@@ -426,6 +426,13 @@ func (g *Game) reshapeBoardLocked(userID string, spell types.Spell, target, orig
 			TurnsLeft: spell.Zone.Duration,
 			Element:   spell.Element,
 			SpellID:   spell.ID,
+		}
+		// The ground turns over into its caster's element, whatever the
+		// spell itself is drawn in.
+		if zone.Kind == types.ZoneUpheaval {
+			if kit, ok := g.kitOf(g.players[userID].Character); ok {
+				zone.Element = kit.Element
+			}
 		}
 		// In the air the drums follow whoever they first struck.
 		if zone.Kind == types.ZoneDrums && spell.Element == "Air" && len(victims) > 0 {

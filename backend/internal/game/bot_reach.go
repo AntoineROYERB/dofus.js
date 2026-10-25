@@ -70,7 +70,7 @@ func (b *botBoard) threatFrom(foe fighter, pos types.Position, screen []types.Po
 			amount := 0
 			for _, group := range [][]types.Position{landings, cells} {
 				for _, from := range group {
-					if from == pos || !reachesFrom(spell, from, pos, opaque) {
+					if from == pos || !reachesFrom(spell, from, pos, b.terrain[from].Kind, opaque) {
 						continue
 					}
 					hit := expectedDamage(spell)
@@ -158,7 +158,7 @@ func (b *botBoard) firingAt(foe fighter) []firing {
 		}
 		var from, beside []types.Position
 		for _, cell := range allCells {
-			if cell == foe.pos || !b.free(cell, taken) || !reachesFrom(spell, cell, foe.pos, b.opaque) {
+			if cell == foe.pos || !b.free(cell, taken) || !reachesFrom(spell, cell, foe.pos, b.terrain[cell].Kind, b.opaque) {
 				continue
 			}
 			from = append(from, cell)
@@ -319,7 +319,9 @@ func (b *botBoard) mobility(f fighter) []getAbout {
 			continue
 		}
 		switch {
-		case spell.GrantMP > 0:
+		// Transfer's MP come with a jump to the pylon, which is weighed as
+		// the swap it is, not as a dash from where the fighter stands.
+		case spell.GrantMP > 0 && spell.Special != types.SpecialSwap:
 			moves = append(moves, getAbout{mp: f.maxMP + spell.GrantMP, ap: f.maxAP - spell.APCost, spent: key})
 		case spell.Special == types.SpecialLeap:
 			moves = append(moves, getAbout{mp: f.maxMP, ap: f.maxAP - spell.APCost, leap: spell.Range, spent: key})

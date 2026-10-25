@@ -89,7 +89,7 @@ func readBoard(state types.GameState, botID string, mind botMind) *botBoard {
 	for _, cell := range state.Terrain {
 		b.terrain[cell.Position] = cell
 		if isThing(cell.Kind) {
-			b.things = append(b.things, thing{pos: cell.Position, kind: cell.Kind, owner: cell.Owner, health: cell.Health})
+			b.things = append(b.things, thing{pos: cell.Position, kind: cell.Kind, owner: cell.Owner, health: cell.Health, veiled: cell.Veiled})
 		}
 	}
 	sortThings(b.things)
@@ -419,6 +419,17 @@ func (b *botBoard) stands() []stand {
 		seen[end] = len(out)
 		out = append(out, s)
 	}
+	// Boxed in by traps, with nowhere else to go, a bot that has waited long
+	// enough springs one rather than stand there for good: two bots that
+	// could not reach each other used to pass the turn back and forth for
+	// ever.
+	if len(out) == 1 && b.state.TurnNumber > patientTurns {
+		for _, n := range sortedNeighbours(from) {
+			if b.free(n, b.standing) && b.terrainAt(n).Kind == types.TerrainTrap {
+				return []stand{{at: n, walkTo: n}}
+			}
+		}
+	}
 	return out
 }
 
@@ -555,15 +566,16 @@ func (b *botBoard) groundCost(pos types.Position, f fighter) int {
 }
 
 // reachesFrom reports whether a spell cast from one cell lands on another,
-// with only what the board itself holds in the way.
-func reachesFrom(spell types.Spell, from, to types.Position, opaque func(types.Position) bool) bool {
+// with only what the board itself holds in the way. fromKind is the terrain
+// on the cell it is cast from, which smoke shortens.
+func reachesFrom(spell types.Spell, from, to types.Position, fromKind string, opaque func(types.Position) bool) bool {
 	if spell.Targeting == types.TargetSelf {
 		return containsPosition(AffectedPositions(spell, from, from), to) && from != to
 	}
 	if spell.Targeting == types.TargetEmpty {
 		return false
 	}
-	if Distance(from, to) > spell.Range {
+	if Distance(from, to) > rangeFrom(spell, fromKind) {
 		return false
 	}
 	return !spell.NeedsLineOfSight || HasLineOfSight(from, to, opaque)
