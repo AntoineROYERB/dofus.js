@@ -191,7 +191,7 @@ export const HowToPlayDialog: React.FC<HowToPlayDialogProps> = ({
                   <span className="block font-display text-[17px] font-bold leading-none">
                     Play the tutorial
                   </span>
-                  <span className="mt-1.5 block text-[12.5px] leading-snug text-[#2a1b00]/80">
+                  <span className="mt-1.5 block text-[12.5px] leading-snug text-[#2a1b00]/80 [text-shadow:none]">
                     A real match against the computer, with five things to try. You
                     learn by doing them.
                   </span>

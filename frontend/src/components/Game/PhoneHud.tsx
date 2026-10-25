@@ -527,7 +527,7 @@ export const Keycap: React.FC<{ children: React.ReactNode; dark?: boolean }> = (
   dark = false,
 }) => (
   <kbd
-    className={`inline-grid min-w-[18px] place-items-center rounded-[5px] px-1 font-sans text-[9.5px] font-extrabold not-italic leading-[16px] ${
+    className={`inline-grid min-w-[18px] place-items-center rounded-[5px] px-1 font-sans text-[9.5px] font-extrabold not-italic leading-[16px] [text-shadow:none] ${
       dark
         ? "bg-[#2a1b00]/15 text-[#2a1b00] shadow-[inset_0_-1.5px_0_rgb(42_27_0/0.3)]"
         : "bg-night/70 text-graphite shadow-[inset_0_-1.5px_0_rgb(var(--rule))]"
@@ -658,7 +658,7 @@ export const MainAction: React.FC<
         </span>
         {detail && (
           <span
-            className={`max-w-[72px] truncate rounded-full px-1.5 font-mono text-[10px] font-extrabold tabular-nums ${
+            className={`max-w-[72px] truncate rounded-full px-1.5 font-mono text-[10px] font-extrabold tabular-nums [text-shadow:none] ${
               disabled
                 ? "text-muted"
                 : tone === "cast"

@@ -125,11 +125,17 @@ A rune belongs to no element: its sign is lit in a violet
 
 | Role | Family | Use |
 | --- | --- | --- |
-| Display | **Philosopher**, bold | Names, titles, spell names, the numbers that matter (HP, timer) |
+| Display | **Lilita One** (one weight; never synthesised bold) | Names, titles, spell names, buttons, the numbers that matter (HP, timer) |
 | Body | **Nunito** | Sentences: rules, lore, tooltips |
 | Label | **Nunito** 800, uppercase, `tracking-label` (0.18em), 9–11 px | Every small label, counter and tag (`font-mono tracking-label`; the weight rides on `tracking-label` in `index.css`) |
 
 Numbers that change during play use tabular figures (`tabular-nums`).
+
+The display face is the free cousin of the chunky, rounded lettering mobile
+brawlers use (their own faces are proprietary): thick, a little bouncy, and
+readable at a glance on a small screen. On the gold buttons it is written
+white with a dark rim and a drop (`btn-gold`); small print inside a gold
+button keeps no rim.
 
 ### 3.3 Shapes
 

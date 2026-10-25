@@ -68,7 +68,7 @@ export default {
         night: "rgb(var(--night) / <alpha-value>)",
       },
       fontFamily: {
-        display: ["Philosopher", "Georgia", "serif"],
+        display: ["\"Lilita One\"", "Nunito", "system-ui", "sans-serif"],
         sans: ["Nunito", "system-ui", "sans-serif"],
         // The labels' face. It is no longer a monospace: the storybook frame
         // writes its small capitals in the body face, heavier (index.css).
