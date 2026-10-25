@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { fetchLeaderboard } from "../lib/api";
 import { LeaderboardEntry } from "../types/message";
 import { useContent } from "../hooks/useContent";
-import { useMusic } from "../audio/useSound";
 
 const BOARDS = [
   { size: 1, name: "Solo" },
@@ -17,7 +16,6 @@ const BOARDS = [
  * links to the last of them, replayable.
  */
 const DreamLeaderboardPage: React.FC = () => {
-  useMusic("night");
   const navigate = useNavigate();
   const { content } = useContent();
   const [size, setSize] = useState(1);

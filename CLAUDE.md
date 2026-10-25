@@ -34,8 +34,6 @@ backend/
 frontend/src/
   components/Game/Grid/ the fight board and its layers
   explore/              the open world: pixel art, client-only
-  audio/                sound, synthesised: score.ts (the music as data),
-                        cues.ts (what a fight sounds like), sfx.ts, voices.ts
   utils/                pure logic tested without a DOM; board.ts and ground.ts
                         mirror the server's pathing
 docs/ART_DIRECTION.md   the visual charter

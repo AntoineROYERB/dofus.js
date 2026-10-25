@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { fetchMatches } from "../lib/api";
 import { MatchSummary } from "../types/match";
-import { useMusic } from "../audio/useSound";
 
 const formatDuration = (ms: number): string => {
   const totalSeconds = Math.round(ms / 1000);
@@ -53,7 +52,6 @@ const MatchRow: React.FC<{ match: MatchSummary; onOpen: (id: string) => void }> 
 };
 
 const MatchHistoryPage: React.FC = () => {
-  useMusic("overworld");
   const navigate = useNavigate();
   const [matches, setMatches] = useState<MatchSummary[]>([]);
   const [nextCursor, setNextCursor] = useState("");

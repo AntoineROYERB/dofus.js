@@ -17,7 +17,6 @@ import {
 import { CreaturePortrait } from "../components/Dream/CreaturePortrait";
 import { ElementGlyph } from "../components/Game/ElementGlyph";
 import { hasSeenTutorial } from "../utils/tutorialStorage";
-import { useMusic } from "../audio/useSound";
 
 /*
  * Endless Dreams, between fights: making a party, choosing a floor's room,
@@ -476,7 +475,6 @@ const Over: React.FC<{ run: DreamView; send: Send }> = ({ run, send }) => {
 // ---------------------------------------------------------------------------
 
 const DreamPage: React.FC = () => {
-  useMusic("night");
   const { connected, dream, roomId, sendGameAction, rejection } = useWebSocket();
   const { content } = useContent();
   const navigate = useNavigate();

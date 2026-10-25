@@ -20,7 +20,6 @@ import { useRejectionBanner } from "../hooks/useRejectionBanner";
 import { GameTutorial } from "../components/Game/GameTutorial";
 import { LeaveDialog } from "../components/Game/LeaveDialog";
 import {
-  CORNER_BUTTON,
   CornerButton,
   FighterStatus,
   SpellArc,
@@ -53,8 +52,6 @@ import { infusedBook, unavailableReason } from "../utils/spellUtils";
 import { markDefeated, readDefeated } from "../utils/progressStorage";
 import { useContent } from "../hooks/useContent";
 import { hapticGameOver, hapticTurnStart } from "../lib/native";
-import { playSelect } from "../audio/sfx";
-import { SoundToggle } from "../audio/SoundToggle";
 import { sameSide, teamed } from "../utils/sides";
 import { RULES } from "../utils/terrain";
 
@@ -309,10 +306,8 @@ function GamePage() {
   const handleSelectedPosition = (position: Position | null) =>
     setSelectedPosition(position);
 
-  const handleSpellClick = (spellId: number) => {
-    if (selectedSpellId !== spellId) playSelect(spellBook?.[String(spellId)]?.element);
+  const handleSpellClick = (spellId: number) =>
     setSelectedSpellId((prev) => (prev === spellId ? null : spellId));
-  };
 
   const handleEndTurnClick = () => {
     const { messageId, timestamp } = generateMessageId();
@@ -617,7 +612,6 @@ function GamePage() {
             />
           </div>
           <div className="pointer-events-auto absolute right-[max(12px,env(safe-area-inset-right))] top-[max(8px,env(safe-area-inset-top))] flex gap-2">
-            <SoundToggle className={CORNER_BUTTON} />
             <CornerButton label="Log" onClick={() => setRailOpen(true)} />
             <CornerButton label="Leave" onClick={() => requestLeave()} />
           </div>

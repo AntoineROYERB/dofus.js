@@ -5,7 +5,6 @@ import { EffectBadges } from "./EffectBadges";
 import { TurnClock } from "./TurnClock";
 import { KitTag } from "./KitTag";
 import { useContent } from "../../hooks/useContent";
-import { SoundToggle } from "../../audio/SoundToggle";
 
 interface TurnTimelineProps {
   latestGameState: GameState | null;
@@ -56,7 +55,6 @@ export const TurnTimeline: React.FC<TurnTimelineProps> = ({
               {latestGameState?.turnNumber ?? 0}
             </b>
           </span>
-          <SoundToggle className="font-mono text-[10px] uppercase tracking-label text-muted transition-colors hover:text-vermilion" />
           {onLeave && (
             <button
               type="button"

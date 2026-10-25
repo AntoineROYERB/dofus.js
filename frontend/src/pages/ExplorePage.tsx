@@ -4,9 +4,6 @@ import { Daylight, ExploreBoard } from "../explore/ExploreBoard";
 import { setWorldContent } from "../explore/islands";
 import { useContent } from "../hooks/useContent";
 import { readCharacter } from "../utils/characterStorage";
-import { phaseAt } from "../explore/paint";
-import { useMusic } from "../audio/useSound";
-import { SoundToggle } from "../audio/SoundToggle";
 
 /**
  * The open world: somewhere to walk, with nothing to fight.
@@ -32,10 +29,6 @@ const ExplorePage: React.FC = () => {
   const navigate = useNavigate();
   const character = readCharacter();
   const [daylight, setDaylight] = useState<Daylight>(readDaylight);
-  // Day has its theme; dusk and night, the quieter one. Read when the page
-  // opens or the choice changes, which is as often as anyone will notice.
-  const hour = new Date().getHours();
-  useMusic(daylight === "clock" && phaseAt(hour) !== "day" ? "night" : "overworld");
   // The islands — who lives where, what colours they are — are the server's.
   const { content, failed } = useContent();
   if (content) setWorldContent(content);
@@ -60,7 +53,6 @@ const ExplorePage: React.FC = () => {
           <span className="font-mono text-[9.5px] uppercase tracking-label text-muted">
             Click the ground to walk
           </span>
-          <SoundToggle />
           <button
             type="button"
             onClick={toggleDaylight}

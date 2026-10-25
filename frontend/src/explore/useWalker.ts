@@ -2,8 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Position } from "../types/game";
 import { Direction } from "../components/Game/SpriteAnimation";
 import { getDirection } from "../utils/pathUtils";
-import { findPath, groundAt, SPAWN } from "./world";
-import { playStep, Surface } from "../audio/sfx";
+import { findPath, SPAWN } from "./world";
 import {
   advance,
   follow,
@@ -13,15 +12,6 @@ import {
   standingAt,
   Walk,
 } from "./walk";
-
-/** What a foot lands on out here: a ford's water, a path's earth, sand or turf. */
-export const surfaceAt = (p: Position): Surface => {
-  const ground = groundAt(p);
-  if (ground.ford) return "water";
-  if (ground.stair) return "stone";
-  if (ground.path) return "dirt";
-  return ground.sand > ground.moss && ground.sand > 0.5 ? "sand" : "grass";
-};
 
 export type Walker = {
   /** Where the figure is, in cells, between whole ones while it walks. */
@@ -74,7 +64,6 @@ export const useWalker = (start: Position = SPAWN): Walker => {
       if (next.standing !== before.standing) setCell(next.standing);
       if (next.leg && next.leg !== before.leg) {
         setDirection(getDirection(next.leg.from, next.leg.to));
-        playStep(surfaceAt(next.leg.to));
       }
       setMoving((prev) => {
         const now_ = isMoving(next);
