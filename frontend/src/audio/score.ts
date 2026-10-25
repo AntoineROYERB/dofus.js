@@ -8,10 +8,10 @@
  * scale is easy to make and tiring to hear, and these loop for as long as a
  * player stays on a screen.
  *
- * - overworld: the lobby and the open world by day. Major, bouncing bass,
- *   plucked arpeggios and a wooden flute, after Terraria's daytime themes.
- * - night: the open world after dark. Slow and minor, a flute and a music box
- *   over a pad, crickets instead of birds.
+ * - overworld: the lobby and the open world by day. The battle's orchestra —
+ *   strings, horns, choir, taiko — in a major key and at a walk, with birds.
+ * - night: the open world after dark and the dreams. The same orchestra at
+ *   rest: a lone horn, the choir, plucked strings, crickets.
  * - battle: every fight. D minor at a gallop, taiko drums, string ostinato,
  *   horns and a choir, after the epic fight themes of Dofus. Its intensity
  *   rises from the placement phase to the fight to a fighter close to falling.
@@ -52,6 +52,11 @@ export type Track = {
   id: TrackId;
   bpm: number;
   beatsPerBar: number;
+  /**
+   * How much the whole track is raised, so a quiet arrangement plays as loud
+   * as a full one; switching screens should not change the volume.
+   */
+  gain: number;
   /** Every pitch class the track's harmony allows, 0 for C. */
   scale: number[];
   /**
@@ -114,7 +119,7 @@ export const hash = (...values: number[]): number => {
 };
 
 /* ------------------------------------------------------------------ */
-/* Overworld — D major, 100 bpm                                       */
+/* Overworld — D major, 96 bpm                                        */
 /* ------------------------------------------------------------------ */
 
 const OVERWORLD_A = [chord("D"), chord("A"), chord("B", MINOR), chord("G"), chord("D"), chord("A"), chord("G"), chord("A")];
@@ -145,75 +150,79 @@ const OVERWORLD_BRIDGE: Phrase = [
   [[0, 2, "C#5"], [2, 1, "E5"], [3, 1, "A4"]],
 ];
 
-/** Up and back over four chord tones, an eighth note each. */
-const ARPEGGIO = [0, 1, 2, 3, 1, 2, 3, 2];
+
+/** Eighths over the chord, in the battle's 3 + 3 + 2, at a walking pace. */
+const WALK = [0, 2, 3, 2, 1, 2, 3, 2];
+const WALK_ACCENTS = new Set([0, 3, 6]);
 
 const overworld: Track = {
   id: "overworld",
-  bpm: 100,
+  bpm: 96,
+  gain: 2.4,
   beatsPerBar: 4,
   scale: [2, 4, 6, 7, 9, 11, 1],
   bar: (index) => {
-    // 32 bars: the theme, the theme again coming home, the bridge, and a
-    // breath where only the guitar and the birds carry on.
+    // 32 bars, written for the same orchestra as the battle, in a major key
+    // and at a walk instead of a gallop: the horns take the theme, the
+    // strings answer it coming home, the strings sing the bridge, and a
+    // breath where only the ostinato, the choir and the birds carry on.
     const section = Math.floor(index / 8) % 4;
-    const cycle = Math.floor(index / 32);
     const i = index % 8;
     const chords = section === 1 ? OVERWORLD_A2 : section === 2 ? OVERWORLD_B : OVERWORLD_A;
     const c = chords[i];
     const notes: Note[] = [];
 
-    // Melody. Every other time round the flute hands it to the music box, so
-    // a player standing still for minutes does not hear the same loop twice.
-    const lead: Voice = cycle % 2 === 0 ? "flute" : "bell";
-    if (section === 0) notes.push(...play(lead, OVERWORLD_THEME[i], 0.55));
-    if (section === 1) notes.push(...play(lead, OVERWORLD_THEME2[i], 0.55));
-    if (section === 2) notes.push(...play(lead === "flute" ? "bell" : "flute", OVERWORLD_BRIDGE[i], 0.5));
-
-    // The guitar arpeggio, which never stops.
-    const tones = spread(c, 4, 1);
-    const pattern = cycle % 2 === 0 ? ARPEGGIO : [...ARPEGGIO].reverse();
-    pattern.forEach((t, step) =>
-      notes.push({ voice: "pluck", beat: step / 2, length: 0.5, midi: tones[t], velocity: step % 2 === 0 ? 0.42 : 0.3 })
-    );
-
-    // A soft pad holding the chord.
-    for (const midi of spread(c, 3, 1)) notes.push({ voice: "pad", beat: 0, length: 4, midi, velocity: 0.22 });
-
-    // The bouncing bass.
-    const r = c.root - 12;
-    notes.push(
-      { voice: "bass", beat: 0, length: 1, midi: r, velocity: 0.7 },
-      { voice: "bass", beat: 1.5, length: 0.5, midi: r, velocity: 0.45 },
-      { voice: "bass", beat: 2, length: 1, midi: r + 7, velocity: 0.6 },
-      { voice: "bass", beat: 3, length: 0.5, midi: r + 12, velocity: 0.5 },
-      { voice: "bass", beat: 3.5, length: 0.5, midi: r + 7, velocity: 0.45 }
-    );
-
-    // Light drums, and only the shaker in the breath.
-    for (let step = 0; step < 8; step++) {
-      notes.push({ voice: "hat", beat: step / 2, length: 0.25, midi: 0, velocity: step % 2 === 0 ? 0.22 : 0.12 });
+    if (section === 0) notes.push(...play("brass", OVERWORLD_THEME[i], 0.5, -12));
+    if (section === 1) {
+      notes.push(...play("strings", OVERWORLD_THEME2[i], 0.36));
+      notes.push(...play("brass", OVERWORLD_THEME2[i], 0.3, -12));
     }
-    if (section !== 3) {
-      notes.push(
-        { voice: "kick", beat: 0, length: 0.5, midi: 0, velocity: 0.5 },
-        { voice: "kick", beat: 2, length: 0.5, midi: 0, velocity: 0.42 },
-        { voice: "snare", beat: 1, length: 0.25, midi: 0, velocity: 0.16 },
-        { voice: "snare", beat: 3, length: 0.25, midi: 0, velocity: 0.16 }
-      );
+    if (section === 2) {
+      notes.push(...play("strings", OVERWORLD_BRIDGE[i], 0.38));
+      notes.push(...play("brass", OVERWORLD_BRIDGE[i], 0.22, -12));
+    }
+
+    // The string ostinato, which never stops.
+    const tones = spread(c, 4);
+    WALK.forEach((t, step) =>
+      notes.push({
+        voice: "strings",
+        beat: step / 2,
+        length: 0.5,
+        midi: tones[t],
+        velocity: WALK_ACCENTS.has(step) ? 0.3 : 0.2,
+      })
+    );
+
+    // Low horns on the root under the themes; the choir holds the chord,
+    // and carries the bridge and the breath.
+    if (section <= 1) notes.push({ voice: "brass", beat: 0, length: 4, midi: c.root - 12, velocity: 0.24 });
+    const choir = section >= 2 ? 0.3 : 0.18;
+    for (const midi of spread(c, 3, 1)) notes.push({ voice: "choir", beat: 0, length: 4, midi, velocity: choir });
+
+    // Soft drums: a heartbeat, not a march.
+    const taiko: [number, number][] = section === 3 ? [[0, 0.3]] : [[0, 0.45], [2, 0.3], [3.5, 0.22]];
+    for (const [beat, velocity] of taiko) notes.push({ voice: "taiko", beat, length: 1, midi: 0, velocity });
+
+    // A crash where a theme comes in, a swell into the next section.
+    if (i === 0 && (section === 0 || section === 2)) {
+      notes.push({ voice: "cymbal", beat: 0, length: 4, midi: 0, velocity: 0.28 });
+    }
+    if (i === 7 && (section === 1 || section === 3)) {
+      notes.push({ voice: "cymbal", beat: 2, length: 2, midi: 1, velocity: 0.25 });
     }
 
     // Birds, now and then, never on the same beat twice in a row.
-    if (hash(index, 1) < 0.45) {
+    if (hash(index, 1) < 0.4) {
       const beat = Math.floor(hash(index, 2) * 8) / 2;
-      notes.push({ voice: "bird", beat, length: 0.5, midi: 84 + Math.floor(hash(index, 3) * 12), velocity: 0.25 });
+      notes.push({ voice: "bird", beat, length: 0.5, midi: 84 + Math.floor(hash(index, 3) * 12), velocity: 0.2 });
     }
     return notes;
   },
 };
 
 /* ------------------------------------------------------------------ */
-/* Night — A minor, 68 bpm                                            */
+/* Night — A minor, 66 bpm                                            */
 /* ------------------------------------------------------------------ */
 
 const NIGHT_CHORDS = [
@@ -234,7 +243,8 @@ const NIGHT_THEME: Phrase = [
 
 const night: Track = {
   id: "night",
-  bpm: 68,
+  bpm: 66,
+  gain: 3.4,
   beatsPerBar: 4,
   scale: [9, 11, 0, 2, 4, 5, 7, 8],
   bar: (index) => {
@@ -243,19 +253,27 @@ const night: Track = {
     const c = NIGHT_CHORDS[i];
     const notes: Note[] = [];
 
-    // The theme on the flute, then the music box, then nothing but the
-    // night for a while, then the music box again.
-    if (phrase === 0) notes.push(...play("flute", NIGHT_THEME[i], 0.4));
-    if (phrase === 1 || phrase === 3) notes.push(...play("bell", NIGHT_THEME[i], 0.42));
+    // The battle's orchestra at rest: a lone horn takes the theme, then the
+    // strings, then only the choir and the night, then the horn again with
+    // the strings above it.
+    if (phrase === 0) notes.push(...play("brass", NIGHT_THEME[i], 0.38, -12));
+    if (phrase === 1) notes.push(...play("strings", NIGHT_THEME[i], 0.3));
+    if (phrase === 3) {
+      notes.push(...play("brass", NIGHT_THEME[i], 0.32, -12));
+      notes.push(...play("strings", NIGHT_THEME[i], 0.2));
+    }
 
-    for (const midi of spread(c, 3, 1)) notes.push({ voice: "pad", beat: 0, length: 4, midi, velocity: 0.28 });
-    notes.push({ voice: "bass", beat: 0, length: 4, midi: c.root - 12, velocity: 0.45 });
+    for (const midi of spread(c, 3, 1)) notes.push({ voice: "choir", beat: 0, length: 4, midi, velocity: phrase === 2 ? 0.3 : 0.22 });
+    notes.push({ voice: "strings", beat: 0, length: 4, midi: c.root - 12, velocity: 0.22 });
 
-    // A slow harp, three notes a bar.
-    const harp = spread(c, 5, 1);
+    // Plucked strings, three notes a bar, where the harp used to be.
+    const pluck = spread(c, 5, 1);
     [[0, 0], [1.5, 2], [3, 4]].forEach(([beat, t]) =>
-      notes.push({ voice: "pluck", beat, length: Math.min(1.5, 4 - beat), midi: harp[t], velocity: 0.22 })
+      notes.push({ voice: "strings", beat, length: 0.25, midi: pluck[t], velocity: 0.16 })
     );
+
+    // A distant drum every other bar.
+    if (index % 2 === 0) notes.push({ voice: "taiko", beat: 0, length: 1, midi: 0, velocity: 0.25 });
 
     if (hash(index, 7) < 0.7) {
       notes.push({ voice: "cricket", beat: Math.floor(hash(index, 8) * 4), length: 1, midi: 0, velocity: 0.16 });
@@ -312,6 +330,7 @@ const ACCENTS = new Set([0, 3, 6, 8, 11, 14]);
 const battle: Track = {
   id: "battle",
   bpm: 138,
+  gain: 1,
   beatsPerBar: 4,
   scale: [2, 4, 5, 7, 9, 10, 0, 1, 3],
   bar: (index, intensity) => {

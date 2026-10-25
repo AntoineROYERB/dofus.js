@@ -32,3 +32,19 @@ no number. Five long, steady battle shouts were left out (2yell6, 3yell9,
 | `poison.mp3` | 46_Poison_01 |
 
 Changes: leading silence trimmed, loudness normalised, re-encoded as MP3.
+
+## Monsters — `creatures/`
+
+Both packs are released under **CC0**.
+
+- `ogre-*`: "Monster Sound Effects Pack" by **Ogrebane** —
+  <https://opengameart.org/content/monster-sound-effects-pack>
+  (`ogre-N` is the pack's `monster-N`).
+- `duck-*`: "80 CC0 creature SFX #2" by **rubberduck** —
+  <https://opengameart.org/content/80-cc0-creture-sfx-2>
+  (`duck-die1` is `die_01`, `duck-roar4` is `roar_04`, `duck-monster8` is
+  `monster_08`, and so on).
+
+Monsters growl with the short ones when hit, and die with `die_*`,
+`roar_*`, the longest `monster_*` and `ogre-6`/`ogre-8`.
+Changes: silence trimmed, loudness normalised, mono, re-encoded as MP3.

@@ -235,14 +235,16 @@ bends around cover, so its shape is the line of sight. Every colour comes from
 `frontend/tailwind.config.js` and `frontend/src/constants.ts`; changing the
 look is a change to those two files.
 
-**Every sound is synthesised.** There is no audio file in the repository: the
-music and the effects are built from oscillators and filtered noise with the
-Web Audio API (`frontend/src/audio/`). The score is data — a function from a
-bar number to its notes, tested for staying in key — and three tracks loop
-under the game: a bright overworld theme for the lobby and the open world by
-day, a quieter one for the night, and an epic D minor battle that grows from
-the placement to the fight to a fighter about to fall. Each element casts and
-lands with its own voice, feet sound like the ground they step on, and the
+**Sound.** The music, footsteps and interface sounds are synthesised with the
+Web Audio API (`frontend/src/audio/`); cries, monster deaths and spell blasts
+are free recordings (`frontend/public/audio/`, credited in its `CREDITS.md`).
+The score is data — a function from a bar number to its notes, tested for
+staying in key — and three tracks for one orchestral ensemble loop under the
+game: a walking D major theme for the lobby and the open world by day, a
+quiet A minor one for the night and the dreams, and an epic D minor battle
+that grows from the placement to the fight to a fighter about to fall. Each
+element lands with its own blast, every fighter cries out in their own voice
+when hit, monsters growl and roar, feet sound like the ground they step on, and the
 fight's sounds are worked out from the difference between two snapshots, the
 same way the hit numbers are. Nothing plays before the first tap, as browsers
 require, and the "Sound" control mutes it all.

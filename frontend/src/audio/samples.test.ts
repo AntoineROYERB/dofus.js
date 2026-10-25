@@ -1,6 +1,6 @@
 import { existsSync, readdirSync } from "fs";
 import { join } from "path";
-import { CRIES, SPELL_SAMPLES } from "./samples";
+import { CREATURES, CRIES, SPELL_SAMPLES } from "./samples";
 
 const AUDIO = join(__dirname, "../../public/audio");
 
@@ -10,11 +10,16 @@ describe("the recordings", () => {
   it("all exist, so no blow lands in silence", () => {
     for (const name of named) expect(existsSync(join(AUDIO, "cries", `${name}.mp3`))).toBe(true);
     for (const name of SPELL_SAMPLES) expect(existsSync(join(AUDIO, "spells", `${name}.mp3`))).toBe(true);
+    for (const name of [...CREATURES.hurt, ...CREATURES.death]) {
+      expect(existsSync(join(AUDIO, "creatures", `${name}.mp3`))).toBe(true);
+    }
   });
 
   it("are all used, so nothing ships that is never heard", () => {
     const shipped = readdirSync(join(AUDIO, "cries")).map((f) => f.replace(/\.mp3$/, ""));
     expect([...shipped].sort()).toEqual([...named].sort());
+    const creatures = readdirSync(join(AUDIO, "creatures")).map((f) => f.replace(/\.mp3$/, ""));
+    expect([...creatures].sort()).toEqual([...CREATURES.hurt, ...CREATURES.death].sort());
   });
 
   it("give every voice a grunt, a scream and a death", () => {

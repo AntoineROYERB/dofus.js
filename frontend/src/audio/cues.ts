@@ -34,15 +34,15 @@ const isElement = (value: string | undefined): value is Element => !!value && (E
  * The voice a fighter cries out in: one of the recorded voices, played a
  * little higher or lower. Each fighter keeps theirs for the whole fight,
  * taken from their name, so two fighters hit by the same spell are still
- * told apart by ear. A dream's monsters are played slow and deep: they roar
- * rather than shout.
+ * told apart by ear. A dream's monsters growl and roar from creature
+ * recordings instead, played a little lower than a person's would be.
  */
 export const voiceOf = (player: Pick<Player, "monster"> & { character: { name: string } }): CryVoice => {
   let h = 0;
   for (const c of player.character.name) h = (Math.imul(h, 31) + c.charCodeAt(0)) | 0;
   const u = h >>> 0;
   const rate = 0.92 + ((u >>> 2) % 1000) / 1000 * 0.18;
-  return { singer: u % 4, rate: player.monster ? rate * 0.72 : rate };
+  return player.monster ? { singer: u % 4, rate: rate * 0.9, creature: true } : { singer: u % 4, rate };
 };
 
 /** The highest log number in a state, or 0 for an empty log. */

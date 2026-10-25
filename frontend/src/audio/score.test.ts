@@ -61,6 +61,13 @@ describe("the tracks", () => {
     });
   }
 
+  it("plays every track at about the same loudness once its gain is applied", () => {
+    // A rough measure: the summed velocity of a bar, times the track's gain.
+    const weight = (id: keyof typeof TRACKS) =>
+      bars(32).reduce((n, i) => n + TRACKS[id].bar(i, 1).reduce((v, note) => v + note.velocity, 0), 0) / 32 * TRACKS[id].gain;
+    for (const id of ["overworld", "night"] as const) expect(weight(id) / weight("battle")).toBeGreaterThan(0.5);
+  });
+
   it("holds the battle back while fighters are being placed", () => {
     const voices = (level: number) => new Set(bars(32).flatMap((i) => TRACKS.battle.bar(i, level)).map((n) => n.voice));
     expect(voices(0).has("snare")).toBe(false);

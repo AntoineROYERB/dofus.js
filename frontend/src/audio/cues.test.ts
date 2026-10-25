@@ -177,10 +177,11 @@ describe("voiceOf", () => {
     expect(new Set(names.map((n) => JSON.stringify(voiceOf(fighter(n))))).size).toBeGreaterThan(4);
   });
 
-  it("plays a dream's monsters deeper", () => {
+  it("gives a dream's monsters a creature's voice, a little deeper", () => {
     const plain = voiceOf(fighter("Gobball"));
     const monster = voiceOf({ ...fighter("Gobball"), monster: "gobball" });
-    expect(monster.singer).toBe(plain.singer);
-    expect(monster.rate).toBeCloseTo(plain.rate * 0.72);
+    expect(plain.creature).toBeUndefined();
+    expect(monster.creature).toBe(true);
+    expect(monster.rate).toBeCloseTo(plain.rate * 0.9);
   });
 });

@@ -1,7 +1,7 @@
 import type { Element } from "../vfx/spellFx";
 import { getMixer, Mixer } from "./engine";
 import { burst, frequencyOf, noise, thump } from "./voices";
-import { CRIES, pick, playSample, SpellSample } from "./samples";
+import { CREATURES, CRIES, pick, playSample, SpellSample } from "./samples";
 
 /**
  * Every sound the game makes that is not music. Each one answers something
@@ -147,8 +147,11 @@ export const playImpact = ({ element, pan, heavy, damage, crit }: LandSound) => 
   if (crit) playSample(m, out, "ice", { gain: 0.55, rate: 1.35, length: 0.8 });
 };
 
-/** A fighter's voice: which recorded voice, and how high it is played. */
-export type CryVoice = { singer: number; rate: number };
+/**
+ * A fighter's voice: which recorded voice, and how high it is played. A
+ * creature growls and roars from its own recordings instead of a person's.
+ */
+export type CryVoice = { singer: number; rate: number; creature?: boolean };
 
 const DEFAULT_VOICE: CryVoice = { singer: 0, rate: 1 };
 
@@ -164,7 +167,8 @@ export const playCry = (pan: number, amount: number, voice: CryVoice = DEFAULT_V
   const m = getMixer();
   if (!m) return;
   const set = CRIES[voice.singer % CRIES.length];
-  playSample(m, outlet(m, pan), pick(amount < SCREAM ? set.light : set.heavy), {
+  const cry = voice.creature ? pick(CREATURES.hurt) : pick(amount < SCREAM ? set.light : set.heavy);
+  playSample(m, outlet(m, pan), cry, {
     // A bigger blow is a louder cry, and a hint higher: the voice straining.
     gain: Math.min(1.25, 0.95 + amount / 60),
     rate: voice.rate * (amount >= 25 ? 1.06 : 1),
@@ -212,7 +216,9 @@ export const playDeath = (pan: number, voice: CryVoice = DEFAULT_VOICE) => {
   if (!m) return;
   const out = outlet(m, pan);
   const set = CRIES[voice.singer % CRIES.length];
-  playSample(m, out, pick(set.death), { gain: 1, rate: voice.rate * 0.97 });
+  // A monster's last roar is played a little slower: the life going out of it.
+  const cry = voice.creature ? pick(CREATURES.death) : pick(set.death);
+  playSample(m, out, cry, { gain: 1, rate: voice.rate * (voice.creature ? 0.9 : 0.97) });
   // The earth blast, sped up and cut short, is a body hitting the ground.
   playSample(m, out, "earth", { gain: 0.45, rate: 1.5, delay: 0.75, length: 0.5 });
 };

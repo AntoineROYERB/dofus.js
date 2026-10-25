@@ -38,6 +38,23 @@ export const CRIES: { light: string[]; heavy: string[]; death: string[] }[] = [
   },
 ];
 
+/**
+ * What a dream's monsters sound like: growls when they are hit, and death
+ * rattles and roars when they fall. A human scream slowed down was tried
+ * first, and sounded like a slowed-down human.
+ */
+export const CREATURES = {
+  hurt: [
+    "ogre-1", "ogre-2", "ogre-3", "ogre-4", "ogre-5", "ogre-7", "ogre-9", "ogre-10",
+    "duck-monster8", "duck-monster9", "duck-monster10", "duck-monster11", "duck-monster12",
+    "duck-monster13", "duck-monster14", "duck-monster15", "duck-monster16",
+  ],
+  death: [
+    "duck-die1", "duck-die2", "duck-die3", "duck-die4", "duck-roar4", "duck-roar5", "duck-roar6",
+    "duck-monster17", "duck-monster18", "duck-monster19", "duck-monster20", "ogre-6", "ogre-8",
+  ],
+};
+
 export const SPELL_SAMPLES = ["fire", "ice", "thunder", "water", "wind", "earth", "charge", "poison"] as const;
 export type SpellSample = (typeof SPELL_SAMPLES)[number];
 
@@ -47,8 +64,11 @@ export const setSampleBase = (url: string) => {
   base = url;
 };
 
-const urlOf = (name: string): string =>
-  name.startsWith("v") && name.includes("-") ? `${base}cries/${name}.mp3` : `${base}spells/${name}.mp3`;
+const urlOf = (name: string): string => {
+  if (/^v\d-/.test(name)) return `${base}cries/${name}.mp3`;
+  if (/^(ogre|duck)-/.test(name)) return `${base}creatures/${name}.mp3`;
+  return `${base}spells/${name}.mp3`;
+};
 
 const buffers = new Map<string, AudioBuffer>();
 let loading = false;
@@ -68,7 +88,12 @@ export const preloadSamples = () => {
   if (loading) return;
   loading = true;
   whenReady((m) => {
-    const names = [...SPELL_SAMPLES, ...CRIES.flatMap((v) => [...v.light, ...v.heavy, ...v.death])];
+    const names = [
+      ...SPELL_SAMPLES,
+      ...CRIES.flatMap((v) => [...v.light, ...v.heavy, ...v.death]),
+      ...CREATURES.hurt,
+      ...CREATURES.death,
+    ];
     for (const name of names) void load(m, name);
   });
 };
