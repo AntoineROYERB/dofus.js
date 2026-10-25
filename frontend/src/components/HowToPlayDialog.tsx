@@ -233,7 +233,8 @@ export const HowToPlayDialog: React.FC<HowToPlayDialogProps> = ({
                   On your turn you get{" "}
                   <b className="text-ink">action points (AP)</b> to cast spells
                   and <b className="text-ink">movement points (MP)</b> to walk.
-                  Spend either, both, or neither, then end your turn; points
+                  Spend either, both, or neither, then end your turn (Space, on a
+                  keyboard; H lists every key); points
                   refill at the start of your next one, and a turn runs on a
                   45-second clock.
                 </p>

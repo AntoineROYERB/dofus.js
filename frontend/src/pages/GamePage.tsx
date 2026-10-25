@@ -20,6 +20,7 @@ import { SideSheet } from "../components/Overlay";
 import { useRejectionBanner } from "../hooks/useRejectionBanner";
 import { GameTutorial } from "../components/Game/GameTutorial";
 import { LeaveDialog } from "../components/Game/LeaveDialog";
+import { ShortcutSheet } from "../components/Game/ShortcutSheet";
 import {
   CommandDeck,
   MainAction,
@@ -27,8 +28,10 @@ import {
   PortraitGauge,
   SpellHint,
   TurnBar,
+  YourTurnBanner,
 } from "../components/Game/PhoneHud";
 import { useMediaQuery } from "../hooks/useMediaQuery";
+import { shortcutFor } from "../utils/shortcuts";
 import {
   armTutorialMatch,
   disarmTutorialMatch,
@@ -54,7 +57,7 @@ import {
 import { infusedBook, unavailableReason } from "../utils/spellUtils";
 import { markDefeated, readDefeated } from "../utils/progressStorage";
 import { useContent } from "../hooks/useContent";
-import { hapticGameOver, hapticTurnStart } from "../lib/native";
+import { hapticGameOver, hapticTap, hapticTurnStart } from "../lib/native";
 import { sameSide, teamed } from "../utils/sides";
 import { RULES } from "../utils/terrain";
 
@@ -103,6 +106,9 @@ function GamePage() {
   const visibleRejection = useRejectionBanner(rejection);
   // Below lg the rail is a sheet: the board keeps the screen until asked.
   const [railOpen, setRailOpen] = useState(false);
+  // Declared up here because the keyboard reads it long before the Leave
+  // button that sets it is laid out.
+  const [leaveAsked, setLeaveAsked] = useState<LeaveIntent | null>(null);
   const compact = useMediaQuery("(max-height: 560px)");
   // A desk, or a tablet held sideways: wide enough for the board to keep the
   // whole width, with the deck and the portrait laid over its corners as on a
@@ -313,8 +319,19 @@ function GamePage() {
   const handleSelectedPosition = (position: Position | null) =>
     setSelectedPosition(position);
 
-  const handleSpellClick = (spellId: number) =>
+  const handleSpellClick = (spellId: number) => {
+    hapticTap();
     setSelectedSpellId((prev) => (prev === spellId ? null : spellId));
+  };
+
+  // A right-click on the board puts a picked spell down, the way a tactics
+  // game on a desk lets the mouse take a choice back without travelling to
+  // the deck. With nothing picked the browser keeps its own menu.
+  const dropOnRightClick = (event: React.MouseEvent) => {
+    if (selectedSpellId === null) return;
+    event.preventDefault();
+    setSelectedSpellId(null);
+  };
 
   const handleEndTurnClick = () => {
     const { messageId, timestamp } = generateMessageId();
@@ -333,7 +350,7 @@ function GamePage() {
     });
   };
 
-  // P does whatever the main button underneath the board currently does:
+  // Space does whatever the gold button currently does:
   // confirm a placement while positioning, end the turn once play starts.
   const handleMainButtonKey = () => {
     if (gameStatus === GAME_STATUS.POSITION_CHARACTERS) {
@@ -347,13 +364,16 @@ function GamePage() {
     }
   };
 
-  // Number keys pick a spell, Escape drops the selection, Tab and P end the
-  // turn (P also confirms a placement), the way the game this is modelled on
-  // does it. Keystrokes aimed at the chat are left alone.
+  // The fight's keyboard (utils/shortcuts.ts): number keys pick a spell,
+  // Space — or P, or Tab — does what the gold button does, Escape puts a
+  // spell down or opens the menu, L opens the menu and H lists all of it.
+  // Keystrokes aimed at the chat are left alone, and so is every key while
+  // an overlay is asking its own question.
+  const [helpOpen, setHelpOpen] = useState(false);
+  const overlayOpen = railOpen || helpOpen || !!leaveAsked || !!winner;
   useEffect(() => {
-    // The same order the bar draws its slots in, so key 3 is the third slot.
+    // The same order the deck draws its rows in, so key 3 is the third row.
     const catalogue = barSpells(currentPlayer, spellBook);
-    if (catalogue.length === 0) return;
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.metaKey || event.ctrlKey || event.altKey) return;
@@ -366,27 +386,37 @@ function GamePage() {
       ) {
         return;
       }
+      if (overlayOpen) return;
 
-      if (event.key === "Escape") {
-        setSelectedSpellId(null);
-        return;
-      }
-      if (event.key === "Tab") {
-        event.preventDefault();
-        if (isMyTurn) handleEndTurnClick();
-        return;
-      }
-      if (event.key === "p" || event.key === "P") {
-        event.preventDefault();
-        handleMainButtonKey();
-        return;
-      }
-      const slot = Number(event.key);
-      if (!Number.isInteger(slot) || slot < 1 || slot > catalogue.length) return;
-
+      const shortcut = shortcutFor(event);
+      if (!shortcut) return;
       event.preventDefault();
-      const spell = catalogue[slot - 1];
-      setSelectedSpellId((prev) => (prev === spell.id ? null : spell.id));
+      // A spell row clicked a moment ago still has the focus, and Space
+      // would press it again instead of ending the turn.
+      if (target instanceof HTMLElement && target !== document.body) target.blur();
+
+      switch (shortcut.kind) {
+        case "spell": {
+          const spell = catalogue[shortcut.slot - 1];
+          if (!spell) return;
+          hapticTap();
+          setSelectedSpellId((prev) => (prev === spell.id ? null : spell.id));
+          return;
+        }
+        case "main":
+          handleMainButtonKey();
+          return;
+        case "back":
+          if (selectedSpellId !== null) setSelectedSpellId(null);
+          else setRailOpen(true);
+          return;
+        case "menu":
+          setRailOpen(true);
+          return;
+        case "help":
+          setHelpOpen(true);
+          return;
+      }
     };
 
     window.addEventListener("keydown", onKeyDown);
@@ -394,8 +424,8 @@ function GamePage() {
   }, [
     spellBook,
     currentPlayer,
-    isMyTurn,
-    handleEndTurnClick,
+    selectedSpellId,
+    overlayOpen,
     handleMainButtonKey,
   ]);
 
@@ -424,7 +454,6 @@ function GamePage() {
 
   // Walking out before anyone has fought costs nothing; once the fight is on,
   // it is a forfeit, so the button asks first — whichever door it is.
-  const [leaveAsked, setLeaveAsked] = useState<LeaveIntent | null>(null);
   const requestLeave = (intent: LeaveIntent = "lobby") => {
     if (
       gameStatus === GAME_STATUS.PLAYING ||
@@ -538,6 +567,10 @@ function GamePage() {
           />
         )}
 
+        {helpOpen && <ShortcutSheet onClose={() => setHelpOpen(false)} />}
+
+        <YourTurnBanner show={gameStatus === GAME_STATUS.PLAYING && !!isMyTurn} />
+
         {leaveAsked && !winner && (
           <LeaveDialog
             replay={leaveAsked === "tutorial"}
@@ -592,8 +625,13 @@ function GamePage() {
 
     return (
       <div className="fixed inset-0 select-none overflow-hidden bg-paper text-ink">
-        {/* A little lower than the top edge, so the far row clears the turn bar. */}
-        <div id="tutorial-board" className="absolute inset-x-0 bottom-0 top-5">
+        {/*
+          A little lower than the top edge, so the far row clears the turn bar,
+          and clear of the command deck on the left: a phone held sideways is
+          short before it is narrow, so the board loses almost nothing by
+          starting where the deck ends, and no cell hides under a spell.
+        */}
+        <div id="tutorial-board" onContextMenu={dropOnRightClick} className="absolute bottom-0 left-[min(176px,24vw)] right-0 top-5">
           <GameBoard
             gridSize={15}
             handleSelectedPosition={handleSelectedPosition}
@@ -640,7 +678,7 @@ function GamePage() {
           <div className="pointer-events-auto absolute bottom-[max(6px,env(safe-area-inset-bottom))] right-[max(10px,env(safe-area-inset-right))] flex items-end gap-2">
             {main && (
               <div id="tutorial-mainbutton" className="mb-2">
-                <MainAction {...main} />
+                <MainAction {...main} turnEndsAt={gameState?.turnEndsAt} timed={gameStatus === GAME_STATUS.PLAYING} />
               </div>
             )}
             <div id="tutorial-fighter-panel">
@@ -684,7 +722,8 @@ function GamePage() {
               onOpenRail={() => setRailOpen(true)}
             />
           </div>
-          <div id="tutorial-board" className="relative min-h-0 flex-1">
+          {/* Starting where the deck ends, so no cell sits under a spell. */}
+          <div id="tutorial-board" onContextMenu={dropOnRightClick} className="relative ml-[244px] min-h-0 flex-1 xl:ml-[288px]">
             <GameBoard
               gridSize={15}
               handleSelectedPosition={handleSelectedPosition}
@@ -718,12 +757,13 @@ function GamePage() {
                 hasRelay={!!relayOf(gameState?.terrain, userId)}
                 onPeek={() => setPeeks((n) => n + 1)}
                 shortcuts
+                onHelp={() => setHelpOpen(true)}
               />
             </div>
             <div className="pointer-events-auto absolute bottom-3 right-5 flex origin-bottom-right items-end gap-3 xl:scale-[1.15]">
               {main && (
                 <div id="tutorial-mainbutton" className="mb-2">
-                  <MainAction {...main} />
+                  <MainAction {...main} turnEndsAt={gameState?.turnEndsAt} timed={gameStatus === GAME_STATUS.PLAYING} />
                 </div>
               )}
               <div id="tutorial-fighter-panel">
@@ -767,7 +807,7 @@ function GamePage() {
             />
           </div>
           <RotateHint />
-          <div id="tutorial-board" className="relative min-h-0 flex-1">
+          <div id="tutorial-board" onContextMenu={dropOnRightClick} className="relative min-h-0 flex-1">
             <GameBoard
               gridSize={15}
               handleSelectedPosition={handleSelectedPosition}

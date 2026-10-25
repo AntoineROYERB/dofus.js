@@ -9,6 +9,7 @@ import { SpellGlyph } from "./SpellGlyph";
 import { RULES } from "../../utils/terrain";
 import { BOARD } from "../../constants";
 import { SpellCard } from "./SpellCard";
+import { hapticHurry } from "../../lib/native";
 import { sameSide } from "../../utils/sides";
 import { TurnClock } from "./TurnClock";
 
@@ -266,7 +267,7 @@ const Command: React.FC<{
         onSelect();
       }}
       className={`relative flex w-full items-center gap-2 rounded-r-full pl-3 pr-3 text-left transition-[transform,background-color,opacity] duration-200 ease-out active:scale-[0.98] [-webkit-touch-callout:none] ${
-        upgraded ? "min-h-[42px] py-1" : "h-[34px]"
+        upgraded ? "min-h-[44px] py-1" : "h-[38px]"
       } ${
         selected
           ? "translate-x-3 bg-gradient-to-r from-[#fff2b8] to-gold text-[#2a1b00] shadow-[0_0_16px_rgb(var(--gold)/0.5)]"
@@ -363,6 +364,8 @@ interface CommandDeckProps {
   onPeek?: () => void;
   /** Number each spell with the key that picks it (a desk, not a phone). */
   shortcuts?: boolean;
+  /** Opens the list of keyboard shortcuts, where there is a keyboard. */
+  onHelp?: () => void;
 }
 
 /**
@@ -380,6 +383,7 @@ export const CommandDeck: React.FC<CommandDeckProps> = ({
   hasRelay = false,
   onPeek,
   shortcuts = false,
+  onHelp,
 }) => {
   const catalogue = barSpells(player, spells);
   const [peek, setPeek] = useState<Spell | null>(null);
@@ -387,9 +391,20 @@ export const CommandDeck: React.FC<CommandDeckProps> = ({
 
   return (
     <div className={`flex flex-col items-start ${shortcuts ? "w-[244px]" : "w-[216px]"}`}>
-      <span className="ml-3 rounded-t-lg bg-gold px-3 py-0.5 font-mono text-[9.5px] uppercase tracking-label text-[#2a1b00]">
-        Spells
-      </span>
+      <div className="ml-3 flex items-end gap-2">
+        <span className="rounded-t-lg bg-gold px-3 py-0.5 font-mono text-[9.5px] uppercase tracking-label text-[#2a1b00]">
+          Spells
+        </span>
+        {shortcuts && onHelp && (
+          <button
+            type="button"
+            onClick={onHelp}
+            className="mb-0.5 rounded-full px-2 py-0.5 font-mono text-[9.5px] uppercase tracking-label text-muted transition-colors hover:text-gold touch:hidden"
+          >
+            <Keycap>H</Keycap> Keys
+          </button>
+        )}
+      </div>
       {/*
         Scrolls rather than grows: a dream can deal a spell more than the five
         a set carries, and the deck must never reach the turn bar.
@@ -478,21 +493,113 @@ export const SpellHint: React.FC<{
   );
 };
 
-/** The one gold button of a fight: Fight while placing, End turn after. */
+/** A key, drawn the way it looks under the fingers. */
+export const Keycap: React.FC<{ children: React.ReactNode; dark?: boolean }> = ({
+  children,
+  dark = false,
+}) => (
+  <kbd
+    className={`inline-grid min-w-[18px] place-items-center rounded-[5px] px-1 font-sans text-[9.5px] font-extrabold not-italic leading-[16px] ${
+      dark
+        ? "bg-[#2a1b00]/15 text-[#2a1b00] shadow-[inset_0_-1.5px_0_rgb(42_27_0/0.3)]"
+        : "bg-night/70 text-graphite shadow-[inset_0_-1.5px_0_rgb(var(--rule))]"
+    }`}
+  >
+    {children}
+  </kbd>
+);
+
+/** How much of the turn is left, from 1 down to 0, ticking four times a second. */
+const useTurnLeft = (turnEndsAt: number | undefined, active: boolean) => {
+  const [left, setLeft] = useState({ share: 1, seconds: 0 });
+  const total = useRef(1);
+  const warned = useRef(false);
+  useEffect(() => {
+    if (!turnEndsAt || !active) return;
+    total.current = Math.max(1, turnEndsAt - Date.now());
+    warned.current = false;
+    const tick = () => {
+      const ms = Math.max(0, turnEndsAt - Date.now());
+      const seconds = Math.ceil(ms / 1000);
+      setLeft({ share: ms / total.current, seconds });
+      // Once, at ten seconds: a player who looked away feels it.
+      if (seconds <= 10 && seconds > 0 && !warned.current) {
+        warned.current = true;
+        hapticHurry();
+      }
+    };
+    tick();
+    const id = window.setInterval(tick, 250);
+    return () => window.clearInterval(id);
+  }, [turnEndsAt, active]);
+  return left;
+};
+
+/**
+ * The one gold button of a fight: Fight while placing, End turn after. While
+ * it is your turn the time left drains along its foot, and turns red for the
+ * last quarter, so the clock is where the thumb already is. Where there is a
+ * keyboard it says which key presses it.
+ */
 export const MainAction: React.FC<{
   label: string;
   disabled: boolean;
   onClick: () => void;
   beckon?: boolean;
-}> = ({ label, disabled, onClick, beckon }) => (
-  <button
-    type="button"
-    onClick={onClick}
-    disabled={disabled}
-    className={`btn-gold h-12 whitespace-nowrap px-6 font-display text-[17px] font-bold ${
-      beckon ? "animate-beckon" : ""
-    }`}
-  >
-    {label}
-  </button>
-);
+  /** When the turn runs out; the drain shows only while it is yours. */
+  turnEndsAt?: number;
+  timed?: boolean;
+}> = ({ label, disabled, onClick, beckon, turnEndsAt, timed = false }) => {
+  const { share, seconds } = useTurnLeft(turnEndsAt, timed && !disabled);
+  const hurry = timed && !disabled && seconds > 0 && seconds <= 10;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={`btn-gold relative flex h-12 items-center gap-2 overflow-hidden whitespace-nowrap px-6 font-display text-[17px] font-bold ${
+        beckon ? "animate-beckon" : ""
+      }`}
+    >
+      {label}
+      {!disabled && (
+        <span className="touch:hidden">
+          <Keycap dark>Space</Keycap>
+        </span>
+      )}
+      {timed && !disabled && (
+        <span aria-hidden className="absolute inset-x-4 bottom-1 h-[3px] overflow-hidden rounded-full bg-[#2a1b00]/15">
+          <span
+            className={`block h-full rounded-full transition-[width] duration-300 ease-linear ${
+              hurry ? "bg-vermilion" : "bg-[#2a1b00]/45"
+            }`}
+            style={{ width: `${Math.max(0, Math.min(1, share)) * 100}%` }}
+          />
+        </span>
+      )}
+    </button>
+  );
+};
+
+/**
+ * "Your turn", large, for a second, as the turn comes round. A player who
+ * looked away from the board — to the chat, to the room — gets it back
+ * without reading the turn bar. It never takes a tap.
+ */
+export const YourTurnBanner: React.FC<{ show: boolean }> = ({ show }) => {
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    if (!show) return;
+    setVisible(true);
+    const id = window.setTimeout(() => setVisible(false), 1300);
+    return () => window.clearTimeout(id);
+  }, [show]);
+  if (!visible) return null;
+  return (
+    <div aria-hidden className="pointer-events-none fixed inset-0 z-30 grid place-items-center">
+      <span className="font-display text-[44px] font-bold italic text-gold [text-shadow:0_0_24px_rgb(var(--gold)/0.7),0_2px_0_rgb(var(--night))] motion-safe:animate-banner">
+        Your turn
+      </span>
+    </div>
+  );
+};

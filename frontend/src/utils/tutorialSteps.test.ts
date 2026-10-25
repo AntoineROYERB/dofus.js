@@ -235,10 +235,10 @@ describe("a turn with nothing left in it", () => {
     expect(isStepStalled(step("walk"), theirs)).toBe(false);
   });
 
-  it("never tells a finger about the Tab key", () => {
+  it("never tells a finger about the Space bar", () => {
     for (const s of TUTORIAL_STEPS) {
       if (!s.stalled) continue;
-      expect(s.stalled.body(true).toLowerCase()).not.toContain("tab key");
+      expect(s.stalled.body(true)).not.toMatch(/\bSpace\b/);
       expect(s.stalled.targetId).toBe("tutorial-mainbutton");
     }
   });
@@ -301,7 +301,7 @@ describe("one tour, two input devices", () => {
       expect(s.body(false)).not.toMatch(/\btap\b/i);
       // The ways out of a stalled turn are worded the same way.
       if (s.stalled) {
-        expect(s.stalled.body(true)).not.toMatch(/hover|the Tab key/i);
+        expect(s.stalled.body(true)).not.toMatch(/hover|\bSpace\b/);
       }
     }
   });

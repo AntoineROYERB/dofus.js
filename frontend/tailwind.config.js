@@ -141,6 +141,13 @@ export default {
           "0%": { transform: "translateX(100%)" },
           "100%": { transform: "translateX(0)" },
         },
+        // "Your turn": in big, held a moment, and gone upward.
+        banner: {
+          "0%": { opacity: "0", transform: "scale(0.9)" },
+          "15%": { opacity: "1", transform: "scale(1)" },
+          "75%": { opacity: "1", transform: "scale(1)" },
+          "100%": { opacity: "0", transform: "translateY(-10px) scale(1)" },
+        },
       },
       animation: {
         placeable: "placeable 1.9s ease-in-out infinite",
@@ -153,6 +160,7 @@ export default {
         "fade-in": "fade-in 160ms ease-out 1",
         rise: "rise 200ms cubic-bezier(.2,.8,.2,1) 1",
         "slide-in": "slide-in 220ms cubic-bezier(.2,.8,.2,1) 1",
+        banner: "banner 1300ms ease-out 1 forwards",
       },
     },
   },

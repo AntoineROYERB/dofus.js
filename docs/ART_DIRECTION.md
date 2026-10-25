@@ -172,6 +172,20 @@ On a phone held sideways and on a desk alike (`GamePage`, `PhoneHud.tsx`):
   ("−1 AP · +1 range"), read off the spell and the one it was made from
   (`utils/spellUpgrades.ts`). Its card says the same.
 - A phone held upright keeps the bar under the board, in the same colours.
+- **Nothing playable hides under a control.** The board starts where the
+  deck ends, on a phone and on a desk.
+- **The gold button carries the clock.** While it is your turn, the time
+  left drains along its foot and turns vermilion for the last quarter; the
+  phone buzzes once at ten seconds. "Your turn" shows large for a second as
+  the turn comes round, and never takes a tap.
+- **A finger feels the deck answer.** Picking or putting down a spell is a
+  light haptic tick (`lib/native.ts`). Rows are 38 px tall.
+- **The keyboard** (`utils/shortcuts.ts`), read by the key's position so a
+  French keyboard works too: 1–9 pick a spell (again to put it down), Space
+  does what the gold button does, Esc puts a spell down or opens the menu,
+  L opens the menu, H lists the keys, and a right-click on the board puts a
+  spell down. Wherever there is a keyboard, the controls show their key
+  (`Keycap`).
 
 ---
 

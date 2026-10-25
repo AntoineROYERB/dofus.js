@@ -146,7 +146,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
       body: (touch) =>
         touch
           ? "No movement points left to walk with. End your turn — everything refills on your next one."
-          : "No movement points left to walk with. End your turn — the button, or the Tab key. Everything refills on your next one.",
+          : "No movement points left to walk with. End your turn — the gold button, or Space. Everything refills on your next one.",
       targetId: "tutorial-mainbutton",
     },
   },
@@ -178,7 +178,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
       body: (touch) =>
         touch
           ? "No spell you can afford right now. End your turn — everything refills on your next one."
-          : "No spell you can afford right now. End your turn — the button, or the Tab key. Everything refills on your next one.",
+          : "No spell you can afford right now. End your turn — the gold button, or Space. Everything refills on your next one.",
       targetId: "tutorial-mainbutton",
     },
   },
@@ -189,7 +189,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     body: (touch) =>
       touch
         ? "Out of points, or just done? End your turn. Everything refills on your next one."
-        : "Out of points, or just done? End your turn — the button, or the Tab key. Everything refills on your next one.",
+        : "Out of points, or just done? End your turn — the gold button, or Space. Everything refills on your next one.",
     ready: myTurn,
     waiting: WAIT_FOR_TURN,
     done: (now, opened) =>
