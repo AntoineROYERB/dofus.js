@@ -215,6 +215,24 @@ On a phone held sideways and on a desk alike (`GamePage`, `PhoneHud.tsx`):
   spell down. Wherever there is a keyboard, the controls show their key
   (`Keycap`).
 
+### 3.6 The home screen
+
+A brawler's home screen (`LobbyHome.tsx`): as few buttons as the screen can
+do with, each opening what it stands for, and nothing to read that a tap
+cannot bring up.
+
+- **The fighter in the middle**, large, on a lit stage, its class above it
+  (the element's icon and the grimoire's name) and its three numbers under
+  that. Tapping it opens the wardrobe.
+- **Top left**, the player's name (tap: rename). **Top middle**, the climb:
+  a diamond a rival, gold once beaten (tap: the rivals). **Top right**, a
+  dot for the server and the menu, which holds everything else: how to
+  play, history, the dream leaderboard, the open world, changing character.
+- **Left**, Gear. **Bottom left**, the mode card: what Play starts (a duel
+  against a rival, Endless Dreams, a room with friends); tap it to pick
+  another from large cards. **Bottom right**, Play, the one gold button.
+- A phone held upright keeps the lobby as a list.
+
 ---
 
 ## 4. The board in a fight

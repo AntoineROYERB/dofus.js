@@ -17,7 +17,9 @@ import {
 } from "../utils/loadoutUtils";
 import { Champion, ContentResponse } from "../types/message";
 import { Wardrobe } from "../components/Game/Wardrobe";
-import { LobbyHome } from "../components/Lobby/LobbyHome";
+import { HomeMode, LobbyHome } from "../components/Lobby/LobbyHome";
+import { HomeIcon, ICONS } from "../components/Lobby/homeIcons";
+import { ModeCard, ModeId, ModePicker } from "../components/Lobby/ModePicker";
 import { RenameDialog } from "../components/Lobby/RenameDialog";
 import { SideSheet } from "../components/Overlay";
 import { useMediaQuery } from "../hooks/useMediaQuery";
@@ -159,7 +161,9 @@ const LobbyPage: React.FC = () => {
   // A phone held sideways — the iOS app — gets the home screen instead of
   // the list; the list lives on in its sheets.
   const homeScreen = useMediaQuery("(max-height: 560px)");
-  const [sheet, setSheet] = useState<"opponents" | "rooms" | null>(null);
+  const [sheet, setSheet] = useState<"opponents" | "rooms" | "modes" | "menu" | null>(null);
+  // What Play starts on the home screen. A dream under way is picked back up.
+  const [mode, setMode] = useState<ModeId>(() => (dream && dream.phase !== "over" ? "dreams" : "duel"));
   // The opponent Play starts against: the arc's next one unless picked.
   const [pickedId, setPickedId] = useState<string | null>(null);
   const [renaming, setRenaming] = useState(false);
@@ -268,6 +272,7 @@ const LobbyPage: React.FC = () => {
             pick
               ? (id) => {
                   setPickedId(id);
+                  setMode("duel");
                   setSheet(null);
                 }
               : playSolo
@@ -351,6 +356,45 @@ const LobbyPage: React.FC = () => {
     const joinable = rooms.filter(
       (r) => r.status === "creating_player" && r.players < r.maxPlayers
     ).length;
+    const dreaming = !!dream && dream.phase !== "over";
+    const rivalElement = kitOf(picked?.set, content)?.element;
+    const homeMode: HomeMode =
+      mode === "dreams"
+        ? { label: "Endless Dreams", title: dreaming ? `Floor ${Math.max(1, dream?.floor ?? 1)}` : "Climb the dream", icon: "dream" }
+        : mode === "rooms"
+          ? { label: "With friends", title: joinable > 0 ? `${joinable} open` : "Open a room", icon: "games" }
+          : { label: "Duel", title: picked?.name ?? "Computer opponent", icon: "swords", element: rivalElement };
+    const modeCards: ModeCard[] = [
+      {
+        id: "duel",
+        name: "Duel",
+        line: "One against one, against a rival. Beat them all to climb.",
+        icon: "swords",
+        element: rivalElement,
+      },
+      {
+        id: "dreams",
+        name: "Endless Dreams",
+        line: "Floor after floor, alone or up to three. Boons between floors.",
+        icon: "dream",
+        locked: dreamsOpen ? undefined : "Opens once the tutorial is played.",
+        badge: dreaming ? "on" : undefined,
+      },
+      {
+        id: "rooms",
+        name: "With friends",
+        line: "Open a room or join one, and fight another player.",
+        icon: "games",
+        badge: joinable > 0 ? `${joinable} open` : undefined,
+      },
+    ];
+    const menuItems: { label: string; icon: HomeIcon; onClick: () => void }[] = [
+      { label: "How to play", icon: "help", onClick: () => setHowToPlayOpen(true) },
+      { label: "Match history", icon: "history", onClick: () => navigate("/matches") },
+      { label: "Dream leaderboard", icon: "trophy", onClick: () => navigate("/dreams/leaderboard") },
+      { label: "Open world", icon: "world", onClick: () => navigate("/explore") },
+      { label: "Change character", icon: "user", onClick: () => navigate("/") },
+    ];
     return (
       <>
         <LobbyHome
@@ -359,23 +403,58 @@ const LobbyPage: React.FC = () => {
           loadout={loadout}
           connected={connected}
           notice={notice}
-          opponent={picked}
           beaten={defeated.size}
-          openRooms={joinable}
-          onPlay={() => playSolo(picked?.id)}
-          onRename={() => setRenaming(true)}
-          onSelectSet={(champion) => {
-            saveCharacter(character.name, character.color, champion.set);
-            setEdits((n) => n + 1);
+          rivals={champions.length}
+          mode={homeMode}
+          canPlay={mode === "duel" ? connected : true}
+          onPlay={() => {
+            if (mode === "dreams") navigate("/dream");
+            else if (mode === "rooms") setSheet("rooms");
+            else playSolo(picked?.id);
           }}
+          onRename={() => setRenaming(true)}
           onOpenWardrobe={() => setWardrobeOpen(true)}
-          onOpenOpponents={() => setSheet("opponents")}
-          onOpenRooms={() => setSheet("rooms")}
-          onOpenHistory={() => navigate("/matches")}
-          onOpenHelp={() => setHowToPlayOpen(true)}
-          onOpenDream={dreamsOpen ? () => navigate("/dream") : undefined}
-          dreaming={!!dream && dream.phase !== "over"}
+          onOpenModes={() => setSheet("modes")}
+          onOpenRivals={() => setSheet("opponents")}
+          onOpenMenu={() => setSheet("menu")}
         />
+        {sheet === "modes" && (
+          <ModePicker
+            modes={modeCards}
+            selected={mode}
+            rival={picked ? { name: picked.name, element: kitOf(picked.set, content)?.element } : undefined}
+            onSelect={(id) => {
+              setMode(id);
+              setSheet(null);
+            }}
+            onChangeRival={() => setSheet("opponents")}
+            onClose={() => setSheet(null)}
+          />
+        )}
+        {sheet === "menu" && (
+          <SideSheet title="Menu" width="w-[min(340px,88vw)]" onClose={() => setSheet(null)}>
+            <nav aria-label="Menu" className="mt-3 flex flex-col gap-2">
+              {menuItems.map((item) => (
+                <button
+                  key={item.label}
+                  type="button"
+                  onClick={() => {
+                    setSheet(null);
+                    item.onClick();
+                  }}
+                  className="flex items-center gap-3 rounded-2xl bg-panel/80 px-3 py-2.5 text-left shadow-[inset_0_0_0_1px_rgb(var(--rule))] transition-transform active:scale-[0.98]"
+                >
+                  <span className="grid h-9 w-9 place-items-center rounded-xl bg-board text-gold">
+                    <svg aria-hidden viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+                      <path d={ICONS[item.icon]} />
+                    </svg>
+                  </span>
+                  <span className="font-display text-[16px]">{item.label}</span>
+                </button>
+              ))}
+            </nav>
+          </SideSheet>
+        )}
         {sheet === "opponents" && (
           <SideSheet title="Rivals" width="w-[min(420px,92vw)]" onClose={() => setSheet(null)}>
             {opponentList(true)}
