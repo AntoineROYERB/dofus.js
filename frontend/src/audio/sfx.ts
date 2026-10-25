@@ -152,8 +152,12 @@ export type CryVoice = { singer: number; rate: number };
 
 const DEFAULT_VOICE: CryVoice = { singer: 0, rate: 1 };
 
-/** Below this much damage a fighter grunts; above it they scream. */
-const SCREAM = 8;
+/**
+ * Below this much damage a fighter grunts; from it on they scream. It is low
+ * on purpose: a hit should hurt, and only a burn's tick or a scratch is
+ * shrugged off with a grunt.
+ */
+const SCREAM = 3;
 
 /** A fighter crying out at a blow: a grunt for a scratch, a scream for the rest. */
 export const playCry = (pan: number, amount: number, voice: CryVoice = DEFAULT_VOICE, delay = 0) => {
