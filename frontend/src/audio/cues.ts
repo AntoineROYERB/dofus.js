@@ -1,6 +1,6 @@
-import { Position } from "../types/game";
+import { Player, Position } from "../types/game";
 import { GameState, GroundCell, LogEntry } from "../types/message";
-import type { Surface } from "./sfx";
+import type { CryVoice, Surface } from "./sfx";
 import { infused } from "../utils/spellUtils";
 import type { Element } from "../vfx/spellFx";
 
@@ -19,16 +19,31 @@ import type { Element } from "../vfx/spellFx";
 export type Cue =
   | { kind: "cast"; element: Element; heavy: boolean; from: Position; to: Position; damage: number; crit: boolean; moves: boolean }
   | { kind: "beat"; element: Element; at: Position }
-  | { kind: "hurt"; at: Position; amount: number }
+  | { kind: "hurt"; at: Position; amount: number; voice: CryVoice }
   | { kind: "heal"; at: Position }
   | { kind: "shield"; at: Position }
   | { kind: "drain"; at: Position }
-  | { kind: "death"; at: Position }
+  | { kind: "death"; at: Position; voice: CryVoice }
   | { kind: "turn" }
   | { kind: "fightStart" };
 
 const ELEMENTS: Element[] = ["Fire", "Air", "Water", "Earth"];
 const isElement = (value: string | undefined): value is Element => !!value && (ELEMENTS as string[]).includes(value);
+
+/**
+ * The voice a fighter cries out in: one of the recorded voices, played a
+ * little higher or lower. Each fighter keeps theirs for the whole fight,
+ * taken from their name, so two fighters hit by the same spell are still
+ * told apart by ear. A dream's monsters growl and roar from creature
+ * recordings instead, played a little lower than a person's would be.
+ */
+export const voiceOf = (player: Pick<Player, "monster"> & { character: { name: string } }): CryVoice => {
+  let h = 0;
+  for (const c of player.character.name) h = (Math.imul(h, 31) + c.charCodeAt(0)) | 0;
+  const u = h >>> 0;
+  const rate = 0.92 + ((u >>> 2) % 1000) / 1000 * 0.18;
+  return player.monster ? { singer: u % 4, rate: rate * 0.9, creature: true } : { singer: u % 4, rate };
+};
 
 /** The highest log number in a state, or 0 for an empty log. */
 export const lastSeq = (state: GameState | null | undefined): number =>
@@ -101,10 +116,12 @@ export const fightCues = (
     if (!at) continue;
 
     if (then.isAlive && !now.isAlive) {
-      cues.push({ kind: "death", at });
+      cues.push({ kind: "death", at, voice: voiceOf(after.players[id]) });
       continue;
     }
-    if (now.health < then.health) cues.push({ kind: "hurt", at, amount: then.health - now.health });
+    if (now.health < then.health) {
+      cues.push({ kind: "hurt", at, amount: then.health - now.health, voice: voiceOf(after.players[id]) });
+    }
     if (now.health > then.health && then.isAlive) cues.push({ kind: "heal", at });
 
     // Points the fighter whose turn it is spent themselves are not a drain;

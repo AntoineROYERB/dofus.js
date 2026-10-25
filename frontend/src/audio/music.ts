@@ -69,7 +69,7 @@ const start = (m: Mixer) => {
   const out = m.ctx.createGain();
   const t = m.ctx.currentTime;
   out.gain.setValueAtTime(0, t);
-  out.gain.linearRampToValueAtTime(1, t + FADE * 0.6);
+  out.gain.linearRampToValueAtTime(TRACKS[wanted].gain, t + FADE * 0.6);
   out.connect(m.music);
   playing = { id: wanted, out, bar: 0, at: t + 0.1 };
   if (timer === undefined) timer = window.setInterval(tick, TICK_MS);

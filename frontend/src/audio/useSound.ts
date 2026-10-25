@@ -112,7 +112,7 @@ export const useFightSounds = (state: GameState | null | undefined, userId: stri
           playImpact({ element: cue.element, heavy: false, pan: panOf(cue.at), damage: 0, crit: false });
           break;
         case "hurt":
-          later(landing + 0.03, () => playHurt(panOf(cue.at), cue.amount));
+          later(landing + 0.03, () => playHurt(panOf(cue.at), cue.amount, cue.voice));
           break;
         case "heal":
           later(landing, () => playHeal(panOf(cue.at)));
@@ -124,7 +124,7 @@ export const useFightSounds = (state: GameState | null | undefined, userId: stri
           later(landing + 0.1, () => playDrain(panOf(cue.at)));
           break;
         case "death":
-          later(landing + 0.2, () => playDeath(panOf(cue.at)));
+          later(landing + 0.2, () => playDeath(panOf(cue.at), cue.voice));
           break;
       }
     }
