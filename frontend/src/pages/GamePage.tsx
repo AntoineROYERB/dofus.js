@@ -28,7 +28,6 @@ import {
   PortraitGauge,
   SpellHint,
   TurnBar,
-  YourTurnBanner,
 } from "../components/Game/PhoneHud";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { shortcutFor } from "../utils/shortcuts";
@@ -397,7 +396,8 @@ function GamePage() {
       switch (shortcut.kind) {
         case "spell": {
           const spell = catalogue[shortcut.slot - 1];
-          if (!spell) return;
+          // As on the deck: out of turn a spell is read, not picked.
+          if (!spell || !isMyTurn) return;
           hapticTap();
           setSelectedSpellId((prev) => (prev === spell.id ? null : spell.id));
           return;
@@ -425,6 +425,7 @@ function GamePage() {
     currentPlayer,
     selectedSpellId,
     overlayOpen,
+    isMyTurn,
     handleMainButtonKey,
   ]);
 
@@ -538,7 +539,9 @@ function GamePage() {
             : { label: "Aim", detail: "tap a cell", disabled: true, onClick: () => {} }
           : isMyTurn && aimed?.kind === "move"
             ? { label: "Move", detail: aimed.detail, tone: "move", disabled: false, onClick: actOnAim }
-            : { label: "End turn", disabled: !isMyTurn, onClick: handleEndTurnClick }
+            : isMyTurn
+              ? { label: "End turn", disabled: false, onClick: handleEndTurnClick }
+              : { label: allyTurn ? "Ally's turn" : "Their turn", disabled: true, onClick: () => {} }
         : gameStatus === GAME_STATUS.GAME_OVER
           ? null
           : { label: connected ? "Waiting…" : "Offline", disabled: true, onClick: () => {} };
@@ -600,8 +603,6 @@ function GamePage() {
         )}
 
         {helpOpen && <ShortcutSheet onClose={() => setHelpOpen(false)} />}
-
-        <YourTurnBanner show={gameStatus === GAME_STATUS.PLAYING && !!isMyTurn} />
 
         {leaveAsked && !winner && (
           <LeaveDialog
@@ -679,6 +680,8 @@ function GamePage() {
             className="pointer-events-auto absolute bottom-[max(8px,env(safe-area-inset-bottom))] left-[env(safe-area-inset-left)]"
           >
             <CommandDeck
+              active={gameStatus === GAME_STATUS.PLAYING && !!isMyTurn}
+              turnKey={gameState?.turnNumber ?? 0}
               player={currentPlayer}
               spells={spellBook}
               selectedSpellId={selectedSpellId}
@@ -756,6 +759,8 @@ function GamePage() {
               className="pointer-events-auto absolute bottom-4 left-[env(safe-area-inset-left)] origin-bottom-left xl:scale-[1.15]"
             >
               <CommandDeck
+                active={gameStatus === GAME_STATUS.PLAYING && !!isMyTurn}
+                turnKey={gameState?.turnNumber ?? 0}
                 player={currentPlayer}
                 spells={spellBook}
                 selectedSpellId={selectedSpellId}

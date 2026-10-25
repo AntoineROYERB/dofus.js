@@ -192,8 +192,14 @@ On a phone held sideways and on a desk alike (`GamePage`, `PhoneHud.tsx`):
   deck ends, on a phone and on a desk.
 - **The gold disc carries the clock.** While it is your turn, the time
   left runs round it and turns vermilion for the last quarter; the
-  phone buzzes once at ten seconds. "Your turn" shows large for a second as
-  the turn comes round, and never takes a tap.
+  phone buzzes once at ten seconds. On someone else's turn the disc says
+  "Their turn" (or "Ally's turn") and its ring, in `rule`, counts down the
+  wait.
+- **Whose turn it is lives in the controls, not over the board.** Out of
+  turn the deck greys out under a "Waiting" tab, and its rows can be read
+  but not picked; as the turn comes round they light up again one after
+  the other, the spine going gold, under a "Your spells" tab. There is no
+  banner.
 - **A finger feels the deck answer.** Picking or putting down a spell is a
   light haptic tick (`lib/native.ts`). Rows are 38 px tall.
 - **The keyboard** (`utils/shortcuts.ts`), read by the key's position so a

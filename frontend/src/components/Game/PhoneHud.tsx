@@ -207,9 +207,13 @@ const Command: React.FC<{
   upgrades: SpellUpgrade[];
   /** The number key that picks it, shown where there is a keyboard. */
   shortcut?: number;
+  /** Whether it is this player's turn: out of it, the row is greyed. */
+  active: boolean;
+  /** How long after the turn comes round this row lights up, in ms. */
+  wakeDelay: number;
   onSelect: () => void;
   onPeek: (open: boolean) => void;
-}> = ({ spell, blocked, cooldown, selected, locked, spent, throughRelay, upgrades, shortcut, onSelect, onPeek }) => {
+}> = ({ spell, blocked, cooldown, selected, locked, spent, throughRelay, upgrades, shortcut, active, wakeDelay, onSelect, onPeek }) => {
   const timer = useRef<number>();
   const peeked = useRef(false);
   const endPress = () => {
@@ -256,21 +260,27 @@ const Command: React.FC<{
           peeked.current = false;
           return;
         }
+        // Out of turn a row can still be read (held, or hovered), not picked.
+        if (!active) return;
         onSelect();
       }}
       className={`relative flex w-full items-center gap-2 rounded-r-full pl-3 pr-3 text-left transition-[transform,background-color,opacity] duration-200 ease-out active:scale-[0.98] [-webkit-touch-callout:none] ${
         upgraded ? "min-h-[44px] py-1" : "h-[38px]"
-      } ${
+      } ${!active ? "opacity-50 grayscale" : "motion-safe:animate-wake"} ${
         selected
           ? "translate-x-3 bg-gradient-to-r from-[#fff2b8] to-gold text-[#2a1b00] shadow-[0_0_16px_rgb(var(--gold)/0.5)]"
           : "bg-panel/90 text-ink backdrop-blur-[2px]"
       } ${blocked && !locked && !selected ? "opacity-45" : ""}`}
       style={{
+        animationDelay: active ? `${wakeDelay}ms` : undefined,
         // The left edge is the deck's spine: gold for a spell as dealt, the
-        // heart's pink for one a dream has made stronger.
+        // heart's pink for one a dream has made stronger, and the page's own
+        // rule while the turn is someone else's.
         boxShadow: selected
           ? undefined
-          : upgraded
+          : !active
+            ? "inset 3px 0 0 rgb(var(--rule))"
+            : upgraded
             ? "inset 4px 0 0 rgb(var(--heart)), inset 0 0 0 1.5px rgb(var(--heart) / 0.75), 0 0 12px rgb(var(--heart) / 0.35)"
             : "inset 3px 0 0 rgb(var(--gold))",
       }}
@@ -358,6 +368,15 @@ interface CommandDeckProps {
   shortcuts?: boolean;
   /** Opens the list of keyboard shortcuts, where there is a keyboard. */
   onHelp?: () => void;
+  /**
+   * Whether it is this player's turn. Out of it the deck greys out, and as
+   * the turn comes round it lights up again, row after row: the deck is
+   * what says "your turn", where the thumb already is, instead of a banner
+   * laid over the board.
+   */
+  active?: boolean;
+  /** Changes with every turn, so the deck lights up again each time. */
+  turnKey?: string | number;
 }
 
 /**
@@ -376,6 +395,8 @@ export const CommandDeck: React.FC<CommandDeckProps> = ({
   onPeek,
   shortcuts = false,
   onHelp,
+  active = true,
+  turnKey = 0,
 }) => {
   const catalogue = barSpells(player, spells);
   const [peek, setPeek] = useState<Spell | null>(null);
@@ -392,8 +413,12 @@ export const CommandDeck: React.FC<CommandDeckProps> = ({
   return (
     <div className={`flex flex-col items-start ${shortcuts ? "w-[244px]" : "w-[216px]"}`}>
       <div className="ml-3 flex items-end gap-2">
-        <span className="rounded-t-lg bg-gold px-3 py-0.5 font-mono text-[9.5px] uppercase tracking-label text-[#2a1b00]">
-          Spells
+        <span
+          className={`rounded-t-lg px-3 py-0.5 font-mono text-[9.5px] uppercase tracking-label transition-colors duration-300 ${
+            active ? "bg-gold text-[#2a1b00]" : "bg-hairline text-muted"
+          }`}
+        >
+          {active ? "Your spells" : "Waiting"}
         </span>
         {shortcuts && onHelp && (
           <button
@@ -414,7 +439,10 @@ export const CommandDeck: React.FC<CommandDeckProps> = ({
           const state = player?.spells?.[String(spell.id)];
           return (
             <Command
-              key={spell.id}
+              // Keyed by the turn as well, so each new turn plays the wake.
+              key={`${spell.id}-${active ? turnKey : "idle"}`}
+              active={active}
+              wakeDelay={index * 45}
               spell={spell}
               blocked={unavailableReason(spell, state, actionPoints, turnNumber, hasRelay)}
               locked={spell.ultimate && !state?.spent && turnNumber < RULES.ultimateFromTurn}
@@ -510,7 +538,12 @@ export const Keycap: React.FC<{ children: React.ReactNode; dark?: boolean }> = (
 );
 
 /** How much of the turn is left, from 1 down to 0, ticking four times a second. */
-const useTurnLeft = (turnEndsAt: number | undefined, active: boolean) => {
+const useTurnLeft = (
+  turnEndsAt: number | undefined,
+  active: boolean,
+  /** Whether the turn is this player's: only then does it buzz at ten seconds. */
+  mine: boolean
+) => {
   const [left, setLeft] = useState({ share: 1, seconds: 0 });
   const total = useRef(1);
   const warned = useRef(false);
@@ -523,7 +556,7 @@ const useTurnLeft = (turnEndsAt: number | undefined, active: boolean) => {
       const seconds = Math.ceil(ms / 1000);
       setLeft({ share: ms / total.current, seconds });
       // Once, at ten seconds: a player who looked away feels it.
-      if (seconds <= 10 && seconds > 0 && !warned.current) {
+      if (mine && seconds <= 10 && seconds > 0 && !warned.current) {
         warned.current = true;
         hapticHurry();
       }
@@ -531,7 +564,7 @@ const useTurnLeft = (turnEndsAt: number | undefined, active: boolean) => {
     tick();
     const id = window.setInterval(tick, 250);
     return () => window.clearInterval(id);
-  }, [turnEndsAt, active]);
+  }, [turnEndsAt, active, mine]);
   return left;
 };
 
@@ -570,7 +603,9 @@ export const MainAction: React.FC<
   useEffect(() => {
     changedAt.current = Date.now();
   }, [label]);
-  const { share, seconds } = useTurnLeft(turnEndsAt, timed && !disabled);
+  // The ring runs on every turn: gold on yours, the page's rule on someone
+  // else's, so the disc also says how long the wait is.
+  const { share, seconds } = useTurnLeft(turnEndsAt, timed, !disabled);
   const hurry = timed && !disabled && seconds > 0 && seconds <= 10;
   const r = 47;
   const c = 2 * Math.PI * r;
@@ -578,7 +613,7 @@ export const MainAction: React.FC<
   const [first, ...rest] = label.split(" ");
   return (
     <div className="relative h-[104px] w-[104px] flex-none">
-      {timed && !disabled && (
+      {timed && (
         <svg aria-hidden viewBox="0 0 104 104" className="absolute inset-0 h-full w-full -rotate-90">
           <circle cx={52} cy={52} r={r} fill="none" className="stroke-night/80" strokeWidth={5} />
           <circle
@@ -591,7 +626,11 @@ export const MainAction: React.FC<
             strokeDasharray={c}
             strokeDashoffset={c * (1 - Math.max(0, Math.min(1, share)))}
             style={{
-              stroke: hurry ? "rgb(var(--vermilion))" : "rgb(var(--gold))",
+              stroke: disabled
+                ? "rgb(var(--rule))"
+                : hurry
+                  ? "rgb(var(--vermilion))"
+                  : "rgb(var(--gold))",
               transition: "stroke-dashoffset 250ms linear",
             }}
           />
@@ -638,29 +677,6 @@ export const MainAction: React.FC<
           </span>
         )}
       </button>
-    </div>
-  );
-};
-
-/**
- * "Your turn", large, for a second, as the turn comes round. A player who
- * looked away from the board — to the chat, to the room — gets it back
- * without reading the turn bar. It never takes a tap.
- */
-export const YourTurnBanner: React.FC<{ show: boolean }> = ({ show }) => {
-  const [visible, setVisible] = useState(false);
-  useEffect(() => {
-    if (!show) return;
-    setVisible(true);
-    const id = window.setTimeout(() => setVisible(false), 1300);
-    return () => window.clearTimeout(id);
-  }, [show]);
-  if (!visible) return null;
-  return (
-    <div aria-hidden className="pointer-events-none fixed inset-0 z-30 grid place-items-center">
-      <span className="font-display text-[44px] font-bold italic text-gold [text-shadow:0_0_24px_rgb(var(--gold)/0.7),0_2px_0_rgb(var(--night))] motion-safe:animate-banner">
-        Your turn
-      </span>
     </div>
   );
 };
