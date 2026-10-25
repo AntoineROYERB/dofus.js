@@ -30,7 +30,9 @@ export const BOARD = {
   tile: "#2a3576",
   tileAlt: "#25306c",
   stroke: "#4a58a6",
-  accent: "#ff5a6e",
+  accent: "#ff6a3d",
+  /** Health, in its bars and its numbers: the `hp` token. */
+  hp: "#ff2a44",
   /**
    * Two inks, and only two, while a turn is being played: where your legs can
    * take you, and what your click is about to hit. They used to be the same
@@ -48,7 +50,7 @@ export const BOARD = {
    * compete with the cells you can actually act on. A mark that shouts an
    * impossibility is worse than no mark at all.
    */
-  blind: "#ff5a6e",
+  blind: "#ff6a3d",
   /** Where you are allowed to start, during positioning only. */
   place: "#46e06a",
   /** Action points, wherever a spell's cost or a debuff changes them. */
@@ -67,7 +69,7 @@ export const BOARD = {
    * Where the opponent may start. Deliberately not the vermilion accent: this
    * marks a cell you must keep off, never one your click is about to act on.
    */
-  foe: "#ff5a6e",
+  foe: "#ff6a3d",
   /*
    * Cells are clipped to their diamond, so a stroke laid on the edge only
    * shows its inner half. Widths here are doubled on purpose: what you read
@@ -122,7 +124,7 @@ export const BOARD = {
     /** Under your own fighter: the `gold` token. */
     mine: "#ffd76a",
     /** Under everyone else's. */
-    theirs: "#ff5a6e",
+    theirs: "#ff6a3d",
     /** Share of a tile the ring is pulled in by, so it reads inside the cell. */
     inset: 0.16,
     fill: 0.2,

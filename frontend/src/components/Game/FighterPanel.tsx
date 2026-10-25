@@ -90,7 +90,7 @@ export const FighterPanel: React.FC<FighterPanelProps> = ({
       </div>
 
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 sm:gap-x-5 lg:gap-x-6">
-        <Figure value={character.health} label="hp" color="text-vermilion" />
+        <Figure value={character.health} label="hp" color="text-hp" />
         <Figure value={character.actionPoints} label="ap" color="text-pa" />
         <Figure value={character.movementPoints} label="mp" color="text-pm" />
         {shield > 0 && (
@@ -101,7 +101,7 @@ export const FighterPanel: React.FC<FighterPanelProps> = ({
       <div className="mb-2 mt-2 flex sm:mt-3 short:mb-0 short:mt-2">
         <div className="relative h-1 flex-1 bg-hairline">
           <div
-            className="absolute inset-y-0 left-0 bg-vermilion transition-[width] duration-300"
+            className="absolute inset-y-0 left-0 bg-hp transition-[width] duration-300"
             style={{ width: `${share * 100}%` }}
           />
           {shieldFillShare > 0 && (

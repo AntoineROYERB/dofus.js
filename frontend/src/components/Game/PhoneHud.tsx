@@ -135,11 +135,11 @@ const Arc: React.FC<{
 };
 
 /**
- * Health is the outer ring, in the heart's pink; action points the inner one,
+ * Health is the outer ring, in a vivid red; action points the inner one,
  * in their blue. Read the way an action RPG is read: the number that matters
  * in the middle, and how much of it is left as how much ring is left. The
- * movement points sit beside it, where the button that spends the rest of a
- * turn is.
+ * points themselves sit on the ring as two badges, blue for action and green
+ * for movement, the colours they have on the board.
  */
 export const PortraitGauge: React.FC<{ player: Player | undefined }> = ({
   player,
@@ -151,45 +151,37 @@ export const PortraitGauge: React.FC<{ player: Player | undefined }> = ({
   const points =
     character.actionPoints / Math.max(1, character.maxActionPoints || character.actionPoints);
 
+  // Small enough to sit beside the gold disc without covering the board's
+  // corner: no name (it is yours), the points as two badges on the ring.
   return (
-    <div className="flex items-end gap-2">
-      <div className="mb-1 flex flex-col items-end gap-1 rounded-2xl bg-panel/85 px-3 py-1.5 text-right shadow-[inset_0_0_0_1px_rgb(var(--gold)/0.4)] backdrop-blur-[2px]">
-        <span className="max-w-[110px] truncate font-display text-[14px] font-bold leading-none">
-          {character.name}
-        </span>
-        <span className="font-mono text-[10px] uppercase tracking-label text-muted">
-          <b className="font-display text-[15px] normal-case tracking-normal text-pa">
-            {character.actionPoints}
-          </b>{" "}
-          ap ·{" "}
-          <b className="font-display text-[15px] normal-case tracking-normal text-pm">
-            {character.movementPoints}
-          </b>{" "}
-          mp
-        </span>
-        {shield > 0 && (
-          <span className="font-mono text-[10px] uppercase tracking-label text-graphite">
-            ◈ {shield} shield
+    <div
+      className="relative h-[88px] w-[88px] flex-none"
+      aria-label={`${character.health} of ${character.maxHealth} HP, ${character.actionPoints} AP, ${character.movementPoints} MP${shield > 0 ? `, ${shield} shield` : ""}`}
+      role="img"
+    >
+      <svg aria-hidden viewBox="0 0 112 112" className="absolute inset-0 h-full w-full drop-shadow-[0_4px_10px_rgb(var(--night)/0.7)]">
+        <Arc r={50} share={health} colour="rgb(var(--hp))" width={8} />
+        <Arc r={38} share={points} colour="rgb(var(--pa))" width={5} />
+        <circle cx={56} cy={56} r={29} className="fill-panel stroke-gold" strokeWidth={2.5} />
+      </svg>
+      <span className="absolute inset-0 grid place-items-center">
+        <span className="text-center leading-none">
+          <span className="block font-display text-[21px] font-bold tabular-nums">
+            {character.health}
           </span>
-        )}
-      </div>
-      <div className="relative h-[100px] w-[100px] flex-none">
-        <svg aria-hidden viewBox="0 0 112 112" className="absolute inset-0 h-full w-full drop-shadow-[0_4px_10px_rgb(var(--night)/0.7)]">
-          <Arc r={50} share={health} colour="rgb(var(--heart))" width={7} />
-          <Arc r={39} share={points} colour="rgb(var(--pa))" width={5} />
-          <circle cx={56} cy={56} r={30} className="fill-panel stroke-gold" strokeWidth={2.5} />
-        </svg>
-        <span className="absolute inset-0 grid place-items-center">
-          <span className="text-center leading-none">
-            <span className="block font-display text-[24px] font-bold tabular-nums">
-              {character.health}
-            </span>
-            <span className="font-mono text-[8.5px] uppercase tracking-label text-heart">
-              hp
-            </span>
+          <span className="font-mono text-[8px] uppercase tracking-label text-hp">
+            {shield > 0 ? `+${shield} ◈` : "hp"}
           </span>
         </span>
-      </div>
+      </span>
+      <span className="absolute -left-1 top-0 grid h-[26px] min-w-[26px] place-items-center rounded-full bg-pa px-1 font-display text-[14px] font-bold tabular-nums text-night shadow-[0_0_0_2px_rgb(var(--paper))]">
+        {character.actionPoints}
+        <span className="sr-only"> AP</span>
+      </span>
+      <span className="absolute -left-1 bottom-0 grid h-[26px] min-w-[26px] place-items-center rounded-full bg-pm px-1 font-display text-[14px] font-bold tabular-nums text-night shadow-[0_0_0_2px_rgb(var(--paper))]">
+        {character.movementPoints}
+        <span className="sr-only"> MP</span>
+      </span>
     </div>
   );
 };
@@ -284,7 +276,7 @@ const Command: React.FC<{
       }}
     >
       {selected && (
-        <span aria-hidden className="absolute -left-3 text-[13px] text-heart drop-shadow">
+        <span aria-hidden className="absolute -left-3 text-[13px] text-hp drop-shadow">
           ♥
         </span>
       )}
@@ -536,48 +528,73 @@ const useTurnLeft = (turnEndsAt: number | undefined, active: boolean) => {
 };
 
 /**
- * The one gold button of a fight: Fight while placing, End turn after. While
- * it is your turn the time left drains along its foot, and turns red for the
- * last quarter, so the clock is where the thumb already is. Where there is a
- * keyboard it says which key presses it.
+ * The one gold button of a fight — Fight while placing, End turn after — as
+ * a disc in the bottom-right corner, where a right thumb rests without
+ * reaching. It sat as a pill in the middle of the bottom edge before, a
+ * stretch away from both thumbs. While it is your turn the time left runs
+ * round it as a ring, red for the last quarter, so the clock is where the
+ * thumb already is. Where there is a keyboard it says which key presses it.
  */
 export const MainAction: React.FC<{
   label: string;
   disabled: boolean;
   onClick: () => void;
   beckon?: boolean;
-  /** When the turn runs out; the drain shows only while it is yours. */
+  /** When the turn runs out; the ring shows only while it is yours. */
   turnEndsAt?: number;
   timed?: boolean;
 }> = ({ label, disabled, onClick, beckon, turnEndsAt, timed = false }) => {
   const { share, seconds } = useTurnLeft(turnEndsAt, timed && !disabled);
   const hurry = timed && !disabled && seconds > 0 && seconds <= 10;
+  const r = 47;
+  const c = 2 * Math.PI * r;
+  // "End turn" on two lines, so the disc can stay a thumb's size.
+  const [first, ...rest] = label.split(" ");
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className={`btn-gold relative flex h-12 items-center gap-2 overflow-hidden whitespace-nowrap px-6 font-display text-[17px] font-bold ${
-        beckon ? "animate-beckon" : ""
-      }`}
-    >
-      {label}
-      {!disabled && (
-        <span className="touch:hidden">
-          <Keycap dark>Space</Keycap>
-        </span>
-      )}
+    <div className="relative h-[104px] w-[104px] flex-none">
       {timed && !disabled && (
-        <span aria-hidden className="absolute inset-x-4 bottom-1 h-[3px] overflow-hidden rounded-full bg-[#2a1b00]/15">
-          <span
-            className={`block h-full rounded-full transition-[width] duration-300 ease-linear ${
-              hurry ? "bg-vermilion" : "bg-[#2a1b00]/45"
-            }`}
-            style={{ width: `${Math.max(0, Math.min(1, share)) * 100}%` }}
+        <svg aria-hidden viewBox="0 0 104 104" className="absolute inset-0 h-full w-full -rotate-90">
+          <circle cx={52} cy={52} r={r} fill="none" className="stroke-night/80" strokeWidth={5} />
+          <circle
+            cx={52}
+            cy={52}
+            r={r}
+            fill="none"
+            strokeWidth={5}
+            strokeLinecap="round"
+            strokeDasharray={c}
+            strokeDashoffset={c * (1 - Math.max(0, Math.min(1, share)))}
+            style={{
+              stroke: hurry ? "rgb(var(--vermilion))" : "rgb(var(--gold))",
+              transition: "stroke-dashoffset 250ms linear",
+            }}
           />
-        </span>
+        </svg>
       )}
-    </button>
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={disabled}
+        className={`btn-gold absolute inset-[9px] flex flex-col items-center justify-center gap-0.5 rounded-full text-center font-display text-[16px] font-bold leading-[1.05] ${
+          beckon ? "animate-beckon" : ""
+        }`}
+      >
+        <span>
+          {first}
+          {rest.length > 0 && (
+            <>
+              <br />
+              {rest.join(" ")}
+            </>
+          )}
+        </span>
+        {!disabled && (
+          <span className="touch:hidden">
+            <Keycap dark>Space</Keycap>
+          </span>
+        )}
+      </button>
+    </div>
   );
 };
 

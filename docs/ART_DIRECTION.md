@@ -86,8 +86,9 @@ what a colour may mean.
 | `muted` | $\color{#8a97cc}\blacksquare$ #8a97cc | Labels, disabled, knocked out |
 | `rule` / `hairline` | $\color{#3a468a}\blacksquare$ #3a468a / $\color{#28326e}\blacksquare$ #28326e | Dividers and cell strokes |
 | `gold` | $\color{#ffd76a}\blacksquare$ #ffd76a | **The one call to action on a screen**, everything that is yours (your ring, your turn, the deck's spine), and the rim of a card or sheet |
-| `vermilion` | $\color{#ff5a6e}\blacksquare$ #ff5a6e | **What your action is about to hit**, and the other side's ring. Nothing else. |
-| `heart` | $\color{#ff7ab6}\blacksquare$ #ff7ab6 | Health, and a spell a dream has made stronger (3.5) |
+| `vermilion` | $\color{#ff6a3d}\blacksquare$ #ff6a3d | **What your action is about to hit**, and the other side's ring. Nothing else. Orange enough never to be read as health |
+| `hp` | $\color{#ff2a44}\blacksquare$ #ff2a44 | Health, wherever it is counted: rings, bars, the numbers over a fighter |
+| `heart` | $\color{#ff7ab6}\blacksquare$ #ff7ab6 | A spell a dream has made stronger (3.5) |
 | `pa` | $\color{#4fa3ff}\blacksquare$ #4fa3ff | Action points, wherever they are shown or changed |
 | `pm` | $\color{#46e06a}\blacksquare$ #46e06a | Movement points, where you can walk, where you may start |
 
@@ -163,10 +164,14 @@ On a phone held sideways and on a desk alike (`GamePage`, `PhoneHud.tsx`):
   glyph, its name and its cost, its spine gold. The picked spell slides out
   in gold behind a ♥ cursor. On a desk each row shows its number key, and
   resting the mouse on it opens its card; on a phone a long press does.
-- **The portrait**, bottom right: health as the outer ring in `heart`,
+- **Two thumbs.** Everything a turn is spent on sits under a thumb: the
+  deck down the left edge, and the gold disc that ends the turn (or starts
+  the fight) in the bottom-right corner, with the time left running round
+  it. What is only read sits beside it, towards the middle.
+- **The portrait**, beside the disc: health as the outer ring in `hp`,
   action points as the inner ring in `pa`, the health number in the middle,
-  and the movement points beside it. The gold pill that ends the turn (or
-  starts the fight) sits next to it.
+  and the points as two badges on the ring, blue for action and green for
+  movement.
 - **A spell a dream has made stronger** wears a `heart` frame instead of the
   gold spine, a ✦ before its name, and what changed written under it
   ("−1 AP · +1 range"), read off the spell and the one it was made from
@@ -174,8 +179,8 @@ On a phone held sideways and on a desk alike (`GamePage`, `PhoneHud.tsx`):
 - A phone held upright keeps the bar under the board, in the same colours.
 - **Nothing playable hides under a control.** The board starts where the
   deck ends, on a phone and on a desk.
-- **The gold button carries the clock.** While it is your turn, the time
-  left drains along its foot and turns vermilion for the last quarter; the
+- **The gold disc carries the clock.** While it is your turn, the time
+  left runs round it and turns vermilion for the last quarter; the
   phone buzzes once at ten seconds. "Your turn" shows large for a second as
   the turn comes round, and never takes a tap.
 - **A finger feels the deck answer.** Picking or putting down a spell is a

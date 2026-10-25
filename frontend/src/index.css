@@ -19,13 +19,14 @@
   --muted: 138 151 204; /* #8a97cc */
   --rule: 58 70 138; /* #3a468a */
   --hairline: 40 50 110; /* #28326e */
-  --vermilion: 255 90 110; /* #ff5a6e — what your action is about to hit */
+  --vermilion: 255 106 61; /* #ff6a3d — what your action is about to hit */
   --pa: 79 163 255; /* #4fa3ff */
   --pm: 70 224 106; /* #46e06a */
   --gold: 255 215 106; /* #ffd76a */
   --gold-deep: 229 169 42; /* #e5a92a */
   --gold-wash: 62 56 70; /* #3e3846 */
-  --heart: 255 122 182; /* #ff7ab6 */
+  --heart: 255 122 182; /* #ff7ab6 — a spell a dream made stronger */
+  --hp: 255 42 68; /* #ff2a44 — health, a vivid red */
   color-scheme: dark;
 }
 

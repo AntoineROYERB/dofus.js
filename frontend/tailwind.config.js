@@ -59,8 +59,11 @@ export default {
         // The one call to action on a screen, and everything that is yours.
         gold: "rgb(var(--gold) / <alpha-value>)",
         "gold-deep": "rgb(var(--gold-deep) / <alpha-value>)",
-        // Health: your heart, wherever it is counted.
+        // A spell a dream's boons have made stronger.
         heart: "rgb(var(--heart) / <alpha-value>)",
+        // Health, wherever it is counted: a vivid red, kept apart from the
+        // orange vermilion of what a spell is about to hit.
+        hp: "rgb(var(--hp) / <alpha-value>)",
         // The darkest night, under the page: wells, gauges' empty tracks.
         night: "rgb(var(--night) / <alpha-value>)",
       },

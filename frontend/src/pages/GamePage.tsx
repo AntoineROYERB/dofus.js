@@ -675,15 +675,19 @@ function GamePage() {
               onPeek={() => setPeeks((n) => n + 1)}
             />
           </div>
-          <div className="pointer-events-auto absolute bottom-[max(6px,env(safe-area-inset-bottom))] right-[max(10px,env(safe-area-inset-right))] flex items-end gap-2">
+          {/*
+            The gold disc in the corner, under the right thumb; the portrait,
+            which is only ever read, beside it towards the middle.
+          */}
+          <div className="pointer-events-auto absolute bottom-[max(4px,env(safe-area-inset-bottom))] right-[max(4px,env(safe-area-inset-right))] flex items-end gap-1">
+            <div id="tutorial-fighter-panel" className="mb-1">
+              <PortraitGauge player={currentPlayer} />
+            </div>
             {main && (
-              <div id="tutorial-mainbutton" className="mb-2">
+              <div id="tutorial-mainbutton">
                 <MainAction {...main} turnEndsAt={gameState?.turnEndsAt} timed={gameStatus === GAME_STATUS.PLAYING} />
               </div>
             )}
-            <div id="tutorial-fighter-panel">
-              <PortraitGauge player={currentPlayer} />
-            </div>
           </div>
         </div>
 
@@ -760,15 +764,15 @@ function GamePage() {
                 onHelp={() => setHelpOpen(true)}
               />
             </div>
-            <div className="pointer-events-auto absolute bottom-3 right-5 flex origin-bottom-right items-end gap-3 xl:scale-[1.15]">
+            <div className="pointer-events-auto absolute bottom-3 right-4 flex origin-bottom-right items-end gap-2 xl:scale-[1.15]">
+              <div id="tutorial-fighter-panel" className="mb-1">
+                <PortraitGauge player={currentPlayer} />
+              </div>
               {main && (
-                <div id="tutorial-mainbutton" className="mb-2">
+                <div id="tutorial-mainbutton">
                   <MainAction {...main} turnEndsAt={gameState?.turnEndsAt} timed={gameStatus === GAME_STATUS.PLAYING} />
                 </div>
               )}
-              <div id="tutorial-fighter-panel">
-                <PortraitGauge player={currentPlayer} />
-              </div>
             </div>
           </div>
         </div>
