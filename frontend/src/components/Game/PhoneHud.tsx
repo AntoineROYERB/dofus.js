@@ -72,6 +72,9 @@ export const TurnBar: React.FC<{
   );
 };
 
+/** The look of a top-corner control, shared by the buttons that are not these. */
+export const CORNER_BUTTON = `h-9 rounded-full px-3.5 font-mono text-[10px] uppercase tracking-label text-graphite ${HAIRLINE} ${PRESS}`;
+
 export const CornerButton: React.FC<{
   label: string;
   onClick: () => void;
@@ -79,7 +82,7 @@ export const CornerButton: React.FC<{
   <button
     type="button"
     onClick={onClick}
-    className={`h-9 rounded-full px-3.5 font-mono text-[10px] uppercase tracking-label text-graphite ${HAIRLINE} ${PRESS}`}
+    className={CORNER_BUTTON}
   >
     {label}
   </button>

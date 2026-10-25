@@ -26,6 +26,8 @@ import {
   hasSeenTutorial,
   isTutorialMatchArmed,
 } from "../utils/tutorialStorage";
+import { useMusic } from "../audio/useSound";
+import { SoundToggle } from "../audio/SoundToggle";
 
 /**
  * One rung of the solo arc: a champion, and whether it can be fought yet.
@@ -167,6 +169,7 @@ const islandFromUrl = (): string => {
 };
 
 const LobbyPage: React.FC = () => {
+  useMusic("overworld");
   const { connected, rooms, roomId, sendGameAction, rejection, dream } =
     useWebSocket();
   // Endless Dreams opens once the tutorial has been played.
@@ -550,7 +553,7 @@ const LobbyPage: React.FC = () => {
 
         {roomsPanel}
 
-        <div className="my-4 flex gap-5">
+        <div className="my-4 flex flex-wrap gap-x-5 gap-y-2">
           <button
             type="button"
             onClick={() => setHowToPlayOpen(true)}
@@ -587,6 +590,7 @@ const LobbyPage: React.FC = () => {
           >
             Change character
           </button>
+          <SoundToggle className="self-start font-mono text-[9.5px] uppercase tracking-label text-muted transition-colors hover:text-vermilion" />
         </div>
       </div>
 

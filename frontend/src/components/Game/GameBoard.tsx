@@ -2,6 +2,7 @@ import React from "react";
 import { Position } from "../../types/game";
 import { GameState } from "../../types/message";
 import { Grid } from "./Grid/Grid";
+import { useFightSounds } from "../../audio/useSound";
 
 interface GameBoardProps {
   gridSize: number;
@@ -21,6 +22,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   userId,
   selectedSpellId,
 }) => {
+  useFightSounds(latestGameState, userId);
   return (
     <div className="absolute inset-0 z-0">
       <div className="flex flex-col h-full">

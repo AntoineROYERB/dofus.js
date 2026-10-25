@@ -6,6 +6,7 @@ import { KitTag } from "../Game/KitTag";
 import { SetCarousel } from "./SetCarousel";
 import { kitOf } from "../../utils/loadoutUtils";
 import { ElementGlyph } from "../Game/ElementGlyph";
+import { SoundToggle } from "../../audio/SoundToggle";
 
 /*
  * The lobby as a phone game's home screen: your fighter in the middle, the
@@ -189,6 +190,9 @@ export const LobbyHome: React.FC<LobbyHomeProps> = ({
 
       {/* Top right: progress and whether the server is there at all. */}
       <div className="col-start-3 row-start-1 flex items-center gap-2 self-start justify-self-end">
+        <SoundToggle
+          className={`px-2.5 py-1.5 font-mono text-[10px] uppercase tracking-label text-graphite ${HAIRLINE} ${PRESS}`}
+        />
         <span className={`px-2.5 py-1.5 font-mono text-[10px] uppercase tracking-label text-graphite ${HAIRLINE}`}>
           <b className="font-semibold tabular-nums text-ink">
             {beaten}/{content?.champions.length ?? 0}

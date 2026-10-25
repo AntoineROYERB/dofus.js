@@ -5,6 +5,8 @@ import { getDirection } from "../utils/pathUtils";
 import { blockedBy, findPath } from "../utils/board";
 import { stepCostOf } from "../utils/ground";
 import { isoToScreen } from "../utils/isoUtils";
+import { panOf, surfaceOf } from "../audio/cues";
+import { playStep } from "../audio/sfx";
 
 type Direction = "N" | "NE" | "E" | "SE" | "S" | "SW" | "W" | "NW";
 
@@ -29,6 +31,8 @@ interface AnimationState {
     pendingAttack?: { direction: Direction; spellId?: number };
     /** For an attack: the spell cast, which decides the outfit's pose. */
     spellId?: number;
+    /** For a move: walked on its own feet, rather than thrown or carried. */
+    walked?: boolean;
   };
 }
 // What the UI actually renders
@@ -58,6 +62,11 @@ export const useCharacterAnimations = (
     useState<CharacterRenderState>({});
   const prevGameState = useRef<GameState | undefined>();
   const players = latestGameState?.players;
+  /**
+   * The leg each fighter last put a foot down for, by its start time. The
+   * loop runs every frame of a leg, and a footstep belongs to its first one.
+   */
+  const stepped = useRef<Record<string, number>>({});
 
   /*
    * Detecting a move and running the animation loop are two separate effects,
@@ -162,6 +171,7 @@ export const useCharacterAnimations = (
               step: 0,
               direction: getDirection(path[0], path[1]),
               startTime: Date.now(),
+              walked,
             };
           }
         }
@@ -347,6 +357,12 @@ export const useCharacterAnimations = (
           const progress = (now - anim.startTime) / ANIMATION_DURATION;
           const startPos = anim.path[anim.step];
           const endPos = anim.path[anim.step + 1];
+
+          if (anim.walked && endPos && stepped.current[playerId] !== anim.startTime) {
+            stepped.current[playerId] = anim.startTime;
+            const state = prevGameState.current;
+            playStep(surfaceOf(state?.ground, state?.island, endPos), panOf(endPos));
+          }
 
           if (progress >= 1) {
             if (anim.step < anim.path.length - 2) {
