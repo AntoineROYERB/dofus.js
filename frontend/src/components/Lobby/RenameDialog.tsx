@@ -32,7 +32,7 @@ export const RenameDialog: React.FC<RenameDialogProps> = ({
       onClose={onCancel}
       labelledBy="rename-title"
       closeButton={false}
-      className="max-w-xs border border-rule bg-panel"
+      className="max-w-xs rounded-3xl border-2 border-gold/70 bg-panel"
     >
       <form onSubmit={save} className="p-5">
         <label
@@ -68,7 +68,7 @@ export const RenameDialog: React.FC<RenameDialogProps> = ({
           <button
             type="submit"
             disabled={!valid}
-            className="flex-1 bg-vermilion py-2.5 font-display text-[14px] font-bold text-white transition-colors hover:bg-[#b93a25] disabled:bg-hairline disabled:text-muted"
+            className="flex-1 btn-gold py-2.5 font-display text-[14px] font-bold disabled:bg-hairline disabled:text-muted"
           >
             Save
           </button>

@@ -1057,7 +1057,7 @@ export const Grid: React.FC<GridProps> = ({
         <button
           type="button"
           onClick={resetZoom}
-          className="absolute bottom-3 left-1/2 z-10 -translate-x-1/2 border border-ink bg-paper px-3 py-1.5 font-mono text-[11px] uppercase tracking-label text-ink shadow-sm"
+          className="rounded-full absolute bottom-3 left-1/2 z-10 -translate-x-1/2 border border-ink bg-paper px-3 py-1.5 font-mono text-[11px] uppercase tracking-label text-ink shadow-sm"
         >
           Reset zoom
         </button>

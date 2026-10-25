@@ -42,14 +42,14 @@ export const RailExits: React.FC<{
     <button
       type="button"
       onClick={onReplayTutorial}
-      className="h-10 flex-1 whitespace-nowrap border border-rule px-2 font-mono text-[10px] uppercase tracking-label text-graphite transition-colors hover:border-ink active:scale-[0.98]"
+      className="rounded-full h-10 flex-1 whitespace-nowrap border border-rule px-2 font-mono text-[10px] uppercase tracking-label text-graphite transition-colors hover:border-ink active:scale-[0.98]"
     >
       Replay tutorial
     </button>
     <button
       type="button"
       onClick={onLeave}
-      className="h-10 flex-1 whitespace-nowrap border border-ink px-2 font-mono text-[10px] uppercase tracking-label text-ink transition-colors hover:bg-ink hover:text-paper active:scale-[0.98]"
+      className="rounded-full h-10 flex-1 whitespace-nowrap border border-ink px-2 font-mono text-[10px] uppercase tracking-label text-ink transition-colors hover:bg-ink hover:text-paper active:scale-[0.98]"
     >
       Leave fight
     </button>

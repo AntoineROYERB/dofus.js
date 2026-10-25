@@ -123,7 +123,7 @@ export const LobbyHome: React.FC<LobbyHomeProps> = ({
       className="pointer-events-none absolute inset-0"
       style={{
         background:
-          "radial-gradient(ellipse 45% 60% at 50% 58%, #ffffff 0%, rgba(255,255,255,0) 100%)",
+          "radial-gradient(ellipse 45% 60% at 50% 58%, rgb(var(--board) / 0.85) 0%, rgb(var(--board) / 0) 100%)",
       }}
     />
 
@@ -173,7 +173,7 @@ export const LobbyHome: React.FC<LobbyHomeProps> = ({
       >
         <span
           aria-hidden
-          className="grid h-9 w-9 flex-none place-items-center bg-ink font-display text-[18px] font-bold text-white"
+          className="grid h-9 w-9 flex-none place-items-center bg-gold font-display text-[18px] font-bold text-[#2a1b00]"
         >
           {character.symbol}
         </span>
@@ -267,7 +267,7 @@ export const LobbyHome: React.FC<LobbyHomeProps> = ({
         type="button"
         onClick={onPlay}
         disabled={!connected}
-        className={`col-start-3 row-start-3 h-[60px] w-[210px] self-end bg-vermilion font-display text-[24px] font-extrabold uppercase tracking-wide text-white hover:bg-[#b93a25] disabled:bg-hairline disabled:text-muted ${PRESS}`}
+        className={`col-start-3 row-start-3 h-[60px] w-[210px] self-end btn-gold font-display text-[24px] font-extrabold uppercase tracking-wide disabled:bg-hairline disabled:text-muted ${PRESS}`}
       >
         Play
       </button>

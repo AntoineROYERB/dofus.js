@@ -70,7 +70,7 @@ const OpponentRow: React.FC<{
         type="button"
         disabled={disabled || !open}
         onClick={() => onChallenge(champion.id)}
-        className="border border-ink px-4 py-2.5 font-mono text-[10px] uppercase tracking-label text-ink transition-colors hover:bg-ink hover:text-paper disabled:cursor-not-allowed disabled:border-hairline disabled:text-muted disabled:hover:bg-transparent disabled:hover:text-muted sm:py-1.5"
+        className="rounded-full border border-ink px-4 py-2.5 font-mono text-[10px] uppercase tracking-label text-ink transition-colors hover:bg-ink hover:text-paper disabled:cursor-not-allowed disabled:border-hairline disabled:text-muted disabled:hover:bg-transparent disabled:hover:text-muted sm:py-1.5"
       >
         {!open
           ? "Locked"
@@ -116,7 +116,7 @@ const RoomRow: React.FC<{
         type="button"
         disabled={closed}
         onClick={() => onJoin(room.id)}
-        className="border border-ink px-4 py-2.5 font-mono text-[10px] uppercase tracking-label text-ink sm:py-1.5 transition-colors hover:bg-ink hover:text-paper disabled:cursor-not-allowed disabled:border-hairline disabled:text-muted disabled:hover:bg-transparent disabled:hover:text-muted"
+        className="rounded-full border border-ink px-4 py-2.5 font-mono text-[10px] uppercase tracking-label text-ink sm:py-1.5 transition-colors hover:bg-ink hover:text-paper disabled:cursor-not-allowed disabled:border-hairline disabled:text-muted disabled:hover:bg-transparent disabled:hover:text-muted"
       >
         {full ? "Full" : started ? "Started" : "Join"}
       </button>
@@ -289,7 +289,7 @@ const LobbyPage: React.FC = () => {
           placeholder="Name your game"
           aria-label="Name your game"
           maxLength={24}
-          className={`h-12 min-w-0 flex-1 border bg-board px-3 text-[15px] text-ink placeholder:text-muted focus:border-ink focus:outline-none sm:h-11 sm:text-[14px] ${
+          className={`h-12 min-w-0 flex-1 rounded-full border bg-board px-4 text-[15px] text-ink placeholder:text-muted focus:border-ink focus:outline-none sm:h-11 sm:text-[14px] ${
             newRoomName.length === 0 && !roomNameFocused
               ? "animate-hint"
               : "border-rule"
@@ -298,7 +298,7 @@ const LobbyPage: React.FC = () => {
         <button
           type="submit"
           disabled={!connected || newRoomName.trim().length < 3}
-          className="h-12 flex-none border border-ink bg-ink px-5 font-mono text-[10px] uppercase tracking-label text-paper transition-colors disabled:cursor-not-allowed disabled:border-hairline disabled:bg-transparent disabled:text-muted sm:h-11"
+          className="rounded-full h-12 flex-none border border-ink bg-ink px-5 font-mono text-[10px] uppercase tracking-label text-paper transition-colors disabled:cursor-not-allowed disabled:border-hairline disabled:bg-transparent disabled:text-muted sm:h-11"
         >
           Create
         </button>
@@ -441,7 +441,7 @@ const LobbyPage: React.FC = () => {
           type="button"
           onClick={() => playSolo(next?.id)}
           disabled={!connected}
-          className={`mt-5 w-full bg-vermilion px-4 py-4 font-display text-[16px] font-bold text-white sm:mt-6 sm:py-3.5 transition-colors hover:bg-[#b93a25] disabled:cursor-not-allowed disabled:bg-hairline disabled:text-muted ${
+          className={`mt-5 w-full btn-gold px-4 py-4 font-display text-[16px] font-bold sm:mt-6 sm:py-3.5 disabled:cursor-not-allowed disabled:bg-hairline disabled:text-muted ${
             connected ? "animate-beckon" : ""
           }`}
         >
@@ -467,9 +467,9 @@ const LobbyPage: React.FC = () => {
                 role="radio"
                 aria-checked={island === i.id}
                 onClick={() => setIsland(i.id)}
-                className={`border px-2 py-0.5 font-mono text-[10px] uppercase tracking-label transition-colors ${
+                className={`rounded-full border px-2.5 py-0.5 font-mono text-[10px] uppercase tracking-label transition-colors ${
                   island === i.id
-                    ? "border-ink bg-ink text-paper"
+                    ? "border-gold bg-gold text-[#2a1b00]"
                     : "border-hairline text-graphite hover:border-ink"
                 }`}
               >
@@ -487,7 +487,7 @@ const LobbyPage: React.FC = () => {
           type="button"
           onClick={() => navigate("/dream")}
           disabled={!dreamsOpen}
-          className="mt-3 flex w-full items-baseline justify-between border border-ink px-4 py-3 text-left transition-colors hover:bg-ink hover:text-paper disabled:cursor-not-allowed disabled:border-hairline disabled:text-muted disabled:hover:bg-transparent"
+          className="mt-3 flex w-full items-baseline justify-between rounded-2xl border border-gold/60 bg-panel/60 px-4 py-3 text-left transition-colors hover:bg-ink hover:text-paper disabled:cursor-not-allowed disabled:border-hairline disabled:text-muted disabled:hover:bg-transparent"
         >
           <span className="font-display text-[16px] font-bold">
             {dream && dream.phase !== "over" ? "Back to your dream" : "Endless Dreams"}

@@ -29,7 +29,7 @@ export const LeaveDialog: React.FC<LeaveDialogProps> = ({
     onClose={onCancel}
     labelledBy="leave-dialog-title"
     dim="hard"
-    className="max-w-sm border-2 border-ink bg-panel p-6 short:p-5"
+    className="max-w-sm rounded-3xl border-2 border-gold/70 bg-panel p-6 shadow-[0_0_40px_rgb(var(--night)/0.8)] short:p-5"
   >
     <div className="font-mono text-[9.5px] uppercase tracking-label text-muted">
       {replay ? "Replay tutorial" : "Leave"}
@@ -51,7 +51,7 @@ export const LeaveDialog: React.FC<LeaveDialogProps> = ({
       <button
         type="button"
         onClick={onConfirm}
-        className="flex-1 bg-vermilion px-3 py-3 font-display text-[15px] font-bold text-white transition-colors hover:bg-[#b93a25]"
+        className="flex-1 btn-night px-3 py-3 font-display text-[15px] font-bold"
       >
         {replay ? "Start the tutorial" : "Leave"}
       </button>
@@ -59,7 +59,8 @@ export const LeaveDialog: React.FC<LeaveDialogProps> = ({
         type="button"
         autoFocus
         onClick={onCancel}
-        className="flex-1 border border-ink px-3 py-3 font-display text-[15px] font-bold text-ink transition-colors hover:bg-hairline"
+        // Staying is the gold one: the forfeit is never the button that glows.
+        className="flex-1 btn-gold px-3 py-3 font-display text-[15px] font-bold"
       >
         Keep fighting
       </button>

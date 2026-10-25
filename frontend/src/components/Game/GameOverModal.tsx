@@ -28,7 +28,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
     <Modal
       labelledBy="game-over-title"
       dim="hard"
-      className="max-w-sm border-2 border-ink bg-panel p-8 short:p-5"
+      className="max-w-sm rounded-3xl border-2 border-gold/70 bg-panel p-8 shadow-[0_0_40px_rgb(var(--night)/0.8)] short:p-5"
     >
       <div className="font-mono text-[9.5px] uppercase tracking-label text-muted">
         {dream ? `Floor ${dream.floor}` : "Game over"}
@@ -60,7 +60,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
         {onPlayAgain && (
           <button
             onClick={onPlayAgain}
-            className="flex-1 bg-vermilion px-3 py-3 font-display text-[15px] font-bold text-white transition-colors hover:bg-[#b93a25]"
+            className="flex-1 btn-gold px-3 py-3 font-display text-[15px] font-bold"
           >
             Play again
           </button>
@@ -69,8 +69,8 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
           onClick={onExit}
           className={
             onPlayAgain
-              ? "flex-1 border border-ink px-3 py-3 font-display text-[15px] font-bold text-ink transition-colors hover:bg-hairline"
-              : "flex-1 bg-vermilion px-3 py-3 font-display text-[15px] font-bold text-white transition-colors hover:bg-[#b93a25]"
+              ? "flex-1 btn-night px-3 py-3 font-display text-[15px] font-bold"
+              : "flex-1 btn-gold px-3 py-3 font-display text-[15px] font-bold"
           }
         >
           {dream ? "Continue" : "Leave"}

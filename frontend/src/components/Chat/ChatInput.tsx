@@ -37,7 +37,7 @@ export const ChatInput: React.FC = () => {
       <button
         type="submit"
         disabled={!connected || !message.trim()}
-        className="flex-none border border-ink bg-ink px-3 py-1.5 font-mono text-[10px] uppercase tracking-label text-paper transition-colors disabled:border-hairline disabled:bg-transparent disabled:text-muted"
+        className="rounded-full flex-none border border-ink bg-ink px-3 py-1.5 font-mono text-[10px] uppercase tracking-label text-paper transition-colors disabled:border-hairline disabled:bg-transparent disabled:text-muted"
       >
         Send
       </button>

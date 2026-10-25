@@ -21,9 +21,11 @@ import { useRejectionBanner } from "../hooks/useRejectionBanner";
 import { GameTutorial } from "../components/Game/GameTutorial";
 import { LeaveDialog } from "../components/Game/LeaveDialog";
 import {
+  CommandDeck,
+  MainAction,
   MenuButton,
-  FighterStatus,
-  SpellArc,
+  PortraitGauge,
+  SpellHint,
   TurnBar,
 } from "../components/Game/PhoneHud";
 import { useMediaQuery } from "../hooks/useMediaQuery";
@@ -102,6 +104,10 @@ function GamePage() {
   // Below lg the rail is a sheet: the board keeps the screen until asked.
   const [railOpen, setRailOpen] = useState(false);
   const compact = useMediaQuery("(max-height: 560px)");
+  // A desk, or a tablet held sideways: wide enough for the board to keep the
+  // whole width, with the deck and the portrait laid over its corners as on a
+  // phone. Below this, a phone held upright keeps its bar under the board.
+  const wide = useMediaQuery("(min-width: 900px)");
 
   // The character request must go out exactly once, and only once the socket
   // is open: an early attempt used to be dropped with no retry, leaving the
@@ -607,32 +613,134 @@ function GamePage() {
               phase={phaseLabel(gameStatus, isMyTurn, allyTurn)}
             />
           </div>
-          <div className="pointer-events-auto absolute right-[max(12px,env(safe-area-inset-right))] top-[max(8px,env(safe-area-inset-top))] flex gap-2">
+          <div className="pointer-events-auto absolute right-[max(12px,env(safe-area-inset-right))] top-[max(8px,env(safe-area-inset-top))] flex flex-col items-end gap-2">
             <MenuButton onClick={() => setRailOpen(true)} />
+            <SpellHint
+              player={currentPlayer}
+              spells={spellBook}
+              selectedSpellId={selectedSpellId}
+              onSelectSpell={handleSpellClick}
+            />
           </div>
+          {/* Flush with the left edge: the deck's spine is the screen's. */}
           <div
-            id="tutorial-fighter-panel"
-            className="pointer-events-auto absolute bottom-[max(8px,env(safe-area-inset-bottom))] left-[max(12px,env(safe-area-inset-left))]"
+            id="tutorial-spellbar"
+            className="pointer-events-auto absolute bottom-[max(8px,env(safe-area-inset-bottom))] left-[env(safe-area-inset-left)]"
           >
-            <FighterStatus player={currentPlayer} />
+            <CommandDeck
+              player={currentPlayer}
+              spells={spellBook}
+              selectedSpellId={selectedSpellId}
+              onSelectSpell={handleSpellClick}
+              turnNumber={ultimateTurn}
+              hasRelay={!!relayOf(gameState?.terrain, userId)}
+              onPeek={() => setPeeks((n) => n + 1)}
+            />
+          </div>
+          <div className="pointer-events-auto absolute bottom-[max(6px,env(safe-area-inset-bottom))] right-[max(10px,env(safe-area-inset-right))] flex items-end gap-2">
+            {main && (
+              <div id="tutorial-mainbutton" className="mb-2">
+                <MainAction {...main} />
+              </div>
+            )}
+            <div id="tutorial-fighter-panel">
+              <PortraitGauge player={currentPlayer} />
+            </div>
           </div>
         </div>
 
-        <div className="pointer-events-none absolute inset-0 mb-[env(safe-area-inset-bottom)] mr-[env(safe-area-inset-right)]">
-          <SpellArc
-            player={currentPlayer}
-            spells={spellBook}
-            selectedSpellId={selectedSpellId}
-            onSelectSpell={handleSpellClick}
-            main={main}
-            isMyTurn={!!isMyTurn}
-            turnEndsAt={gameState?.turnEndsAt ?? 0}
-            turnNumber={ultimateTurn}
-            hasRelay={!!relayOf(gameState?.terrain, userId)}
-            status={gameStatus}
-            onPeek={() => setPeeks((n) => n + 1)}
-          />
+        {overlays}
+      </div>
+    );
+  }
+
+  /*
+   * A desk: the phone's layout, given room. The board takes everything left
+   * of the rail; the deck runs down its left edge with the number keys that
+   * pick each spell, and the portrait and the gold button sit bottom right —
+   * the same places a thumb finds them, so a player moving between the two
+   * never has to learn the screen twice.
+   */
+  if (wide) {
+    const main =
+      gameStatus === GAME_STATUS.POSITION_CHARACTERS
+        ? {
+            label: isPlayerPositioned ? "Waiting…" : "Fight",
+            disabled: !connected || !selectedPosition || !!isPlayerPositioned,
+            onClick: handleFightClick,
+            beckon: connected && !!selectedPosition && !isPlayerPositioned,
+          }
+        : gameStatus === GAME_STATUS.PLAYING
+          ? { label: "End turn", disabled: !isMyTurn, onClick: handleEndTurnClick }
+          : null;
+
+    return (
+      <div className="relative flex h-[100dvh] max-h-[100dvh] overflow-hidden bg-paper text-ink">
+        <div className="relative flex min-h-0 min-w-0 flex-1 flex-col pl-[env(safe-area-inset-left)]">
+          <div className="relative z-10 flex-none px-6 pt-[max(1rem,env(safe-area-inset-top))]">
+            <TurnTimeline
+              latestGameState={gameState}
+              userId={userId}
+              onOpenRail={() => setRailOpen(true)}
+            />
+          </div>
+          <div id="tutorial-board" className="relative min-h-0 flex-1">
+            <GameBoard
+              gridSize={15}
+              handleSelectedPosition={handleSelectedPosition}
+              selectedPosition={selectedPosition}
+              selectedSpellId={selectedSpellId}
+              handleCellClick={handleCellClick}
+              latestGameState={gameState}
+              userId={userId}
+            />
+          </div>
+
+          <div className="pointer-events-none absolute inset-0">
+            <div className="pointer-events-auto absolute right-6 top-[88px]">
+              <SpellHint
+                player={currentPlayer}
+                spells={spellBook}
+                selectedSpellId={selectedSpellId}
+                onSelectSpell={handleSpellClick}
+              />
+            </div>
+            <div
+              id="tutorial-spellbar"
+              className="pointer-events-auto absolute bottom-4 left-[env(safe-area-inset-left)] origin-bottom-left xl:scale-[1.15]"
+            >
+              <CommandDeck
+                player={currentPlayer}
+                spells={spellBook}
+                selectedSpellId={selectedSpellId}
+                onSelectSpell={handleSpellClick}
+                turnNumber={ultimateTurn}
+                hasRelay={!!relayOf(gameState?.terrain, userId)}
+                onPeek={() => setPeeks((n) => n + 1)}
+                shortcuts
+              />
+            </div>
+            <div className="pointer-events-auto absolute bottom-3 right-5 flex origin-bottom-right items-end gap-3 xl:scale-[1.15]">
+              {main && (
+                <div id="tutorial-mainbutton" className="mb-2">
+                  <MainAction {...main} />
+                </div>
+              )}
+              <div id="tutorial-fighter-panel">
+                <PortraitGauge player={currentPlayer} />
+              </div>
+            </div>
+          </div>
         </div>
+
+        <aside className="hidden w-[300px] flex-none flex-col border-l border-gold/30 bg-panel/60 pl-5 pr-[calc(1.25rem+env(safe-area-inset-right))] pt-4 lg:flex">
+          <SideRail
+            roomName={roomName}
+            latestGameState={gameState}
+            onLeave={() => requestLeave()}
+            onReplayTutorial={() => requestLeave("tutorial")}
+          />
+        </aside>
 
         {overlays}
       </div>

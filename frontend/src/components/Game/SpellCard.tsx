@@ -1,11 +1,13 @@
 import React from "react";
 import { createPortal } from "react-dom";
 import { Spell } from "../../types/message";
+import { SpellUpgrade } from "../../utils/spellUpgrades";
 import { Position } from "../../types/game";
 import { calculateImpactedCells, spellMechanics } from "../../utils/spellUtils";
 import { RULES } from "../../utils/terrain";
 import { effectLook } from "./EffectBadges";
 import { SpellGlyph } from "./SpellGlyph";
+import { BOARD } from "../../constants";
 
 const W = 34;
 const H = 17;
@@ -36,7 +38,7 @@ const Fighter: React.FC<{ at: Position; color: string }> = ({ at, color }) => {
   const { x, y } = project(at);
   return (
     <g transform={`translate(${x} ${y})`}>
-      <ellipse rx={9} ry={4} fill="#17181a" opacity={0.1} />
+      <ellipse rx={9} ry={4} fill={BOARD.edge} opacity={0.5} />
       <rect x={-5} y={-22} width={10} height={16} rx={3} fill={color} />
       <circle cy={-27} r={5.5} fill={color} />
     </g>
@@ -71,8 +73,8 @@ const SpellDemo: React.FC<{ spell: Spell }> = ({ spell }) => {
           <polygon
             key={key}
             points={diamond(p)}
-            fill={!selfCast && inRange(p) ? "#eef2fb" : "#ffffff"}
-            stroke="#e2e3e0"
+            fill={!selfCast && inRange(p) ? "#34418a" : BOARD.tile}
+            stroke={BOARD.stroke}
             strokeWidth={0.8}
           />
         );
@@ -98,8 +100,8 @@ const SpellDemo: React.FC<{ spell: Spell }> = ({ spell }) => {
         </polygon>
       ))}
 
-      {!selfCast && <Fighter at={target} color="#8b8d8a" />}
-      <Fighter at={caster} color="#17181a" />
+      {!selfCast && <Fighter at={target} color={BOARD.socle.out} />}
+      <Fighter at={caster} color={BOARD.socle.mine} />
 
       {/* The shot itself. */}
       {!selfCast && (
@@ -156,8 +158,8 @@ const SpellDemo: React.FC<{ spell: Spell }> = ({ spell }) => {
           fontFamily="Archivo, system-ui, sans-serif"
           fontWeight={800}
           fontSize={15}
-          fill={spell.damage > 0 ? "#d1462f" : spell.color}
-          stroke="#fff"
+          fill={spell.damage > 0 ? BOARD.accent : spell.color}
+          stroke={BOARD.ink}
           strokeWidth={3}
           paintOrder="stroke"
           opacity={0}
@@ -203,6 +205,8 @@ interface SpellCardProps {
   spell: Spell;
   /** Why it cannot be cast right now, if it cannot. */
   blocked: string | null;
+  /** What a dream's boons have made of it, if anything. */
+  upgrades?: SpellUpgrade[];
 }
 
 /**
@@ -210,7 +214,7 @@ interface SpellCardProps {
  * the numbers behind it. It sits over the middle of the screen, clear of the
  * thumb that is holding it open.
  */
-export const SpellCard: React.FC<SpellCardProps> = ({ spell, blocked }) => {
+export const SpellCard: React.FC<SpellCardProps> = ({ spell, blocked, upgrades = [] }) => {
   const effect = spell.effect;
   const area =
     spell.areaOfEffect === "none" ? "single cell" : spell.areaOfEffect;
@@ -218,13 +222,13 @@ export const SpellCard: React.FC<SpellCardProps> = ({ spell, blocked }) => {
   return createPortal(
     <div
       role="tooltip"
-      className="pointer-events-none fixed left-1/2 top-1/2 z-[70] w-[min(540px,90vw)] -translate-x-1/2 -translate-y-1/2 animate-[card-pop_160ms_ease-out] border border-rule bg-panel p-3 shadow-[0_12px_32px_rgba(23,24,26,0.18)]"
+      className={`pointer-events-none fixed left-1/2 top-1/2 z-[70] w-[min(540px,90vw)] -translate-x-1/2 -translate-y-1/2 animate-[card-pop_160ms_ease-out] rounded-2xl bg-panel p-3 shadow-[0_12px_32px_rgb(var(--night)/0.6)] ${upgrades.length > 0 ? "border-2 border-heart" : "border border-gold/50"}`}
     >
       <div className="flex gap-4">
         <div className="w-[52%] flex-none">
           <div className="flex items-center gap-2.5">
             <span
-              className="grid h-9 w-9 flex-none place-items-center border border-hairline bg-board"
+              className="grid h-9 w-9 flex-none place-items-center rounded-full border border-hairline bg-board"
               style={{ color: spell.color }}
             >
               <SpellGlyph
@@ -239,10 +243,23 @@ export const SpellCard: React.FC<SpellCardProps> = ({ spell, blocked }) => {
               </p>
               <p className="font-mono text-[9px] uppercase tracking-label text-muted">
                 {spell.element} · {spell.APCost} AP ·{" "}
-                <span style={{ color: spell.ultimate ? "#8a6a10" : spell.color }}>
+                <span style={{ color: spell.ultimate ? "rgb(var(--gold))" : spell.color }}>
                   {spell.role}
                 </span>
               </p>
+              {upgrades.length > 0 && (
+                // A dream's work on it, said as plainly as its numbers.
+                <p className="mt-0.5 flex flex-wrap gap-1">
+                  {upgrades.map((u) => (
+                    <span
+                      key={u.kind}
+                      className="rounded-full bg-heart/20 px-1.5 font-mono text-[9px] uppercase tracking-label text-heart"
+                    >
+                      ✦ {u.label}
+                    </span>
+                  ))}
+                </p>
+              )}
             </div>
           </div>
 

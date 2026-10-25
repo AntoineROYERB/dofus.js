@@ -1,15 +1,13 @@
 import React, { useEffect, useRef, useState } from "react";
-import { GameStatus, GAME_STATUS, Player } from "../../types/game";
+import { Player } from "../../types/game";
 import { GameState, Spell, SpellBook } from "../../types/message";
 import { barSpells } from "../../utils/loadoutUtils";
 import { spellSummary, unavailableReason } from "../../utils/spellUtils";
-import { FOLDED_COUNT, needsFolding, ringLayout, slotOffset } from "../../utils/spellArc";
+import { SpellUpgrade, upgradesOf } from "../../utils/spellUpgrades";
 import { effectTotal } from "../../utils/effectUtils";
 import { SpellGlyph } from "./SpellGlyph";
 import { RULES } from "../../utils/terrain";
 import { BOARD } from "../../constants";
-
-const ULTIMATE = "#c99a1a";
 import { SpellCard } from "./SpellCard";
 import { sameSide } from "../../utils/sides";
 import { TurnClock } from "./TurnClock";
@@ -17,12 +15,12 @@ import { TurnClock } from "./TurnClock";
 /*
  * The combat screen on a phone held sideways. The board takes the whole
  * screen and this is laid over its corners, where the diamond leaves room:
- * who plays top left, the way out top right, your fighter bottom left, and
- * everything a turn is spent on in an arc under the right thumb.
+ * who plays top left, the way out top right, the spells as a command deck
+ * down the left edge, and your fighter — health and points curved round its
+ * portrait — bottom right, beside the button that ends the turn.
  */
 
-const HAIRLINE = "border border-rule bg-panel/90 backdrop-blur-[2px]";
-const PRESS = "transition-transform active:scale-95";
+const HAIRLINE = "border border-gold/40 bg-panel/90 backdrop-blur-[2px]";
 
 /* ------------------------------------------------------------------ */
 /* Top left: the turn order and the clock.                             */
@@ -49,8 +47,8 @@ export const TurnBar: React.FC<{
             <span
               key={id}
               title={p.character.name}
-              className={`grid h-7 w-7 place-items-center rounded-full border-2 font-display text-[12px] font-bold text-white ${
-                p.isCurrentTurn ? "border-vermilion" : "border-panel"
+              className={`grid h-7 w-7 place-items-center rounded-full border-2 font-display text-[13px] font-bold text-night ${
+                p.isCurrentTurn ? "border-ink" : "border-panel"
               } ${p.character.isAlive ? "" : "opacity-40"}`}
               style={{ backgroundColor: sameSide(players, id, userId) ? BOARD.socle.mine : BOARD.socle.theirs }}
             >
@@ -82,7 +80,7 @@ export const MenuButton: React.FC<{ onClick: () => void }> = ({ onClick }) => (
     type="button"
     onClick={onClick}
     aria-label="Menu: log, chat and leave"
-    className={`flex h-10 items-center gap-2 rounded-full pl-3 pr-3.5 font-mono text-[10px] uppercase tracking-label text-ink ${HAIRLINE} ${PRESS}`}
+    className="btn-night flex h-10 items-center gap-2 pl-3 pr-4 font-mono text-[10px] uppercase tracking-label"
   >
     <svg aria-hidden viewBox="0 0 16 16" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round">
       <path d="M2.5 4h11M2.5 8h11M2.5 12h11" />
@@ -91,324 +89,316 @@ export const MenuButton: React.FC<{ onClick: () => void }> = ({ onClick }) => (
   </button>
 );
 
+
 /* ------------------------------------------------------------------ */
-/* Bottom left: your fighter.                                          */
+/* Bottom right: your fighter, its gauges curved round its portrait.   */
 /* ------------------------------------------------------------------ */
 
-const Orb: React.FC<{ value: number; label: string; className: string }> = ({
-  value,
-  label,
-  className,
-}) => (
-  <div className="flex flex-col items-center gap-0.5">
-    <span
-      className={`grid h-10 w-10 place-items-center rounded-full font-display text-[18px] font-bold tabular-nums text-white ${className}`}
-    >
-      {value}
-    </span>
-    <span className="font-mono text-[8.5px] uppercase tracking-label text-muted">
-      {label}
-    </span>
-  </div>
-);
+/** One gauge: a three-quarter ring that empties clockwise from the bottom. */
+const Arc: React.FC<{
+  r: number;
+  share: number;
+  colour: string;
+  width: number;
+}> = ({ r, share, colour, width }) => {
+  const length = 2 * Math.PI * r * 0.75;
+  const full = 2 * Math.PI * r;
+  return (
+    <>
+      <circle
+        cx={56}
+        cy={56}
+        r={r}
+        fill="none"
+        className="stroke-night"
+        strokeWidth={width + 2}
+        strokeDasharray={`${length} ${full}`}
+        strokeLinecap="round"
+        transform="rotate(90 56 56)"
+      />
+      <circle
+        cx={56}
+        cy={56}
+        r={r}
+        fill="none"
+        // A style, not an attribute: WebKit does not resolve a CSS variable
+        // in an SVG presentation attribute.
+        style={{ stroke: colour, transition: "stroke-dasharray 300ms ease-out" }}
+        strokeWidth={width}
+        strokeDasharray={`${length * Math.max(0, Math.min(1, share))} ${full}`}
+        strokeLinecap="round"
+        transform="rotate(90 56 56)"
+      />
+    </>
+  );
+};
 
-export const FighterStatus: React.FC<{ player: Player | undefined }> = ({
+/**
+ * Health is the outer ring, in the heart's pink; action points the inner one,
+ * in their blue. Read the way an action RPG is read: the number that matters
+ * in the middle, and how much of it is left as how much ring is left. The
+ * movement points sit beside it, where the button that spends the rest of a
+ * turn is.
+ */
+export const PortraitGauge: React.FC<{ player: Player | undefined }> = ({
   player,
 }) => {
   const character = player?.character;
   if (!character) return null;
-  const share = Math.max(
-    0,
-    Math.min(1, character.health / Math.max(1, character.maxHealth))
-  );
   const shield = effectTotal(character.effects, "shield");
+  const health = character.health / Math.max(1, character.maxHealth);
+  const points =
+    character.actionPoints / Math.max(1, character.maxActionPoints || character.actionPoints);
 
   return (
-    <div className={`flex items-end gap-3 rounded-2xl px-3 py-2 ${HAIRLINE}`}>
-      <div className="w-[118px]">
-        <p className="truncate font-display text-[15px] font-bold leading-tight">
+    <div className="flex items-end gap-2">
+      <div className="mb-1 flex flex-col items-end gap-1 rounded-2xl bg-panel/85 px-3 py-1.5 text-right shadow-[inset_0_0_0_1px_rgb(var(--gold)/0.4)] backdrop-blur-[2px]">
+        <span className="max-w-[110px] truncate font-display text-[14px] font-bold leading-none">
           {character.name}
-        </p>
-        <p className="mt-1 flex items-baseline gap-1 font-display text-[20px] font-bold leading-none tabular-nums text-vermilion">
-          {character.health}
-          <span className="font-mono text-[9px] font-normal uppercase tracking-label text-muted">
-            hp{shield > 0 ? ` · ◈ ${shield}` : ""}
+        </span>
+        <span className="font-mono text-[10px] uppercase tracking-label text-muted">
+          <b className="font-display text-[15px] normal-case tracking-normal text-pa">
+            {character.actionPoints}
+          </b>{" "}
+          ap ·{" "}
+          <b className="font-display text-[15px] normal-case tracking-normal text-pm">
+            {character.movementPoints}
+          </b>{" "}
+          mp
+        </span>
+        {shield > 0 && (
+          <span className="font-mono text-[10px] uppercase tracking-label text-graphite">
+            ◈ {shield} shield
           </span>
-        </p>
-        <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-hairline">
-          <div
-            className="h-full rounded-full bg-vermilion transition-[width] duration-300"
-            style={{ width: `${share * 100}%` }}
-          />
-        </div>
+        )}
       </div>
-      <Orb value={character.actionPoints} label="ap" className="bg-pa" />
-      <Orb value={character.movementPoints} label="mp" className="bg-pm" />
+      <div className="relative h-[100px] w-[100px] flex-none">
+        <svg aria-hidden viewBox="0 0 112 112" className="absolute inset-0 h-full w-full drop-shadow-[0_4px_10px_rgb(var(--night)/0.7)]">
+          <Arc r={50} share={health} colour="rgb(var(--heart))" width={7} />
+          <Arc r={39} share={points} colour="rgb(var(--pa))" width={5} />
+          <circle cx={56} cy={56} r={30} className="fill-panel stroke-gold" strokeWidth={2.5} />
+        </svg>
+        <span className="absolute inset-0 grid place-items-center">
+          <span className="text-center leading-none">
+            <span className="block font-display text-[24px] font-bold tabular-nums">
+              {character.health}
+            </span>
+            <span className="font-mono text-[8.5px] uppercase tracking-label text-heart">
+              hp
+            </span>
+          </span>
+        </span>
+      </div>
     </div>
   );
 };
 
 /* ------------------------------------------------------------------ */
-/* Bottom right: the spell arc.                                        */
+/* Bottom left: the command deck.                                      */
 /* ------------------------------------------------------------------ */
 
-/** Where the arc's centre sits, measured in from the bottom-right corner. */
-const CENTRE = { right: 64, bottom: 60 };
-const MAIN_R = 44;
-const SLOT = 46;
 const LONG_PRESS_MS = 380;
 
-const SpellButton: React.FC<{
+/**
+ * One spell of the deck. A tap picks it; a long press only reads it, the
+ * way the old arc did, so a finger can check a spell without casting it.
+ */
+const Command: React.FC<{
   spell: Spell;
   blocked: string | null;
   cooldown: number;
   selected: boolean;
+  locked: boolean;
+  spent: boolean;
+  throughRelay: boolean;
+  upgrades: SpellUpgrade[];
+  /** The number key that picks it, shown where there is a keyboard. */
+  shortcut?: number;
   onSelect: () => void;
   onPeek: (open: boolean) => void;
-  style: React.CSSProperties;
-  /** Folded away behind the main button. */
-  hidden: boolean;
-  /** An ultimate still waiting for its turn. */
-  locked: boolean;
-  /** An ultimate already cast this fight. */
-  spent: boolean;
-  /** Goes out through the player's relay, harder. */
-  throughRelay: boolean;
-}> = ({ spell, blocked, cooldown, selected, onSelect, onPeek, style, hidden, locked, spent, throughRelay }) => {
+}> = ({ spell, blocked, cooldown, selected, locked, spent, throughRelay, upgrades, shortcut, onSelect, onPeek }) => {
   const timer = useRef<number>();
   const peeked = useRef(false);
-
   const endPress = () => {
     window.clearTimeout(timer.current);
     if (peeked.current) onPeek(false);
   };
-
   useEffect(() => () => window.clearTimeout(timer.current), []);
+
+  const upgraded = upgrades.length > 0;
+  // What the right end of the row says: why it cannot go, or what it costs.
+  const tag = spent
+    ? "used"
+    : locked
+      ? `turn ${RULES.ultimateFromTurn}`
+      : cooldown > 0
+        ? `⟳ ${cooldown}`
+        : `${spell.APCost} ap`;
 
   return (
     <button
       type="button"
-      aria-label={`${spell.name}, ${spell.APCost} AP${blocked ? ` (${blocked})` : ""}. Hold for details.`}
+      aria-label={`${spell.name}, ${spell.APCost} AP${upgraded ? `, upgraded: ${upgrades.map((u) => u.label).join(", ")}` : ""}${blocked ? ` (${blocked})` : ""}. Hold for details.`}
       aria-pressed={selected}
       aria-disabled={!!blocked}
-      aria-hidden={hidden}
-      tabIndex={hidden ? -1 : undefined}
-      onPointerDown={() => {
+      onPointerDown={(e) => {
+        if (e.pointerType === "mouse") return;
         peeked.current = false;
         timer.current = window.setTimeout(() => {
           peeked.current = true;
           onPeek(true);
         }, LONG_PRESS_MS);
       }}
+      // A mouse reads a spell by resting on it, as the desk's bar always did.
+      onPointerEnter={(e) => e.pointerType === "mouse" && onPeek(true)}
       onPointerUp={endPress}
-      onPointerLeave={endPress}
+      onPointerLeave={(e) => {
+        if (e.pointerType === "mouse") onPeek(false);
+        else endPress();
+      }}
       onPointerCancel={endPress}
       onContextMenu={(e) => e.preventDefault()}
       onClick={() => {
-        // A long press only looked; it does not pick the spell.
         if (peeked.current) {
           peeked.current = false;
           return;
         }
         onSelect();
       }}
-      // No backdrop behind the arc: each spell carries its own small shadow
-      // so it reads against the board without hiding it.
-      className={`absolute grid place-items-center rounded-full bg-board transition-[right,bottom,opacity,transform,box-shadow] duration-300 ease-[cubic-bezier(.2,.8,.2,1)] active:scale-90 [-webkit-touch-callout:none] ${
+      className={`relative flex w-full items-center gap-2 rounded-r-full pl-3 pr-3 text-left transition-[transform,background-color,opacity] duration-200 ease-out active:scale-[0.98] [-webkit-touch-callout:none] ${
+        upgraded ? "min-h-[42px] py-1" : "h-[34px]"
+      } ${
         selected
-          ? "shadow-[0_0_0_3px_#d1462f,0_2px_8px_rgba(23,24,26,0.18)]"
-          : spell.ultimate
-            ? "shadow-[0_0_0_2px_#c99a1a,0_2px_8px_rgba(23,24,26,0.14)]"
-            : throughRelay
-              ? "shadow-[0_0_0_2px_#2e9e6a,0_2px_8px_rgba(23,24,26,0.14)]"
-              : "shadow-[0_0_0_1px_#cfd0cd,0_2px_8px_rgba(23,24,26,0.14)]"
-      } ${hidden ? "pointer-events-none scale-50 opacity-0" : blocked && !locked ? "opacity-40" : ""} ${
-        spell.ultimate ? "!bg-[#fff6dc]" : ""
-      }`}
-      style={{ width: SLOT, height: SLOT, ...style }}
+          ? "translate-x-3 bg-gradient-to-r from-[#fff2b8] to-gold text-[#2a1b00] shadow-[0_0_16px_rgb(var(--gold)/0.5)]"
+          : "bg-panel/90 text-ink backdrop-blur-[2px]"
+      } ${blocked && !locked && !selected ? "opacity-45" : ""}`}
+      style={{
+        // The left edge is the deck's spine: gold for a spell as dealt, the
+        // heart's pink for one a dream has made stronger.
+        boxShadow: selected
+          ? undefined
+          : upgraded
+            ? "inset 4px 0 0 rgb(var(--heart)), inset 0 0 0 1.5px rgb(var(--heart) / 0.75), 0 0 12px rgb(var(--heart) / 0.35)"
+            : "inset 3px 0 0 rgb(var(--gold))",
+      }}
     >
-      <span
-        className={locked ? "opacity-40" : undefined}
-        style={{ color: selected ? spell.color : spell.ultimate ? "#8a6a10" : undefined }}
-      >
-        <SpellGlyph spellId={spell.baseId ?? spell.id} fallback={spell.icon} className="h-6 w-6" />
-      </span>
-      <span className="absolute -bottom-1 -right-1 grid h-[18px] min-w-[18px] place-items-center rounded-full bg-pa px-1 font-mono text-[10px] font-semibold text-white">
-        {spell.APCost}
-      </span>
-      {cooldown > 0 && (
-        <span className="absolute inset-0 grid place-items-center rounded-full bg-paper/85 font-mono text-[17px] font-semibold tabular-nums">
-          {cooldown}
+      {selected && (
+        <span aria-hidden className="absolute -left-3 text-[13px] text-heart drop-shadow">
+          ♥
         </span>
       )}
-      {locked && (
+      {shortcut !== undefined && (
         <span
-          className="absolute -left-1 -top-1 grid h-[18px] min-w-[18px] place-items-center rounded-full px-1 font-mono text-[9.5px] font-semibold text-white"
-          style={{ backgroundColor: ULTIMATE }}
+          aria-hidden
+          className={`w-2.5 flex-none font-mono text-[9px] tabular-nums touch:hidden ${selected ? "text-[#2a1b00]/60" : "text-muted"}`}
         >
-          T{RULES.ultimateFromTurn}
+          {shortcut}
         </span>
       )}
+      <span
+        className={`flex-none ${locked ? "opacity-40" : ""}`}
+        style={{ color: selected ? "#2a1b00" : spell.ultimate ? "rgb(var(--gold))" : spell.color }}
+      >
+        <SpellGlyph spellId={spell.baseId ?? spell.id} fallback={spell.icon} className="h-[18px] w-[18px]" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span
+          className={`block truncate font-display text-[14px] font-bold leading-tight ${
+            spell.ultimate && !selected ? "text-gold" : ""
+          }`}
+        >
+          {upgraded && (
+            <span aria-hidden className={selected ? "mr-1" : "mr-1 text-heart"}>
+              ✦
+            </span>
+          )}
+          {spell.name}
+        </span>
+        {upgraded && (
+          <span
+            className={`block truncate font-mono text-[9px] uppercase tracking-label ${
+              selected ? "text-[#2a1b00]/75" : "text-heart"
+            }`}
+          >
+            {upgrades.map((u) => u.label).join(" · ")}
+          </span>
+        )}
+      </span>
       {throughRelay && !locked && !spent && (
         <span
-          className="absolute -left-1 -top-1 grid h-[18px] place-items-center rounded-full px-1 font-mono text-[9px] font-semibold text-white"
-          style={{ backgroundColor: BOARD.relay }}
+          className="flex-none font-mono text-[10px]"
+          style={{ color: BOARD.relay }}
+          title={`Goes through your relay: +${RULES.relayBonus}% damage`}
         >
           ↺
         </span>
       )}
-      {spent && (
-        <span className="absolute inset-0 grid place-items-center rounded-full bg-paper/80 font-mono text-[8.5px] uppercase tracking-label text-muted">
-          used
-        </span>
-      )}
+      <span
+        className={`flex-none font-mono text-[10px] uppercase tracking-label tabular-nums ${
+          selected
+            ? "text-[#2a1b00]"
+            : cooldown > 0 || locked || spent
+              ? "text-muted"
+              : upgrades.some((u) => u.kind === "cost")
+                ? "text-heart"
+                : "text-pa"
+        }`}
+      >
+        {tag}
+      </span>
     </button>
   );
 };
 
-interface SpellArcProps {
+interface CommandDeckProps {
   player: Player | undefined;
   spells: SpellBook | null;
   selectedSpellId: number | null;
   onSelectSpell: (spellId: number) => void;
-  /** The one big action in the middle of the arc. */
-  main: {
-    label: string;
-    disabled: boolean;
-    onClick: () => void;
-    beckon?: boolean;
-  } | null;
-  isMyTurn: boolean;
-  turnEndsAt: number;
   /** The fight's turn, which is what unlocks an ultimate. */
   turnNumber: number;
   /** Whether the player has a relay out. */
   hasRelay?: boolean;
-  status: GameStatus;
   /** A spell was held long enough to read it — the tutorial counts these. */
   onPeek?: () => void;
+  /** Number each spell with the key that picks it (a desk, not a phone). */
+  shortcuts?: boolean;
 }
 
-/** A ring around the main button that empties as the turn runs out. */
-const TurnRing: React.FC<{ turnEndsAt: number }> = ({ turnEndsAt }) => {
-  const [share, setShare] = useState(1);
-  const total = useRef(1);
-  useEffect(() => {
-    if (!turnEndsAt) return;
-    total.current = Math.max(1, turnEndsAt - Date.now());
-    const tick = () =>
-      setShare(Math.max(0, (turnEndsAt - Date.now()) / total.current));
-    tick();
-    const id = window.setInterval(tick, 250);
-    return () => window.clearInterval(id);
-  }, [turnEndsAt]);
-  const r = MAIN_R + 5;
-  const c = 2 * Math.PI * r;
-  return (
-    <svg
-      aria-hidden
-      className="pointer-events-none absolute"
-      style={{ right: CENTRE.right - r - 3, bottom: CENTRE.bottom - r - 3 }}
-      width={(r + 3) * 2}
-      height={(r + 3) * 2}
-    >
-      <circle cx={r + 3} cy={r + 3} r={r} fill="none" stroke="#e2e3e0" strokeWidth={3} />
-      <circle
-        cx={r + 3}
-        cy={r + 3}
-        r={r}
-        fill="none"
-        stroke={share < 0.25 ? "#d1462f" : "#17181a"}
-        strokeWidth={3}
-        strokeLinecap="round"
-        strokeDasharray={c}
-        strokeDashoffset={c * (1 - share)}
-        transform={`rotate(-90 ${r + 3} ${r + 3})`}
-        style={{ transition: "stroke-dashoffset 250ms linear" }}
-      />
-    </svg>
-  );
-};
-
-export const SpellArc: React.FC<SpellArcProps> = ({
+/**
+ * The spells, as a command list down the left edge. The arc it replaces
+ * showed icons only, so what a spell was called and what it cost had to be
+ * held open to be read; here every spell says both, and a spell a dream has
+ * made stronger is framed in pink with what changed written under its name.
+ */
+export const CommandDeck: React.FC<CommandDeckProps> = ({
   player,
   spells,
   selectedSpellId,
   onSelectSpell,
-  main,
-  isMyTurn,
-  turnEndsAt,
   turnNumber,
   hasRelay = false,
-  status,
   onPeek,
+  shortcuts = false,
 }) => {
   const catalogue = barSpells(player, spells);
   const [peek, setPeek] = useState<Spell | null>(null);
-  // The arc folds to a few spells while none is picked, so the board stays
-  // clear for moving; picking one, or the "+" chip, fans the rest out.
-  const [opened, setOpened] = useState(false);
-  const hasSelection = selectedSpellId !== null;
-  const wasSelected = useRef(hasSelection);
-  useEffect(() => {
-    // A cast (or a cancelled pick) folds it back.
-    if (wasSelected.current && !hasSelection) setOpened(false);
-    wasSelected.current = hasSelection;
-  }, [hasSelection]);
-  const extra = needsFolding(catalogue.length)
-    ? catalogue.length - FOLDED_COUNT
-    : 0;
-  const folded = extra > 0 && !opened && !hasSelection;
-  const layout = ringLayout(catalogue.length, folded);
   const actionPoints = player?.character?.actionPoints ?? 0;
-  const selected = catalogue.find((s) => s.id === selectedSpellId);
 
   return (
-    <div className="pointer-events-none absolute inset-0">
+    <div className={`flex flex-col items-start ${shortcuts ? "w-[244px]" : "w-[216px]"}`}>
+      <span className="ml-3 rounded-t-lg bg-gold px-3 py-0.5 font-mono text-[9.5px] uppercase tracking-label text-[#2a1b00]">
+        Spells
+      </span>
       {/*
-        Under the menu button rather than over the arc: up there it covered
-        the corner buttons on a phone only 360 pixels tall. A finger has no
-        Escape key, so the × here is how a picked spell is put back down.
+        Scrolls rather than grows: a dream can deal a spell more than the five
+        a set carries, and the deck must never reach the turn bar.
       */}
-      {selected && (
-        <div
-          className={`pointer-events-auto absolute flex max-w-[min(320px,50vw)] items-center gap-1 rounded-2xl py-1 pl-3 pr-1 text-right ${HAIRLINE}`}
-          style={{ right: 12, top: "max(56px, calc(env(safe-area-inset-top) + 48px))" }}
-        >
-          <div className="min-w-0">
-            <p className="truncate font-mono text-[10px] uppercase tracking-label text-ink">
-              <b className="font-semibold">{selected.name}</b>
-              <span
-                className="ml-1.5"
-                style={{ color: selected.ultimate ? "#8a6a10" : selected.color }}
-              >
-                {selected.role}
-              </span>
-              <span className="text-muted"> · pick a target</span>
-            </p>
-            <p className="mt-0.5 truncate font-mono text-[10.5px] tabular-nums text-graphite">
-              {spellSummary(selected)}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => onSelectSpell(selected.id)}
-            aria-label={`Put ${selected.name} down`}
-            className="grid h-9 w-9 flex-none place-items-center rounded-full text-graphite transition-transform active:scale-90"
-          >
-            <svg aria-hidden viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
-              <path d="M6 6l12 12M18 6L6 18" />
-            </svg>
-          </button>
-        </div>
-      )}
-
-      <div id="tutorial-spellbar" className="pointer-events-auto">
-        {catalogue.map((spell, i) => {
-          const { dx, dy } = slotOffset(layout[i]);
+      <div className="flex max-h-[calc(100dvh-112px)] w-full flex-col gap-1 overflow-y-auto overflow-x-visible pr-4">
+        {catalogue.map((spell, index) => {
           const state = player?.spells?.[String(spell.id)];
           return (
-            <SpellButton
+            <Command
               key={spell.id}
               spell={spell}
               blocked={unavailableReason(spell, state, actionPoints, turnNumber, hasRelay)}
@@ -417,70 +407,21 @@ export const SpellArc: React.FC<SpellArcProps> = ({
               throughRelay={spell.relayed && hasRelay}
               cooldown={state?.cooldownLeft ?? 0}
               selected={spell.id === selectedSpellId}
+              upgrades={upgradesOf(spell, spells)}
+              shortcut={shortcuts && index < 9 ? index + 1 : undefined}
               onSelect={() => onSelectSpell(spell.id)}
               onPeek={(open) => {
                 setPeek(open ? spell : null);
                 if (open) onPeek?.();
               }}
-              hidden={!layout[i].shown}
-              style={{
-                right: CENTRE.right - dx - SLOT / 2,
-                bottom: CENTRE.bottom - dy - SLOT / 2,
-              }}
             />
           );
         })}
       </div>
-
-      {extra > 0 && !hasSelection && (
-        <button
-          type="button"
-          onClick={() => setOpened((o) => !o)}
-          aria-expanded={!folded}
-          aria-label={folded ? `Show ${extra} more spells` : "Fold the spells"}
-          className={`pointer-events-auto absolute grid h-8 min-w-8 place-items-center rounded-full px-2.5 font-mono text-[11px] font-semibold text-graphite transition-[right,bottom] duration-300 ease-[cubic-bezier(.2,.8,.2,1)] active:scale-95 ${HAIRLINE} shadow-[0_2px_8px_rgba(23,24,26,0.12)]`}
-          style={
-            folded
-              ? // Just past the folded fan, up and to the left.
-                { right: CENTRE.right + 104, bottom: CENTRE.bottom + 78 }
-              : // Beyond the open arc's left end.
-                { right: CENTRE.right + 196, bottom: CENTRE.bottom - 16 }
-          }
-        >
-          {folded ? `+${extra}` : "−"}
-        </button>
-      )}
-
-      {status === GAME_STATUS.PLAYING && isMyTurn && (
-        <TurnRing turnEndsAt={turnEndsAt} />
-      )}
-
-      <div
-        id="tutorial-mainbutton"
-        className="pointer-events-auto absolute"
-        style={{
-          right: CENTRE.right - MAIN_R,
-          bottom: CENTRE.bottom - MAIN_R,
-        }}
-      >
-        {main ? (
-          <button
-            type="button"
-            onClick={main.onClick}
-            disabled={main.disabled}
-            className={`grid place-items-center rounded-full bg-vermilion px-2 text-center font-display text-[15px] font-extrabold leading-tight text-white transition-transform active:scale-95 disabled:bg-hairline disabled:text-muted ${
-              main.beckon ? "animate-beckon" : ""
-            }`}
-            style={{ width: MAIN_R * 2, height: MAIN_R * 2 }}
-          >
-            {main.label}
-          </button>
-        ) : null}
-      </div>
-
       {peek && (
         <SpellCard
           spell={peek}
+          upgrades={upgradesOf(peek, spells)}
           blocked={unavailableReason(
             peek,
             player?.spells?.[String(peek.id)],
@@ -493,3 +434,65 @@ export const SpellArc: React.FC<SpellArcProps> = ({
     </div>
   );
 };
+
+/**
+ * The picked spell, spelled out, under the menu button: what it does, and a
+ * × to put it back down, since a finger has no Escape key.
+ */
+export const SpellHint: React.FC<{
+  player: Player | undefined;
+  spells: SpellBook | null;
+  selectedSpellId: number | null;
+  onSelectSpell: (spellId: number) => void;
+}> = ({ player, spells, selectedSpellId, onSelectSpell }) => {
+  const selected = barSpells(player, spells).find((s) => s.id === selectedSpellId);
+  if (!selected) return null;
+  return (
+    <div className={`flex max-w-[min(320px,50vw)] items-center gap-1 rounded-2xl py-1 pl-3 pr-1 text-right ${HAIRLINE}`}>
+      <div className="min-w-0">
+        <p className="truncate font-mono text-[10px] uppercase tracking-label text-ink">
+          <b className="font-display text-[13px] normal-case tracking-normal">{selected.name}</b>
+          <span
+            className="ml-1.5"
+            style={{ color: selected.ultimate ? "rgb(var(--gold))" : selected.color }}
+          >
+            {selected.role}
+          </span>
+          <span className="text-muted"> · pick a target</span>
+        </p>
+        <p className="mt-0.5 truncate font-mono text-[10.5px] tabular-nums text-graphite">
+          {spellSummary(selected)}
+        </p>
+      </div>
+      <button
+        type="button"
+        onClick={() => onSelectSpell(selected.id)}
+        aria-label={`Put ${selected.name} down`}
+        className="grid h-9 w-9 flex-none place-items-center rounded-full text-graphite transition-transform active:scale-90"
+      >
+        <svg aria-hidden viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
+          <path d="M6 6l12 12M18 6L6 18" />
+        </svg>
+      </button>
+    </div>
+  );
+};
+
+/** The one gold button of a fight: Fight while placing, End turn after. */
+export const MainAction: React.FC<{
+  label: string;
+  disabled: boolean;
+  onClick: () => void;
+  beckon?: boolean;
+}> = ({ label, disabled, onClick, beckon }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    disabled={disabled}
+    className={`btn-gold h-12 whitespace-nowrap px-6 font-display text-[17px] font-bold ${
+      beckon ? "animate-beckon" : ""
+    }`}
+  >
+    {label}
+  </button>
+);

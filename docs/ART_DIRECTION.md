@@ -17,7 +17,7 @@ decide.
 
 ## 1. The idea in one sentence
 
-**A pixel-art world, framed by ink on paper.**
+**A pixel-art world, framed by a storybook night.**
 
 The game has two layers, and every visual decision starts by asking which one
 it belongs to:
@@ -25,11 +25,12 @@ it belongs to:
 | Layer | What is in it | How it looks |
 | --- | --- | --- |
 | **The world** | The board, the open world, fighters, monsters, terrain, spell effects | Pixel art, drawn with one brush (section 5) |
-| **The frame** | HUD, menus, cards, tooltips, the combat log, the lobby, the wardrobe | Paper, ink, graphite and one vermilion — the "Composée" palette (section 3) |
+| **The frame** | HUD, menus, cards, tooltips, the combat log, the lobby, the wardrobe | Night blue, starlight and gold — the "Heart grimoire" palette (section 3) |
 
 The two never borrow from each other. The frame has no pixel fonts, no
 outlines and no dithering. The world has no hairlines, no rounded corners and
-no UI type.
+no UI type. The fight board sits between the two (section 4): world ground,
+drawn in the frame's night.
 
 Three principles run through both layers:
 
@@ -58,35 +59,45 @@ Three principles run through both layers:
 
 ---
 
-## 3. The frame: Composée
+## 3. The frame: Heart grimoire
 
-The tokens live in `frontend/tailwind.config.js` and `frontend/src/constants.ts`.
-Use the token name, never the hex value, in components.
+The tokens live in `frontend/src/index.css` (as CSS variables) and are named
+in `frontend/tailwind.config.js`; the board's own copies are in
+`frontend/src/constants.ts` (`BOARD`). Use the token name, never the hex
+value, in components. A token's name is its role, not its hue: `paper` is
+the page and `ink` what is written on it, whatever the palette makes them.
+
+The frame is a storybook night: the grimoire's light becomes stars, gold
+trims everything you can press, and the controls sit where a thumb expects
+them. It takes its manners from action RPGs — a command list for spells,
+gauges curved round a portrait — and keeps the charter's discipline about
+what a colour may mean.
 
 ### 3.1 Colours
 
 | Token | Hex | Meaning — and the only thing it may mean |
 | --- | --- | --- |
-| `paper` | $\color{#f2f2f0}\blacksquare$ #f2f2f0 | The page behind every screen |
-| `panel` | $\color{#fbfbfa}\blacksquare$ #fbfbfa | Cards and sheets laid on the page |
-| `board` / `board-alt` | $\color{#ffffff}\blacksquare$ #ffffff / $\color{#f4f4f2}\blacksquare$ #f4f4f2 | Board cells, alternating |
-| `ink` | $\color{#17181a}\blacksquare$ #17181a | Text, 2 px frames, the primary button's text |
-| `graphite` | $\color{#5f6260}\blacksquare$ #5f6260 | Secondary text |
-| `muted` | $\color{#8b8d8a}\blacksquare$ #8b8d8a | Labels, disabled, knocked out |
-| `rule` / `hairline` | $\color{#cfd0cd}\blacksquare$ #cfd0cd / $\color{#e2e3e0}\blacksquare$ #e2e3e0 | Dividers and cell strokes |
-| `vermilion` | $\color{#d1462f}\blacksquare$ #d1462f | **What your action is about to hit, and the one call to action on a screen.** Nothing else. |
-| `pa` | $\color{#2f6fd1}\blacksquare$ #2f6fd1 | Action points, wherever they are shown or changed |
-| `pm` | $\color{#2f9e44}\blacksquare$ #2f9e44 | Movement points, where you can walk, where you may start |
-| `amber` / `amber-wash` | $\color{#b5790a}\blacksquare$ #b5790a / $\color{#f7ecd6}\blacksquare$ #f7ecd6 | Your own turn, your own fighter's highlight, and the ring under your fighter |
-| `foe` (BOARD) | $\color{#a3231b}\blacksquare$ #a3231b | What is the other side's: where they may start, and the ring under their fighters. A cell to keep off, never a target |
+| `night` | $\color{#070a1e}\blacksquare$ #070a1e | The deepest dark: dimmed backdrops, a gauge's empty track |
+| `paper` | $\color{#0d1234}\blacksquare$ #0d1234 | The page behind every screen, with a few fixed stars |
+| `panel` | $\color{#1a2258}\blacksquare$ #1a2258 | Cards, sheets and the command deck laid on the page |
+| `board` / `board-alt` | $\color{#242e6a}\blacksquare$ #242e6a / $\color{#1e275e}\blacksquare$ #1e275e | Wells and slots inside a panel |
+| `ink` | $\color{#eef1ff}\blacksquare$ #eef1ff | Text, and the light rim of a selected thing |
+| `graphite` | $\color{#bec7ec}\blacksquare$ #bec7ec | Secondary text |
+| `muted` | $\color{#8a97cc}\blacksquare$ #8a97cc | Labels, disabled, knocked out |
+| `rule` / `hairline` | $\color{#3a468a}\blacksquare$ #3a468a / $\color{#28326e}\blacksquare$ #28326e | Dividers and cell strokes |
+| `gold` | $\color{#ffd76a}\blacksquare$ #ffd76a | **The one call to action on a screen**, everything that is yours (your ring, your turn, the deck's spine), and the rim of a card or sheet |
+| `vermilion` | $\color{#ff5a6e}\blacksquare$ #ff5a6e | **What your action is about to hit**, and the other side's ring. Nothing else. |
+| `heart` | $\color{#ff7ab6}\blacksquare$ #ff7ab6 | Health, and a spell a dream has made stronger (3.5) |
+| `pa` | $\color{#4fa3ff}\blacksquare$ #4fa3ff | Action points, wherever they are shown or changed |
+| `pm` | $\color{#46e06a}\blacksquare$ #46e06a | Movement points, where you can walk, where you may start |
 
 **A player does not pick a colour.** Whose fighter is whose is told by side,
 not by player: the ring under your fighter and your dot in the turn order are
-`amber` (`BOARD.socle.mine`), and the other side's are `foe` red
+`gold` (`BOARD.socle.mine`), and the other side's are `vermilion`
 (`BOARD.socle.theirs`). Two fighters in the same outfit therefore never share
 a ring. Nothing tints a fighter's sprite: an outfit keeps its own trims. In a
 fight between teams (Endless Dreams), your side is you and your allies: their
-rings and dots are `amber` too, and where an ally fell their broken ring stays
+rings and dots are `gold` too, and where an ally fell their broken ring stays
 on the board until they stand again.
 
 **Elements have one colour and one icon each**, and they show wherever an
@@ -95,8 +106,9 @@ leave on the board. The colours come from the grimoires' own sigils, and are
 kept clear of vermilion and of the `pa` blue and `pm` green, so a number over
 a fighter never reads as both damage and a stat. They are defined in
 `frontend/src/utils/elements.ts` (with each element's pixel icon: a flame, a
-gust, a drop, a stone) and, for the spells the server paints,
-`backend/config/spells.json` ("elements"); keep the two in step.
+gust, a drop, a stone, and a lighter `text` shade for words on the night) and,
+for the spells the server paints, `backend/config/spells.json` ("elements");
+keep the two in step.
 
 | Element | Hex | Its sigil |
 | --- | --- | --- |
@@ -112,20 +124,23 @@ A rune belongs to no element: its sign is lit in a violet
 
 | Role | Family | Use |
 | --- | --- | --- |
-| Display | **Archivo**, bold, tight tracking | Names, titles, the numbers that matter (HP, timer) |
-| Body | **Public Sans** | Sentences: rules, lore, tooltips |
-| Label | **Azeret Mono**, uppercase, `tracking-label` (0.18em), 9–11 px | Every small label, counter and tag |
+| Display | **Philosopher**, bold | Names, titles, spell names, the numbers that matter (HP, timer) |
+| Body | **Nunito** | Sentences: rules, lore, tooltips |
+| Label | **Nunito** 800, uppercase, `tracking-label` (0.18em), 9–11 px | Every small label, counter and tag (`font-mono tracking-label`; the weight rides on `tracking-label` in `index.css`) |
 
 Numbers that change during play use tabular figures (`tabular-nums`).
 
 ### 3.3 Shapes
 
-- **Square corners.** A frame is a 2 px `ink` border or a 1 px `hairline`.
-  Only dots, pips and badges are round (`rounded-full`).
-- **No shadows except to lift something off the board**, such as a tooltip or
-  a sheet (`shadow-md` at most).
-- **One vermilion element per screen state.** If two things want to be
-  vermilion, one of them is wrong.
+- **Round, rimmed in gold.** Buttons are pills (`btn-gold`, `btn-night` in
+  `index.css`); cards and sheets have large rounded corners and a gold rim
+  (`border-gold/60`–`/70`). Dots, pips and badges are round.
+- **Pressing sinks.** A button shrinks a little under the finger and comes
+  back; nothing that cannot be pressed glows.
+- **Shadows lift and glow.** A card over the board takes a deep night shadow;
+  gold and pink may glow softly around the one thing they mark.
+- **One gold button per screen state.** If two things want to be the gold
+  pill, one of them is wrong. A forfeit is never the gold one.
 
 ### 3.4 Writing
 
@@ -140,14 +155,33 @@ In-game text is English, short, and concrete:
 - Copy that assumes a mouse ("hover", "press 1") has a touch variant
   ("tap"), selected with the `touch:` screen.
 
+### 3.5 The fight's controls
+
+On a phone held sideways and on a desk alike (`GamePage`, `PhoneHud.tsx`):
+
+- **The command deck**, down the left edge: every spell as a row with its
+  glyph, its name and its cost, its spine gold. The picked spell slides out
+  in gold behind a ♥ cursor. On a desk each row shows its number key, and
+  resting the mouse on it opens its card; on a phone a long press does.
+- **The portrait**, bottom right: health as the outer ring in `heart`,
+  action points as the inner ring in `pa`, the health number in the middle,
+  and the movement points beside it. The gold pill that ends the turn (or
+  starts the fight) sits next to it.
+- **A spell a dream has made stronger** wears a `heart` frame instead of the
+  gold spine, a ✦ before its name, and what changed written under it
+  ("−1 AP · +1 range"), read off the spell and the one it was made from
+  (`utils/spellUpgrades.ts`). Its card says the same.
+- A phone held upright keeps the bar under the board, in the same colours.
+
 ---
 
 ## 4. The board in a fight
 
 The board is part of the world, but it has to be read like a diagram. Until
-section 11.1 is decided, it stays in the Composée style: pale cells with thin
-strokes, grey blocks for cover, and **only two inks during a turn** — green
-(`pm`) for where you can walk and vermilion for what your click will hit.
+section 11.1 is decided, it is drawn in the frame's night, a step lighter
+than the page: blue cells with thin strokes, pale blue blocks for cover, and
+**only two inks during a turn** — green (`pm`) for where you can walk and
+vermilion for what your click will hit.
 
 - "Too far" and "cannot see it" are different answers. The second one is the
   `blind` wash: vermilion faded almost to grey.
@@ -325,13 +359,14 @@ frame size, frame count, loop or one-shot, **layer** and **anchor**.
 ## 8. Motion
 
 - **Breathe, don't blink.** Things that are waiting on the player (an empty
-  name field, a starting cell to pick, the button to press) pulse slowly, and
-  stop as soon as they are answered.
+  name field, a starting cell to pick, the button to press) pulse slowly in
+  gold, and stop as soon as they are answered.
 - **World time** runs at 12 fps for sprites and effects and 10 fps for
   walking. Wind, water and glow keep moving at 30 fps while nothing else
   does.
-- **Reduced motion is a known trade-off.** The pulses in the frame stop
-  under `prefers-reduced-motion` (guarded in `index.css`), but the fight
+- **Reduced motion is a known trade-off.** The frame's entrances (an
+  overlay fading, a sheet sliding) are asked for with `motion-safe:` and stop
+  under `prefers-reduced-motion`, but the fight
   deliberately ignores it (`utils/motion.ts`). The damped paths froze terrain
   and dropped effects until the board could not be read. Do not add a new
   reduced-motion path to the fight without fixing that first, and do not
@@ -349,9 +384,14 @@ frame size, frame count, loop or one-shot, **layer** and **anchor**.
   wash for "cannot see").
 - Body text on `paper` is `ink` or `graphite`. `muted` is only for labels and
   disabled text.
+- An SVG colour that must follow a token is set as a style, not as a
+  `fill`/`stroke` attribute: WebKit does not resolve `var()` in a
+  presentation attribute.
 - Touch targets are at least 36 px, and the board confirms a tap before it
   acts (`touchConfirm.ts`). A word that is a button keeps its small type and
   gets the target around it in padding.
+- Body text on the night is `ink` or `graphite`; element names use their
+  `text` shade, never `dark`.
 - **Every overlay closes the same three ways**: a 40 px × in its corner, a
   tap on the dimmed page around it, and Escape (`components/Overlay.tsx`).
   Sheets slide in from the right and also go back with a swipe to the
@@ -366,7 +406,8 @@ frame size, frame count, loop or one-shot, **layer** and **anchor**.
 - [ ] Is it the world or the frame? It uses only that layer's tools.
 - [ ] Every colour is a token, and every saturated colour means something the
       player acts on.
-- [ ] At most one vermilion thing on screen in this state.
+- [ ] At most one gold button on screen in this state, and vermilion only
+      on what is about to be hit.
 - [ ] World art is on whole art pixels, snapped to its palette, and outlined
       if it stands.
 - [ ] Sprites follow the sheet table: frame size, row order, anchor.

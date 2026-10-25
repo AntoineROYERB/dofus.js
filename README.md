@@ -226,14 +226,15 @@ actually wants — gets its own layout instead, chosen by viewport height: the
 board fills the screen, the HUD floats over the diamond's empty corners, and
 every action sits under a thumb.
 
-**The screen has one rule.** Paper, ink, graphite and a single vermilion: three
-weights of rule and the size of the figures do the separating, and the only
-saturated colour marks *what the click is about to do* — the walk to the cell
-under the cursor, or the cells a spell would hit. Where you may act is a
-graphite wash with a drawn boundary, and that boundary is the information: it
-bends around cover, so its shape is the line of sight. Every colour comes from
-`frontend/tailwind.config.js` and `frontend/src/constants.ts`; changing the
-look is a change to those two files.
+**The screen has one rule.** A storybook night — "Heart grimoire": night
+blue, starlight, and gold for the one thing to press and everything that is
+yours. The only other strong colours mean something: vermilion for what the
+click is about to hit, the heart's pink for health and for a spell a dream has
+made stronger, blue and green for action and movement points. In a fight the
+spells are a command list down the left edge and your health curves round your
+portrait bottom right, on a phone and on a desk alike. Every colour comes from
+`frontend/src/index.css` (named in `frontend/tailwind.config.js`) and
+`frontend/src/constants.ts`; changing the look is a change to those files.
 
 ### Layout
 

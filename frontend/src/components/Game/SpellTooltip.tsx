@@ -134,7 +134,7 @@ export const SpellTooltip: React.FC<SpellTooltipProps> = ({
         </span>
         <span
           className="flex-none border px-1 font-mono text-[9px] uppercase tracking-label"
-          style={{ borderColor: spell.ultimate ? "#c99a1a" : spell.color, color: spell.ultimate ? "#8a6a10" : spell.color }}
+          style={{ borderColor: spell.ultimate ? "rgb(var(--gold))" : spell.color, color: spell.ultimate ? "rgb(var(--gold))" : spell.color }}
         >
           {spell.role}
         </span>

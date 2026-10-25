@@ -155,7 +155,7 @@ export const SetCarousel: React.FC<SetCarouselProps> = ({
         className="mt-1 flex items-center gap-2 font-mono text-[10px] uppercase tracking-label text-graphite"
       >
         <ElementGlyph element={kit?.element} size={12} />
-        <b className="font-semibold" style={{ color: elementLook(kit?.element)?.dark }}>
+        <b className="font-semibold" style={{ color: elementLook(kit?.element)?.text }}>
           {kit?.element}
         </b>
         <b className="font-semibold text-ink">{kit?.grimoire.name}</b>

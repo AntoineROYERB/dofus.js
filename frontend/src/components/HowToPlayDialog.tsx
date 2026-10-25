@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { CloseButton } from "./Overlay";
 import { useBackdropTap } from "../hooks/useDismiss";
+import { BOARD } from "../constants";
 
 interface HowToPlayDialogProps {
   open: boolean;
@@ -29,7 +30,7 @@ const Section: React.FC<{ label: string; children: React.ReactNode }> = ({
 /** A tiny 5×5 grid a diagram can draw a character, a path or a spell on. */
 const Grid: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <svg viewBox="0 0 250 250" className="mx-auto w-full max-w-[220px]">
-    <rect width="250" height="250" fill="#ffffff" stroke="#cfd0cd" />
+    <rect width="250" height="250" fill={BOARD.tile} stroke={BOARD.stroke} />
     {Array.from({ length: 4 }, (_, i) => (
       <React.Fragment key={i}>
         <line
@@ -37,14 +38,14 @@ const Grid: React.FC<{ children: React.ReactNode }> = ({ children }) => (
           y1={0}
           x2={(i + 1) * 50}
           y2={250}
-          stroke="#e2e3e0"
+          stroke={BOARD.tileAlt}
         />
         <line
           x1={0}
           y1={(i + 1) * 50}
           x2={250}
           y2={(i + 1) * 50}
-          stroke="#e2e3e0"
+          stroke={BOARD.tileAlt}
         />
       </React.Fragment>
     ))}
@@ -66,21 +67,21 @@ const MovementDiagram: React.FC = () => {
           y={p.y + 4}
           width={42}
           height={42}
-          fill="#8b8d8a"
+          fill={BOARD.socle.out}
           fillOpacity={0.18}
         />
       ))}
-      <circle cx={path[0].x + 25} cy={path[0].y + 25} r={16} fill="#17181a" />
+      <circle cx={path[0].x + 25} cy={path[0].y + 25} r={16} fill={BOARD.socle.mine} />
       <circle
         cx={path[path.length - 1].x + 25}
         cy={path[path.length - 1].y + 25}
         r={16}
         fill="none"
-        stroke="#d1462f"
+        stroke={BOARD.accent}
         strokeWidth={2.5}
         strokeDasharray="4 3"
       />
-      <text x="125" y="235" textAnchor="middle" fontSize="13" fill="#5f6260">
+      <text x="125" y="235" textAnchor="middle" fontSize="13" fill="#bec7ec">
         3 cells walked = 3 MP spent
       </text>
     </Grid>
@@ -101,7 +102,7 @@ const SpellRangeDiagram: React.FC = () => {
           y={p.y + 4}
           width={42}
           height={42}
-          fill="#d1462f"
+          fill={BOARD.accent}
           fillOpacity={0.08}
         />
       ))}
@@ -112,13 +113,13 @@ const SpellRangeDiagram: React.FC = () => {
           y={p.y + 4}
           width={42}
           height={42}
-          fill="#d1462f"
+          fill={BOARD.accent}
           fillOpacity={0.3}
         />
       ))}
-      <circle cx={caster.x + 25} cy={caster.y + 25} r={16} fill="#17181a" />
-      <circle cx={target.x + 25} cy={target.y + 25} r={6} fill="#d1462f" />
-      <text x="125" y="235" textAnchor="middle" fontSize="13" fill="#5f6260">
+      <circle cx={caster.x + 25} cy={caster.y + 25} r={16} fill={BOARD.socle.mine} />
+      <circle cx={target.x + 25} cy={target.y + 25} r={6} fill={BOARD.accent} />
+      <text x="125" y="235" textAnchor="middle" fontSize="13" fill="#bec7ec">
         Range, then the shape it hits
       </text>
     </Grid>
@@ -156,10 +157,10 @@ export const HowToPlayDialog: React.FC<HowToPlayDialogProps> = ({
       onClose={onClose}
       // A tap on the backdrop lands on the dialog itself, never on its panel.
       {...backdrop}
-      className="m-0 max-h-none h-full w-full max-w-none bg-paper p-0 text-ink backdrop:bg-ink/50 sm:mx-auto sm:my-[6vh] sm:h-auto sm:max-h-[88vh] sm:w-[min(560px,92vw)] sm:border-2 sm:border-ink short:my-0 short:h-full short:max-h-full short:w-[min(640px,100vw)] short:border-y-0"
+      className="m-0 max-h-none h-full w-full max-w-none bg-paper p-0 text-ink backdrop:bg-night/70 sm:mx-auto sm:my-[6vh] sm:h-auto sm:max-h-[88vh] sm:w-[min(560px,92vw)] sm:rounded-3xl sm:border-2 sm:border-gold/70 short:my-0 short:h-full short:max-h-full short:w-[min(640px,100vw)] short:border-y-0"
     >
       <div className="flex h-full max-h-full flex-col">
-        <div className="flex items-center justify-between gap-4 border-b-2 border-ink pl-5 pr-2 pt-[max(0.25rem,env(safe-area-inset-top))] sm:pl-7 sm:pr-3 sm:pt-1">
+        <div className="flex items-center justify-between gap-4 border-b border-gold/40 pl-5 pr-2 pt-[max(0.25rem,env(safe-area-inset-top))] sm:pl-7 sm:pr-3 sm:pt-1">
           <span className="font-mono text-[9.5px] uppercase tracking-label text-muted">
             How to play
           </span>
@@ -185,12 +186,12 @@ export const HowToPlayDialog: React.FC<HowToPlayDialogProps> = ({
                 <button
                   type="button"
                   onClick={onPlayTutorial}
-                  className="w-full bg-vermilion px-4 py-4 text-left text-white transition-colors hover:bg-[#b93a25] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                  className="w-full btn-gold rounded-2xl px-4 py-4 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
                 >
                   <span className="block font-display text-[17px] font-bold leading-none">
                     Play the tutorial
                   </span>
-                  <span className="mt-1.5 block text-[12.5px] leading-snug text-white/85">
+                  <span className="mt-1.5 block text-[12.5px] leading-snug text-[#2a1b00]/80">
                     A real match against the computer, with five things to try. You
                     learn by doing them.
                   </span>
@@ -260,7 +261,7 @@ export const HowToPlayDialog: React.FC<HowToPlayDialogProps> = ({
         )}
 
         {reading && (
-          <div className="flex flex-none items-center justify-between gap-4 border-t-2 border-ink px-5 py-3 sm:px-7">
+          <div className="flex flex-none items-center justify-between gap-4 border-t border-gold/40 px-5 py-3 sm:px-7">
             {onPlayTutorial ? (
               <button
                 type="button"
@@ -275,7 +276,7 @@ export const HowToPlayDialog: React.FC<HowToPlayDialogProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="border border-ink bg-ink px-5 py-2 font-mono text-[10px] uppercase tracking-label text-paper transition-colors hover:bg-vermilion hover:border-vermilion"
+              className="rounded-full border border-ink bg-ink px-5 py-2 font-mono text-[10px] uppercase tracking-label text-paper transition-colors hover:bg-vermilion hover:border-vermilion"
             >
               Got it
             </button>

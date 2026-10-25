@@ -80,7 +80,7 @@ const Door: React.FC<{ connected: boolean; send: Send; content: ContentResponse 
           type="button"
           disabled={!connected || !look}
           onClick={() => look && send(withId({ type: "dream_create" as const, character: look }))}
-          className="mt-4 w-full bg-vermilion px-4 py-3.5 font-display text-[16px] font-bold text-white transition-colors hover:bg-[#b93a25] disabled:cursor-not-allowed disabled:bg-hairline disabled:text-muted"
+          className="mt-4 w-full btn-gold px-4 py-3.5 font-display text-[16px] font-bold disabled:cursor-not-allowed disabled:bg-hairline disabled:text-muted"
         >
           Open a party
         </button>
@@ -100,12 +100,12 @@ const Door: React.FC<{ connected: boolean; send: Send; content: ContentResponse 
             placeholder="Party code"
             aria-label="Party code"
             maxLength={8}
-            className="h-12 min-w-0 flex-1 border border-rule bg-board px-3 font-mono text-[15px] uppercase tracking-label text-ink placeholder:normal-case placeholder:tracking-normal placeholder:text-muted focus:border-ink focus:outline-none"
+            className="rounded-full h-12 min-w-0 flex-1 border border-rule bg-board px-3 font-mono text-[15px] uppercase tracking-label text-ink placeholder:normal-case placeholder:tracking-normal placeholder:text-muted focus:border-ink focus:outline-none"
           />
           <button
             type="submit"
             disabled={!connected || code.trim().length < 4}
-            className="h-12 flex-none border border-ink px-5 font-mono text-[10px] uppercase tracking-label text-ink transition-colors hover:bg-ink hover:text-paper disabled:cursor-not-allowed disabled:border-hairline disabled:text-muted"
+            className="rounded-full h-12 flex-none border border-ink px-5 font-mono text-[10px] uppercase tracking-label text-ink transition-colors hover:bg-ink hover:text-paper disabled:cursor-not-allowed disabled:border-hairline disabled:text-muted"
           >
             Join
           </button>
@@ -167,7 +167,7 @@ const Gathering: React.FC<{ run: DreamView; send: Send; connected: boolean; cont
           type="button"
           disabled={!connected}
           onClick={() => send(withId({ type: "dream_start" as const }))}
-          className="mt-6 w-full bg-vermilion px-4 py-3.5 font-display text-[16px] font-bold text-white transition-colors hover:bg-[#b93a25] disabled:bg-hairline disabled:text-muted sm:w-auto sm:px-10"
+          className="mt-6 w-full btn-gold px-4 py-3.5 font-display text-[16px] font-bold disabled:bg-hairline disabled:text-muted sm:w-auto sm:px-10"
         >
           Start the climb
         </button>
@@ -298,7 +298,7 @@ const Floor: React.FC<{ run: DreamView; send: Send; connected: boolean; content:
             type="button"
             disabled={!connected || picked < 0}
             onClick={() => send(withId({ type: "dream_enter" as const, room: picked }))}
-            className="hidden flex-none bg-vermilion px-5 py-1.5 font-display text-[14px] font-bold text-white disabled:bg-hairline disabled:text-muted short:block"
+            className="hidden flex-none btn-gold px-5 py-1.5 font-display text-[14px] font-bold disabled:bg-hairline disabled:text-muted short:block"
           >
             {picked < 0 ? "Pick a room" : "Enter"}
           </button>
@@ -324,7 +324,7 @@ const Floor: React.FC<{ run: DreamView; send: Send; connected: boolean; content:
           type="button"
           disabled={!connected || picked < 0}
           onClick={() => send(withId({ type: "dream_enter" as const, room: picked }))}
-          className="mt-3 w-full bg-vermilion px-4 py-3 font-display text-[16px] font-bold text-white transition-colors hover:bg-[#b93a25] disabled:cursor-not-allowed disabled:bg-hairline disabled:text-muted sm:w-auto sm:px-10 short:hidden"
+          className="mt-3 w-full btn-gold px-4 py-3 font-display text-[16px] font-bold disabled:cursor-not-allowed disabled:bg-hairline disabled:text-muted sm:w-auto sm:px-10 short:hidden"
         >
           {picked < 0 ? "Pick a room" : "Enter"}
         </button>
@@ -445,7 +445,7 @@ const Over: React.FC<{ run: DreamView; send: Send }> = ({ run, send }) => {
         <button
           type="button"
           onClick={() => send(withId({ type: "dream_leave" as const }))}
-          className="bg-vermilion px-6 py-3 font-display text-[15px] font-bold text-white transition-colors hover:bg-[#b93a25]"
+          className="btn-gold px-6 py-3 font-display text-[15px] font-bold"
         >
           Dream again
         </button>

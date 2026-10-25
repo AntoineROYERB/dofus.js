@@ -165,7 +165,7 @@ export const Wardrobe: React.FC<WardrobeProps> = ({ content, failed, loadout, on
       onClose={onCancel}
       labelledBy="wardrobe-title"
       closeButton={false}
-      className="max-w-md border border-rule bg-paper p-5"
+      className="max-w-md rounded-3xl border-2 border-gold/70 bg-panel p-5"
     >
       <h2 id="wardrobe-title" className="font-display text-[20px] font-bold leading-none tracking-tight">
         The wardrobe
@@ -418,7 +418,7 @@ const WardrobeSheet: React.FC<Omit<WardrobeProps, "content" | "failed"> & { cont
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-stretch justify-center bg-ink/40 md:items-center md:px-6 md:py-6 short:items-stretch short:p-0"
+      className="fixed inset-0 z-50 flex items-stretch justify-center bg-night/60 md:items-center md:px-6 md:py-6 short:items-stretch short:p-0"
       onClick={onCancel}
     >
       <div
@@ -445,7 +445,7 @@ const WardrobeSheet: React.FC<Omit<WardrobeProps, "content" | "failed"> & { cont
           <span className={`${MONO} ml-auto flex min-w-0 items-center gap-1.5 text-muted`}>
             <ElementGlyph element={kit.element} size={12} />
             <span className="truncate">
-              <span style={{ color: elementLook(kit.element)?.dark }}>{kit.element}</span> ·{" "}
+              <span style={{ color: elementLook(kit.element)?.text }}>{kit.element}</span> ·{" "}
               {champion ? `${champion.name}'s set` : "your own set"}
             </span>
           </span>
@@ -491,7 +491,7 @@ const WardrobeSheet: React.FC<Omit<WardrobeProps, "content" | "failed"> & { cont
             </p>
             <p className={`${MONO} mt-0.5 flex items-center gap-1.5 text-graphite`}>
               <ElementGlyph element={kit.element} size={11} />
-              <span style={{ color: elementLook(kit.element)?.dark }}>{kit.element}</span> · {kit.grimoire.name} ·{" "}
+              <span style={{ color: elementLook(kit.element)?.text }}>{kit.element}</span> · {kit.grimoire.name} ·{" "}
               {kit.grimoire.health} hp · {kit.grimoire.actionPoints} ap ·{" "}
               {kit.grimoire.movementPoints} mp
             </p>
@@ -558,7 +558,7 @@ const WardrobeSheet: React.FC<Omit<WardrobeProps, "content" | "failed"> & { cont
           <button
             type="button"
             onClick={() => onSave(draft)}
-            className={`flex-none bg-vermilion px-8 py-2.5 font-display text-[16px] font-extrabold uppercase tracking-wide text-white hover:bg-[#b93a25] ${PRESS}`}
+            className={`flex-none btn-gold px-8 py-2.5 font-display text-[16px] font-extrabold uppercase tracking-wide ${PRESS}`}
           >
             Gear up
           </button>

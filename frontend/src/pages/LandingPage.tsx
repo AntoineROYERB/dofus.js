@@ -144,7 +144,7 @@ const LandingPage: React.FC = () => {
             type="button"
             onClick={handleJoinMatch}
             disabled={!isNameValid}
-            className="mt-5 w-full bg-vermilion px-2 py-4 short:mt-3 short:py-3 font-display text-[17px] font-bold text-white transition-colors hover:bg-[#b93a25] disabled:cursor-not-allowed disabled:bg-hairline disabled:text-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+            className="mt-5 w-full btn-gold px-2 py-4 short:mt-3 short:py-3 font-display text-[17px] font-bold disabled:cursor-not-allowed disabled:bg-hairline disabled:text-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
           >
             Find a game
           </button>

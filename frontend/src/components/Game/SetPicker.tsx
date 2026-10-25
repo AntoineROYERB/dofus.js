@@ -78,7 +78,7 @@ export const SetPicker: React.FC<SetPickerProps> = ({
               </span>
               <span
                 className="flex items-center gap-1 font-mono text-[8.5px] uppercase tracking-label"
-                style={{ color: elementLook(set.element)?.dark }}
+                style={{ color: elementLook(set.element)?.text }}
               >
                 <ElementGlyph element={set.element} size={10} />
                 {set.element}
@@ -92,7 +92,7 @@ export const SetPicker: React.FC<SetPickerProps> = ({
         <div className="mt-2.5 text-[12.5px] leading-snug text-graphite">
           <p className="flex flex-wrap items-center gap-x-1.5 font-mono text-[9.5px] uppercase tracking-label text-ink">
             <ElementGlyph element={kit.element} size={11} />
-            <span style={{ color: elementLook(kit.element)?.dark }}>{kit.element}</span> ·{" "}
+            <span style={{ color: elementLook(kit.element)?.text }}>{kit.element}</span> ·{" "}
             {kit.grimoire.name} · {kit.grimoire.health} hp · {kit.grimoire.actionPoints} ap ·{" "}
             {kit.grimoire.movementPoints} mp
             {worn ? "" : " · your own set"}

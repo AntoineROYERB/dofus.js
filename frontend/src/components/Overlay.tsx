@@ -73,7 +73,7 @@ export const Modal: React.FC<ModalProps> = ({
       aria-labelledby={labelledBy}
       {...backdrop}
       className={`fixed inset-0 z-50 flex items-center justify-center px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))] motion-safe:animate-fade-in ${
-        dim === "hard" ? "bg-ink/70" : "bg-ink/45"
+        dim === "hard" ? "bg-night/80" : "bg-night/65"
       }`}
     >
       <div
@@ -144,7 +144,7 @@ export const SideSheet: React.FC<SideSheetProps> = ({
       <div
         aria-hidden
         {...backdrop}
-        className="absolute inset-0 bg-ink/40 motion-safe:animate-fade-in"
+        className="absolute inset-0 bg-night/60 motion-safe:animate-fade-in"
       />
       <aside
         role="dialog"
@@ -158,9 +158,9 @@ export const SideSheet: React.FC<SideSheetProps> = ({
           transform: drag ? `translateX(${drag}px)` : undefined,
           transition: drag ? "none" : "transform 200ms cubic-bezier(.2,.8,.2,1)",
         }}
-        className={`absolute bottom-0 right-0 top-0 flex touch-pan-y flex-col border-l-2 border-ink bg-paper pb-[env(safe-area-inset-bottom)] pl-4 pr-[calc(0.5rem+env(safe-area-inset-right))] pt-[max(0.25rem,env(safe-area-inset-top))] shadow-md motion-safe:animate-slide-in ${width}`}
+        className={`absolute bottom-0 right-0 top-0 flex touch-pan-y flex-col rounded-l-3xl border-l-2 border-gold/60 bg-paper pb-[env(safe-area-inset-bottom)] pl-4 pr-[calc(0.5rem+env(safe-area-inset-right))] pt-[max(0.25rem,env(safe-area-inset-top))] shadow-md motion-safe:animate-slide-in ${width}`}
       >
-        <div className="flex flex-none items-center justify-between gap-3 border-b-2 border-ink">
+        <div className="flex flex-none items-center justify-between gap-3 border-b border-gold/40">
           <span className="min-w-0 truncate font-display text-[17px] font-bold">
             {title}
           </span>

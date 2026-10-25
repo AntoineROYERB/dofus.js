@@ -43,7 +43,7 @@ const MatchRow: React.FC<{ match: MatchSummary; onOpen: (id: string) => void }> 
       <button
         type="button"
         onClick={() => onOpen(match.id)}
-        className="border border-ink px-4 py-2 font-mono text-[10px] uppercase tracking-label text-ink transition-colors hover:bg-ink hover:text-paper"
+        className="rounded-full border border-ink px-4 py-2 font-mono text-[10px] uppercase tracking-label text-ink transition-colors hover:bg-ink hover:text-paper"
       >
         Replay
       </button>
@@ -126,7 +126,7 @@ const MatchHistoryPage: React.FC = () => {
             type="button"
             onClick={() => load(nextCursor)}
             disabled={loading}
-            className="my-4 self-start border border-ink px-4 py-2 font-mono text-[10px] uppercase tracking-label text-ink transition-colors hover:bg-ink hover:text-paper disabled:cursor-not-allowed disabled:border-hairline disabled:text-muted disabled:hover:bg-transparent disabled:hover:text-muted"
+            className="rounded-full my-4 self-start border border-ink px-4 py-2 font-mono text-[10px] uppercase tracking-label text-ink transition-colors hover:bg-ink hover:text-paper disabled:cursor-not-allowed disabled:border-hairline disabled:text-muted disabled:hover:bg-transparent disabled:hover:text-muted"
           >
             {loading ? "Loading…" : "Load more"}
           </button>

@@ -1,9 +1,11 @@
 /** @type {import('tailwindcss').Config} */
 
 /*
- * The "Composée" palette: paper, ink, graphite and a single vermilion. Every
- * colour in the combat screen comes from here, so changing the look later is a
- * change to this file rather than a hunt through the components.
+ * The "Heart grimoire" frame: a storybook night, gold for what is yours and
+ * for the one thing to press, a heart's pink for health. The colours
+ * themselves live in index.css, as variables; this file only names them, so
+ * changing the look is a change to one block rather than a hunt through the
+ * components.
  */
 export default {
   content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
@@ -29,28 +31,45 @@ export default {
          */
         touch: { raw: "(hover: none) and (pointer: coarse)" },
       },
+      /*
+       * Every frame colour is a CSS variable (index.css), so the whole frame
+       * changes palette from one place, and Tailwind's opacity modifiers
+       * (bg-ink/40) still work on it. The names are the charter's roles, not
+       * hues: `paper` is the page behind a screen, `ink` what is written on
+       * it, `vermilion` what your action is about to hit — whatever colour
+       * the current palette gives each of them.
+       */
       colors: {
-        paper: "#f2f2f0",
-        panel: "#fbfbfa",
-        board: "#ffffff",
-        "board-alt": "#f4f4f2",
-        ink: "#17181a",
-        graphite: "#5f6260",
-        muted: "#8b8d8a",
-        rule: "#cfd0cd",
-        hairline: "#e2e3e0",
-        vermilion: "#d1462f",
+        paper: "rgb(var(--paper) / <alpha-value>)",
+        panel: "rgb(var(--panel) / <alpha-value>)",
+        board: "rgb(var(--board) / <alpha-value>)",
+        "board-alt": "rgb(var(--board-alt) / <alpha-value>)",
+        ink: "rgb(var(--ink) / <alpha-value>)",
+        graphite: "rgb(var(--graphite) / <alpha-value>)",
+        muted: "rgb(var(--muted) / <alpha-value>)",
+        rule: "rgb(var(--rule) / <alpha-value>)",
+        hairline: "rgb(var(--hairline) / <alpha-value>)",
+        vermilion: "rgb(var(--vermilion) / <alpha-value>)",
         // Same hex as BOARD.pa/BOARD.pm in constants.ts, so a stat reads the
         // same colour in the combat log as it does in its floating number.
-        pa: "#2f6fd1",
-        pm: "#2f9e44",
-        amber: "#b5790a",
-        "amber-wash": "#f7ecd6",
+        pa: "rgb(var(--pa) / <alpha-value>)",
+        pm: "rgb(var(--pm) / <alpha-value>)",
+        amber: "rgb(var(--gold) / <alpha-value>)",
+        "amber-wash": "rgb(var(--gold-wash) / <alpha-value>)",
+        // The one call to action on a screen, and everything that is yours.
+        gold: "rgb(var(--gold) / <alpha-value>)",
+        "gold-deep": "rgb(var(--gold-deep) / <alpha-value>)",
+        // Health: your heart, wherever it is counted.
+        heart: "rgb(var(--heart) / <alpha-value>)",
+        // The darkest night, under the page: wells, gauges' empty tracks.
+        night: "rgb(var(--night) / <alpha-value>)",
       },
       fontFamily: {
-        display: ["Archivo", "system-ui", "sans-serif"],
-        sans: ['"Public Sans"', "system-ui", "sans-serif"],
-        mono: ['"Azeret Mono"', "ui-monospace", "monospace"],
+        display: ["Philosopher", "Georgia", "serif"],
+        sans: ["Nunito", "system-ui", "sans-serif"],
+        // The labels' face. It is no longer a monospace: the storybook frame
+        // writes its small capitals in the body face, heavier (index.css).
+        mono: ["Nunito", "system-ui", "sans-serif"],
       },
       letterSpacing: {
         label: "0.18em",
@@ -73,15 +92,15 @@ export default {
           "50%": { fillOpacity: "0.44" },
         },
         beckon: {
-          "0%": { boxShadow: "0 0 0 0 rgba(209, 70, 47, 0.5)" },
-          "70%": { boxShadow: "0 0 0 10px rgba(209, 70, 47, 0)" },
-          "100%": { boxShadow: "0 0 0 0 rgba(209, 70, 47, 0)" },
+          "0%": { boxShadow: "0 0 0 0 rgb(var(--gold) / 0.55)" },
+          "70%": { boxShadow: "0 0 0 12px rgb(var(--gold) / 0)" },
+          "100%": { boxShadow: "0 0 0 0 rgb(var(--gold) / 0)" },
         },
         // A border pulsing between the paper's own rule and the one accent
         // colour, for a field that is still waiting to be typed into.
         hint: {
-          "0%, 100%": { borderColor: "#cfd0cd" },
-          "50%": { borderColor: "#d1462f" },
+          "0%, 100%": { borderColor: "rgb(var(--rule))" },
+          "50%": { borderColor: "rgb(var(--gold))" },
         },
         // The tutorial's arrow, pointing at whatever the card is talking
         // about. It is the only thing moving on a screen the player is being
@@ -93,8 +112,8 @@ export default {
         // The combat log's newest line, so a player who glanced away for one
         // exchange still finds where the log picked back up.
         "log-settle": {
-          "0%": { backgroundColor: "rgba(209, 70, 47, 0.10)" },
-          "100%": { backgroundColor: "rgba(209, 70, 47, 0)" },
+          "0%": { backgroundColor: "rgb(var(--gold) / 0.14)" },
+          "100%": { backgroundColor: "rgb(var(--gold) / 0)" },
         },
         // The route an air spell takes through its relay, flowing forward.
         "wind-dash": {

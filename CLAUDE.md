@@ -74,7 +74,7 @@ docs/ART_DIRECTION.md   the visual charter
   `fix(explore): …`), with a body that explains the reasoning.
 - **Visual work** (anything drawn, styled or animated) follows
   [docs/ART_DIRECTION.md](docs/ART_DIRECTION.md). Use tokens rather than hex
-  values, and at most one vermilion element per screen state. If a rule has
+  values, and at most one gold button per screen state. If a rule has
   to change, edit the charter in the same pull request.
 
 ## Workflow

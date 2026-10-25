@@ -22,7 +22,7 @@ const config: CapacitorConfig = {
     // The page pads itself with the safe-area insets (viewport-fit=cover),
     // so the web view runs edge to edge rather than being inset twice.
     contentInset: "never",
-    backgroundColor: "#f2f2f0",
+    backgroundColor: "#0d1234",
   },
   server: devServer ? { url: devServer, cleartext: true } : undefined,
 };

@@ -15,20 +15,22 @@ export const PLAYER_COLORS = [
 ];
 
 /**
- * The board palette. It is deliberately almost colourless: the only saturated
- * colour on the board during play is the vermilion that marks what a spell
- * would hit, so that mark can never be confused with decoration. Choosing a
+ * The board palette: the frame's night, a step lighter, so the board reads as
+ * ground under the sky rather than as more sky. It is deliberately muted: the
+ * only saturated colours on it during play are the green of where you can walk
+ * and the red that marks what a spell would hit, so neither can ever be
+ * confused with decoration. Choosing a
  * starting cell is a different question from targeting one, and gets its own
  * colour for the same reason paper maps use green for "go" and red for "no":
  * a cell you may not start on should never share a colour with a cell you may.
  */
 export const BOARD = {
   /** Text and frames, and anything drawn in ink on the board: the `ink` token. */
-  ink: "#17181a",
-  tile: "#ffffff",
-  tileAlt: "#f4f4f2",
-  stroke: "#cfd0cd",
-  accent: "#d1462f",
+  ink: "#eef1ff",
+  tile: "#2a3576",
+  tileAlt: "#25306c",
+  stroke: "#4a58a6",
+  accent: "#ff5a6e",
   /**
    * Two inks, and only two, while a turn is being played: where your legs can
    * take you, and what your click is about to hit. They used to be the same
@@ -37,7 +39,7 @@ export const BOARD = {
    * already spoken for, since it is what says how far a cell is. The green is
    * the same one movement points are written in, below and in the combat log.
    */
-  move: "#2f9e44",
+  move: "#46e06a",
   /**
    * In range, but not seen: a cell the spell is close enough to reach and the
    * line of sight refuses. It is drawn, because "too far" and "I cannot see
@@ -46,13 +48,13 @@ export const BOARD = {
    * compete with the cells you can actually act on. A mark that shouts an
    * impossibility is worse than no mark at all.
    */
-  blind: "#d1462f",
+  blind: "#ff5a6e",
   /** Where you are allowed to start, during positioning only. */
-  place: "#1a7f37",
+  place: "#46e06a",
   /** Action points, wherever a spell's cost or a debuff changes them. */
-  pa: "#2f6fd1",
+  pa: "#4fa3ff",
   /** Movement points, same occasions. */
-  pm: "#2f9e44",
+  pm: "#46e06a",
   /** Cells an air spell reaches through its caster's relay. */
   relay: "#2e9e6a",
   /**
@@ -60,12 +62,12 @@ export const BOARD = {
    * — a health bar over a fighter's head. The area you may act in used to be
    * outlined in this too; it now borrows the colour of whatever it encloses.
    */
-  edge: "#3d3f3d",
+  edge: "#0d1234",
   /**
    * Where the opponent may start. Deliberately not the vermilion accent: this
    * marks a cell you must keep off, never one your click is about to act on.
    */
-  foe: "#a3231b",
+  foe: "#ff5a6e",
   /*
    * Cells are clipped to their diamond, so a stroke laid on the edge only
    * shows its inner half. Widths here are doubled on purpose: what you read
@@ -90,10 +92,10 @@ export const BOARD = {
     sweep: 170,
   },
   block: {
-    top: "#e4e5e2",
-    left: "#cdcecb",
-    right: "#bebfbb",
-    stroke: "#a9aaa6",
+    top: "#6d7fd6",
+    left: "#4b5cb4",
+    right: "#38479a",
+    stroke: "#1d2766",
     /** Share of a tile's height the cover stands above the ground. */
     rise: 0.38,
   },
@@ -117,20 +119,20 @@ export const BOARD = {
    * you are about to click.
    */
   socle: {
-    /** Under your own fighter: the `amber` token. */
-    mine: "#b5790a",
+    /** Under your own fighter: the `gold` token. */
+    mine: "#ffd76a",
     /** Under everyone else's. */
-    theirs: "#a3231b",
+    theirs: "#ff5a6e",
     /** Share of a tile the ring is pulled in by, so it reads inside the cell. */
     inset: 0.16,
     fill: 0.2,
     fillPlaying: 0.28,
     stroke: 1.8,
     /** The ink ring the fighter whose turn it is wears, just outside its own. */
-    turn: "#17181a",
+    turn: "#eef1ff",
     turnStroke: 2,
     /** Knocked out: no colour left, and the ring is drawn as a broken line. */
-    out: "#8b8d8a",
+    out: "#6b77a8",
   },
 } as const;
 

@@ -330,7 +330,7 @@ export const GameTutorial: React.FC<GameTutorialProps> = ({
           height="100%"
           // Light enough that the fight stays readable through it: the player
           // is meant to be watching the board, not the card.
-          fill={lit.length > 0 ? "rgba(20, 16, 12, 0.45)" : "rgba(20, 16, 12, 0.6)"}
+          fill={lit.length > 0 ? "rgba(4, 6, 20, 0.5)" : "rgba(4, 6, 20, 0.65)"}
           mask={lit.length > 0 ? "url(#tutorial-spotlight)" : undefined}
         />
       </svg>
@@ -461,7 +461,7 @@ export const GameTutorial: React.FC<GameTutorialProps> = ({
             <button
               type="button"
               onClick={advance}
-              className="pointer-events-auto border border-ink bg-ink px-4 py-2 font-mono text-[10px] uppercase tracking-label text-paper transition-colors hover:bg-vermilion hover:border-vermilion"
+              className="rounded-full pointer-events-auto border border-ink bg-ink px-4 py-2 font-mono text-[10px] uppercase tracking-label text-paper transition-colors hover:bg-vermilion hover:border-vermilion"
             >
               {dummy?.cta ?? (isLast ? "Back to the fight" : "Show me")}
             </button>

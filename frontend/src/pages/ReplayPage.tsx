@@ -91,7 +91,7 @@ const ReplayPage: React.FC = () => {
         <button
           type="button"
           onClick={() => navigate("/matches")}
-          className="border border-ink px-4 py-2 font-mono text-[10px] uppercase tracking-label text-ink transition-colors hover:bg-ink hover:text-paper"
+          className="rounded-full border border-ink px-4 py-2 font-mono text-[10px] uppercase tracking-label text-ink transition-colors hover:bg-ink hover:text-paper"
         >
           Back to match history
         </button>
@@ -166,14 +166,14 @@ const ReplayPage: React.FC = () => {
           <button
             type="button"
             onClick={() => setIndex(0)}
-            className="border border-ink px-3 py-1.5 font-mono text-[10px] uppercase tracking-label text-ink transition-colors hover:bg-ink hover:text-paper"
+            className="rounded-full border border-ink px-3 py-1.5 font-mono text-[10px] uppercase tracking-label text-ink transition-colors hover:bg-ink hover:text-paper"
           >
             ⏮
           </button>
           <button
             type="button"
             onClick={() => setIndex((i) => Math.max(0, i - 1))}
-            className="border border-ink px-3 py-1.5 font-mono text-[10px] uppercase tracking-label text-ink transition-colors hover:bg-ink hover:text-paper"
+            className="rounded-full border border-ink px-3 py-1.5 font-mono text-[10px] uppercase tracking-label text-ink transition-colors hover:bg-ink hover:text-paper"
           >
             ◀
           </button>
@@ -183,7 +183,7 @@ const ReplayPage: React.FC = () => {
               if (index >= snapshots.length - 1) setIndex(0);
               setPlaying((p) => !p);
             }}
-            className="w-20 flex-none border border-ink bg-ink px-3 py-1.5 font-mono text-[10px] uppercase tracking-label text-paper transition-colors hover:bg-vermilion"
+            className="rounded-full w-20 flex-none border border-ink bg-ink px-3 py-1.5 font-mono text-[10px] uppercase tracking-label text-paper transition-colors hover:bg-vermilion"
           >
             {playing ? "Pause" : "Play"}
           </button>
@@ -192,7 +192,7 @@ const ReplayPage: React.FC = () => {
             onClick={() =>
               setIndex((i) => Math.min(snapshots.length - 1, i + 1))
             }
-            className="border border-ink px-3 py-1.5 font-mono text-[10px] uppercase tracking-label text-ink transition-colors hover:bg-ink hover:text-paper"
+            className="rounded-full border border-ink px-3 py-1.5 font-mono text-[10px] uppercase tracking-label text-ink transition-colors hover:bg-ink hover:text-paper"
           >
             ▶
           </button>

@@ -94,7 +94,7 @@ const DreamLeaderboardPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => navigate(`/matches/${e.matchIds[e.matchIds.length - 1]}`)}
-                    className="border border-ink px-3 py-1.5 font-mono text-[10px] uppercase tracking-label text-ink transition-colors hover:bg-ink hover:text-paper"
+                    className="rounded-full border border-ink px-3 py-1.5 font-mono text-[10px] uppercase tracking-label text-ink transition-colors hover:bg-ink hover:text-paper"
                   >
                     Replay
                   </button>

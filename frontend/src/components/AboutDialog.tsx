@@ -51,10 +51,10 @@ export const AboutDialog: React.FC<AboutDialogProps> = ({ open, onClose }) => {
       onClose={onClose}
       // A tap on the backdrop lands on the dialog itself, never on its panel.
       {...backdrop}
-      className="m-0 max-h-none h-full w-full max-w-none bg-paper p-0 text-ink backdrop:bg-ink/50 sm:mx-auto sm:my-[6vh] sm:h-auto sm:max-h-[88vh] sm:w-[min(560px,92vw)] sm:border-2 sm:border-ink short:my-0 short:h-full short:max-h-full short:w-[min(640px,100vw)] short:border-y-0"
+      className="m-0 max-h-none h-full w-full max-w-none bg-paper p-0 text-ink backdrop:bg-night/70 sm:mx-auto sm:my-[6vh] sm:h-auto sm:max-h-[88vh] sm:w-[min(560px,92vw)] sm:rounded-3xl sm:border-2 sm:border-gold/70 short:my-0 short:h-full short:max-h-full short:w-[min(640px,100vw)] short:border-y-0"
     >
       <div className="flex h-full max-h-full flex-col">
-        <div className="flex items-center justify-between gap-4 border-b-2 border-ink pl-5 pr-2 pt-[max(0.25rem,env(safe-area-inset-top))] sm:pl-7 sm:pr-3 sm:pt-1">
+        <div className="flex items-center justify-between gap-4 border-b border-gold/40 pl-5 pr-2 pt-[max(0.25rem,env(safe-area-inset-top))] sm:pl-7 sm:pr-3 sm:pt-1">
           <span className="font-mono text-[9.5px] uppercase tracking-label text-muted">
             About the project
           </span>
@@ -131,7 +131,7 @@ export const AboutDialog: React.FC<AboutDialogProps> = ({ open, onClose }) => {
           </div>
         </div>
 
-        <div className="flex flex-none items-center gap-4 border-t-2 border-ink px-5 py-3 sm:px-7">
+        <div className="flex flex-none items-center gap-4 border-t border-gold/40 px-5 py-3 sm:px-7">
           <a
             href="https://github.com/AntoineROYERB/dofus.js"
             target="_blank"
