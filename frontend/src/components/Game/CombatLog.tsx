@@ -1,5 +1,7 @@
 import React, { useEffect, useRef } from "react";
 import { GameState, LogEntry } from "../../types/message";
+import { useT } from "../../i18n/LanguageProvider";
+import { localizeLogText } from "../../i18n/server";
 
 interface CombatLogProps {
   entries: LogEntry[];
@@ -21,6 +23,7 @@ const tone: Record<LogEntry["kind"], string> = {
  */
 export const CombatLog: React.FC<CombatLogProps> = ({ entries, spellBook }) => {
   const endRef = useRef<HTMLDivElement>(null);
+  const { t } = useT();
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: "nearest" });
@@ -29,7 +32,7 @@ export const CombatLog: React.FC<CombatLogProps> = ({ entries, spellBook }) => {
   if (entries.length === 0) {
     return (
       <p className="border-t border-hairline py-2 text-[12.5px] text-muted">
-        Nothing has happened yet.
+        {t("Nothing has happened yet.")}
       </p>
     );
   }
@@ -58,7 +61,7 @@ export const CombatLog: React.FC<CombatLogProps> = ({ entries, spellBook }) => {
               ) : (
                 entry.actor
               )}{" "}
-              {entry.text}
+              {localizeLogText(entry.text)}
             </p>
             <span className="flex flex-none items-baseline gap-1.5">
               {entry.damage ? (
@@ -73,29 +76,29 @@ export const CombatLog: React.FC<CombatLogProps> = ({ entries, spellBook }) => {
               {entry.apChange ? (
                 <i className="font-mono text-[11.5px] font-semibold not-italic text-pa">
                   {entry.apChange > 0 ? "+" : "−"}
-                  {Math.abs(entry.apChange)} PA
+                  {t("{n} AP", { n: Math.abs(entry.apChange) })}
                 </i>
               ) : null}
               {entry.mpChange ? (
                 <i className="font-mono text-[11.5px] font-semibold not-italic text-pm">
                   {entry.mpChange > 0 ? "+" : "−"}
-                  {Math.abs(entry.mpChange)} PM
+                  {t("{n} MP", { n: Math.abs(entry.mpChange) })}
                 </i>
               ) : null}
               {entry.shieldChange ? (
                 <i className="font-mono text-[11.5px] font-semibold not-italic text-graphite">
                   {entry.shieldChange > 0 ? "+" : "−"}
-                  {Math.abs(entry.shieldChange)} shield
+                  {t("{n} shield", { n: Math.abs(entry.shieldChange) })}
                 </i>
               ) : null}
               {noTarget ? (
                 <span className="rounded-sm bg-hairline px-1.5 py-0.5 font-sans text-[10px] font-semibold text-muted">
-                  no target
+                  {t("no target")}
                 </span>
               ) : null}
               {absorbed ? (
                 <span className="rounded-sm bg-amber-wash px-1.5 py-0.5 font-sans text-[10px] font-semibold text-amber">
-                  absorbed
+                  {t("absorbed")}
                 </span>
               ) : null}
             </span>

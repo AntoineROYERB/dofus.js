@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { NAME_RULE } from "../../utils/characterStorage";
 import { Modal } from "../Overlay";
+import { useT } from "../../i18n/LanguageProvider";
 
 interface RenameDialogProps {
   name: string;
@@ -17,6 +18,7 @@ export const RenameDialog: React.FC<RenameDialogProps> = ({
   onSave,
   onCancel,
 }) => {
+  const { t } = useT();
   const [value, setValue] = useState(name);
   const trimmed = value.trim();
   const valid = NAME_RULE.test(trimmed);
@@ -40,7 +42,7 @@ export const RenameDialog: React.FC<RenameDialogProps> = ({
           htmlFor="rename-input"
           className="font-mono text-[9.5px] uppercase tracking-label text-muted"
         >
-          Your name
+          {t("Your name")}
         </label>
         <input
           id="rename-input"
@@ -62,7 +64,7 @@ export const RenameDialog: React.FC<RenameDialogProps> = ({
             showError ? "text-vermilion" : "text-transparent"
           }`}
         >
-          3 to 20 letters, digits or spaces
+          {t("3 to 20 letters, digits or spaces")}
         </p>
         <div className="mt-3 flex gap-2">
           <button
@@ -70,14 +72,14 @@ export const RenameDialog: React.FC<RenameDialogProps> = ({
             disabled={!valid}
             className="flex-1 btn-gold py-2.5 font-display text-[14px] font-bold disabled:bg-hairline disabled:text-muted"
           >
-            Save
+            {t("Save")}
           </button>
           <button
             type="button"
             onClick={onCancel}
             className="flex-1 border border-rule py-2.5 font-display text-[14px] font-bold text-ink transition-colors hover:border-ink"
           >
-            Cancel
+            {t("Cancel")}
           </button>
         </div>
       </form>

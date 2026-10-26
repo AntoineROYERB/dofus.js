@@ -1,4 +1,15 @@
 import { Spell, SpellBook } from "../types/message";
+import { Key, t } from "../i18n/lang";
+
+const EFFECT_NAMES: Record<string, Key> = {
+  poison: "poison",
+  regen: "regen",
+  shield: "shield",
+  ap: "AP",
+  mp: "MP",
+  burn: "burn",
+  root: "rooted",
+};
 
 /**
  * What a dream's boons did to one of a fighter's spells, read off the spell
@@ -27,22 +38,24 @@ export const upgradesOf = (
   if (before > 0 && after > before) {
     out.push({
       kind: "damage",
-      label: `+${Math.round(((after - before) / before) * 100)}% damage`,
+      label: t("+{n}% damage", { n: Math.round(((after - before) / before) * 100) }),
     });
   }
   if (spell.range > base.range) {
-    out.push({ kind: "range", label: `+${spell.range - base.range} range` });
+    out.push({ kind: "range", label: t("+{n} range", { n: spell.range - base.range }) });
   }
   if (spell.APCost < base.APCost) {
-    out.push({ kind: "cost", label: `−${base.APCost - spell.APCost} AP` });
+    out.push({ kind: "cost", label: `−${t("{n} AP", { n: base.APCost - spell.APCost })}` });
   }
   if (spell.maxCastsPerTurn > base.maxCastsPerTurn && base.maxCastsPerTurn > 0) {
-    out.push({ kind: "casts", label: `${spell.maxCastsPerTurn}× a turn` });
+    out.push({ kind: "casts", label: t("{n}× a turn", { n: spell.maxCastsPerTurn }) });
   }
   if (spell.effect && base.effect && spell.effect.value > base.effect.value) {
     out.push({
       kind: "effect",
-      label: `+${spell.effect.value - base.effect.value} ${spell.effect.kind}`,
+      label: `+${spell.effect.value - base.effect.value} ${
+        spell.effect.kind in EFFECT_NAMES ? t(EFFECT_NAMES[spell.effect.kind]) : spell.effect.kind
+      }`,
     });
   }
   return out;

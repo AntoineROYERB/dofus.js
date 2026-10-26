@@ -8,6 +8,7 @@ import { RULES } from "../../utils/terrain";
 import { BOARD } from "../../constants";
 import { spec, spellSummary, unavailableReason } from "../../utils/spellUtils";
 import { SpellUpgrade, upgradesOf } from "../../utils/spellUpgrades";
+import { t } from "../../i18n/lang";
 
 /** The ultimate's own colour: gold, the one thing on the bar that is rare. */
 const ULTIMATE = "rgb(var(--gold))";
@@ -75,8 +76,8 @@ const SpellSlot: React.FC<{
             : undefined
       }
       aria-label={`${spell.name} — ${spec(spell)}${
-        upgrades.length > 0 ? ` — upgraded: ${upgrades.map((u) => u.label).join(", ")}` : ""
-      } — press ${shortcut}${
+        upgrades.length > 0 ? ` — ${t("upgraded: {list}", { list: upgrades.map((u) => u.label).join(", ") })}` : ""
+      } — ${t("press {key}", { key: shortcut })}${
         blocked ? ` (${blocked})` : ""
       }`}
       aria-pressed={isSelected}
@@ -140,7 +141,7 @@ const SpellSlot: React.FC<{
         <span
           className="absolute inset-x-1 top-0.5 text-right font-mono text-[9px] font-semibold leading-none"
           style={{ color: BOARD.relay }}
-          title={`Goes through your relay: +${RULES.relayBonus}% damage`}
+          title={t("Goes through your relay: +{n}% damage", { n: RULES.relayBonus })}
         >
           ↺+{RULES.relayBonus}%
         </span>
@@ -231,10 +232,10 @@ const SpellBar: React.FC<SpellBarProps> = ({
         ) : (
           <span className="font-sans text-[11.5px] font-normal text-muted sm:text-xs short:text-[11px]">
             <span className="hidden touch:inline">
-              Tap a cell to preview, again to go.
+              {t("Tap a cell to preview, again to go.")}
             </span>
             <span className="touch:hidden">
-              Pick a spell with a number key, or click a cell to walk there.
+              {t("Pick a spell with a number key, or click a cell to walk there.")}
             </span>
           </span>
         )}

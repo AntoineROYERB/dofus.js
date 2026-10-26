@@ -13,6 +13,9 @@ import { Loadout } from "../types/message";
 import { useContent } from "../hooks/useContent";
 import { PLAYER_COLORS } from "../constants";
 import { isNativeApp } from "../lib/native";
+import { useT } from "../i18n/LanguageProvider";
+import { Modal } from "../components/Overlay";
+import { OptionsPanel } from "../components/OptionsPanel";
 
 /**
  * One column, in the same order at every size: what the game is called, the
@@ -29,7 +32,9 @@ const LandingPage: React.FC = () => {
   const [isNameValid, setIsNameValid] = useState(!!saved);
   const [aboutOpen, setAboutOpen] = useState(false);
   const [howToPlayOpen, setHowToPlayOpen] = useState(false);
+  const [optionsOpen, setOptionsOpen] = useState(false);
   const navigate = useNavigate();
+  const { t } = useT();
 
   // What a character can wear and carry comes from the server. Until it
   // arrives — or if it never does — the way in stays open, and the server
@@ -51,7 +56,7 @@ const LandingPage: React.FC = () => {
   const handlePlayTutorial = () => {
     const typed = characterName.trim();
     saveCharacter(
-      NAME_RULE.test(typed) ? typed : "Rookie",
+      NAME_RULE.test(typed) ? typed : t("Rookie"),
       selectedColor,
       chosenLoadout
     );
@@ -67,14 +72,21 @@ const LandingPage: React.FC = () => {
         onClick={() => setHowToPlayOpen(true)}
         className="-my-2 py-2 font-mono text-[9.5px] uppercase tracking-label text-ink underline decoration-rule underline-offset-4 transition-colors hover:text-vermilion"
       >
-        How to play
+        {t("How to play")}
       </button>
       <button
         type="button"
         onClick={() => setAboutOpen(true)}
         className="-my-2 py-2 font-mono text-[9.5px] uppercase tracking-label text-ink underline decoration-rule underline-offset-4 transition-colors hover:text-vermilion"
       >
-        What is this?
+        {t("What is this?")}
+      </button>
+      <button
+        type="button"
+        onClick={() => setOptionsOpen(true)}
+        className="-my-2 py-2 font-mono text-[9.5px] uppercase tracking-label text-ink underline decoration-rule underline-offset-4 transition-colors hover:text-vermilion"
+      >
+        {t("Options")}
       </button>
     </>
   );
@@ -97,7 +109,7 @@ const LandingPage: React.FC = () => {
       {!isNativeApp && (
         <header className="flex flex-none items-baseline justify-between gap-4 border-b-2 border-ink px-5 pb-1.5 pt-4 sm:px-6 sm:pt-5">
           <span className="truncate font-mono text-[9.5px] uppercase tracking-label text-muted">
-            Turn-based arena<span className="hidden sm:inline"> · in the browser</span>
+            {t("Turn-based arena")}<span className="hidden sm:inline"> · {t("in the browser")}</span>
           </span>
           <div className="flex flex-none items-baseline gap-4">{infoLinks}</div>
         </header>
@@ -146,7 +158,7 @@ const LandingPage: React.FC = () => {
             disabled={!isNameValid}
             className="mt-5 w-full btn-gold px-2 py-4 short:mt-3 short:py-3 font-display text-[17px] font-bold disabled:cursor-not-allowed disabled:bg-hairline disabled:text-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
           >
-            Find a game
+            {t("Find a game")}
           </button>
         </div>
       </main>
@@ -157,13 +169,25 @@ const LandingPage: React.FC = () => {
           failed={contentFailed}
           loadout={chosenLoadout}
           color={selectedColor}
-          name={characterName.trim() || "Your fighter"}
+          name={characterName.trim() || t("Your fighter")}
           onSave={(loadout) => {
             setPicked(loadout);
             setWardrobeOpen(false);
           }}
           onCancel={() => setWardrobeOpen(false)}
         />
+      )}
+      {optionsOpen && (
+        <Modal
+          onClose={() => setOptionsOpen(false)}
+          labelledBy="options-title"
+          className="max-w-xs rounded-3xl border-2 border-gold/70 bg-paper p-5"
+        >
+          <h2 id="options-title" className="pr-10 font-display text-[22px] leading-none">
+            {t("Options")}
+          </h2>
+          <OptionsPanel />
+        </Modal>
       )}
       <AboutDialog open={aboutOpen} onClose={() => setAboutOpen(false)} />
       <HowToPlayDialog

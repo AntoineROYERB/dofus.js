@@ -1,5 +1,6 @@
 import React from "react";
 import { Modal } from "../Overlay";
+import { t } from "../../i18n/lang";
 
 interface GameOverModalProps {
   winner: string;
@@ -31,16 +32,16 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
       className="max-w-sm rounded-3xl border-2 border-gold/70 bg-panel p-8 shadow-[0_0_40px_rgb(var(--night)/0.8)] short:p-5"
     >
       <div className="font-mono text-[9.5px] uppercase tracking-label text-muted">
-        {dream ? `Floor ${dream.floor}` : "Game over"}
+        {dream ? t("Floor {n}", { n: dream.floor }) : t("Game over")}
       </div>
       <h2 id="game-over-title" className="mt-2 font-display text-[29px] font-bold leading-none tracking-tight">
-        {dream ? (dream.won ? "Floor cleared" : "The dream ends") : `${winner} wins`}
+        {dream ? (dream.won ? t("Floor cleared") : t("The dream ends")) : t("{name} wins", { name: winner })}
       </h2>
       {dream && (
         <p className="mt-3 text-[13.5px] text-graphite">
           {dream.won
-            ? "Every fallen ally stands again, at full health. Boons are waiting."
-            : "The party has fallen. Its climb goes on the leaderboard."}
+            ? t("Every fallen ally stands again, at full health. Boons are waiting.")
+            : t("The party has fallen. Its climb goes on the leaderboard.")}
         </p>
       )}
       {farewell && (
@@ -53,7 +54,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
       )}
       {unlocked.length > 0 && (
         <p className="mt-4 font-mono text-[9.5px] uppercase tracking-label text-ink">
-          Unlocked · {unlocked.join(", ")}
+          {t("Unlocked")} · {unlocked.join(", ")}
         </p>
       )}
       <div className="mt-7 flex gap-3 short:mt-4">
@@ -62,7 +63,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
             onClick={onPlayAgain}
             className="flex-1 btn-gold px-3 py-3 font-display text-[15px] font-bold"
           >
-            Play again
+            {t("Play again")}
           </button>
         )}
         <button
@@ -73,7 +74,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
               : "flex-1 btn-gold px-3 py-3 font-display text-[15px] font-bold"
           }
         >
-          {dream ? "Continue" : "Leave"}
+          {dream ? t("Continue") : t("Leave")}
         </button>
       </div>
     </Modal>

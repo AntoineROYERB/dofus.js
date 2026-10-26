@@ -4,6 +4,7 @@ import { EffectBadges } from "../EffectBadges";
 import { effectTotal } from "../../../utils/effectUtils";
 import { KitTag } from "../KitTag";
 import { useContent } from "../../../hooks/useContent";
+import { t } from "../../../i18n/lang";
 
 interface CharacterTooltipProps {
   /** The animated position, so the card follows a moving fighter. */
@@ -94,26 +95,26 @@ export const CharacterTooltip: React.FC<CharacterTooltipProps> = ({
         <span className="font-mono text-[11px] font-bold tabular-nums text-vermilion">
           {character.health}
           <span className="ml-0.5 text-[8.5px] font-normal uppercase text-muted">
-            hp
+            {t("hp")}
           </span>
         </span>
         <span className="font-mono text-[11px] font-bold tabular-nums text-pa">
           {actionPoints}
           <span className="ml-0.5 text-[8.5px] font-normal uppercase text-muted">
-            ap
+            {t("ap")}
           </span>
         </span>
         <span className="font-mono text-[11px] font-bold tabular-nums text-pm">
           {movementPoints}
           <span className="ml-0.5 text-[8.5px] font-normal uppercase text-muted">
-            mp
+            {t("mp")}
           </span>
         </span>
         {shield > 0 && (
           <span className="font-mono text-[11px] font-bold tabular-nums text-graphite">
             {shield}
             <span className="ml-0.5 text-[8.5px] font-normal uppercase text-muted">
-              shield
+              {t("shield")}
             </span>
           </span>
         )}

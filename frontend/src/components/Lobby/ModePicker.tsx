@@ -2,6 +2,7 @@ import React from "react";
 import { Modal } from "../Overlay";
 import { ElementGlyph } from "../Game/ElementGlyph";
 import { HomeIcon, ICONS } from "./homeIcons";
+import { t } from "../../i18n/lang";
 
 export type ModeId = "duel" | "dreams" | "rooms";
 
@@ -39,7 +40,7 @@ export const ModePicker: React.FC<{
     className="max-w-3xl rounded-3xl border-2 border-gold/70 bg-paper p-5 shadow-[0_0_40px_rgb(var(--night)/0.8)] short:p-4"
   >
     <h2 id="modes-title" className="pr-10 font-display text-[24px] leading-none">
-      Pick a mode
+      {t("Pick a mode")}
     </h2>
     <div className="mt-4 grid grid-cols-3 gap-3 narrow:grid-cols-1">
       {modes.map((mode) => {
@@ -85,7 +86,7 @@ export const ModePicker: React.FC<{
                   <span className="truncate font-display text-[14px]">{rival.name}</span>
                 </span>
                 <span className="font-mono text-[9.5px] uppercase tracking-label text-gold">
-                  Change
+                  {t("Change")}
                 </span>
               </button>
             )}

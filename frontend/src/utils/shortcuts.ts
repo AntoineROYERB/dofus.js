@@ -1,3 +1,5 @@
+import { Key } from "../i18n/lang";
+
 /**
  * The fight's keyboard, in one place: what each key does, read off the key's
  * position rather than its character. `event.key` for the top-row 1 is "&" on
@@ -26,7 +28,7 @@ export const shortcutFor = ({ code, key }: KeyLike): Shortcut | null => {
 };
 
 /** The keys, as the help sheet lists them. */
-export const SHORTCUT_SHEET: { keys: string[]; does: string }[] = [
+export const SHORTCUT_SHEET: { keys: string[]; does: Key }[] = [
   { keys: ["1", "–", "9"], does: "Pick a spell. The same key again puts it down." },
   { keys: ["Space"], does: "End your turn, or start the fight once you have picked a cell." },
   { keys: ["Esc"], does: "Put the picked spell down. With none picked, open the menu." },

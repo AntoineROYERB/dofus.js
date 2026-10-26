@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { isNativeApp } from "../../lib/native";
+import { t } from "../../i18n/lang";
 
 const KEY = "dofusjs.rotateHintSeen";
 
@@ -43,14 +44,14 @@ export const RotateHint: React.FC = () => {
   return (
     <div className="flex flex-none items-center gap-3 border-b border-hairline bg-panel px-3 py-2">
       <span className="flex-1 text-[12px] leading-snug text-graphite">
-        Turn your phone sideways — the board is twice as wide as it is tall.
+        {t("Turn your phone sideways — the board is twice as wide as it is tall.")}
       </span>
       <button
         type="button"
         onClick={dismiss}
         className="-my-2 flex-none px-2 py-3 font-mono text-[9.5px] uppercase tracking-label text-ink"
       >
-        Got it
+        {t("Got it")}
       </button>
     </div>
   );

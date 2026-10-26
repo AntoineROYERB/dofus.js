@@ -1,4 +1,5 @@
 import { GAME_STATUS, GameStatus } from "../types/game";
+import { Key, t } from "../i18n/lang";
 
 /**
  * Everything the tour needs to know about a match, pulled out of the game
@@ -99,9 +100,12 @@ export interface TutorialStep {
 const myTurn = (now: TutorialFacts) =>
   now.status === GAME_STATUS.PLAYING && now.isMyTurn;
 
-const WAIT_FOR_TURN = "Your opponent is taking its turn. Yours is next.";
+const WAIT_FOR_TURN: Key = "Your opponent is taking its turn. Yours is next.";
 
 /**
+ * The words are getters, read in the language in force when the card is
+ * drawn rather than the one the module was loaded in.
+ *
  * Five things to do, in the order a fight asks for them. Every one of them is
  * an action in the real game: the tour only ever gets out of the way and says
  * what to try next, which is why none of these steps has a "Next" button.
@@ -110,102 +114,132 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: "welcome",
     targetId: null,
-    title: "Learn it by fighting",
+    get title() {
+      return t("Learn it by fighting");
+    },
     body: () =>
-      "You are in a real match against the computer. Five things to try, about a minute — leave whenever you like.",
+      t("You are in a real match against the computer. Five things to try, about a minute — leave whenever you like."),
   },
   {
     id: "place",
     targetId: "tutorial-board",
     alsoId: "tutorial-mainbutton",
-    title: "Pick your ground",
+    get title() {
+      return t("Pick your ground");
+    },
     body: (touch) =>
       touch
-        ? "Tap one of the green cells to stand there, then press Fight."
-        : "Click one of the green cells to stand there, then press Fight.",
+        ? t("Tap one of the green cells to stand there, then press Fight.")
+        : t("Click one of the green cells to stand there, then press Fight."),
     ready: (now) => now.status === GAME_STATUS.POSITION_CHARACTERS,
-    waiting: "Waiting for the board…",
+    get waiting() {
+      return t("Waiting for the board…");
+    },
     done: (now) => now.hasPositioned,
   },
   {
     id: "walk",
     targetId: "tutorial-board",
-    title: "Walk",
+    get title() {
+      return t("Walk");
+    },
     body: (touch) =>
       touch
-        ? "Tap a nearby cell to preview the walk, then press the gold Move button. Every cell costs one MP."
-        : "Click a nearby cell to walk there. Every cell costs one MP — the green number on your fighter.",
+        ? t("Tap a nearby cell to preview the walk, then press the gold Move button. Every cell costs one MP.")
+        : t("Click a nearby cell to walk there. Every cell costs one MP — the green number on your fighter."),
     ready: myTurn,
-    waiting: WAIT_FOR_TURN,
+    get waiting() {
+      return t(WAIT_FOR_TURN);
+    },
     done: (now, opened) =>
       now.movementPoints < opened.movementPoints ||
       (myTurn(now) && now.movementPoints < now.maxMovementPoints),
     stalled: {
       when: (now) => myTurn(now) && now.movementPoints === 0,
-      title: "Out of movement",
+      get title() {
+      return t("Out of movement");
+    },
       body: (touch) =>
         touch
-          ? "No movement points left to walk with. End your turn — everything refills on your next one."
-          : "No movement points left to walk with. End your turn — the gold button, or Space. Everything refills on your next one.",
+          ? t("No movement points left to walk with. End your turn — everything refills on your next one.")
+          : t("No movement points left to walk with. End your turn — the gold button, or Space. Everything refills on your next one."),
       targetId: "tutorial-mainbutton",
     },
   },
   {
     id: "peek",
     targetId: "tutorial-spellbar",
-    title: "Read a spell",
+    get title() {
+      return t("Read a spell");
+    },
     body: (touch) =>
       touch
-        ? "Hold a spell for a moment: what it costs, what it does, how far it reaches. Holding never casts it."
-        : "Hover a spell to read what it costs, what it does and how far it reaches.",
+        ? t("Hold a spell for a moment: what it costs, what it does, how far it reaches. Holding never casts it.")
+        : t("Hover a spell to read what it costs, what it does and how far it reaches."),
     done: (now, opened) => now.peeks > opened.peeks,
   },
   {
     id: "cast",
     targetId: "tutorial-spellbar",
     alsoId: "tutorial-board",
-    title: "Cast it",
+    get title() {
+      return t("Cast it");
+    },
     body: (touch) =>
       touch
-        ? "Tap a spell: it aims at your opponent if they are in reach, or tap them. Press the gold Cast button. It costs AP — the blue number."
-        : "Pick a spell — click it, or press its number key — then click your opponent. It costs AP, the blue number.",
+        ? t("Tap a spell: it aims at your opponent if they are in reach, or tap them. Press the gold Cast button. It costs AP — the blue number.")
+        : t("Pick a spell — click it, or press its number key — then click your opponent. It costs AP, the blue number."),
     ready: myTurn,
-    waiting: WAIT_FOR_TURN,
+    get waiting() {
+      return t(WAIT_FOR_TURN);
+    },
     done: (now, opened) => now.opponentHealth < opened.opponentHealth,
     stalled: {
       when: (now) => myTurn(now) && !now.canCast,
-      title: "Nothing left to cast",
+      get title() {
+      return t("Nothing left to cast");
+    },
       body: (touch) =>
         touch
-          ? "No spell you can afford right now. End your turn — everything refills on your next one."
-          : "No spell you can afford right now. End your turn — the gold button, or Space. Everything refills on your next one.",
+          ? t("No spell you can afford right now. End your turn — everything refills on your next one.")
+          : t("No spell you can afford right now. End your turn — the gold button, or Space. Everything refills on your next one."),
       targetId: "tutorial-mainbutton",
     },
   },
   {
     id: "endTurn",
     targetId: "tutorial-mainbutton",
-    title: "Hand it over",
+    get title() {
+      return t("Hand it over");
+    },
     body: (touch) =>
       touch
-        ? "Out of points, or just done? End your turn. Everything refills on your next one."
-        : "Out of points, or just done? End your turn — the gold button, or Space. Everything refills on your next one.",
+        ? t("Out of points, or just done? End your turn. Everything refills on your next one.")
+        : t("Out of points, or just done? End your turn — the gold button, or Space. Everything refills on your next one."),
     ready: myTurn,
-    waiting: WAIT_FOR_TURN,
+    get waiting() {
+      return t(WAIT_FOR_TURN);
+    },
     done: (now, opened) =>
       now.turnNumber > opened.turnNumber || (opened.isMyTurn && !now.isMyTurn),
   },
   {
     id: "done",
     targetId: null,
-    title: "That is the whole game",
+    get title() {
+      return t("That is the whole game");
+    },
     body: () =>
-      "Bring the other one to zero health and you win. This fight carries on from here — it was never a rehearsal.",
+      t("Bring the other one to zero health and you win. This fight carries on from here — it was never a rehearsal."),
     againstDummy: {
-      title: "Now the real thing",
+      get title() {
+      return t("Now the real thing");
+    },
       body: () =>
-        "Your opponent has been standing still while you found the buttons. Wake it up and it will fight back, in this same match.",
-      cta: "Wake your opponent",
+        t("Your opponent has been standing still while you found the buttons. Wake it up and it will fight back, in this same match."),
+      get cta() {
+      return t("Wake your opponent");
+    },
     },
   },
 ];

@@ -1,5 +1,6 @@
 import React, { useRef, useState } from "react";
 import { useBackdropTap, useEscapeToClose } from "../hooks/useDismiss";
+import { t } from "../i18n/lang";
 
 /*
  * Everything the game lays over a screen — a question, a sheet, a card —
@@ -14,12 +15,12 @@ export const CloseButton: React.FC<{
   onClick: () => void;
   label?: string;
   className?: string;
-}> = ({ onClick, label = "Close", className = "" }) => (
+}> = ({ onClick, label, className = "" }) => (
   <button
     type="button"
     onClick={onClick}
-    aria-label={label}
-    title={label}
+    aria-label={label ?? t("Close")}
+    title={label ?? t("Close")}
     // Graphite on hover, not vermilion: a phone keeps the hover after
     // the tap, and a red × beside the screen's one red button is two.
     className={`grid h-10 w-10 flex-none place-items-center text-ink transition-[color,transform] hover:text-graphite active:scale-90 ${className}`}

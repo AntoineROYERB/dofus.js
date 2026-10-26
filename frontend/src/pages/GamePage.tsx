@@ -60,6 +60,8 @@ import { useContent } from "../hooks/useContent";
 import { hapticGameOver, hapticTap, hapticTurnStart } from "../lib/native";
 import { sameSide, teamed } from "../utils/sides";
 import { RULES } from "../utils/terrain";
+import { t } from "../i18n/lang";
+import { useT } from "../i18n/LanguageProvider";
 
 /** Why the match is being left: back to the list, or into a fresh tutorial. */
 type LeaveIntent = "lobby" | "tutorial";
@@ -68,17 +70,18 @@ type LeaveIntent = "lobby" | "tutorial";
 const phaseLabel = (status: GameStatus, isMyTurn: boolean | undefined, allyTurn = false) => {
   switch (status) {
     case GAME_STATUS.CREATING_PLAYER:
-      return "Getting ready";
+      return t("Getting ready");
     case GAME_STATUS.POSITION_CHARACTERS:
-      return "Placement";
+      return t("Placement");
     case GAME_STATUS.PLAYING:
-      return isMyTurn ? "Your turn" : allyTurn ? "Ally's turn" : "Opponent's turn";
+      return isMyTurn ? t("Your turn") : allyTurn ? t("Ally's turn") : t("Opponent's turn");
     default:
-      return "Over";
+      return t("Over");
   }
 };
 
 function GamePage() {
+  useT();
   const {
     userId,
     connected,
@@ -527,7 +530,7 @@ function GamePage() {
   const main: MainActionProps | null =
     gameStatus === GAME_STATUS.POSITION_CHARACTERS
       ? {
-          label: isPlayerPositioned ? "Waiting…" : "Fight",
+          label: isPlayerPositioned ? t("Waiting…") : t("Fight"),
           disabled: !connected || !selectedPosition || !!isPlayerPositioned,
           onClick: handleFightClick,
           beckon: connected && !!selectedPosition && !isPlayerPositioned,
@@ -535,16 +538,16 @@ function GamePage() {
       : gameStatus === GAME_STATUS.PLAYING
         ? isMyTurn && selectedSpellId !== null
           ? aimed?.kind === "cast"
-            ? { label: "Cast", detail: aimed.detail, tone: "cast", disabled: false, onClick: actOnAim }
-            : { label: "Aim", detail: "tap a cell", disabled: true, onClick: () => {} }
+            ? { label: t("Cast"), detail: aimed.detail, tone: "cast", disabled: false, onClick: actOnAim }
+            : { label: t("Aim"), detail: t("tap a cell"), disabled: true, onClick: () => {} }
           : isMyTurn && aimed?.kind === "move"
-            ? { label: "Move", detail: aimed.detail, tone: "move", disabled: false, onClick: actOnAim }
+            ? { label: t("Move"), detail: aimed.detail, tone: "move", disabled: false, onClick: actOnAim }
             : isMyTurn
-              ? { label: "End turn", disabled: false, onClick: handleEndTurnClick }
-              : { label: allyTurn ? "Ally's turn" : "Their turn", disabled: true, onClick: () => {} }
+              ? { label: t("End turn"), disabled: false, onClick: handleEndTurnClick }
+              : { label: allyTurn ? t("Ally's turn") : t("Their turn"), disabled: true, onClick: () => {} }
         : gameStatus === GAME_STATUS.GAME_OVER
           ? null
-          : { label: connected ? "Waiting…" : "Offline", disabled: true, onClick: () => {} };
+          : { label: connected ? t("Waiting…") : t("Offline"), disabled: true, onClick: () => {} };
   mainRef.current = main;
 
   // Everything laid over either layout: notices, the log sheet, the result,
@@ -872,7 +875,7 @@ function GamePage() {
         >
           <div className="flex items-baseline justify-between gap-2">
             <span className="font-mono text-[9.5px] uppercase tracking-label text-muted">
-              Turn
+              {t("Turn")}
             </span>
             <span className="hidden truncate font-mono text-[9.5px] uppercase tracking-label text-ink sm:inline">
               {phaseLabel(gameStatus, isMyTurn, allyTurn)}

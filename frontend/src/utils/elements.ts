@@ -11,6 +11,22 @@
  * "elements"); keep the two in step.
  */
 
+import { Key, t } from "../i18n/lang";
+
+const ELEMENT_NAMES: Record<string, Key> = {
+  Fire: "Fire",
+  Air: "Air",
+  Water: "Water",
+  Earth: "Earth",
+};
+
+/**
+ * An element's name as the player reads it. The element itself stays the
+ * English word everywhere else: it is an identifier the server sends.
+ */
+export const elementName = (element: string | undefined): string =>
+  element && element in ELEMENT_NAMES ? t(ELEMENT_NAMES[element]) : element ?? "";
+
 export interface ElementLook {
   /** Its colour, for text on paper and the marks it leaves. */
   color: string;

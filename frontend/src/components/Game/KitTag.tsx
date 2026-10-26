@@ -2,6 +2,7 @@ import React from "react";
 import { ContentResponse, Loadout } from "../../types/message";
 import { kitOf } from "../../utils/loadoutUtils";
 import { ElementGlyph } from "./ElementGlyph";
+import { elementName } from "../../utils/elements";
 
 interface KitTagProps {
   loadout: Partial<Loadout> | undefined;
@@ -22,7 +23,7 @@ export const KitTag: React.FC<KitTagProps> = ({
   if (!kit) return null;
   return (
     <span
-      title={`${kit.element} · ${kit.grimoire.name}`}
+      title={`${elementName(kit.element)} · ${kit.grimoire.name}`}
       className={`inline-flex items-center gap-1.5 font-mono text-[9.5px] uppercase tracking-label text-muted ${className}`}
     >
       <ElementGlyph element={kit.element} size={10} />

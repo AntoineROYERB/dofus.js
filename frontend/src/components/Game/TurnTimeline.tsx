@@ -5,6 +5,7 @@ import { EffectBadges } from "./EffectBadges";
 import { TurnClock } from "./TurnClock";
 import { KitTag } from "./KitTag";
 import { useContent } from "../../hooks/useContent";
+import { t } from "../../i18n/lang";
 
 interface TurnTimelineProps {
   latestGameState: GameState | null;
@@ -45,11 +46,11 @@ export const TurnTimeline: React.FC<TurnTimelineProps> = ({
     <div className="pointer-events-auto select-none">
       <div className="flex items-baseline justify-between border-b-2 border-ink pb-1.5">
         <span className="font-mono text-[9.5px] uppercase tracking-label text-muted">
-          Turn order
+          {t("Turn order")}
         </span>
         <span className="flex flex-none items-baseline gap-4">
           <span className="font-mono text-[10px] uppercase tracking-label text-muted">
-            Turn{" "}
+            {t("Turn")}{" "}
             <b className="font-medium text-ink">
               {latestGameState?.turnNumber ?? 0}
             </b>
@@ -58,13 +59,13 @@ export const TurnTimeline: React.FC<TurnTimelineProps> = ({
             <button
               type="button"
               onClick={onOpenRail}
-              aria-label="Menu: log, chat and leave"
+              aria-label={t("Menu: log, chat and leave")}
               className="-my-2 flex items-center gap-1.5 py-2 pl-2 font-mono text-[10px] uppercase tracking-label text-ink lg:hidden"
             >
               <svg aria-hidden viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round">
                 <path d="M2.5 4h11M2.5 8h11M2.5 12h11" />
               </svg>
-              Menu
+              {t("Menu")}
             </button>
           )}
         </span>
@@ -104,12 +105,12 @@ export const TurnTimeline: React.FC<TurnTimelineProps> = ({
               />
               {/* Held upright, the opponent's health is the one fact kept. */}
               <span className="font-mono text-[9.5px] text-muted">
-                {isYou ? <span className="hidden sm:inline">you</span> : `${player.character.health} HP`}
+                {isYou ? <span className="hidden sm:inline">{t("you")}</span> : t("{n} HP", { n: player.character.health })}
                 <span className="hidden sm:inline">
-                  {player.isBot && !isYou ? " · cpu" : ""}
+                  {player.isBot && !isYou ? ` · ${t("cpu")}` : ""}
                 </span>
-                {!player.isBot && !player.connected ? " · away" : ""}
-                {dead ? " · out" : ""}
+                {!player.isBot && !player.connected ? ` · ${t("away")}` : ""}
+                {dead ? ` · ${t("out")}` : ""}
               </span>
               {isPlaying && (
                 <TurnClock

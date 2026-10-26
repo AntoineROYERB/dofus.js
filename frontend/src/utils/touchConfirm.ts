@@ -1,3 +1,4 @@
+import { t } from "../i18n/lang";
 import { Player, Position } from "../types/game";
 import { Spell } from "../types/message";
 
@@ -72,20 +73,20 @@ export const confirmActionFor = ({
     const target = !fighter
       ? undefined
       : standing.userId === userId
-        ? "on yourself"
+        ? t("on yourself")
         : damage > 0
-          ? `${fighter.name} · ${fighter.health} → ${Math.max(
-              0,
-              fighter.health - damage
-            )} hp`
+          ? `${fighter.name} · ${t("{from} → {to} hp", {
+              from: fighter.health,
+              to: Math.max(0, fighter.health - damage),
+            })}`
           : fighter.name;
     return {
       kind: "cast",
-      label: "Cast",
+      label: t("Cast"),
       detail:
         damage > 0
           ? `−${damage}${damageNote ? ` ${damageNote}` : ""}`
-          : `${selectedSpell.APCost} AP`,
+          : t("{n} AP", { n: selectedSpell.APCost }),
       target,
       ground,
     };
@@ -100,5 +101,5 @@ export const confirmActionFor = ({
   }
   const cost = walkable.get(key);
   if (cost === undefined || cost === 0) return null;
-  return { kind: "move", label: "Move", detail: `${cost} MP`, ground };
+  return { kind: "move", label: t("Move"), detail: t("{n} MP", { n: cost }), ground };
 };

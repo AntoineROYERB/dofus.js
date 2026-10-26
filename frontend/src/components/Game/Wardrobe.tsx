@@ -8,7 +8,9 @@ import { ElementGlyph } from "./ElementGlyph";
 import { AttackShape } from "./AttackShape";
 import { attackFacts } from "../../utils/attacks";
 import { areaPattern } from "../../utils/spellUtils";
-import { elementLook } from "../../utils/elements";
+import { elementLook, elementName } from "../../utils/elements";
+import { Key, t } from "../../i18n/lang";
+import { useT } from "../../i18n/LanguageProvider";
 import { hasRelic, runeKey } from "../../vfx/relics";
 import {
   championOf,
@@ -40,7 +42,7 @@ interface WardrobeProps {
  * What each slot is called, for what the character does with it, the one line
  * that says what it is for, and the side of the fighter it hangs on.
  */
-const SLOTS: Record<Slot, { verb: string; flavour: string }> = {
+const SLOTS: Record<Slot, { verb: Key; flavour: Key }> = {
   grimoire: {
     verb: "Element",
     flavour: "What you fight with: its grimoire's three spells, the rule they share, and the outfits that go with it.",
@@ -168,19 +170,19 @@ export const Wardrobe: React.FC<WardrobeProps> = ({ content, failed, loadout, on
       className="max-w-md rounded-3xl border-2 border-gold/70 bg-panel p-5"
     >
       <h2 id="wardrobe-title" className="font-display text-[20px] font-bold leading-none tracking-tight">
-        The wardrobe
+        {t("The wardrobe")}
       </h2>
       <p className="mt-3 text-[13px] leading-snug text-graphite">
         {failed || content
-          ? `The server did not send the wardrobe. Is this branch's server running at ${apiBaseUrl()}?`
-          : "Bringing out the wardrobe…"}
+          ? t("The server did not send the wardrobe. Is this branch's server running at {url}?", { url: apiBaseUrl() })
+          : t("Bringing out the wardrobe…")}
       </p>
       <button
         type="button"
         onClick={onCancel}
         className={`mt-4 border border-rule px-4 py-2 font-display text-[14px] font-bold hover:border-ink ${PRESS}`}
       >
-        Close
+        {t("Close")}
       </button>
     </Modal>
   );
@@ -200,6 +202,7 @@ const WardrobeSheet: React.FC<Omit<WardrobeProps, "content" | "failed"> & { cont
   const [open, setOpen] = useState<Slot | null>(null);
   const [cast, setCast] = useState<ShowcaseCast | null>(null);
   const manifest = useFxManifest();
+  useT();
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -293,7 +296,7 @@ const WardrobeSheet: React.FC<Omit<WardrobeProps, "content" | "failed"> & { cont
       case "grimoire":
         return content.grimoires.map((g) => ({
           id: g.id,
-          title: `${g.element} · ${g.name}`,
+          title: `${elementName(g.element)} · ${g.name}`,
           line: `${g.spells.map(spellName).join(" · ")} — ${g.passive}`,
           icon: (
             <TextIcon size={size}>
@@ -309,14 +312,14 @@ const WardrobeSheet: React.FC<Omit<WardrobeProps, "content" | "failed"> & { cont
           icon: <RuneIcon size={size} id={r.id} name={r.name} />,
         }));
       case "talisman":
-        return content.talismans.map((t) => ({
-          id: t.id,
-          title: t.name,
+        return content.talismans.map((tal) => ({
+          id: tal.id,
+          title: tal.name,
           // A legendary's ultimate says what it does, then what your element adds.
-          line: content.spells[t.ultimate]?.infusions?.[kit.element]
-            ? `Ultimate · ${spellName(t.ultimate)} — ${content.spells[t.ultimate].description} Infused by your ${kit.element}: ${spells[t.ultimate].description}`
-            : `Ultimate · ${spellName(t.ultimate)} — ${spells[t.ultimate]?.description ?? ""}`,
-          icon: <TalismanIcon size={size} color={ultimateColor(t.ultimate)} id={t.id} />,
+          line: content.spells[tal.ultimate]?.infusions?.[kit.element]
+            ? `${t("Ultimate")} · ${spellName(tal.ultimate)} — ${content.spells[tal.ultimate].description} ${t("Infused by your {element}:", { element: elementName(kit.element) })} ${spells[tal.ultimate].description}`
+            : `${t("Ultimate")} · ${spellName(tal.ultimate)} — ${spells[tal.ultimate]?.description ?? ""}`,
+          icon: <TalismanIcon size={size} color={ultimateColor(tal.ultimate)} id={tal.id} />,
         }));
     }
   };
@@ -343,7 +346,7 @@ const WardrobeSheet: React.FC<Omit<WardrobeProps, "content" | "failed"> & { cont
       >
         {item.icon}
         <span className="min-w-0 flex-1">
-          <span className={`${MONO} block truncate text-muted`}>{SLOTS[slot].verb}</span>
+          <span className={`${MONO} block truncate text-muted`}>{t(SLOTS[slot].verb)}</span>
           <span className="block truncate font-display text-[14px] font-bold leading-tight">
             {item.title}
           </span>
@@ -357,7 +360,7 @@ const WardrobeSheet: React.FC<Omit<WardrobeProps, "content" | "failed"> & { cont
     <div
       id="wardrobe-shelf"
       role="region"
-      aria-label={SLOTS[open].verb}
+      aria-label={t(SLOTS[open].verb)}
       className={`absolute z-10 flex flex-col border-rule bg-panel narrow:inset-x-0 narrow:bottom-0 narrow:top-[46%] narrow:border-t ${
         LEFT.includes(open)
           ? "sm:inset-y-0 sm:right-0 sm:w-[min(40%,340px)] sm:border-l"
@@ -366,18 +369,18 @@ const WardrobeSheet: React.FC<Omit<WardrobeProps, "content" | "failed"> & { cont
     >
       <div className="flex flex-none items-start justify-between gap-3 border-b border-hairline px-3 pb-2 pt-2.5">
         <div className="min-w-0">
-          <p className={`${MONO} text-muted`}>{SLOTS[open].verb}</p>
-          <p className="text-[11.5px] italic leading-snug text-graphite">{SLOTS[open].flavour}</p>
+          <p className={`${MONO} text-muted`}>{t(SLOTS[open].verb)}</p>
+          <p className="text-[11.5px] italic leading-snug text-graphite">{t(SLOTS[open].flavour)}</p>
         </div>
         <button
           type="button"
           onClick={() => setOpen(null)}
           className={`${MONO} flex-none border border-rule px-2 py-1 text-ink hover:border-ink`}
         >
-          Done
+          {t("Done")}
         </button>
       </div>
-      <div role="radiogroup" aria-label={SLOTS[open].verb} className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto p-2">
+      <div role="radiogroup" aria-label={t(SLOTS[open].verb)} className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto p-2">
         {items(open, 44).map((o) => {
           const chosen = draft[open] === o.id;
           return (
@@ -395,7 +398,7 @@ const WardrobeSheet: React.FC<Omit<WardrobeProps, "content" | "failed"> & { cont
               <span className="min-w-0 flex-1">
                 <span className="flex items-baseline justify-between gap-2">
                   <span className="font-display text-[13.5px] font-bold leading-tight">{o.title}</span>
-                  {chosen && <span className={`${MONO} flex-none text-vermilion`}>Worn</span>}
+                  {chosen && <span className={`${MONO} flex-none text-vermilion`}>{t("Worn")}</span>}
                 </span>
                 <span className="block text-[11.5px] leading-snug text-graphite">{o.line}</span>
                 {o.detail}
@@ -415,6 +418,7 @@ const WardrobeSheet: React.FC<Omit<WardrobeProps, "content" | "failed"> & { cont
     name: spellName(id),
     role: i === 0 ? "basic" : i === kit.bar.length - 1 ? "ultimate" : "spell",
   }));
+  const roleName: Record<string, Key> = { basic: "basic", ultimate: "ultimate", spell: "spell" };
 
   return (
     <div
@@ -432,7 +436,7 @@ const WardrobeSheet: React.FC<Omit<WardrobeProps, "content" | "failed"> & { cont
           <button
             type="button"
             onClick={onCancel}
-            aria-label="Leave the wardrobe"
+            aria-label={t("Leave the wardrobe")}
             className={`grid h-10 w-10 flex-none place-items-center border border-rule text-ink hover:border-ink ${PRESS}`}
           >
             <svg aria-hidden viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
@@ -440,13 +444,13 @@ const WardrobeSheet: React.FC<Omit<WardrobeProps, "content" | "failed"> & { cont
             </svg>
           </button>
           <h2 id="wardrobe-title" className="font-display text-[20px] font-bold leading-none tracking-tight">
-            The wardrobe
+            {t("The wardrobe")}
           </h2>
           <span className={`${MONO} ml-auto flex min-w-0 items-center gap-1.5 text-muted`}>
             <ElementGlyph element={kit.element} size={12} />
             <span className="truncate">
-              <span style={{ color: elementLook(kit.element)?.text }}>{kit.element}</span> ·{" "}
-              {champion ? `${champion.name}'s set` : "your own set"}
+              <span style={{ color: elementLook(kit.element)?.text }}>{elementName(kit.element)}</span> ·{" "}
+              {champion ? t("{name}'s set", { name: champion.name }) : t("your own set")}
             </span>
           </span>
         </header>
@@ -491,18 +495,18 @@ const WardrobeSheet: React.FC<Omit<WardrobeProps, "content" | "failed"> & { cont
             </p>
             <p className={`${MONO} mt-0.5 flex items-center gap-1.5 text-graphite`}>
               <ElementGlyph element={kit.element} size={11} />
-              <span style={{ color: elementLook(kit.element)?.text }}>{kit.element}</span> · {kit.grimoire.name} ·{" "}
-              {kit.grimoire.health} hp · {kit.grimoire.actionPoints} ap ·{" "}
-              {kit.grimoire.movementPoints} mp
+              <span style={{ color: elementLook(kit.element)?.text }}>{elementName(kit.element)}</span> · {kit.grimoire.name} ·{" "}
+              {t("{n} hp", { n: kit.grimoire.health })} · {t("{n} ap", { n: kit.grimoire.actionPoints })} ·{" "}
+              {t("{n} mp", { n: kit.grimoire.movementPoints })}
             </p>
-            <ol aria-label="Spell bar" className="mt-1.5 flex max-w-full flex-wrap justify-center gap-1">
+            <ol aria-label={t("Spell bar")} className="mt-1.5 flex max-w-full flex-wrap justify-center gap-1">
               {bar.map((s) => (
                 <li key={s.id}>
                   {/* A tap casts it on the stand. */}
                   <button
                     type="button"
-                    title={`${s.role} — cast it on the stand`}
-                    aria-label={`Cast ${s.name}, ${s.role}`}
+                    title={t("{role} — cast it on the stand", { role: t(roleName[s.role]) })}
+                    aria-label={t("Cast {name}, {role}", { name: s.name, role: t(roleName[s.role]) })}
                     onClick={() => play(s.id)}
                     className={`border px-1.5 py-0.5 text-[11px] leading-tight ${PRESS} ${
                       s.role === "ultimate"
@@ -534,7 +538,7 @@ const WardrobeSheet: React.FC<Omit<WardrobeProps, "content" | "failed"> & { cont
         <footer className="flex flex-none items-center gap-2 border-t border-rule px-4 py-2.5 narrow:flex-col narrow:items-stretch">
           {/* A champion's whole set, in one tap. */}
           <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto">
-            <span className={`${MONO} mr-1 flex-none text-muted`}>A champion's set</span>
+            <span className={`${MONO} mr-1 flex-none text-muted`}>{t("A champion's set")}</span>
             {content.champions.map((c) => {
               const set = kitOf(c.set, content);
               const on = champion?.id === c.id;
@@ -544,8 +548,8 @@ const WardrobeSheet: React.FC<Omit<WardrobeProps, "content" | "failed"> & { cont
                   type="button"
                   aria-pressed={on}
                   onClick={() => setDraft(c.set)}
-                  aria-label={`${c.name}'s set`}
-                  title={`${c.name}'s set`}
+                  aria-label={t("{name}'s set", { name: c.name })}
+                  title={t("{name}'s set", { name: c.name })}
                   className={`flex-none border-2 p-0.5 ${PRESS} ${
                     on ? "border-ink" : "border-transparent hover:border-rule"
                   }`}
@@ -560,7 +564,7 @@ const WardrobeSheet: React.FC<Omit<WardrobeProps, "content" | "failed"> & { cont
             onClick={() => onSave(draft)}
             className={`flex-none btn-gold px-8 py-2.5 font-display text-[16px] font-extrabold uppercase tracking-wide ${PRESS}`}
           >
-            Gear up
+            {t("Gear up")}
           </button>
         </footer>
       </div>

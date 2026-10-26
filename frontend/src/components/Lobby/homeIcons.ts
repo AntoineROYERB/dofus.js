@@ -11,6 +11,7 @@ export const ICONS = {
   world: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM3 12h18M12 3c2.5 2.5 3.5 5.5 3.5 9s-1 6.5-3.5 9c-2.5-2.5-3.5-5.5-3.5-9s1-6.5 3.5-9z",
   user: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21c1-4 4.5-6 8-6s7 2 8 6",
   chevron: "M9 5l7 7-7 7",
+  options: "M4 7h9M17 7h3M4 17h3M11 17h9M15 5v4M9 15v4",
 } as const;
 
 export type HomeIcon = keyof typeof ICONS;

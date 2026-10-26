@@ -2,6 +2,7 @@ import { Spell, SpellBook, SpellState } from "../types/message";
 import { RULES, TERRAIN_INFO, ZONE_INFO } from "./terrain";
 import { Position } from "../types/game";
 import { distance, hasLineOfSight, neighbours } from "./board";
+import { Key, t, tn } from "../i18n/lang";
 
 type Direction = "up" | "down" | "left" | "right";
 
@@ -181,7 +182,7 @@ export function calculateImpactedCells(
   });
 }
 
-const shapes: Record<Spell["areaOfEffect"], string | null> = {
+const shapes: Record<Spell["areaOfEffect"], Key | null> = {
   none: null,
   circle: "circle",
   cross: "cross",
@@ -191,26 +192,26 @@ const shapes: Record<Spell["areaOfEffect"], string | null> = {
 
 /** The one line that says what the selected spell costs and reaches. */
 export const spec = (spell: Spell): string => {
-  const parts = [`${spell.APCost} AP`];
-  if (spell.targeting === "self") parts.push("on yourself");
-  else if (spell.special === "swap") parts.push("on your pylon");
-  else if (spell.targeting === "empty") parts.push(`a free cell within ${spell.range}`);
-  else if (spell.targeting === "fallen") parts.push(`a fallen ally within ${spell.range}`);
-  else parts.push(`range ${spell.range}`);
-  if (spell.relayed) parts.push("or from your relay");
+  const parts = [t("{n} AP", { n: spell.APCost })];
+  if (spell.targeting === "self") parts.push(t("on yourself"));
+  else if (spell.special === "swap") parts.push(t("on your pylon"));
+  else if (spell.targeting === "empty") parts.push(t("a free cell within {n}", { n: spell.range }));
+  else if (spell.targeting === "fallen") parts.push(t("a fallen ally within {n}", { n: spell.range }));
+  else parts.push(t("range {n}", { n: spell.range }));
+  if (spell.relayed) parts.push(t("or from your relay"));
   const shape = shapes[spell.areaOfEffect];
-  if (shape) parts.push(shape);
+  if (shape) parts.push(t(shape));
   if (spell.special === "revive") {
-    parts.push("once a fight");
+    parts.push(t("once a fight"));
   } else if (spell.ultimate) {
-    parts.push(`once a fight, from turn ${RULES.ultimateFromTurn}`);
+    parts.push(t("once a fight, from turn {n}", { n: RULES.ultimateFromTurn }));
   } else if (spell.cooldown > 0) {
-    parts.push(`${spell.cooldown} turn cooldown`);
+    parts.push(t("{n} turn cooldown", { n: spell.cooldown }));
   } else if (spell.maxCastsPerTurn > 0) {
     parts.push(
       spell.maxCastsPerTurn === 1
-        ? "once a turn"
-        : `${spell.maxCastsPerTurn}× a turn`
+        ? t("once a turn")
+        : t("{n}× a turn", { n: spell.maxCastsPerTurn })
     );
   }
   return parts.join(" · ");
@@ -225,24 +226,22 @@ export const unavailableReason = (
   /** Whether the caster has a pylon out; unknown counts as yes. */
   hasRelay = true
 ): string | null => {
-  if (spell.ultimate && state?.spent) return "already used this fight";
+  if (spell.ultimate && state?.spent) return t("already used this fight");
   if (spell.ultimate && turnNumber < RULES.ultimateFromTurn) {
-    return `unlocks on turn ${RULES.ultimateFromTurn}`;
+    return t("unlocks on turn {n}", { n: RULES.ultimateFromTurn });
   }
   if (state && state.cooldownLeft > 0) {
-    return `recharging — ${state.cooldownLeft} turn${
-      state.cooldownLeft > 1 ? "s" : ""
-    } left`;
+    return tn("recharging — {n} turn left", "recharging — {n} turns left", state.cooldownLeft);
   }
   if (
     spell.maxCastsPerTurn > 0 &&
     state &&
     state.castsThisTurn >= spell.maxCastsPerTurn
   ) {
-    return "no casts left this turn";
+    return t("no casts left this turn");
   }
-  if (actionPoints < spell.APCost) return "not enough action points";
-  if (spell.special === "swap" && !hasRelay) return "no pylon out";
+  if (actionPoints < spell.APCost) return t("not enough action points");
+  if (spell.special === "swap" && !hasRelay) return t("no pylon out");
   return null;
 };
 
@@ -250,28 +249,28 @@ export const unavailableReason = (
 /** What a spell does besides damage, one short phrase each. */
 export const spellMechanics = (spell: Spell): string[] => {
   const out: string[] = [];
-  if (spell.push > 0) out.push(`throws back ${spell.push}`);
-  if (spell.push < 0) out.push(`drags in ${-spell.push}`);
+  if (spell.push > 0) out.push(t("throws back {n}", { n: spell.push }));
+  if (spell.push < 0) out.push(t("drags in {n}", { n: -spell.push }));
   if (spell.terrain) {
-    const turns = spell.terrainTurns ? ` · ${spell.terrainTurns} turns` : "";
-    out.push(`leaves ${TERRAIN_INFO[spell.terrain].name.toLowerCase()}${turns}`);
+    const turns = spell.terrainTurns ? ` · ${t("{n} turns", { n: spell.terrainTurns })}` : "";
+    out.push(`${t("leaves {ground}", { ground: TERRAIN_INFO[spell.terrain].name.toLowerCase() })}${turns}`);
   }
-  if (spell.special === "crater") out.push("digs a crater");
-  if (spell.special === "quake") out.push("opens fissures");
-  if (spell.special === "pillar") out.push("raises a pillar");
-  if (spell.special === "relay") out.push("raises your pylon");
-  if (spell.special === "swap") out.push("swap with your pylon");
-  if (spell.special === "flank") out.push("menhirs either side");
-  if (spell.special === "cage") out.push("cages the target");
-  if (spell.hits && spell.hits > 1) out.push(`strikes ${spell.hits} times`);
-  if (spell.special === "leap") out.push("leap");
-  if (spell.special === "detonate") out.push("sets burns off");
+  if (spell.special === "crater") out.push(t("digs a crater"));
+  if (spell.special === "quake") out.push(t("opens fissures"));
+  if (spell.special === "pillar") out.push(t("raises a pillar"));
+  if (spell.special === "relay") out.push(t("raises your pylon"));
+  if (spell.special === "swap") out.push(t("swap with your pylon"));
+  if (spell.special === "flank") out.push(t("menhirs either side"));
+  if (spell.special === "cage") out.push(t("cages the target"));
+  if (spell.hits && spell.hits > 1) out.push(t("strikes {n} times", { n: spell.hits }));
+  if (spell.special === "leap") out.push(t("leap"));
+  if (spell.special === "detonate") out.push(t("sets burns off"));
   if (spell.zone) {
-    out.push(`${ZONE_INFO[spell.zone.kind].name.toLowerCase()} · ${spell.zone.duration} turns`);
+    out.push(`${ZONE_INFO[spell.zone.kind].name.toLowerCase()} · ${t("{n} turns", { n: spell.zone.duration })}`);
   }
-  if (spell.grantMP > 0) out.push(`+${spell.grantMP} MP now`);
-  if (spell.relayed) out.push(`+${RULES.relayBonus}% through your pylon`);
-  if (spell.conducts) out.push(`+${RULES.conductBonus}% in water`);
+  if (spell.grantMP > 0) out.push(t("+{n} MP now", { n: spell.grantMP }));
+  if (spell.relayed) out.push(t("+{n}% through your pylon", { n: RULES.relayBonus }));
+  if (spell.conducts) out.push(t("+{n}% in water", { n: RULES.conductBonus }));
   return out;
 };
 
@@ -282,45 +281,46 @@ export const spellMechanics = (spell: Spell): string[] => {
  */
 export const spellSummary = (spell: Spell): string => {
   const out: string[] = [];
-  if (spell.damage > 0) out.push(`${spell.damage} dmg`);
+  if (spell.damage > 0) out.push(t("{n} dmg", { n: spell.damage }));
   const e = spell.effect;
   if (e) {
-    if (e.kind === "burn") out.push(`+${e.value} burn`);
-    else if (e.kind === "root") out.push("roots");
+    if (e.kind === "burn") out.push(t("+{n} burn", { n: e.value }));
+    else if (e.kind === "root") out.push(t("roots"));
     else if (e.kind === "ap" || e.kind === "mp") {
-      out.push(`${e.value > 0 ? "+" : "−"}${Math.abs(e.value)} ${e.kind.toUpperCase()}`);
-    } else if (e.kind === "shield") out.push(`shield ${e.value}`);
-    else if (e.kind === "regen") out.push(`heal ${e.value}/t`);
-    else if (e.kind === "poison") out.push(`poison ${e.value}/t`);
+      const n = Math.abs(e.value);
+      out.push(`${e.value > 0 ? "+" : "−"}${e.kind === "ap" ? t("{n} AP", { n }) : t("{n} MP", { n })}`);
+    } else if (e.kind === "shield") out.push(t("shield {n}", { n: e.value }));
+    else if (e.kind === "regen") out.push(t("heal {n}/t", { n: e.value }));
+    else if (e.kind === "poison") out.push(t("poison {n}/t", { n: e.value }));
   }
-  if (spell.push > 0) out.push(`push ${spell.push}`);
-  if (spell.push < 0) out.push(`pull ${-spell.push}`);
-  if (spell.grantMP > 0) out.push(`+${spell.grantMP} MP`);
+  if (spell.push > 0) out.push(t("push {n}", { n: spell.push }));
+  if (spell.push < 0) out.push(t("pull {n}", { n: -spell.push }));
+  if (spell.grantMP > 0) out.push(t("+{n} MP", { n: spell.grantMP }));
   switch (spell.special) {
     case "detonate":
-      out.push("sets burns off");
+      out.push(t("sets burns off"));
       break;
     case "leap":
-      out.push("leap");
+      out.push(t("leap"));
       break;
     case "relay":
-      out.push("raises pylon");
+      out.push(t("raises pylon"));
       break;
     case "swap":
-      out.push("swap");
+      out.push(t("swap"));
       break;
     case "pillar":
-      out.push("wall");
+      out.push(t("wall"));
       break;
     case "crater":
-      out.push("crater");
+      out.push(t("crater"));
       break;
     case "quake":
-      out.push("fissures");
+      out.push(t("fissures"));
       break;
   }
   if (spell.terrain) out.push(TERRAIN_INFO[spell.terrain].name.toLowerCase());
-  if (spell.zone) out.push(`${ZONE_INFO[spell.zone.kind].name.toLowerCase()} ${spell.zone.duration}t`);
+  if (spell.zone) out.push(`${ZONE_INFO[spell.zone.kind].name.toLowerCase()} ${t("{n}t", { n: spell.zone.duration })}`);
   return out.join(" · ");
 };
 

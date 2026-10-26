@@ -5,6 +5,7 @@ import { CharacterShowcase } from "../Game/CharacterShowcase";
 import { kitOf } from "../../utils/loadoutUtils";
 import { ElementGlyph } from "../Game/ElementGlyph";
 import { HomeIcon, ICONS } from "./homeIcons";
+import { useT } from "../../i18n/LanguageProvider";
 
 /*
  * The lobby as a brawler's home screen: your fighter, large, on a lit stage
@@ -85,6 +86,7 @@ export const LobbyHome: React.FC<LobbyHomeProps> = ({
   onOpenRivals,
   onOpenMenu,
 }) => {
+  const { t } = useT();
   const kit = kitOf(loadout, content);
   return (
     <div className="relative h-[100dvh] select-none overflow-hidden bg-paper text-ink">
@@ -117,8 +119,8 @@ export const LobbyHome: React.FC<LobbyHomeProps> = ({
         {kit && (
           <p className="mt-1.5 flex flex-none items-center gap-3 rounded-full bg-panel/80 px-3.5 py-0.5 font-display text-[14px] tabular-nums shadow-[inset_0_0_0_1px_rgb(var(--gold)/0.35)]">
             <span className="text-hp">♥ {kit.grimoire.health}</span>
-            <span className="text-pa">{kit.grimoire.actionPoints} AP</span>
-            <span className="text-pm">{kit.grimoire.movementPoints} MP</span>
+            <span className="text-pa">{t("{n} AP", { n: kit.grimoire.actionPoints })}</span>
+            <span className="text-pm">{t("{n} MP", { n: kit.grimoire.movementPoints })}</span>
           </p>
         )}
         {notice && (
@@ -132,7 +134,7 @@ export const LobbyHome: React.FC<LobbyHomeProps> = ({
         <button
           type="button"
           onClick={onOpenWardrobe}
-          aria-label="Open the wardrobe"
+          aria-label={t("Open the wardrobe")}
           className={`relative flex min-h-0 w-full flex-1 items-end justify-center ${PRESS}`}
         >
           <CharacterShowcase
@@ -172,7 +174,7 @@ export const LobbyHome: React.FC<LobbyHomeProps> = ({
         <button
           type="button"
           onClick={onOpenRivals}
-          aria-label={`Rivals: ${beaten} of ${rivals} beaten`}
+          aria-label={t("Rivals: {beaten} of {rivals} beaten", { beaten, rivals })}
           className={`absolute left-1/2 top-[max(10px,env(safe-area-inset-top))] flex -translate-x-1/2 items-center gap-2.5 rounded-full bg-panel/90 py-1.5 pl-2 pr-4 shadow-[inset_0_0_0_1.5px_rgb(var(--gold)/0.5)] ${PRESS}`}
         >
           <span className="grid h-8 w-8 place-items-center rounded-full bg-gold text-[#2a1b00]">
@@ -197,8 +199,8 @@ export const LobbyHome: React.FC<LobbyHomeProps> = ({
         <div className="absolute right-[max(16px,env(safe-area-inset-right))] top-[max(10px,env(safe-area-inset-top))] flex items-center gap-2.5">
           <span
             role="status"
-            aria-label={connected ? "Online" : "Offline"}
-            title={connected ? "Online" : "Offline"}
+            aria-label={connected ? t("Online") : t("Offline")}
+            title={connected ? t("Online") : t("Offline")}
             className={`h-2.5 w-2.5 rounded-full ${
               connected ? "bg-pm shadow-[0_0_8px_rgb(var(--pm)/0.8)]" : "animate-pulse bg-vermilion"
             }`}
@@ -206,7 +208,7 @@ export const LobbyHome: React.FC<LobbyHomeProps> = ({
           <button
             type="button"
             onClick={onOpenMenu}
-            aria-label="Menu"
+            aria-label={t("Menu")}
             className="btn-night grid h-11 w-11 place-items-center"
           >
             <Icon d={ICONS.menu} />
@@ -222,7 +224,7 @@ export const LobbyHome: React.FC<LobbyHomeProps> = ({
           <span className="text-gold">
             <Icon d={ICONS.gear} className="h-7 w-7" />
           </span>
-          <span className="font-display text-[13px]">Gear</span>
+          <span className="font-display text-[13px]">{t("Gear")}</span>
         </button>
 
         {/* Bottom left: what Play will start, and the way to change it. */}
@@ -260,7 +262,7 @@ export const LobbyHome: React.FC<LobbyHomeProps> = ({
             canPlay ? "animate-beckon" : ""
           }`}
         >
-          Play
+          {t("Play")}
         </button>
       </div>
     </div>

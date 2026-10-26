@@ -65,7 +65,12 @@ docs/ART_DIRECTION.md   the visual charter
 ## Conventions
 
 - **Language:**
-  - code, comments, in-game text, commits, pull requests and issues: English;
+  - code, comments, commits, pull requests and issues: English;
+  - the interface speaks French by default, English on request (Options).
+    Every text it shows goes through `t("English text")` from
+    `frontend/src/i18n/lang.ts`; the French lives in `i18n/fr.ts`, keyed by
+    the English, and a key missing there fails `tsc`. Content (spell,
+    champion, island names) stays as the server's files write it;
   - conversation with the maintainer: French.
 - **Comments explain why.** They say what went wrong before, or what would
   break otherwise, in full sentences. Match the density of the surrounding

@@ -17,6 +17,7 @@ import {
 import { CreaturePortrait } from "../components/Dream/CreaturePortrait";
 import { ElementGlyph } from "../components/Game/ElementGlyph";
 import { hasSeenTutorial } from "../utils/tutorialStorage";
+import { t, tn } from "../i18n/lang";
 
 /*
  * Endless Dreams, between fights: making a party, choosing a floor's room,
@@ -71,10 +72,9 @@ const Door: React.FC<{ connected: boolean; send: Send; content: ContentResponse 
   return (
     <div className="mt-5 grid gap-6 sm:grid-cols-2 short:mt-3 short:gap-4">
       <section className="border-t-2 border-ink pt-3">
-        <Label>Alone or with friends</Label>
+        <Label>{t("Alone or with friends")}</Label>
         <p className="mt-2 text-[14px] text-graphite">
-          Climb as far as you can. Each floor offers three rooms; the deeper the dream, the more there is in
-          them. Every fifth floor, a ruler waits. Up to three can climb together.
+          {t("Climb as far as you can. Each floor offers three rooms; the deeper the dream, the more there is in them. Every fifth floor, a ruler waits. Up to three can climb together.")}
         </p>
         <button
           type="button"
@@ -82,11 +82,11 @@ const Door: React.FC<{ connected: boolean; send: Send; content: ContentResponse 
           onClick={() => look && send(withId({ type: "dream_create" as const, character: look }))}
           className="mt-4 w-full btn-gold px-4 py-3.5 font-display text-[16px] font-bold disabled:cursor-not-allowed disabled:bg-hairline disabled:text-muted"
         >
-          Open a party
+          {t("Open a party")}
         </button>
       </section>
       <section className="border-t-2 border-ink pt-3">
-        <Label>Join a party</Label>
+        <Label>{t("Join a party")}</Label>
         <form
           className="mt-2 flex gap-2"
           onSubmit={(e) => {
@@ -97,8 +97,8 @@ const Door: React.FC<{ connected: boolean; send: Send; content: ContentResponse 
           <input
             value={code}
             onChange={(e) => setCode(e.target.value.toUpperCase())}
-            placeholder="Party code"
-            aria-label="Party code"
+            placeholder={t("Party code")}
+            aria-label={t("Party code")}
             maxLength={8}
             className="rounded-full h-12 min-w-0 flex-1 border border-rule bg-board px-3 font-mono text-[15px] uppercase tracking-label text-ink placeholder:normal-case placeholder:tracking-normal placeholder:text-muted focus:border-ink focus:outline-none"
           />
@@ -107,7 +107,7 @@ const Door: React.FC<{ connected: boolean; send: Send; content: ContentResponse 
             disabled={!connected || code.trim().length < 4}
             className="rounded-full h-12 flex-none border border-ink px-5 font-mono text-[10px] uppercase tracking-label text-ink transition-colors hover:bg-ink hover:text-paper disabled:cursor-not-allowed disabled:border-hairline disabled:text-muted"
           >
-            Join
+            {t("Join")}
           </button>
         </form>
         <button
@@ -115,7 +115,7 @@ const Door: React.FC<{ connected: boolean; send: Send; content: ContentResponse 
           onClick={() => navigate("/dreams/leaderboard")}
           className="mt-4 font-mono text-[9.5px] uppercase tracking-label text-muted transition-colors hover:text-vermilion"
         >
-          Leaderboard
+          {t("Leaderboard")}
         </button>
       </section>
     </div>
@@ -136,10 +136,10 @@ const PartyStrip: React.FC<{ run: DreamView; content: ContentResponse | null }> 
           <span className="font-display text-[15px] font-bold">{m.name}</span>
           <span className="font-mono text-[9.5px] uppercase tracking-label text-muted">
             {kit?.grimoire.name}
-            {m.leader ? " · leader" : ""}
-            {i === run.you ? " · you" : ""}
-            {m.left ? " · left" : !m.connected ? " · away" : ""}
-            {m.boons.length > 0 ? ` · ${m.boons.length} boon${m.boons.length > 1 ? "s" : ""}` : ""}
+            {m.leader ? ` · ${t("leader")}` : ""}
+            {i === run.you ? ` · ${t("you")}` : ""}
+            {m.left ? ` · ${t("left")}` : !m.connected ? ` · ${t("away")}` : ""}
+            {m.boons.length > 0 ? ` · ${tn("{n} boon", "{n} boons", m.boons.length)}` : ""}
           </span>
         </li>
       );
@@ -156,7 +156,7 @@ const Gathering: React.FC<{ run: DreamView; send: Send; connected: boolean; cont
   const leader = run.members[run.you]?.leader;
   return (
     <div className="mt-5 short:mt-3">
-      <Label>Party code</Label>
+      <Label>{t("Party code")}</Label>
       <p className="mt-1 font-mono text-[34px] font-medium tracking-[0.3em] short:text-[26px]">{run.id}</p>
       <p className="text-[13px] text-graphite">Share it: up to three can climb together.</p>
       <div className="mt-5 border-t border-ink pt-3">
@@ -169,11 +169,11 @@ const Gathering: React.FC<{ run: DreamView; send: Send; connected: boolean; cont
           onClick={() => send(withId({ type: "dream_start" as const }))}
           className="mt-6 w-full btn-gold px-4 py-3.5 font-display text-[16px] font-bold disabled:bg-hairline disabled:text-muted sm:w-auto sm:px-10"
         >
-          Start the climb
+          {t("Start the climb")}
         </button>
       ) : (
         <p className="mt-6 font-mono text-[10px] uppercase tracking-label text-muted">
-          Waiting for the leader to start
+          {t("Waiting for the leader to start")}
         </p>
       )}
     </div>
@@ -216,7 +216,7 @@ const RoomCard: React.FC<{
       <div className="flex items-baseline justify-between gap-2">
         <span className="font-display text-[17px] font-bold">{islandName(content, room.island)}</span>
         <span className="font-mono text-[9.5px] uppercase tracking-label text-ink">
-          {room.boss ? "Ruler" : difficulty?.name ?? room.difficulty}
+          {room.boss ? t("Ruler") : difficulty?.name ?? room.difficulty}
         </span>
       </div>
 
@@ -225,7 +225,7 @@ const RoomCard: React.FC<{
           <CreaturePortrait id={room.boss.boss} zoom={0.5} className="h-16 w-16 flex-none" />
           <div className="min-w-0">
             <p className="font-display text-[15px] font-bold">{room.boss.name}</p>
-            <p className="font-mono text-[9.5px] uppercase tracking-label text-muted">{room.boss.stats.health} HP</p>
+            <p className="font-mono text-[9.5px] uppercase tracking-label text-muted">{t("{n} HP", { n: room.boss.stats.health })}</p>
             <p className="mt-1 text-[12.5px] italic text-graphite">{room.boss.tactic}</p>
           </div>
         </div>
@@ -289,7 +289,7 @@ const Floor: React.FC<{ run: DreamView; send: Send; connected: boolean; content:
     <div className="mt-4 short:mt-2">
       <div className="flex items-center justify-between gap-3">
         <Label>
-          {run.offer?.boss ? "A ruler bars the way" : leader ? "Choose a room" : "The leader chooses the room"}
+          {run.offer?.boss ? t("A ruler bars the way") : leader ? t("Choose a room") : t("The leader chooses the room")}
         </Label>
         <PartyCount run={run} />
         {/* On a phone held sideways the rooms fill the screen: the way in sits up here. */}
@@ -300,7 +300,7 @@ const Floor: React.FC<{ run: DreamView; send: Send; connected: boolean; content:
             onClick={() => send(withId({ type: "dream_enter" as const, room: picked }))}
             className="hidden flex-none btn-gold px-5 py-1.5 font-display text-[14px] font-bold disabled:bg-hairline disabled:text-muted short:block"
           >
-            {picked < 0 ? "Pick a room" : "Enter"}
+            {picked < 0 ? t("Pick a room") : t("Enter")}
           </button>
         )}
       </div>
@@ -326,7 +326,7 @@ const Floor: React.FC<{ run: DreamView; send: Send; connected: boolean; content:
           onClick={() => send(withId({ type: "dream_enter" as const, room: picked }))}
           className="mt-3 w-full btn-gold px-4 py-3 font-display text-[16px] font-bold disabled:cursor-not-allowed disabled:bg-hairline disabled:text-muted sm:w-auto sm:px-10 short:hidden"
         >
-          {picked < 0 ? "Pick a room" : "Enter"}
+          {picked < 0 ? t("Pick a room") : t("Enter")}
         </button>
       )}
     </div>
@@ -335,7 +335,8 @@ const Floor: React.FC<{ run: DreamView; send: Send; connected: boolean; content:
 
 const PartyCount: React.FC<{ run: DreamView }> = ({ run }) => (
   <span className="font-mono text-[9.5px] uppercase tracking-label text-muted">
-    {run.members.filter((m) => !m.left).length} climbing · {run.turns} turns so far
+    {t("{n} climbing", { n: run.members.filter((m) => !m.left).length })} ·{" "}
+    {tn("{n} turn so far", "{n} turns so far", run.turns)}
   </span>
 );
 
@@ -364,16 +365,16 @@ const Boons: React.FC<{ run: DreamView; send: Send; connected: boolean; content:
   return (
     <div className="mt-4 short:mt-2">
       <div className="flex items-baseline justify-between">
-        <Label>Floor {run.cleared} cleared · take a boon</Label>
+        <Label>{t("Floor {n} cleared · take a boon", { n: run.cleared })}</Label>
         <span className="font-mono text-[12px] tabular-nums text-ink">{left}s</span>
       </div>
       {me?.chose ? (
         <p className="mt-4 text-[14px] text-graphite">
-          Taken. Waiting for{" "}
+          {t("Taken. Waiting for")}{" "}
           {run.members
             .filter((m) => !m.left && !m.chose)
             .map((m) => m.name)
-            .join(", ") || "the next floor"}
+            .join(", ") || t("the next floor")}
           …
         </p>
       ) : (
@@ -411,7 +412,7 @@ const Boons: React.FC<{ run: DreamView; send: Send; connected: boolean; content:
 const HeldBoons: React.FC<{ ids: string[]; content: ContentResponse | null }> = ({ ids, content }) =>
   ids.length === 0 ? null : (
     <div className="mt-4 border-t border-hairline pt-2">
-      <Label>Your boons</Label>
+      <Label>{t("Your boons")}</Label>
       <p className="mt-1 text-[13px] text-graphite">
         {ids.map((id, i) => {
           const b = boonOf(content, id);
@@ -433,13 +434,13 @@ const Over: React.FC<{ run: DreamView; send: Send }> = ({ run, send }) => {
   const navigate = useNavigate();
   return (
     <div className="mt-5 short:mt-3">
-      <Label>The dream ends</Label>
+      <Label>{t("The dream ends")}</Label>
       <p className="mt-1 font-display text-[34px] font-bold leading-none tracking-tight short:text-[28px]">
-        {run.cleared === 0 ? "Fallen on the first floor" : `Floor ${run.cleared} reached`}
+        {run.cleared === 0 ? t("Fallen on the first floor") : t("Floor {n} reached", { n: run.cleared })}
       </p>
       <p className="mt-2 text-[14px] text-graphite">
-        {run.turns} turn{run.turns === 1 ? "" : "s"} fought by a party of {run.startSize}.
-        {run.cleared > 0 ? " It is on the leaderboard." : ""}
+        {tn("{n} turn fought by a party of {size}.", "{n} turns fought by a party of {size}.", run.turns, { size: run.startSize })}
+        {run.cleared > 0 ? ` ${t("It is on the leaderboard.")}` : ""}
       </p>
       <div className="mt-6 flex flex-wrap gap-3">
         <button
@@ -447,14 +448,14 @@ const Over: React.FC<{ run: DreamView; send: Send }> = ({ run, send }) => {
           onClick={() => send(withId({ type: "dream_leave" as const }))}
           className="btn-gold px-6 py-3 font-display text-[15px] font-bold"
         >
-          Dream again
+          {t("Dream again")}
         </button>
         <button
           type="button"
           onClick={() => navigate("/dreams/leaderboard")}
           className="border border-ink px-6 py-3 font-display text-[15px] font-bold text-ink transition-colors hover:bg-hairline"
         >
-          Leaderboard
+          {t("Leaderboard")}
         </button>
         {run.matchIds.length > 0 && (
           <button
@@ -462,7 +463,7 @@ const Over: React.FC<{ run: DreamView; send: Send }> = ({ run, send }) => {
             onClick={() => navigate(`/matches/${run.matchIds[run.matchIds.length - 1]}`)}
             className="border border-ink px-6 py-3 font-display text-[15px] font-bold text-ink transition-colors hover:bg-hairline"
           >
-            Replay the last fight
+            {t("Replay the last fight")}
           </button>
         )}
       </div>
@@ -501,7 +502,7 @@ const DreamPage: React.FC = () => {
       <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] pt-[max(1rem,env(safe-area-inset-top))] sm:px-6 short:pt-2">
         <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b-2 border-ink pb-1.5">
           <span className="font-mono text-[9.5px] uppercase tracking-label text-muted">
-            Endless Dreams{dream && dream.floor > 0 && dream.phase !== "over" ? ` · floor ${dream.floor}` : ""}
+            {t("Endless Dreams")}{dream && dream.floor > 0 && dream.phase !== "over" ? ` · ${t("floor {n}", { n: dream.floor })}` : ""}
           </span>
           <span className="flex items-baseline gap-4 font-mono text-[9.5px] uppercase tracking-label text-muted">
             <span className={connected ? "" : "text-vermilion"}>{connected ? "connected" : "reconnecting…"}</span>
@@ -511,7 +512,7 @@ const DreamPage: React.FC = () => {
                 onClick={() => send(withId({ type: "dream_leave" as const }))}
                 className="uppercase transition-colors hover:text-vermilion"
               >
-                Leave the dream
+                {t("Leave the dream")}
               </button>
             ) : (
               <button
@@ -519,7 +520,7 @@ const DreamPage: React.FC = () => {
                 onClick={() => navigate("/lobby")}
                 className="uppercase transition-colors hover:text-vermilion"
               >
-                Lobby
+                {t("Lobby")}
               </button>
             )}
           </span>
@@ -534,7 +535,7 @@ const DreamPage: React.FC = () => {
         {!dream && (
           <>
             <h1 className="mt-5 font-display text-[clamp(2rem,8vw,2.6rem)] font-bold leading-none tracking-tight short:mt-3 short:text-[26px]">
-              Endless Dreams
+              {t("Endless Dreams")}
             </h1>
             <Door connected={connected} send={send} content={content} />
           </>
@@ -552,7 +553,7 @@ const DreamPage: React.FC = () => {
         {dream?.phase === "room" && <Floor key={dream.floor} run={dream} send={send} connected={connected} content={content} />}
         {dream?.phase === "fighting" && (
           <div className="mt-6">
-            <Label>Floor {dream.floor}</Label>
+            <Label>{t("Floor {n}", { n: dream.floor })}</Label>
             <p className="mt-2 text-[15px] text-graphite">Your party is fighting. You will be back here once it is over.</p>
           </div>
         )}

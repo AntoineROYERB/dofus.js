@@ -44,6 +44,7 @@ import { GameState } from "../../../types/message";
 import { AimedAction, confirmActionFor } from "../../../utils/touchConfirm";
 import { autoTarget } from "../../../utils/autoTarget";
 import { sameSide, teamed } from "../../../utils/sides";
+import { t } from "../../../i18n/lang";
 
 interface GridProps {
   gridSize: number;
@@ -623,7 +624,7 @@ export const Grid: React.FC<GridProps> = ({
     standing: aim ? findPlayerOnCell(aim.x, aim.y) : undefined,
     userId,
     expectedDamage: aimedHere ? damagePreview?.damage : undefined,
-    damageNote: aimedHere && damagePreview?.throughRelay ? `via relay` : undefined,
+    damageNote: aimedHere && damagePreview?.throughRelay ? t("via relay") : undefined,
     ground: aimedHere ? hoveredTerrain?.lines.map((line) => line.title).join(" · ") : undefined,
   });
   // A walk is only ever aimed by a tap: a mouse resting on the board must
@@ -970,7 +971,7 @@ export const Grid: React.FC<GridProps> = ({
                 className="ml-1 align-middle font-mono text-[10px] font-semibold uppercase tracking-label"
                 style={{ color: BOARD.relay }}
               >
-                via relay +{RULES.relayBonus}%
+                {t("via relay")} +{RULES.relayBonus}%
               </span>
             )}
           </div>
@@ -1050,7 +1051,7 @@ export const Grid: React.FC<GridProps> = ({
           onClick={resetZoom}
           className="rounded-full absolute bottom-3 left-1/2 z-10 -translate-x-1/2 border border-ink bg-paper px-3 py-1.5 font-mono text-[11px] uppercase tracking-label text-ink shadow-sm"
         >
-          Reset zoom
+          {t("Reset zoom")}
         </button>
       )}
     </div>

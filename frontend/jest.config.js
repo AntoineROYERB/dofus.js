@@ -1,6 +1,7 @@
 /** @type {import('ts-jest').JestConfigWithTsJest} **/
 export default {
   testEnvironment: "node",
+  setupFiles: ["<rootDir>/src/test/setupLang.ts"],
   // The phone layout's logic lives in plain modules so it can be tested
   // without a DOM; `npm test -- --coverage` (as CI runs it) keeps it covered.
   coverageThreshold: {

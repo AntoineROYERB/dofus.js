@@ -12,6 +12,7 @@ import { SpellCard } from "./SpellCard";
 import { hapticHurry } from "../../lib/native";
 import { sameSide } from "../../utils/sides";
 import { TurnClock } from "./TurnClock";
+import { t } from "../../i18n/lang";
 
 /*
  * The combat screen on a phone held sideways. The board takes the whole
@@ -80,13 +81,13 @@ export const MenuButton: React.FC<{ onClick: () => void }> = ({ onClick }) => (
   <button
     type="button"
     onClick={onClick}
-    aria-label="Menu: log, chat and leave"
+    aria-label={t("Menu: log, chat and leave")}
     className="btn-night flex h-10 items-center gap-2 pl-3 pr-4 font-mono text-[10px] uppercase tracking-label"
   >
     <svg aria-hidden viewBox="0 0 16 16" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round">
       <path d="M2.5 4h11M2.5 8h11M2.5 12h11" />
     </svg>
-    Menu
+    {t("Menu")}
   </button>
 );
 
@@ -156,7 +157,7 @@ export const PortraitGauge: React.FC<{ player: Player | undefined }> = ({
   return (
     <div
       className="relative h-[88px] w-[88px] flex-none"
-      aria-label={`${character.health} of ${character.maxHealth} HP, ${character.actionPoints} AP, ${character.movementPoints} MP${shield > 0 ? `, ${shield} shield` : ""}`}
+      aria-label={`${t("{n} of {max} HP", { n: character.health, max: character.maxHealth })}, ${t("{n} AP", { n: character.actionPoints })}, ${t("{n} MP", { n: character.movementPoints })}${shield > 0 ? `, ${t("{n} shield", { n: shield })}` : ""}`}
       role="img"
     >
       <svg aria-hidden viewBox="0 0 112 112" className="absolute inset-0 h-full w-full drop-shadow-[0_4px_10px_rgb(var(--night)/0.7)]">
@@ -235,7 +236,7 @@ const Command: React.FC<{
   return (
     <button
       type="button"
-      aria-label={`${spell.name}, ${spell.APCost} AP${upgraded ? `, upgraded: ${upgrades.map((u) => u.label).join(", ")}` : ""}${blocked ? ` (${blocked})` : ""}. Hold for details.`}
+      aria-label={`${spell.name}, ${t("{n} AP", { n: spell.APCost })}${upgraded ? `, ${t("upgraded: {list}", { list: upgrades.map((u) => u.label).join(", ") })}` : ""}${blocked ? ` (${blocked})` : ""}. ${t("Hold for details.")}`}
       aria-pressed={selected}
       aria-disabled={!!blocked}
       onPointerDown={(e) => {
@@ -331,7 +332,7 @@ const Command: React.FC<{
         <span
           className="flex-none font-mono text-[10px]"
           style={{ color: BOARD.relay }}
-          title={`Goes through your relay: +${RULES.relayBonus}% damage`}
+          title={t("Goes through your relay: +{n}% damage", { n: RULES.relayBonus })}
         >
           ↺
         </span>
@@ -418,7 +419,7 @@ export const CommandDeck: React.FC<CommandDeckProps> = ({
             active ? "bg-gold text-[#2a1b00]" : "bg-hairline text-muted"
           }`}
         >
-          {active ? "Your spells" : "Waiting"}
+          {active ? t("Your spells") : t("Waiting")}
         </span>
         {shortcuts && onHelp && (
           <button
@@ -501,7 +502,7 @@ export const SpellHint: React.FC<{
           >
             {selected.role}
           </span>
-          <span className="text-muted"> · pick a target</span>
+          <span className="text-muted"> · {t("pick a target")}</span>
         </p>
         <p className="mt-0.5 truncate font-mono text-[10.5px] tabular-nums text-graphite">
           {spellSummary(selected)}
@@ -510,7 +511,7 @@ export const SpellHint: React.FC<{
       <button
         type="button"
         onClick={() => onSelectSpell(selected.id)}
-        aria-label={`Put ${selected.name} down`}
+        aria-label={t("Put {name} down", { name: selected.name })}
         className="grid h-9 w-9 flex-none place-items-center rounded-full text-graphite transition-transform active:scale-90"
       >
         <svg aria-hidden viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
@@ -673,7 +674,7 @@ export const MainAction: React.FC<
         )}
         {!disabled && !detail && (
           <span className="touch:hidden">
-            <Keycap dark>Space</Keycap>
+            <Keycap dark>{t("Space")}</Keycap>
           </span>
         )}
       </button>

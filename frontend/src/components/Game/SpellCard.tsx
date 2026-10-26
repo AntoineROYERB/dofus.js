@@ -8,6 +8,8 @@ import { RULES } from "../../utils/terrain";
 import { effectLook } from "./EffectBadges";
 import { SpellGlyph } from "./SpellGlyph";
 import { BOARD } from "../../constants";
+import { Key, t } from "../../i18n/lang";
+import { elementName } from "../../utils/elements";
 
 const W = 34;
 const H = 17;
@@ -201,6 +203,15 @@ const Fact: React.FC<{ label: string; value: React.ReactNode }> = ({
   </div>
 );
 
+/** A spell's area, as the card names it. */
+const AREA_NAMES: Record<string, Key> = {
+  none: "single cell",
+  circle: "circle",
+  line: "line",
+  cross: "cross",
+  wall: "wall",
+};
+
 interface SpellCardProps {
   spell: Spell;
   /** Why it cannot be cast right now, if it cannot. */
@@ -217,7 +228,8 @@ interface SpellCardProps {
 export const SpellCard: React.FC<SpellCardProps> = ({ spell, blocked, upgrades = [] }) => {
   const effect = spell.effect;
   const area =
-    spell.areaOfEffect === "none" ? "single cell" : spell.areaOfEffect;
+    spell.areaOfEffect in AREA_NAMES ? t(AREA_NAMES[spell.areaOfEffect]) : spell.areaOfEffect;
+  const side = effect?.onSelf ? t("self") : t("target");
 
   return createPortal(
     <div
@@ -242,7 +254,7 @@ export const SpellCard: React.FC<SpellCardProps> = ({ spell, blocked, upgrades =
                 {spell.name}
               </p>
               <p className="font-mono text-[9px] uppercase tracking-label text-muted">
-                {spell.element} · {spell.APCost} AP ·{" "}
+                {elementName(spell.element)} · {t("{n} AP", { n: spell.APCost })} ·{" "}
                 <span style={{ color: spell.ultimate ? "rgb(var(--gold))" : spell.color }}>
                   {spell.role}
                 </span>
@@ -273,63 +285,64 @@ export const SpellCard: React.FC<SpellCardProps> = ({ spell, blocked, upgrades =
             </p>
           )}
           <Fact
-            label="Range"
+            label={t("Range")}
             value={
               spell.targeting === "self"
-                ? "self"
+                ? t("self")
                 : spell.special === "swap"
-                  ? "your pylon, wherever it stands"
+                  ? t("your pylon, wherever it stands")
                   : spell.targeting === "empty"
-                  ? `a free cell within ${spell.range}`
-                  : `${spell.range} cells`
+                  ? t("a free cell within {n}", { n: spell.range })
+                  : t("{n} cells", { n: spell.range })
             }
           />
-          <Fact label="Area" value={area} />
+          <Fact label={t("Area")} value={area} />
           {spell.damage > 0 && (
             <Fact
-              label="Damage"
+              label={t("Damage")}
               value={`${spell.damage}${
                 spell.criticalChance > 0
-                  ? ` · crit ${spell.criticalDamage} (${spell.criticalChance}%)`
+                  ? ` · ${t("crit {n}", { n: spell.criticalDamage })} (${spell.criticalChance}%)`
                   : ""
               }`}
             />
           )}
           {effect && (
             <Fact
-              label="Effect"
+              label={t("Effect")}
               value={
                 effect.kind === "burn"
-                  ? `${effectLook.burn.icon} +${effect.value} burn · ${RULES.burnDamagePerStack}/turn each`
+                  ? `${effectLook.burn.icon} ${t("+{n} burn · {each}/turn each", { n: effect.value, each: RULES.burnDamagePerStack })}`
                   : effect.kind === "root"
-                    ? `${effectLook.root.icon} cannot move · ${effect.onSelf ? "self" : "target"}`
+                    ? `${effectLook.root.icon} ${t("cannot move")} · ${side}`
                     : `${effectLook[effect.kind]?.icon ?? ""} ${
                         effect.value > 0 && effect.kind !== "poison" ? "+" : ""
-                      }${effect.value} ${effectLook[effect.kind]?.label ?? effect.kind} · ${
-                        effect.duration
-                      }t · ${effect.onSelf ? "self" : "target"}`
+                      }${effect.value} ${effectLook[effect.kind] ? t(effectLook[effect.kind].label) : effect.kind} · ${t(
+                        "{n}t",
+                        { n: effect.duration }
+                      )} · ${side}`
               }
             />
           )}
           {spellMechanics(spell).length > 0 && (
-            <Fact label="Also" value={spellMechanics(spell).join(" · ")} />
+            <Fact label={t("Also")} value={spellMechanics(spell).join(" · ")} />
           )}
           <Fact
-            label="Use"
+            label={t("Use")}
             value={
               spell.ultimate
-                ? `ultimate · once a fight, from turn ${RULES.ultimateFromTurn}`
+                ? t("ultimate · once a fight, from turn {n}", { n: RULES.ultimateFromTurn })
                 : spell.cooldown > 0
-                ? `${spell.cooldown}-turn cooldown`
+                ? t("{n}-turn cooldown", { n: spell.cooldown })
                 : spell.maxCastsPerTurn > 0
-                  ? `${spell.maxCastsPerTurn}× a turn`
-                  : "no limit"
+                  ? t("{n}× a turn", { n: spell.maxCastsPerTurn })
+                  : t("no limit")
             }
           />
           {spell.range > 0 && spell.targeting !== "empty" && spell.special !== "swap" && (
             <Fact
-              label="Line of sight"
-              value={spell.needsLineOfSight ? "needed" : "ignored"}
+              label={t("Line of sight")}
+              value={spell.needsLineOfSight ? t("needed") : t("ignored")}
             />
           )}
           {blocked && (

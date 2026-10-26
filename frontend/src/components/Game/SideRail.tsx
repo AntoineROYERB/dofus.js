@@ -2,6 +2,7 @@ import React from "react";
 import { GameState } from "../../types/message";
 import { CombatLog } from "./CombatLog";
 import { Chat } from "../Chat/Chat";
+import { t } from "../../i18n/lang";
 
 interface SideRailProps {
   roomName: string;
@@ -16,7 +17,7 @@ export const RailBody: React.FC<{ latestGameState: GameState | null }> = ({
 }) => (
   <div className="flex h-full min-h-0 flex-col">
     <div className="mb-1.5 mt-4 flex-none font-mono text-[9.5px] uppercase tracking-label text-muted">
-      Log
+      {t("Log")}
     </div>
     <div className="min-h-0 flex-1 overflow-y-auto">
       <CombatLog
@@ -44,14 +45,14 @@ export const RailExits: React.FC<{
       onClick={onReplayTutorial}
       className="rounded-full h-10 flex-1 whitespace-nowrap border border-rule px-2 font-mono text-[10px] uppercase tracking-label text-graphite transition-colors hover:border-ink active:scale-[0.98]"
     >
-      Replay tutorial
+      {t("Replay tutorial")}
     </button>
     <button
       type="button"
       onClick={onLeave}
       className="rounded-full h-10 flex-1 whitespace-nowrap border border-ink px-2 font-mono text-[10px] uppercase tracking-label text-ink transition-colors hover:bg-ink hover:text-paper active:scale-[0.98]"
     >
-      Leave fight
+      {t("Leave fight")}
     </button>
   </>
 );
@@ -78,14 +79,14 @@ export const SideRail: React.FC<SideRailProps> = ({
           onClick={onReplayTutorial}
           className="font-mono text-[9.5px] uppercase tracking-label text-muted transition-colors hover:text-vermilion"
         >
-          Replay tutorial
+          {t("Replay tutorial")}
         </button>
         <button
           type="button"
           onClick={onLeave}
           className="font-mono text-[9.5px] uppercase tracking-label text-muted transition-colors hover:text-vermilion"
         >
-          Leave
+          {t("Leave")}
         </button>
       </div>
     </div>

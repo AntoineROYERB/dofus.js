@@ -1,7 +1,8 @@
 import React from "react";
 import { ContentResponse, Loadout } from "../../types/message";
 import { championOf, kitOf, shortName } from "../../utils/loadoutUtils";
-import { elementLook } from "../../utils/elements";
+import { elementLook, elementName } from "../../utils/elements";
+import { useT } from "../../i18n/LanguageProvider";
 import { ElementGlyph } from "./ElementGlyph";
 import { OutfitIcon } from "./OutfitIcon";
 import { RelicIcon } from "./RelicIcon";
@@ -29,6 +30,7 @@ export const SetPicker: React.FC<SetPickerProps> = ({
   onSelect,
   onOpenWardrobe,
 }) => {
+  const { t } = useT();
   const worn = championOf(loadout, content.champions);
   const kit = kitOf(loadout, content);
   const spellNames = (kit?.bar ?? [])
@@ -40,19 +42,19 @@ export const SetPicker: React.FC<SetPickerProps> = ({
     <div className="mt-4">
       <div className="flex items-baseline justify-between">
         <p className="font-mono text-[9.5px] uppercase tracking-label text-muted">
-          Champion
+          {t("Champion")}
         </p>
         <button
           type="button"
           onClick={onOpenWardrobe}
           className="-my-2 py-2 font-mono text-[9.5px] uppercase tracking-label text-ink underline decoration-rule underline-offset-4 transition-colors hover:text-vermilion"
         >
-          Wardrobe
+          {t("Wardrobe")}
         </button>
       </div>
       <div
         role="radiogroup"
-        aria-label="Champion"
+        aria-label={t("Champion")}
         className="mt-2 grid gap-2"
         style={{ gridTemplateColumns: `repeat(${Math.min(content.champions.length, 4)}, minmax(0, 1fr))` }}
       >
@@ -66,7 +68,7 @@ export const SetPicker: React.FC<SetPickerProps> = ({
               type="button"
               role="radio"
               aria-checked={isSelected}
-              title={`${champion.name}'s set`}
+              title={t("{name}'s set", { name: champion.name })}
               onClick={() => onSelect(champion.set)}
               className={`relative flex flex-col items-center gap-0.5 border px-1 pb-1.5 pt-1 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink ${
                 isSelected ? "border-ink bg-board" : "border-rule hover:border-graphite"
@@ -81,7 +83,7 @@ export const SetPicker: React.FC<SetPickerProps> = ({
                 style={{ color: elementLook(set.element)?.text }}
               >
                 <ElementGlyph element={set.element} size={10} />
-                {set.element}
+                {elementName(set.element)}
               </span>
             </button>
           );
@@ -92,10 +94,10 @@ export const SetPicker: React.FC<SetPickerProps> = ({
         <div className="mt-2.5 text-[12.5px] leading-snug text-graphite">
           <p className="flex flex-wrap items-center gap-x-1.5 font-mono text-[9.5px] uppercase tracking-label text-ink">
             <ElementGlyph element={kit.element} size={11} />
-            <span style={{ color: elementLook(kit.element)?.text }}>{kit.element}</span> ·{" "}
-            {kit.grimoire.name} · {kit.grimoire.health} hp · {kit.grimoire.actionPoints} ap ·{" "}
-            {kit.grimoire.movementPoints} mp
-            {worn ? "" : " · your own set"}
+            <span style={{ color: elementLook(kit.element)?.text }}>{elementName(kit.element)}</span> ·{" "}
+            {kit.grimoire.name} · {t("{n} hp", { n: kit.grimoire.health })} · {t("{n} ap", { n: kit.grimoire.actionPoints })} ·{" "}
+            {t("{n} mp", { n: kit.grimoire.movementPoints })}
+            {worn ? "" : ` · ${t("your own set")}`}
           </p>
           <p className="mt-1 short:hidden">{kit.grimoire.lore}</p>
           {/*
@@ -106,13 +108,13 @@ export const SetPicker: React.FC<SetPickerProps> = ({
           */}
           <p className="mt-1 text-[11.5px] text-ink short:hidden">
             <span className="font-mono text-[9.5px] uppercase tracking-label text-muted">
-              Passive{" "}
+              {t("Passive")}{" "}
             </span>
             {kit.grimoire.passive}
           </p>
           <p className="mt-1 text-[11.5px] text-ink short:hidden">
             <span className="font-mono text-[9.5px] uppercase tracking-label text-muted">
-              Rune{" "}
+              {t("Rune")}{" "}
             </span>
             {/* Its stone, at the fighters' own size: a pixel a 64th of a cell. */}
             <RelicIcon id={runeKey(kit.rune.id)} unit={1} className="-my-2 mr-0.5 inline-block align-middle" />

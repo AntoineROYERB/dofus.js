@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { localizeReason } from "../i18n/server";
 
 type Rejection = { reason: string; at: number } | null;
 
@@ -27,5 +28,7 @@ export const useRejectionBanner = (rejection: Rejection): string | null => {
     return () => clearTimeout(timer);
   }, [rejection]);
 
-  return message;
+  // Translated as it is shown rather than as it arrived, so a language
+  // switched while it is up switches it too.
+  return message && localizeReason(message);
 };

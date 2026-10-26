@@ -1,5 +1,7 @@
 import { Spell } from "../types/message";
 import { areaPattern } from "./spellUtils";
+import { t, tn } from "../i18n/lang";
+import { TERRAIN_INFO } from "./terrain";
 
 /*
  * What an outfit's attack does, reduced to what the wardrobe shows of it:
@@ -28,28 +30,32 @@ export const attackFacts = (spell: Spell): string[] => {
   const hits = spell.hits && spell.hits > 1 ? spell.hits : 1;
   if (spell.damage > 0)
     facts.push(
-      hits > 1 ? `${hits} × ${spell.damage} dmg` : `${spell.damage} dmg`,
+      hits > 1 ? t("{hits} × {n} dmg", { hits, n: spell.damage }) : t("{n} dmg", { n: spell.damage }),
     );
   if (spell.targeting === "self" || spell.range === 0)
-    facts.push("all round you");
-  else if (spell.range === 1) facts.push("next to you");
-  else facts.push(`range ${spell.range}`);
-  if (spell.areaOfEffect === "line") facts.push("3 in a line");
+    facts.push(t("all round you"));
+  else if (spell.range === 1) facts.push(t("next to you"));
+  else facts.push(t("range {n}", { n: spell.range }));
+  if (spell.areaOfEffect === "line") facts.push(t("3 in a line"));
   if (spell.areaOfEffect === "cross" && spell.targeting !== "self")
-    facts.push("a cross");
-  if (spell.areaOfEffect === "circle") facts.push("wide area");
-  if ((spell.push ?? 0) > 0) facts.push(`pushes ${spell.push}`);
-  if ((spell.push ?? 0) < 0) facts.push(`pulls ${-(spell.push ?? 0)}`);
-  if (spell.effect?.kind === "burn") facts.push("+1 burn");
-  if (spell.effect?.kind === "mp") facts.push(`${spell.effect.value} MP`);
-  if (spell.terrain)
+    facts.push(t("a cross"));
+  if (spell.areaOfEffect === "circle") facts.push(t("wide area"));
+  if ((spell.push ?? 0) > 0) facts.push(t("pushes {n}", { n: spell.push ?? 0 }));
+  if ((spell.push ?? 0) < 0) facts.push(t("pulls {n}", { n: -(spell.push ?? 0) }));
+  if (spell.effect?.kind === "burn") facts.push(t("+1 burn"));
+  if (spell.effect?.kind === "mp") facts.push(t("{n} MP", { n: spell.effect.value }));
+  if (spell.terrain) {
+    const ground = (TERRAIN_INFO[spell.terrain]?.name ?? spell.terrain).toLowerCase();
     facts.push(
-      `${spell.terrain} ${spell.terrainTurns ? `for ${spell.terrainTurns} turn${spell.terrainTurns > 1 ? "s" : ""}` : "for good"}`,
+      spell.terrainTurns
+        ? tn("{ground} for {n} turn", "{ground} for {n} turns", spell.terrainTurns, { ground })
+        : t("{ground} for good", { ground }),
     );
+  }
   if (spell.needsLineOfSight === false && spell.range > 1)
-    facts.push("over cover");
-  if (spell.relayed) facts.push("from your pylon");
-  if (spell.cooldown > 0) facts.push(`every ${spell.cooldown + 1} turns`);
-  else if (spell.maxCastsPerTurn === 1) facts.push("once a turn");
+    facts.push(t("over cover"));
+  if (spell.relayed) facts.push(t("from your pylon"));
+  if (spell.cooldown > 0) facts.push(t("every {n} turns", { n: spell.cooldown + 1 }));
+  else if (spell.maxCastsPerTurn === 1) facts.push(t("once a turn"));
   return facts;
 };
