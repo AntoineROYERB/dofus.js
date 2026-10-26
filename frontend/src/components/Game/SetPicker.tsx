@@ -7,6 +7,7 @@ import { ElementGlyph } from "./ElementGlyph";
 import { OutfitIcon } from "./OutfitIcon";
 import { RelicIcon } from "./RelicIcon";
 import { runeKey } from "../../vfx/relics";
+import { grimoireRule, runeFact } from "../../utils/gearFacts";
 
 interface SetPickerProps {
   content: ContentResponse;
@@ -99,7 +100,6 @@ export const SetPicker: React.FC<SetPickerProps> = ({
             {t("{n} mp", { n: kit.grimoire.movementPoints })}
             {worn ? "" : ` · ${t("your own set")}`}
           </p>
-          <p className="mt-1 short:hidden">{kit.grimoire.lore}</p>
           {/*
             On a phone held sideways the passive, the rune and the spells are
             what pushed "Find a game" under the bottom of the screen. They are
@@ -110,7 +110,7 @@ export const SetPicker: React.FC<SetPickerProps> = ({
             <span className="font-mono text-[9.5px] uppercase tracking-label text-muted">
               {t("Passive")}{" "}
             </span>
-            {kit.grimoire.passive}
+            {grimoireRule(kit.grimoire)}
           </p>
           <p className="mt-1 text-[11.5px] text-ink short:hidden">
             <span className="font-mono text-[9.5px] uppercase tracking-label text-muted">
@@ -118,7 +118,7 @@ export const SetPicker: React.FC<SetPickerProps> = ({
             </span>
             {/* Its stone, at the fighters' own size: a pixel a 64th of a cell. */}
             <RelicIcon id={runeKey(kit.rune.id)} unit={1} className="-my-2 mr-0.5 inline-block align-middle" />
-            {kit.rune.name} — {kit.rune.description}
+            {kit.rune.name} · {runeFact(kit.rune)}
           </p>
           <p className="mt-1 truncate text-[11.5px] text-muted short:hidden" title={spellNames}>
             {spellNames}

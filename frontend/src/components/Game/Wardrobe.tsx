@@ -6,7 +6,7 @@ import { OutfitIcon } from "./OutfitIcon";
 import { RelicIcon } from "./RelicIcon";
 import { ElementGlyph } from "./ElementGlyph";
 import { AttackShape } from "./AttackShape";
-import { attackFacts } from "../../utils/attacks";
+import { grimoireRule, grimoireStats, runeFact, spellFacts, ultimateFacts } from "../../utils/gearFacts";
 import { areaPattern } from "../../utils/spellUtils";
 import { elementLook, elementName } from "../../utils/elements";
 import { Key, t } from "../../i18n/lang";
@@ -83,6 +83,11 @@ type Item = {
   id: string;
   title: string;
   line: string;
+  /**
+   * What it does, as a few short facts with their numbers — "6 dégâts ·
+   * 3 PA · portée 7" — read off the content rather than a sentence.
+   */
+  facts?: string[];
   /** What picking it would also change, if anything. */
   note?: string;
   /** More than a line can say, shown on the shelf only. */
@@ -277,17 +282,11 @@ const WardrobeSheet: React.FC<Omit<WardrobeProps, "content" | "failed"> & { cont
             return {
               id: o.id,
               title: o.name,
-              line: attack ? `${attack.name} · ${attack.role}` : spellName(o.basicAttack),
+              line: attack ? attack.name : spellName(o.basicAttack),
+              facts: attack ? spellFacts(attack) : undefined,
               detail: attack && (
-                <span className="mt-1 flex items-center gap-2.5">
+                <span className="mt-1 block">
                   <AttackShape spell={attack} />
-                  <span className="flex flex-wrap gap-1">
-                    {attackFacts(attack).map((fact) => (
-                      <span key={fact} className="border border-hairline bg-board px-1 font-mono text-[9.5px] leading-4 text-ink">
-                        {fact}
-                      </span>
-                    ))}
-                  </span>
                 </span>
               ),
               icon: <OutfitIcon sprite={o.sprite} size={size} />,
@@ -297,7 +296,8 @@ const WardrobeSheet: React.FC<Omit<WardrobeProps, "content" | "failed"> & { cont
         return content.grimoires.map((g) => ({
           id: g.id,
           title: `${elementName(g.element)} · ${g.name}`,
-          line: `${g.spells.map(spellName).join(" · ")} — ${g.passive}`,
+          line: grimoireRule(g),
+          facts: grimoireStats(g),
           icon: (
             <TextIcon size={size}>
               <ElementGlyph element={g.element} size={Math.round(size * 0.6)} />
@@ -308,17 +308,18 @@ const WardrobeSheet: React.FC<Omit<WardrobeProps, "content" | "failed"> & { cont
         return content.runes.map((r) => ({
           id: r.id,
           title: r.name,
-          line: r.description,
+          line: runeFact(r),
           icon: <RuneIcon size={size} id={r.id} name={r.name} />,
         }));
       case "talisman":
         return content.talismans.map((tal) => ({
           id: tal.id,
           title: tal.name,
-          // A legendary's ultimate says what it does, then what your element adds.
-          line: content.spells[tal.ultimate]?.infusions?.[kit.element]
-            ? `${t("Ultimate")} · ${spellName(tal.ultimate)} — ${content.spells[tal.ultimate].description} ${t("Infused by your {element}:", { element: elementName(kit.element) })} ${spells[tal.ultimate].description}`
-            : `${t("Ultimate")} · ${spellName(tal.ultimate)} — ${spells[tal.ultimate]?.description ?? ""}`,
+          // The ultimate it carries, as facts; a legendary's adds your element.
+          line: `${t("Ultimate")} · ${spellName(tal.ultimate)}`,
+          facts: spells[tal.ultimate]
+            ? ultimateFacts(spells[tal.ultimate], !!content.spells[tal.ultimate]?.infusions?.[kit.element])
+            : undefined,
           icon: <TalismanIcon size={size} color={ultimateColor(tal.ultimate)} id={tal.id} />,
         }));
     }
@@ -331,8 +332,8 @@ const WardrobeSheet: React.FC<Omit<WardrobeProps, "content" | "failed"> & { cont
   const slotButton = (slot: Slot, align: "left" | "right") => {
     const item = worn(slot, 40);
     const active = open === slot;
-    // The grimoire's line is long; the slot shows its spells only.
-    const line = slot === "grimoire" ? kit.grimoire.spells.map(spellName).join(" · ") : item.line;
+    // A slot has one line: the facts when there are some, else the line.
+    const line = item.facts?.length ? item.facts.join(" · ") : item.line;
     return (
       <button
         key={slot}
@@ -400,7 +401,16 @@ const WardrobeSheet: React.FC<Omit<WardrobeProps, "content" | "failed"> & { cont
                   <span className="font-display text-[13.5px] font-bold leading-tight">{o.title}</span>
                   {chosen && <span className={`${MONO} flex-none text-vermilion`}>{t("Worn")}</span>}
                 </span>
-                <span className="block text-[11.5px] leading-snug text-graphite">{o.line}</span>
+                <span className="block text-[12px] leading-snug text-graphite">{o.line}</span>
+                {o.facts && o.facts.length > 0 && (
+                  <span className="mt-1 flex flex-wrap gap-1">
+                    {o.facts.map((fact) => (
+                      <span key={fact} className="rounded-full bg-board px-2 font-display text-[12px] leading-5 text-ink">
+                        {fact}
+                      </span>
+                    ))}
+                  </span>
+                )}
                 {o.detail}
                 {o.note && !chosen && (
                   <span className={`${MONO} mt-0.5 block text-muted`}>{o.note}</span>
