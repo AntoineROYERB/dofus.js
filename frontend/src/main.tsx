@@ -5,10 +5,13 @@ import "./index.css";
 import { setUpNativeShell } from "./lib/native";
 import { installAudio } from "./audio/engine";
 import { preloadSamples } from "./audio/samples";
+import { meterEnabled } from "./components/Game/World/meter";
 
 setUpNativeShell();
 installAudio();
 preloadSamples();
+// Read `?fps` on whatever page the app opens on: the fight drops its query.
+meterEnabled();
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
