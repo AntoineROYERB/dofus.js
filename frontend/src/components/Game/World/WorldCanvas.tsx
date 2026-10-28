@@ -138,6 +138,8 @@ export const WorldCanvas: React.FC<Props> = ({ containerRef, tile, scale, pan, g
       air: newAir(layout.look, seed, colors as Air["colors"], trees),
       lights,
     };
+    // In development, the scene is reachable from the console for checks.
+    if (import.meta.env.DEV) (window as unknown as { __asciiScene?: unknown }).__asciiScene = { ...sceneRef.current, obstacles, ground };
     setSceneVersion((v) => v + 1);
   }, [content, paletteId, seed, ground, obstacles]);
 

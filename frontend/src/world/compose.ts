@@ -49,6 +49,11 @@ export const onBoard = (ax: number, ay: number, margin = 0): boolean =>
 
 const NIGHT: Rgb = [6, 8, 20];
 
+/**
+ * The clearing is lit a little more than the land round it. With no grid at
+ * rest, it is light rather than a line that says where the board is.
+ */
+export const CLEARING_LIGHT = 1.22;
 /** How much of their own colour fighters keep at night. */
 export const FIGURE_LIGHT = 0.95;
 /** The materials figures are painted in (figures.ts). */
@@ -78,7 +83,11 @@ const shade = (f: Frame, mat: number, c: Rgb, ax: number, ay: number, hazed: boo
   if (materialOf(mat).emissive) return c;
   // Fighters stand out from their ground: the night takes less of them
   // (ART_DIRECTION.md, 5.3 — creatures brighter than their island).
-  const amb = isFigure(mat) ? Math.max(f.ambient, FIGURE_LIGHT) : f.ambient;
+  const amb = isFigure(mat)
+    ? Math.max(f.ambient, FIGURE_LIGHT)
+    : !hazed && onBoard(ax, ay)
+      ? Math.min(1, f.ambient * CLEARING_LIGHT)
+      : f.ambient;
   let out: Rgb = [c[0] * amb + NIGHT[0] * 0.5, c[1] * amb + NIGHT[1] * 0.5, c[2] * amb + NIGHT[2] * 0.5];
   const l = lightAt(f.lights, ax, ay);
   if (l.level > 0) out = lit(out, l.level, l.color);

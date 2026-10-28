@@ -455,10 +455,18 @@ const paintCover = (c: Ctx, cx: number, cy: number, seed: number) => {
     case "coral":
     case "boulder":
     default: {
-      const mat = c.look.cover === "crystal" ? Mat.Crystal : c.look.cover === "basalt" ? Mat.Basalt : c.look.cover === "coral" ? Mat.Coral : Mat.Rock;
+      // A rock in the island's stone; coral grows out of it rather than
+      // being one: a whole block of branches read as noise.
+      const mat = c.look.cover === "crystal" ? Mat.Crystal : c.look.cover === "basalt" ? Mat.Basalt : Mat.Rock;
       piece(c, false, cx, cy + 3, (put) => {
         blob(put, cx - 1, cy - 4, 9 + Math.round(r(1) * 2), 7, mat, (l) => steps(c.P.stone, l), cy + 3);
         if (mat === Mat.Crystal) for (let y = 0; y < 8; y++) put(cx + 2, cy - 10 - y, Mat.Crystal, c.P.flowers[2]);
+        if (c.look.cover === "coral") {
+          for (let k = 0; k < 3; k++) {
+            const x = cx - 5 + k * 5;
+            for (let y = 0; y < 4 + Math.round(r(k + 4) * 3); y++) put(x + (y > 2 ? (k % 2 ? 1 : -1) : 0), cy - 10 - y, Mat.Coral, c.P.flowers[k % c.P.flowers.length]);
+          }
+        }
       });
     }
   }

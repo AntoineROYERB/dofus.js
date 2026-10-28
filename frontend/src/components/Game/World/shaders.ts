@@ -79,7 +79,8 @@ float hazeAt(float y) {
 
 vec3 shade(int m, vec3 c, float ax, float ay, bool hazed) {
   if (isEmissive(m)) return c;
-  float amb = (m >= 40 && m <= 54) ? max(uAmbient, 0.95) : uAmbient;
+  float amb = (m >= 40 && m <= 54) ? max(uAmbient, 0.95)
+    : (!hazed && onBoard(ax, ay, 0.0)) ? min(1.0, uAmbient * 1.22) : uAmbient;
   vec3 o = c * amb + NIGHT * 0.5;
   float level = 0.0;
   vec3 col = vec3(0.0);

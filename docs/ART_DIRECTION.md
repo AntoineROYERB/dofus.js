@@ -342,8 +342,8 @@ for the painting all the same.
   wins a cell only when it fills half of it, or the world turns to `@`.
 - **Glyph sets per material**, the mock-up's as the reference: grass
   `, ' . " ;` lying flat as `/` under a gust, water `~ - =`, stone and brick
-  `# = %`, foliage `# & *` by light, pines `A ^ '`, rock `% # =`, fire
-  `^ * # @`, eyes `o 0`, outlines `@`. A lit material picks its glyph by its
+  `# = %`, foliage `# & *` by light, pines `A ^ '`, rock `% #`, fire
+  `^ * # @`, eyes `o 0`, outlines `@`, robes `# % &`. A lit material picks its glyph by its
   light, darkest first; a texture picks by place, so it holds still; water,
   fire and smoke reshuffle over time.
 - **Every cell carries a glyph over a coloured ground**, edge to edge, at
@@ -357,6 +357,9 @@ for the painting all the same.
   device pixels, 1.8 times as tall as it is wide.
 - **Fighters stand out**: the night takes less of their colour than of
   their ground's.
+- **The clearing is lit, not drawn**: with no grid at rest, the board's
+  ground takes a little more light than the land round it, and that is
+  what says where the board is.
 
 ## 6. Sprites
 

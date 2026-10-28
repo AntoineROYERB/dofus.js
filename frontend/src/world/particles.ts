@@ -19,7 +19,7 @@ export type Air = { motes: Mote[]; rand: () => number; colors: Record<Kind, Rgb>
 const COUNT: Record<Look["ambient"], number> = {
   firefly: 46,
   dust: 90,
-  drizzle: 110,
+  drizzle: 70,
   snow: 80,
   petal: 70,
   spore: 70,
