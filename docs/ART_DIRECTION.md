@@ -332,7 +332,13 @@ All sheets are PNGs drawn on the same grid: **art pixels in blocks of 4** on
 - **What a fighter takes into a fight is chosen in the wardrobe**, a slot at
   a time: the element first (its grimoire, three spells and the rule they
   share), an outfit of that element, a rune and a talisman. The wardrobe
-  belongs to the frame. The outfit shelf only shows the element's own
+  belongs to the frame, and reads like a brawler's screen: the fighter
+  large on a lit stage with its spells as round buttons under it, its class
+  and numbers in the header, the four slots as square tiles framed in their
+  own colour (the element's for the grimoire and the outfit, the runes'
+  violet, gold for the talisman), and the champions' sets as round
+  portraits beside the gold button. Tapping a tile swaps the tiles for the
+  cards of what could replace it. The outfit shelf only shows the element's own
   outfits, and under each one its attack: a strip of cells from the fighter
   to what it hits, in the element's colour, and the few facts that set it
   apart. Trying one on plays it on the stand.

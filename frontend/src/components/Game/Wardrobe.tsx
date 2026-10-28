@@ -5,6 +5,7 @@ import { CharacterShowcase, ShowcaseCast } from "./CharacterShowcase";
 import { OutfitIcon } from "./OutfitIcon";
 import { RelicIcon } from "./RelicIcon";
 import { ElementGlyph } from "./ElementGlyph";
+import { SpellGlyph } from "./SpellGlyph";
 import { AttackShape } from "./AttackShape";
 import { grimoireRule, grimoireStats, runeFact, spellFacts, ultimateFacts } from "../../utils/gearFacts";
 import { areaPattern } from "../../utils/spellUtils";
@@ -60,16 +61,6 @@ const SLOTS: Record<Slot, { verb: Key; flavour: Key }> = {
     flavour: "It circles you, and brightens when your ultimate is ready.",
   },
 };
-const LEFT: Slot[] = ["grimoire", "outfit"];
-const RIGHT: Slot[] = ["rune", "talisman"];
-/** On a phone held upright: two by two under the fighter. */
-const UPRIGHT: Record<Slot, string> = {
-  grimoire: "narrow:col-start-1 narrow:row-start-2",
-  outfit: "narrow:col-start-1 narrow:row-start-3",
-  rune: "narrow:col-start-2 narrow:row-start-2",
-  talisman: "narrow:col-start-2 narrow:row-start-3",
-};
-
 /** The stand's cells, two from its middle, in board coordinates. */
 const STAND_CELLS = [-2, -1, 0, 1, 2].flatMap((x) =>
   [-2, -1, 0, 1, 2].filter((y) => Math.abs(x) + Math.abs(y) <= 2).map((y) => ({ x, y }))
@@ -102,7 +93,7 @@ const TextIcon: React.FC<{ size: number; children: React.ReactNode; tint?: strin
 }) => (
   <span
     aria-hidden
-    className="grid flex-none place-items-center border border-hairline bg-board"
+    className="grid flex-none place-items-center rounded-xl bg-board"
     style={{ width: size, height: size, fontSize: size * 0.5, backgroundColor: tint }}
   >
     {children}
@@ -197,7 +188,6 @@ const WardrobeSheet: React.FC<Omit<WardrobeProps, "content" | "failed"> & { cont
   content,
   loadout,
   color,
-  name,
   onSave,
   onCancel,
 }) => {
@@ -328,11 +318,23 @@ const WardrobeSheet: React.FC<Omit<WardrobeProps, "content" | "failed"> & { cont
   const worn = (slot: Slot, size: number) =>
     items(slot, size).find((i) => i.id === draft[slot]) ?? items(slot, size)[0];
 
-  /** A slot hung beside the fighter: what it holds, and a tap to change it. */
-  const slotButton = (slot: Slot, align: "left" | "right") => {
-    const item = worn(slot, 40);
+  /*
+   * Each slot has its own frame colour, the way a brawler's gadgets, star
+   * powers and gears each have theirs: the element's for what comes from it
+   * (the grimoire, the outfit), the runes' violet, and gold for the talisman
+   * that carries the ultimate.
+   */
+  const frame = (slot: Slot): string =>
+    slot === "rune"
+      ? "#a88cf0"
+      : slot === "talisman"
+        ? "rgb(var(--gold))"
+        : elementLook(kit.element)?.color ?? "rgb(var(--gold))";
+
+  /** A slot as a large square tile: its picture, what it is, its facts. */
+  const slotTile = (slot: Slot) => {
+    const item = worn(slot, 44);
     const active = open === slot;
-    // A slot has one line: the facts when there are some, else the line.
     const line = item.facts?.length ? item.facts.join(" · ") : item.line;
     return (
       <button
@@ -341,48 +343,49 @@ const WardrobeSheet: React.FC<Omit<WardrobeProps, "content" | "failed"> & { cont
         aria-expanded={active}
         aria-controls="wardrobe-shelf"
         onClick={() => setOpen(active ? null : slot)}
-        className={`flex w-full min-w-0 items-center gap-2.5 border px-2 py-2 text-left ${PRESS} ${
-          align === "right" ? "flex-row-reverse text-right" : ""
-        } ${active ? "border-ink bg-board" : "border-rule bg-panel/90 hover:border-graphite"}`}
+        className={`relative flex min-w-0 flex-col items-start gap-1.5 rounded-2xl bg-panel/95 p-2.5 text-left ${PRESS}`}
+        style={{
+          boxShadow: active
+            ? `inset 0 0 0 2.5px rgb(var(--gold)), 0 0 18px rgb(var(--gold) / 0.45)`
+            : `inset 0 0 0 2px ${frame(slot)}, inset 0 -4px 0 rgb(var(--night) / 0.35)`,
+        }}
       >
-        {item.icon}
-        <span className="min-w-0 flex-1">
-          <span className={`${MONO} block truncate text-muted`}>{t(SLOTS[slot].verb)}</span>
-          <span className="block truncate font-display text-[14px] font-bold leading-tight">
-            {item.title}
+        <span className="flex w-full items-center gap-2">
+          {item.icon}
+          <span className="min-w-0 flex-1">
+            <span className={`${MONO} block truncate`} style={{ color: frame(slot) }}>
+              {t(SLOTS[slot].verb)}
+            </span>
+            <span className="line-clamp-2 font-display text-[14px] leading-tight">{item.title}</span>
           </span>
-          <span className="block truncate text-[11px] leading-snug text-graphite">{line}</span>
+        </span>
+        <span className="line-clamp-2 w-full font-display text-[12px] leading-snug text-graphite">
+          {line}
         </span>
       </button>
     );
   };
 
+  /** What could take a slot's place, as cards, where the tiles were. */
   const shelf = open && (
-    <div
-      id="wardrobe-shelf"
-      role="region"
-      aria-label={t(SLOTS[open].verb)}
-      className={`absolute z-10 flex flex-col border-rule bg-panel narrow:inset-x-0 narrow:bottom-0 narrow:top-[46%] narrow:border-t ${
-        LEFT.includes(open)
-          ? "sm:inset-y-0 sm:right-0 sm:w-[min(40%,340px)] sm:border-l"
-          : "sm:inset-y-0 sm:left-0 sm:w-[min(40%,340px)] sm:border-r"
-      }`}
-    >
-      <div className="flex flex-none items-start justify-between gap-3 border-b border-hairline px-3 pb-2 pt-2.5">
+    <div id="wardrobe-shelf" role="region" aria-label={t(SLOTS[open].verb)} className="flex min-h-0 flex-1 flex-col">
+      <div className="flex flex-none items-start justify-between gap-3 pb-2">
         <div className="min-w-0">
-          <p className={`${MONO} text-muted`}>{t(SLOTS[open].verb)}</p>
-          <p className="text-[11.5px] italic leading-snug text-graphite">{t(SLOTS[open].flavour)}</p>
+          <p className={MONO} style={{ color: frame(open) }}>
+            {t(SLOTS[open].verb)}
+          </p>
+          <p className="text-[12px] leading-snug text-graphite">{t(SLOTS[open].flavour)}</p>
         </div>
-        <button
-          type="button"
-          onClick={() => setOpen(null)}
-          className={`${MONO} flex-none border border-rule px-2 py-1 text-ink hover:border-ink`}
-        >
+        <button type="button" onClick={() => setOpen(null)} className="btn-night flex-none px-4 py-1.5 font-display text-[14px]">
           {t("Done")}
         </button>
       </div>
-      <div role="radiogroup" aria-label={t(SLOTS[open].verb)} className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto p-2">
-        {items(open, 44).map((o) => {
+      <div
+        role="radiogroup"
+        aria-label={t(SLOTS[open].verb)}
+        className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain pb-1 pr-1"
+      >
+        {items(open, 48).map((o) => {
           const chosen = draft[open] === o.id;
           return (
             <button
@@ -391,15 +394,24 @@ const WardrobeSheet: React.FC<Omit<WardrobeProps, "content" | "failed"> & { cont
               role="radio"
               aria-checked={chosen}
               onClick={() => pick(open, o.id)}
-              className={`flex flex-none items-start gap-2.5 border px-2 py-2 text-left ${PRESS} ${
-                chosen ? "border-ink bg-board" : "border-rule hover:border-graphite"
+              className={`flex flex-none items-start gap-2.5 rounded-2xl p-2.5 text-left ${PRESS} ${
+                chosen ? "bg-panel" : "bg-panel/60"
               }`}
+              style={{
+                boxShadow: chosen
+                  ? "inset 0 0 0 2.5px rgb(var(--gold)), 0 0 14px rgb(var(--gold) / 0.35)"
+                  : "inset 0 0 0 1.5px rgb(var(--rule))",
+              }}
             >
               {o.icon}
               <span className="min-w-0 flex-1">
                 <span className="flex items-baseline justify-between gap-2">
-                  <span className="font-display text-[13.5px] font-bold leading-tight">{o.title}</span>
-                  {chosen && <span className={`${MONO} flex-none text-vermilion`}>{t("Worn")}</span>}
+                  <span className="font-display text-[15px] leading-tight">{o.title}</span>
+                  {chosen && (
+                    <span className="flex-none rounded-full bg-gold px-2 font-mono text-[9px] uppercase tracking-label text-[#2a1b00]">
+                      {t("Worn")}
+                    </span>
+                  )}
                 </span>
                 <span className="block text-[12px] leading-snug text-graphite">{o.line}</span>
                 {o.facts && o.facts.length > 0 && (
@@ -412,9 +424,7 @@ const WardrobeSheet: React.FC<Omit<WardrobeProps, "content" | "failed"> & { cont
                   </span>
                 )}
                 {o.detail}
-                {o.note && !chosen && (
-                  <span className={`${MONO} mt-0.5 block text-muted`}>{o.note}</span>
-                )}
+                {o.note && !chosen && <span className={`${MONO} mt-0.5 block text-muted`}>{o.note}</span>}
               </span>
             </button>
           );
@@ -426,158 +436,173 @@ const WardrobeSheet: React.FC<Omit<WardrobeProps, "content" | "failed"> & { cont
   const bar = kit.bar.map((id, i) => ({
     id,
     name: spellName(id),
+    glyph: spells[id]?.baseId ?? spells[id]?.id,
+    icon: spells[id]?.icon ?? "",
+    color: spells[id]?.color,
     role: i === 0 ? "basic" : i === kit.bar.length - 1 ? "ultimate" : "spell",
   }));
   const roleName: Record<string, Key> = { basic: "basic", ultimate: "ultimate", spell: "spell" };
+  const outlined =
+    "[text-shadow:0_2px_0_rgb(var(--night)),2px_0_0_rgb(var(--night)),-2px_0_0_rgb(var(--night)),0_-2px_0_rgb(var(--night)),0_4px_0_rgb(var(--night))]";
 
+  /*
+   * A brawler's screen, full bleed: the fighter large on a lit stage on the
+   * left, with its class, its numbers and its spells under it; the four
+   * things it takes into a fight as tiles on the right, which give way to
+   * the cards of what could replace one when it is tapped; and along the
+   * bottom the champions' sets in one tap, and the gold button.
+   */
   return (
     <div
-      className="fixed inset-0 z-50 flex items-stretch justify-center bg-night/60 md:items-center md:px-6 md:py-6 short:items-stretch short:p-0"
-      onClick={onCancel}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="wardrobe-title"
+      className="fixed inset-0 z-50 flex flex-col overflow-hidden bg-paper pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] pt-[env(safe-area-inset-top)] text-ink"
     >
       <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="wardrobe-title"
-        onClick={(event) => event.stopPropagation()}
-        className="relative flex h-[100dvh] w-full max-w-4xl flex-col overflow-hidden bg-paper pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] pt-[env(safe-area-inset-top)] md:h-[min(640px,92dvh)] md:border md:border-rule short:h-[100dvh] short:max-w-none short:border-0"
-      >
-        <header className="flex flex-none items-center gap-3 border-b-2 border-ink px-4 pb-1.5 pt-2.5 short:pt-1.5">
-          <button
-            type="button"
-            onClick={onCancel}
-            aria-label={t("Leave the wardrobe")}
-            className={`grid h-10 w-10 flex-none place-items-center border border-rule text-ink hover:border-ink ${PRESS}`}
-          >
-            <svg aria-hidden viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-              <path d="M15 5l-7 7 7 7" />
-            </svg>
-          </button>
-          <h2 id="wardrobe-title" className="font-display text-[20px] font-bold leading-none tracking-tight">
-            {t("The wardrobe")}
-          </h2>
-          <span className={`${MONO} ml-auto flex min-w-0 items-center gap-1.5 text-muted`}>
-            <ElementGlyph element={kit.element} size={12} />
-            <span className="truncate">
-              <span style={{ color: elementLook(kit.element)?.text }}>{elementName(kit.element)}</span> ·{" "}
-              {champion ? t("{name}'s set", { name: champion.name }) : t("your own set")}
-            </span>
-          </span>
-        </header>
+        aria-hidden
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background:
+            "radial-gradient(ellipse 34% 62% at 27% 52%, rgb(var(--board) / 0.95) 0%, rgb(var(--board) / 0) 100%), radial-gradient(ellipse 60% 40% at 30% 0%, rgb(43 47 134 / 0.7), transparent 70%)",
+        }}
+      />
 
+      <header className="relative mx-auto flex w-full max-w-5xl flex-none items-center gap-3 px-4 pb-1 pt-2.5 short:pt-1.5">
+        <button
+          type="button"
+          onClick={onCancel}
+          aria-label={t("Leave the wardrobe")}
+          className="btn-night grid h-11 w-11 flex-none place-items-center"
+        >
+          <svg aria-hidden viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+            <path d="M15 5l-7 7 7 7" />
+          </svg>
+        </button>
         {/*
-          The character sheet: two slots either side of the fighter. On a
-          phone held upright, the fighter above and the four slots under it.
+          The fighter's class, large, where a brawler's screen names its
+          brawler, and its three numbers beside it: up here rather than over
+          the stage, where they covered the fighter's head on a phone.
         */}
-        <div className="relative grid min-h-0 flex-1 overflow-hidden grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)_minmax(0,1fr)] items-center gap-3 px-4 py-3 narrow:grid-cols-2 narrow:grid-rows-[minmax(0,1fr)_auto_auto] narrow:content-start narrow:gap-2 short:py-2">
-          <div className="flex flex-col gap-3 narrow:contents">
-            {LEFT.map((slot) => (
-              <div key={slot} className={UPRIGHT[slot]}>
-                {slotButton(slot, "left")}
-              </div>
-            ))}
-          </div>
+        <h2 id="wardrobe-title" className={`flex min-w-0 items-center gap-2 font-display text-[24px] leading-none text-white ${outlined}`}>
+          <span className="sr-only">{t("The wardrobe")} · </span>
+          <ElementGlyph element={kit.element} size={20} />
+          <span className="truncate">{kit.grimoire.name}</span>
+        </h2>
+        <p className="flex flex-none items-center gap-3 rounded-full bg-panel/80 px-3.5 py-0.5 font-display text-[14px] tabular-nums shadow-[inset_0_0_0_1px_rgb(var(--gold)/0.35)] narrow:hidden">
+          <span className="text-hp">♥ {kit.grimoire.health}</span>
+          <span className="text-pa">{t("{n} AP", { n: kit.grimoire.actionPoints })}</span>
+          <span className="text-pm">{t("{n} MP", { n: kit.grimoire.movementPoints })}</span>
+        </p>
+        <span className="ml-auto flex min-w-0 max-w-[40%] items-center gap-1.5 rounded-full narrow:hidden bg-panel/90 px-3 py-1 font-display text-[13px] shadow-[inset_0_0_0_1.5px_rgb(var(--gold)/0.5)]">
+          <ElementGlyph element={kit.element} size={14} />
+          <span className="truncate">
+            {champion ? t("{name}'s set", { name: champion.name }) : t("your own set")}
+          </span>
+        </span>
+      </header>
 
-          {/*
-            Upright, the shelf rises over the slots and the lower half; the
-            fighter moves up to stay in view, without the lines under it.
-          */}
-          <div className="flex min-h-0 flex-col items-center self-stretch narrow:col-span-2 narrow:row-start-1">
-            <div
-              className={`flex min-h-0 w-full flex-1 justify-center ${
-                open ? "items-end narrow:items-start narrow:pt-10" : "items-end"
-              }`}
-            >
-              <CharacterShowcase
-                color={color}
-                outfit={kit.outfit.sprite}
-                glyph={kit.grimoire.glyph}
-                talisman={ultimateColor(kit.talisman.ultimate)}
-                talismanId={kit.talisman.id}
-                cast={cast}
-                figureScale={2.3}
-                className="w-[min(100%,320px,calc((100dvh-170px)*1.2))] narrow:w-[min(92%,340px,calc((100dvh-400px)*1.2))]"
-              />
-            </div>
-            <div className={`contents ${open ? "narrow:hidden" : ""}`}>
-            <p className="mt-0.5 flex items-center gap-1.5 font-display text-[16px] font-bold leading-tight">
-              {name}
-            </p>
-            <p className={`${MONO} mt-0.5 flex items-center gap-1.5 text-graphite`}>
-              <ElementGlyph element={kit.element} size={11} />
-              <span style={{ color: elementLook(kit.element)?.text }}>{elementName(kit.element)}</span> · {kit.grimoire.name} ·{" "}
-              {t("{n} hp", { n: kit.grimoire.health })} · {t("{n} ap", { n: kit.grimoire.actionPoints })} ·{" "}
-              {t("{n} mp", { n: kit.grimoire.movementPoints })}
-            </p>
-            <ol aria-label={t("Spell bar")} className="mt-1.5 flex max-w-full flex-wrap justify-center gap-1">
-              {bar.map((s) => (
-                <li key={s.id}>
-                  {/* A tap casts it on the stand. */}
-                  <button
-                    type="button"
-                    title={t("{role} — cast it on the stand", { role: t(roleName[s.role]) })}
-                    aria-label={t("Cast {name}, {role}", { name: s.name, role: t(roleName[s.role]) })}
-                    onClick={() => play(s.id)}
-                    className={`border px-1.5 py-0.5 text-[11px] leading-tight ${PRESS} ${
-                      s.role === "ultimate"
-                        ? "border-ink bg-ink text-paper"
-                        : s.role === "basic"
-                          ? "border-rule bg-board text-ink hover:border-ink"
-                          : "border-hairline bg-panel text-graphite hover:border-ink"
-                    }`}
+      <div className="relative mx-auto grid min-h-0 w-full max-w-5xl flex-1 grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] gap-4 px-4 py-2 narrow:flex narrow:flex-col narrow:gap-2 narrow:overflow-y-auto">
+        {/* The stage. */}
+        <div className="flex min-h-0 flex-col items-center narrow:flex-none">
+          <p className="hidden flex-none items-center gap-3 rounded-full bg-panel/80 px-3.5 py-0.5 font-display text-[14px] tabular-nums shadow-[inset_0_0_0_1px_rgb(var(--gold)/0.35)] narrow:flex">
+            <span className="text-hp">♥ {kit.grimoire.health}</span>
+            <span className="text-pa">{t("{n} AP", { n: kit.grimoire.actionPoints })}</span>
+            <span className="text-pm">{t("{n} MP", { n: kit.grimoire.movementPoints })}</span>
+          </p>
+          <div className="flex min-h-0 w-full flex-1 items-end justify-center narrow:h-[min(44dvh,300px)] narrow:flex-none">
+            <CharacterShowcase
+              color={color}
+              outfit={kit.outfit.sprite}
+              glyph={kit.grimoire.glyph}
+              talisman={ultimateColor(kit.talisman.ultimate)}
+              talismanId={kit.talisman.id}
+              cast={cast}
+              figureScale={2.5}
+              className="w-[min(100%,360px,calc((100dvh-190px)*1.15))]"
+            />
+          </div>
+          {/* The spells, as round buttons: a tap casts one on the stand. */}
+          <ol aria-label={t("Spell bar")} className="mt-1 flex flex-none flex-wrap justify-center gap-2">
+            {bar.map((s) => (
+              <li key={s.id}>
+                <button
+                  type="button"
+                  title={t("{role} — cast it on the stand", { role: t(roleName[s.role]) })}
+                  aria-label={t("Cast {name}, {role}", { name: s.name, role: t(roleName[s.role]) })}
+                  onClick={() => play(s.id)}
+                  className={`flex w-[58px] flex-col items-center gap-0.5 ${PRESS}`}
+                >
+                  <span
+                    className="grid h-10 w-10 place-items-center rounded-full bg-panel"
+                    style={{
+                      color: s.role === "ultimate" ? "rgb(var(--gold))" : s.color,
+                      boxShadow:
+                        s.role === "ultimate"
+                          ? "inset 0 0 0 2px rgb(var(--gold)), 0 0 12px rgb(var(--gold) / 0.4)"
+                          : "inset 0 0 0 1.5px rgb(var(--rule))",
+                    }}
                   >
+                    {s.glyph !== undefined ? (
+                      <SpellGlyph spellId={s.glyph} fallback={s.icon} className="h-[22px] w-[22px]" />
+                    ) : (
+                      s.icon
+                    )}
+                  </span>
+                  <span className="w-full truncate text-center font-display text-[11px] leading-tight text-graphite">
                     {s.name}
-                  </button>
-                </li>
-              ))}
-            </ol>
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-3 narrow:contents">
-            {RIGHT.map((slot) => (
-              <div key={slot} className={UPRIGHT[slot]}>
-                {slotButton(slot, "right")}
-              </div>
+                  </span>
+                </button>
+              </li>
             ))}
-          </div>
-
-          {shelf}
+          </ol>
         </div>
 
-        <footer className="flex flex-none items-center gap-2 border-t border-rule px-4 py-2.5 narrow:flex-col narrow:items-stretch">
-          {/* A champion's whole set, in one tap. */}
-          <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto">
-            <span className={`${MONO} mr-1 flex-none text-muted`}>{t("A champion's set")}</span>
-            {content.champions.map((c) => {
-              const set = kitOf(c.set, content);
-              const on = champion?.id === c.id;
-              return (
-                <button
-                  key={c.id}
-                  type="button"
-                  aria-pressed={on}
-                  onClick={() => setDraft(c.set)}
-                  aria-label={t("{name}'s set", { name: c.name })}
-                  title={t("{name}'s set", { name: c.name })}
-                  className={`flex-none border-2 p-0.5 ${PRESS} ${
-                    on ? "border-ink" : "border-transparent hover:border-rule"
-                  }`}
-                >
-                  {set && <OutfitIcon sprite={set.outfit.sprite} size={30} />}
-                </button>
-              );
-            })}
-          </div>
-          <button
-            type="button"
-            onClick={() => onSave(draft)}
-            className={`flex-none btn-gold px-8 py-2.5 font-display text-[16px] font-extrabold uppercase tracking-wide ${PRESS}`}
-          >
-            {t("Gear up")}
-          </button>
-        </footer>
+        {/* The gear: four tiles, or the cards of the slot being changed. */}
+        <div className="flex min-h-0 flex-col narrow:flex-none">
+          {shelf || (
+            <div className="grid flex-1 grid-cols-2 content-center gap-2.5">
+              {(["grimoire", "outfit", "rune", "talisman"] as Slot[]).map(slotTile)}
+            </div>
+          )}
+        </div>
       </div>
+
+      <footer className="relative mx-auto flex w-full max-w-5xl flex-none items-center gap-3 px-4 pb-2.5 pt-1.5 narrow:flex-col narrow:items-stretch narrow:gap-2">
+        {/* A champion's whole set, in one tap. */}
+        <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto">
+          <span className={`${MONO} flex-none text-gold`}>{t("A champion's set")}</span>
+          {content.champions.map((c) => {
+            const set = kitOf(c.set, content);
+            const on = champion?.id === c.id;
+            return (
+              <button
+                key={c.id}
+                type="button"
+                aria-pressed={on}
+                onClick={() => setDraft(c.set)}
+                aria-label={t("{name}'s set", { name: c.name })}
+                title={t("{name}'s set", { name: c.name })}
+                className={`grid h-12 w-12 flex-none place-items-center overflow-hidden rounded-full bg-panel ${PRESS}`}
+                style={{
+                  boxShadow: on
+                    ? "inset 0 0 0 2.5px rgb(var(--gold)), 0 0 12px rgb(var(--gold) / 0.5)"
+                    : "inset 0 0 0 1.5px rgb(var(--rule))",
+                }}
+              >
+                {set && <OutfitIcon sprite={set.outfit.sprite} size={34} framed={false} />}
+              </button>
+            );
+          })}
+        </div>
+        <button
+          type="button"
+          onClick={() => onSave(draft)}
+          className="btn-gold h-14 flex-none px-9 font-display text-[22px] uppercase"
+        >
+          {t("Gear up")}
+        </button>
+      </footer>
     </div>
   );
 };
