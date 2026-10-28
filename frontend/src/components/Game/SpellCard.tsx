@@ -2,6 +2,7 @@ import React from "react";
 import { createPortal } from "react-dom";
 import { Spell } from "../../types/message";
 import { SpellUpgrade } from "../../utils/spellUpgrades";
+import { spellFacts } from "../../utils/gearFacts";
 import { Position } from "../../types/game";
 import { calculateImpactedCells, spellMechanics } from "../../utils/spellUtils";
 import { RULES } from "../../utils/terrain";
@@ -279,11 +280,18 @@ export const SpellCard: React.FC<SpellCardProps> = ({ spell, blocked, upgrades =
         </div>
 
         <div className="min-w-0 flex-1">
-          {spell.description && (
-            <p className="mb-1.5 text-[12px] leading-snug text-graphite">
-              {spell.description}
-            </p>
-          )}
+          {/*
+            What it does, as short facts with their numbers, where the
+            server's English sentence used to be; the table under them
+            carries the rest.
+          */}
+          <p className="mb-1.5 flex flex-wrap gap-1">
+            {spellFacts(spell).map((fact) => (
+              <span key={fact} className="rounded-full bg-board px-2 font-display text-[12.5px] leading-5 text-ink">
+                {fact}
+              </span>
+            ))}
+          </p>
           <Fact
             label={t("Range")}
             value={

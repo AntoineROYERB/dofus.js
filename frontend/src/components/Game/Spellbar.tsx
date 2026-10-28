@@ -8,6 +8,7 @@ import { RULES } from "../../utils/terrain";
 import { BOARD } from "../../constants";
 import { spec, spellSummary, unavailableReason } from "../../utils/spellUtils";
 import { SpellUpgrade, upgradesOf } from "../../utils/spellUpgrades";
+import { spellFacts } from "../../utils/gearFacts";
 import { t } from "../../i18n/lang";
 
 /** The ultimate's own colour: gold, the one thing on the bar that is rare. */
@@ -226,7 +227,7 @@ const SpellBar: React.FC<SpellBarProps> = ({
             </span>
             {/* The whole sentence, where there is room for it. */}
             <span className="ml-2.5 hidden font-sans text-xs font-normal text-graphite xl:inline short:!hidden">
-              — {selected.description}
+              — {spellFacts(selected).join(" · ")}
             </span>
           </>
         ) : (

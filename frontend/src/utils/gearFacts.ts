@@ -1,4 +1,4 @@
-import { Grimoire, Rune, Spell } from "../types/message";
+import { DreamBoon, Grimoire, Rune, Spell, SpellBook } from "../types/message";
 import { attackFacts } from "./attacks";
 import { RULES } from "./terrain";
 import { t, tLoose } from "../i18n/lang";
@@ -68,5 +68,59 @@ export const runeFact = (r: Rune): string => {
       return t("Pushed {n} cells less", { n: value });
     default:
       return tLoose(r.description);
+  }
+};
+
+/**
+ * A dream's boon, in a few words with its numbers — "+1 PA par tour",
+ * "Combustion · −1 PA" — read off its effect. A boon this does not know yet
+ * keeps the server's sentence.
+ */
+export const boonFact = (boon: DreamBoon, spells?: SpellBook | null): string => {
+  const e = boon.effect;
+  const n = e.value ?? 0;
+  const spellName = (id?: string) => (id && spells?.[id]?.name) || id || "";
+  switch (e.kind) {
+    case "health":
+      return t("+{n} max HP", { n });
+    case "mp":
+      return t("+{n} MP a turn", { n });
+    case "ap":
+      return t("+{n} AP a turn", { n });
+    case "guard":
+      return t("−{n} damage taken per hit", { n });
+    case "damage":
+      return t("+{n}% damage", { n });
+    case "range":
+      return t("+{n} range on spells reaching 2+", { n });
+    case "basicDiscount":
+      return t("Basic attack −{n} AP", { n });
+    case "openingMP":
+      return t("+{n} MP on turn 1", { n });
+    case "grantSpell":
+      return t("New spell: {name}", { name: spellName(e.spell) });
+    case "sharedAP":
+      return t("Allies within {r} cells: +{n} AP", { n, r: e.range ?? 0 });
+    case "basicTwice":
+      return t("Basic attack: +{n} cast a turn", { n });
+    case "spellMod": {
+      const changes: string[] = [];
+      if ((e.apCost ?? 0) < 0) changes.push(`−${t("{n} AP", { n: -(e.apCost ?? 0) })}`);
+      if ((e.spellRange ?? 0) > 0) changes.push(t("+{n} range", { n: e.spellRange ?? 0 }));
+      if ((e.effectValue ?? 0) > 0) changes.push(`+${e.effectValue}`);
+      return [spellName(e.spell), ...changes].join(" · ");
+    }
+    case "pushResist":
+      return t("Pushed {n} cells less", { n });
+    case "secondWind":
+      return t("Once a dream: a fatal blow leaves you at 1 HP");
+    case "earlyUltimate":
+      return t("Ultimate from turn 1");
+    case "partyShield":
+      return t("Party: shield {n} for {d} turns", { n, d: e.duration ?? 0 });
+    case "overflow":
+      return t("Keep up to {n} unspent AP", { n });
+    default:
+      return tLoose(boon.description);
   }
 };

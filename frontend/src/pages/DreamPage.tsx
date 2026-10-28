@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useWebSocket } from "../context/WebSocketContext";
 import { useContent } from "../hooks/useContent";
+import { boonFact } from "../utils/gearFacts";
 import { useRejectionBanner } from "../hooks/useRejectionBanner";
 import { readCharacter } from "../utils/characterStorage";
 import { kitOf, settleLoadout } from "../utils/loadoutUtils";
@@ -398,7 +399,9 @@ const Boons: React.FC<{ run: DreamView; send: Send; connected: boolean; content:
                   </span>
                   {boon && <RarityMark rarity={boon.rarity} />}
                 </span>
-                <span className="text-[13px] text-graphite">{boon?.description}</span>
+                <span className="font-display text-[15px] text-gold">
+                  {boon ? boonFact(boon, content?.spells) : ""}
+                </span>
               </button>
             );
           })}
@@ -417,7 +420,7 @@ const HeldBoons: React.FC<{ ids: string[]; content: ContentResponse | null }> = 
         {ids.map((id, i) => {
           const b = boonOf(content, id);
           return (
-            <span key={i} title={b?.description} className="mr-3 inline-block">
+            <span key={i} title={b ? boonFact(b, content?.spells) : undefined} className="mr-3 inline-block">
               <span aria-hidden>{b?.icon}</span> {b?.name ?? id}
             </span>
           );

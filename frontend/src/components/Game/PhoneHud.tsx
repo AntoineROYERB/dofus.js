@@ -226,12 +226,12 @@ const Command: React.FC<{
   const upgraded = upgrades.length > 0;
   // What the right end of the row says: why it cannot go, or what it costs.
   const tag = spent
-    ? "used"
+    ? t("spent")
     : locked
-      ? `turn ${RULES.ultimateFromTurn}`
+      ? t("turn {n}", { n: RULES.ultimateFromTurn })
       : cooldown > 0
         ? `⟳ ${cooldown}`
-        : `${spell.APCost} ap`;
+        : t("{n} AP", { n: spell.APCost });
 
   return (
     <button

@@ -1,6 +1,6 @@
-import { grimoireRule, grimoireStats, runeFact, spellFacts, ultimateFacts } from "./gearFacts";
+import { boonFact, grimoireRule, grimoireStats, runeFact, spellFacts, ultimateFacts } from "./gearFacts";
 import { makeSpell } from "../test/fixtures";
-import { Grimoire, Rune } from "../types/message";
+import { DreamBoon, Grimoire, Rune } from "../types/message";
 
 const grimoire = (overrides: Partial<Grimoire> = {}): Grimoire => ({
   id: "pyromancer",
@@ -68,5 +68,32 @@ describe("runeFact", () => {
     expect(runeFact(rune({ kind: "openingMP", value: 2 }))).toBe("+2 MP on turn 1");
     expect(runeFact(rune({ kind: "openingShield", value: 3, duration: 1 }))).toBe("Shield 3 on turn 1");
     expect(runeFact(rune({ kind: "pushResist", value: 2 }))).toBe("Pushed 2 cells less");
+  });
+});
+
+describe("boonFact", () => {
+  const boon = (effect: DreamBoon["effect"]): DreamBoon => ({
+    id: "b",
+    name: "B",
+    description: "A long sentence from the server.",
+    rarity: "common",
+    icon: "*",
+    effect,
+  });
+  const spells = { "3": makeSpell({ id: 3, name: "Combustion" }) };
+
+  it("writes a boon from its numbers", () => {
+    expect(boonFact(boon({ kind: "ap", value: 1 }))).toBe("+1 AP a turn");
+    expect(boonFact(boon({ kind: "sharedAP", value: 1, range: 2 }))).toBe("Allies within 2 cells: +1 AP");
+    expect(boonFact(boon({ kind: "partyShield", value: 3, duration: 2 }))).toBe("Party: shield 3 for 2 turns");
+  });
+
+  it("names the spell a boon changes or deals", () => {
+    expect(boonFact(boon({ kind: "spellMod", spell: "3", apCost: -1 }), spells)).toBe("Combustion · −1 AP");
+    expect(boonFact(boon({ kind: "grantSpell", spell: "3" }), spells)).toBe("New spell: Combustion");
+  });
+
+  it("keeps the server's sentence for a boon it does not know", () => {
+    expect(boonFact(boon({ kind: "brand-new" }))).toBe("A long sentence from the server.");
   });
 });

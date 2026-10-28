@@ -1,4 +1,5 @@
 import React from "react";
+import { spellFacts } from "../../utils/gearFacts";
 import { createPortal } from "react-dom";
 import { Spell } from "../../types/message";
 import { Position } from "../../types/game";
@@ -140,8 +141,8 @@ export const SpellTooltip: React.FC<SpellTooltipProps> = ({
           {spell.role}
         </span>
       </div>
-      <p className="mb-1.5 font-sans text-[11px] leading-snug text-ink">
-        {spell.description}
+      <p className="mb-1.5 font-display text-[12.5px] leading-snug text-ink">
+        {spellFacts(spell).join(" · ")}
       </p>
 
       <div className="mb-1.5 flex flex-wrap gap-1">
