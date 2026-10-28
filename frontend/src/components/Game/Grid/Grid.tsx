@@ -20,13 +20,12 @@ import {
   ZONE_INFO,
 } from "../../../utils/terrain";
 import { TerrainLayer } from "./TerrainLayer";
-import { GroundLayer } from "./GroundLayer";
+import { WorldCanvas, FighterView } from "../World/WorldCanvas";
 import { IslandLegend } from "./IslandLegend";
 import { groundIndex, stepCostOf } from "../../../utils/ground";
 import { useContent } from "../../../hooks/useContent";
 import { kitOf } from "../../../utils/loadoutUtils";
 import { attackKindOf, useFxManifest } from "../../../utils/fxManifest";
-import { Character } from "./Character";
 import { Socle } from "./Socle";
 import { CharacterTooltip } from "./CharacterTooltip";
 import { HitFeedback } from "./HitFeedback";
@@ -654,6 +653,37 @@ export const Grid: React.FC<GridProps> = ({
     reportAim.current?.(aimedKey ? (JSON.parse(aimedKey) as AimedAction) : null);
   }, [aimedKey]);
 
+  /*
+   * Who the scene draws, and in what: the interpolated positions the board's
+   * DOM hangs its rings and numbers on, so the glyphs and the rings agree.
+   * While a starting cell is being picked, the chosen one shows the fighter
+   * standing there.
+   */
+  const worldFighters = React.useMemo(() => {
+    const out: Record<string, FighterView> = {};
+    for (const [playerId, renderData] of Object.entries(characterRenderState)) {
+      if (!renderData) continue;
+      out[playerId] = {
+        screenPosition: renderData.screenPosition,
+        direction: renderData.direction,
+        animation: renderData.animation,
+        opacity: renderData.opacity,
+        outfit: kitOf(players?.[playerId]?.character.loadout, content)?.outfit.sprite,
+        creature: players?.[playerId]?.monster,
+        attack: attackKindOf(renderData.spellId, fxManifest),
+      };
+    }
+    if (isPositioningPhase && selectedPosition) {
+      out[`${userId}-preview`] = {
+        screenPosition: isoToScreen(selectedPosition.x, selectedPosition.y, tileSize, centerX, centerY),
+        direction: "S",
+        animation: "idle",
+        outfit: kitOf(currentPlayer?.character.loadout, content)?.outfit.sprite,
+      };
+    }
+    return out;
+  }, [characterRenderState, players, content, fxManifest, isPositioningPhase, selectedPosition, userId, tileSize, centerX, centerY, currentPlayer]);
+
   /** Which of a cell's four edges face out of the zone. */
   const zoneEdges = (x: number, y: number): boolean[] | undefined => {
     if (!zone.has(`${x},${y}`)) return undefined;
@@ -670,6 +700,19 @@ export const Grid: React.FC<GridProps> = ({
       ref={containerRef}
       className="w-full h-full relative overflow-hidden touch-none"
     >
+      {/*
+        The world, fixed over the whole screen and under everything: the
+        board's DOM below only marks cells and takes taps.
+      */}
+      <WorldCanvas
+        containerRef={containerRef}
+        tile={tileSize.width}
+        scale={scale}
+        pan={pan}
+        gameState={latestGameState}
+        content={content}
+        fighters={worldFighters}
+      />
       {/* Outside the zoom layer: the legend stays put while the board is pinched. */}
       <IslandLegend island={island} ground={ground} terrains={terrainLibrary} />
       <div
@@ -762,10 +805,6 @@ export const Grid: React.FC<GridProps> = ({
           );
         })}
         {/*
-          The island's own ground, under whatever spells leave on it.
-        */}
-        <GroundLayer ground={ground} tileSize={tileSize} centerX={centerX} centerY={centerY} />
-        {/*
           What spells left behind: fire, water, ice, cracks under the fighters;
           smoke, bubbles and storm clouds over them.
         */}
@@ -831,22 +870,6 @@ export const Grid: React.FC<GridProps> = ({
               isPlaying={player.isCurrentTurn}
               isAlive={player.character.isAlive}
               opacity={renderData.opacity}
-            />
-          );
-        })}
-        {Object.entries(characterRenderState).map(([playerId, renderData]) => {
-          if (!renderData) return null;
-          return (
-            <Character
-              key={playerId}
-              screenPosition={renderData.screenPosition}
-              animation={renderData.animation}
-              direction={renderData.direction}
-              scale={tileSize.width / 256}
-              opacity={renderData.opacity}
-              outfit={kitOf(players?.[playerId]?.character.loadout, content)?.outfit.sprite}
-              creature={players?.[playerId]?.monster}
-              attack={attackKindOf(renderData.spellId, fxManifest)}
             />
           );
         })}
@@ -1040,23 +1063,6 @@ export const Grid: React.FC<GridProps> = ({
               </div>
             ))}
           </div>
-        )}
-
-        {isPositioningPhase && selectedPosition && (
-          <Character
-            key={`${userId}-preview`}
-            screenPosition={isoToScreen(
-              selectedPosition.x,
-              selectedPosition.y,
-              tileSize,
-              centerX,
-              centerY
-            )}
-            animation="idle"
-            direction="S"
-            scale={tileSize.width / 256}
-            outfit={kitOf(currentPlayer?.character.loadout, content)?.outfit.sprite}
-          />
         )}
       </div>
       </div>

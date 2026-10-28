@@ -247,19 +247,40 @@ cannot bring up.
 
 ## 4. The board in a fight
 
-The board is part of the world, but it has to be read like a diagram. Until
-section 11.1 is decided, it is drawn in the frame's night, a step lighter
-than the page: blue cells with thin strokes, pale blue blocks for cover, and
-**only two inks during a turn** — green (`pm`) for where you can walk and
-vermilion for what your click will hit.
+A fight is no longer a diamond on paper: it is a living world, shown only in
+ASCII, that fills the whole screen, and the board is a clearing in it
+(`components/Game/World/`, `world/`). The board has to be read like a
+diagram all the same.
 
-- "Too far" and "cannot see it" are different answers. The second one is the
-  `blind` wash: vermilion faded almost to grey.
+- **The board is flat and quiet.** It stands at level 0 on a stone plinth,
+  its ground worn and its grass short, so a cell reads at a glance against
+  the meadow round it. Height exists only around it: terraces climbing
+  towards the back, one step down in front, sunken ponds in the front
+  corners.
+- **The world never hides a playable cell.** Nothing stands in the first
+  ring round the board, nothing tall stands in front of it, and nothing's
+  drawing may overlap a cell (`overlapsBoard`, tested for every island).
+  The backdrop's foot stays two rings behind the board's back edges, and
+  the foreground's ferns are cut where they would cross a cell.
+- **Each island has its own back**: Prairie's ruined wall (stone courses,
+  arches onto darkness, ivy, banners, two braziers), Earth's basalt cliff
+  veined with magma, Water's drowned colonnade, Ice's frozen ramparts, Air's
+  broken arches over a sea of cloud, Acid's fungal ruin, Fire's forge wall.
+  All of them keep a broken top against the dark, openings onto darkness,
+  and two sources of light. On a screen the board fills, the back shows in
+  the two upper corners; on a taller one it stands across the top.
+- **Cover and the island's terrains are drawn standing or lying, in the
+  world's own materials**: cover and rock stand and are outlined; water,
+  ice, acid and lava lie flat; tall grass grows; an air current is a run of
+  arrows along the wind.
+- **No grid at rest.** Until the turn asks something of the player, the
+  ground is just ground. What is marked during a turn keeps the charter's
+  two inks — green (`pm`) for where you can walk, vermilion for what your
+  click will hit, and the `blind` wash for "in range, cannot see it". They
+  are still drawn as today's washes over the world; they become the neon
+  grid in the next step of the work (docs/plans/ascii-board.md).
 - A knocked-out fighter's ring turns into a broken line. The state is never
   shown by colour alone.
-- Island ground (section 6.5) is drawn **under** everything else and quieter
-  than it: a wash and a few marks per cell. Solid ground (rock) stands up off
-  the board like cover. Flat ground stays flat.
 - The island's terrains are always listed in the board's top-left corner,
   with the same sentence the cell's card shows.
 
@@ -270,6 +291,11 @@ vermilion for what your click will hit.
 Everything that lives in the world is drawn to the same pixel grid, so
 monsters, heroes, trees and walls look like they were painted by the same
 hand.
+
+In a fight, that pixel art is an intermediate step the player never sees:
+the scene is painted at art resolution, a board cell being 24 by 12 art
+pixels, and what is shown is its ASCII rendering (5.4). The rules below hold
+for the painting all the same.
 
 ### 5.1 The grid
 
@@ -305,6 +331,32 @@ hand.
   (lava, acid) keeps its colour at night.
 
 ---
+
+### 5.4 The ASCII view
+
+- **Every pixel says what it is made of.** The scene carries a material per
+  pixel (`world/materials.ts`). A text cell covers several pixels and keeps
+  the most important material among them — the eye over the hood, the hood
+  over the grass — then draws one glyph of that material, in its colour,
+  over the ground's colour. A thin material (an outline, a mortar joint)
+  wins a cell only when it fills half of it, or the world turns to `@`.
+- **Glyph sets per material**, the mock-up's as the reference: grass
+  `, ' . " ;` lying flat as `/` under a gust, water `~ - =`, stone and brick
+  `# = %`, foliage `# & *` by light, pines `A ^ '`, rock `% # =`, fire
+  `^ * # @`, eyes `o 0`, outlines `@`. A lit material picks its glyph by its
+  light, darkest first; a texture picks by place, so it holds still; water,
+  fire and smoke reshuffle over time.
+- **Every cell carries a glyph over a coloured ground**, edge to edge, at
+  every aspect ratio: no black gap, no empty band.
+- **The display lift.** The gaps between letters lose light, so glyphs are
+  shown ×1.35 and backgrounds ×1.7, the shadows raised a little. Light comes
+  in quarters, never as a smooth gradient; a cool haze thickens in steps
+  towards the back; the frame's edges darken in steps.
+- **Cell size.** About 12 glyphs per board cell on a phone, 20 or more on a
+  desk, never narrower than 5 CSS pixels; a glyph is a whole number of
+  device pixels, 1.8 times as tall as it is wide.
+- **Fighters stand out**: the night takes less of their colour than of
+  their ground's.
 
 ## 6. Sprites
 
@@ -412,7 +464,33 @@ without an outline.
 
 ---
 
+### 6.6 Figures: fighters in the ASCII view
+
+A fighter is drawn in a fight from its **figure** (`public/figures/`,
+`world/figures.ts`), not from its sprite sheet.
+
+- A figure is painted at the scene's resolution (a hero about 25×44, a
+  creature of the bestiary small enough to fit one cell), in the **material
+  palette** only (`public/figures/palette.gpl`): each exact colour is a
+  material, never a colour. The figure's JSON gives each material its
+  colour, so one sheet makes every dye.
+- One PNG sheet: one column per frame, one row per animation (idle, walk,
+  melee, ranged, hit, fall) and direction (S, SE, E, NE, N; the other three
+  are mirrored). The JSON says the frame's size, the feet, the frames and
+  the rate of each animation.
+- A figure that fails the check (`checkFigure`: a stray colour, a frame that
+  does not divide the sheet, feet outside it, a missing animation) does not
+  ship; the tests read every figure.
+- `/figures?figure=<name>` (development only) shows a figure in ASCII on
+  every island, in every direction, and reloads it when the file changes.
+- A fighter with no figure yet is drawn from its old sheet, its materials
+  guessed from the pixels. It is a fallback, never the target.
+
 ## 7. Spell effects
+
+Spell effects and what spells leave on the board are still drawn over the
+ASCII world in their own style for now. They join it as glyphs in the next
+step (docs/plans/ascii-board.md, step 2); nothing will stay on top then.
 
 Effects live in `public/animation/fx/<element>/`, described by `manifest.json`:
 frame size, frame count, loop or one-shot, **layer** and **anchor**.
@@ -437,9 +515,14 @@ frame size, frame count, loop or one-shot, **layer** and **anchor**.
 - **Breathe, don't blink.** Things that are waiting on the player (an empty
   name field, a starting cell to pick, the button to press) pulse slowly in
   gold, and stop as soon as they are answered.
-- **World time** runs at 12 fps for sprites and effects and 10 fps for
-  walking. Wind, water and glow keep moving at 30 fps while nothing else
-  does.
+- **World time.** Sprite sheets keep their own rate (12 fps, 10 for
+  walking), and a figure plays each animation at the rate its JSON gives.
+  Everything else in a fight — wind, water, light, particles, walks, the
+  camera — moves on real time and is drawn at the display's refresh rate:
+  60 fps held on a recent phone, up to 120 Hz where the screen offers it.
+  One wind blows across the whole scene; grass, leaves, banners and hems
+  bend with it, more at the top than at the foot. The fight stops drawing
+  while its page is hidden.
 - **Reduced motion is a known trade-off.** The frame's entrances (an
   overlay fading, a sheet sliding) are asked for with `motion-safe:` and stop
   under `prefers-reduced-motion`, but the fight
@@ -500,12 +583,9 @@ frame size, frame count, loop or one-shot, **layer** and **anchor**.
 These are the places where the game and this charter do not agree yet. Each
 one needs a decision before it is fixed.
 
-1. **The fight board is still vector.** The open world moved to pixel art
-   ("one brush"), and the fight board did not: its cells, cover and island
-   ground are drawn as flat vector shapes. The proposal is to move the board's
-   **ground and cover** to pixel art on the same 64 px grid, and keep the
-   **marks** (range, path, target) crisp vector ink on top, since they are
-   the frame reaching into the world.
+1. ~~**The fight board is still vector.**~~ **Decided:** the board's ground
+   and cover joined the world, and the whole fight is shown in ASCII
+   (sections 4 and 5.4). The turn's marks are next, as a neon grid.
 2. ~~**Two elements share the stat colours.**~~ **Decided:** the elements
    have colours of their own, taken from the grimoires' sigils rather than
    the outfits' glows, and clear of `pa` and `pm` (section 3.1).

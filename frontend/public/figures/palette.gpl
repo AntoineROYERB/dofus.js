@@ -1,0 +1,20 @@
+GIMP Palette
+Name: Dofus.js figure materials
+Columns: 8
+#
+  0   0   0	outline
+244 199 160	skin
+122  74  28	hair
+ 47  85 212	cloth
+ 22  40 110	clothDark
+230 193  58	trim
+168 176 192	metal
+140  90  44	leather
+255   0 255	eye
+255 255   0	glow
+255  42  42	accent
+180 120  58	wood
+242 240 226	fur
+ 60 224 122	slime
+110 110  94	shell
+255 138   0	fire

@@ -360,11 +360,20 @@ Decided:
    ones are easy to make; the existing sheets are only the fallback
    (section 1.4).
 
-Still open:
+8. **The scenery's seed**: the island, the `roomId` and a hash of the dealt
+   ground, read sorted (`world/seed.ts`). The server does not move.
 
-8. **The scenery's seed.** `GameState` carries no match id and the server does
-   not move. Proposal: the island, the `roomId` and a hash of the dealt ground.
-   A rematch on exactly the same ground would get the same scenery.
+Found while building step 1:
+
+- On a desk window that leaves the board small, twenty glyphs a cell would
+  be under 3 px each: a glyph is never narrower than 5 CSS pixels, and a
+  small board gets fewer, larger glyphs per cell.
+- A phone held sideways fills its height with the board, so the backdrop
+  shows in the two upper corners, its foot two rings behind the board's back
+  edges; a taller screen shows it across the top.
+- The world's canvas is fixed over the whole viewport and lines itself up
+  with the board's container, so it runs edge to edge under the deck and the
+  disc without moving them; step 4 moves the controls onto it.
 
 ## 8. Delivery
 
