@@ -133,7 +133,9 @@ export type SpellSpecial =
   /** Rocks round the target for a while, open towards the caster. */
   | "cage"
   /** Stands a fallen ally back up where they fell, once a fight. */
-  | "revive";
+  | "revive"
+  /** Digs the ground up, to turn it over into its caster's element next turn; once a fight. */
+  | "upheaval";
 
 /** Terrain a spell spreads over its area. */
 export type SpreadTerrain = "fire" | "smoke" | "water" | "ice" | "trap";
@@ -156,9 +158,11 @@ export type TerrainCell = {
   health?: number;
   /** Counts down at the start of its owner's turns; absent is for good. */
   turnsLeft?: number;
+  /** A relay raised on smoke: the smoke stays under it and hides it. */
+  veiled?: boolean;
 };
 
-export type ZoneKind = "storm" | "maelstrom" | "drums";
+export type ZoneKind = "storm" | "maelstrom" | "drums" | "upheaval";
 
 export type Zone = {
   kind: ZoneKind;
@@ -540,11 +544,19 @@ export interface ActionRejectedMessage {
   reason: string;
 }
 
+/** A dream fighter's numbers; damage is how much harder, in percent, it hits. */
+export type FighterStats = {
+  health: number;
+  actionPoints: number;
+  movementPoints: number;
+  damage?: number;
+};
+
 /** One monster of a dream's room, as it will be seated. */
 export type DreamMonsterSeat = {
   monster: string;
   name: string;
-  stats: { health: number; actionPoints: number; movementPoints: number };
+  stats: FighterStats;
   level: OpponentLevel;
   color: string;
   element: string;
@@ -557,7 +569,7 @@ export type DreamBossSeat = {
   name: string;
   champion: string;
   tactic: string;
-  stats: { health: number; actionPoints: number; movementPoints: number };
+  stats: FighterStats;
   level: OpponentLevel;
   boons: string[];
   element: string;

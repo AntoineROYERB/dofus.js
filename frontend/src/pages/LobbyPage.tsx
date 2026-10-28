@@ -33,6 +33,7 @@ import { Key, t } from "../i18n/lang";
 import { useT } from "../i18n/LanguageProvider";
 import { Modal } from "../components/Overlay";
 import { OptionsPanel } from "../components/OptionsPanel";
+import { useMusic } from "../audio/useSound";
 
 /**
  * One rung of the solo arc: a champion, and whether it can be fought yet.
@@ -141,6 +142,7 @@ const islandFromUrl = (): string => {
 };
 
 const LobbyPage: React.FC = () => {
+  useMusic("overworld");
   const { connected, rooms, roomId, sendGameAction, rejection, dream } =
     useWebSocket();
   // Endless Dreams opens once the tutorial has been played.

@@ -89,8 +89,9 @@ improvement that works whatever the element) and **a talisman**, which circles
 you and carries your **ultimate**, cast once a fight from turn 2. The
 **wardrobe** changes each piece on its own. Four grimoires ship, one per
 element: the **Pyromancer** (burns that stack and then go off at once), the
-**Windwalker** (reach, through a relay it sets across the board, and
-displacement), the **Tidecaller** (control: traps, ice and water) and the
+**Windwalker** (reach, through a pylon it sets across the board and trades
+places with to kite; the pylon holds half its owner's health and hides in
+grass and smoke), the **Tidecaller** (control: traps, ice and water) and the
 **Stonewarden** (a brawler that leaps into reach and walls off the way out).
 In solo play four champions fight in a full set each, and beating one unlocks
 the next.
@@ -102,16 +103,20 @@ island's monsters, the twists that bend the fight (fire already burning, a
 band of smoke, no cover, shorter turns…) and how rare the boons it pays are.
 The leader picks; the others can point at the room they would take. A room
 holds one to six monsters, more and stronger the higher the floor and the
-bigger the party, and every fifth floor a ruler of the islands waits instead.
+bigger the party — in a party of two or three they also gain health and
+damage faster with each floor, and their floor boons come sooner — and every
+fifth floor a ruler of the islands waits instead.
 After a win everyone stands again at full health and takes one boon of three
 for the rest of the run: more health or points, cheaper or longer spells, a
 shield for the whole party, Wake Up to stand a fallen ally back up, a Second
-Wind once a run. The climb ends when the whole party falls, and how high it
+Wind once a run, or Upheaval, a legendary spell that digs up the ground once a
+fight and turns it over into your element the turn after. The climb ends when the whole party falls, and how high it
 got goes on the leaderboard — Solo, Duo and Trio — written by the server
 alone, each line linking to its fights' replays. Spells hit allies too.
 
 Spells change the board and what they leave stays for the rest of the fight:
-fire that burns whoever walks in, smoke nothing is seen through, water that
+fire that burns whoever walks in, smoke nothing is seen through and from which
+no spell reaches further than three cells, water that
 slows enemies and puts fire out, ice you slide across, bubble traps, pillars,
 craters and fissures nobody walks through. Hover a changed cell to read what
 it does.
@@ -236,6 +241,20 @@ portrait bottom right, on a phone and on a desk alike. Every colour comes from
 `frontend/src/index.css` (named in `frontend/tailwind.config.js`) and
 `frontend/src/constants.ts`; changing the look is a change to those files.
 
+**Sound.** The music, footsteps and interface sounds are synthesised with the
+Web Audio API (`frontend/src/audio/`); cries, monster deaths and spell blasts
+are free recordings (`frontend/public/audio/`, credited in its `CREDITS.md`).
+The score is data — a function from a bar number to its notes, tested for
+staying in key — and three tracks for one orchestral ensemble loop under the
+game: a walking D major theme for the lobby and the open world by day, a
+quiet A minor one for the night and the dreams, and an epic D minor battle
+that grows from the placement to the fight to a fighter about to fall. Each
+element lands with its own blast, every fighter cries out in their own voice
+when hit, monsters growl and roar, feet sound like the ground they step on, and the
+fight's sounds are worked out from the difference between two snapshots, the
+same way the hit numbers are. Nothing plays before the first tap, as browsers
+require, and the "Sound" control mutes it all.
+
 ### Layout
 
 ```
@@ -257,6 +276,7 @@ frontend/src/
   components/Dream/    what the dream's screens draw of the bestiary
   hooks/               animation loop, grid interaction, tile sizing
   lib/native.ts        what the iOS app does that a browser cannot (haptics)
+  audio/               music and sound effects, synthesised with Web Audio
   utils/               isometric maths, pathing, spell areas
   constants.ts         board palette and stroke widths
   tailwind.config.js   the screen's colours and three typefaces

@@ -84,8 +84,15 @@ func (g *Game) boonsOfLocked(ids []string) ([]types.DreamBoon, error) {
 // boon changes becomes a spell of this fighter's alone, with an id of its
 // own and the id it came from, so that every preview and every bot that
 // reads it reads the spell as it really is.
+//
+// A fighter seated with a damage bonus in its stats — a monster on a high
+// floor — has its spells dealt again the same way.
 func (g *Game) blessLocked(p *types.Player, boons []types.DreamBoon) {
-	if len(boons) == 0 {
+	harder := 0
+	if p.Character.Base != nil {
+		harder = p.Character.Base.Damage
+	}
+	if len(boons) == 0 && harder <= 0 {
 		return
 	}
 	bar := append([]string(nil), p.SpellBar...)
@@ -171,6 +178,13 @@ func (g *Game) blessLocked(p *types.Player, boons []types.DreamBoon) {
 				s.Effect = &effect
 			}
 			spells[e.Spell] = s
+		}
+	}
+	if harder > 0 {
+		for key, s := range spells {
+			if s.Damage > 0 {
+				spells[key] = scaleDamage(s, harder)
+			}
 		}
 	}
 	p.Boons = ids

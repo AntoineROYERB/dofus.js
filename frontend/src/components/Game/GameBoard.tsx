@@ -3,6 +3,7 @@ import { Position } from "../../types/game";
 import { GameState } from "../../types/message";
 import { Grid } from "./Grid/Grid";
 import { AimedAction } from "../../utils/touchConfirm";
+import { useFightSounds } from "../../audio/useSound";
 
 interface GameBoardProps {
   gridSize: number;
@@ -24,6 +25,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   selectedSpellId,
   onAimChange,
 }) => {
+  useFightSounds(latestGameState, userId);
   return (
     <div className="absolute inset-0 z-0">
       <div className="flex flex-col h-full">

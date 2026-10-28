@@ -3,6 +3,7 @@ import { GameState } from "../../types/message";
 import { CombatLog } from "./CombatLog";
 import { Chat } from "../Chat/Chat";
 import { t } from "../../i18n/lang";
+import { SoundToggle } from "../../audio/SoundToggle";
 
 interface SideRailProps {
   roomName: string;
@@ -11,13 +12,19 @@ interface SideRailProps {
   onReplayTutorial: () => void;
 }
 
-/** The log and the chat under it: the rail's body, beside the board or in a sheet. */
-export const RailBody: React.FC<{ latestGameState: GameState | null }> = ({
-  latestGameState,
-}) => (
+/**
+ * The log and the chat under it: the rail's body, beside the board or in a
+ * sheet. In the sheet it also carries the sound switch: on a phone the menu
+ * is the only control left in the fight's corners, so the switch lives in it.
+ */
+export const RailBody: React.FC<{
+  latestGameState: GameState | null;
+  withSound?: boolean;
+}> = ({ latestGameState, withSound = false }) => (
   <div className="flex h-full min-h-0 flex-col">
-    <div className="mb-1.5 mt-4 flex-none font-mono text-[9.5px] uppercase tracking-label text-muted">
+    <div className="mb-1.5 mt-4 flex flex-none items-baseline justify-between gap-3 font-mono text-[9.5px] uppercase tracking-label text-muted">
       {t("Log")}
+      {withSound && <SoundToggle />}
     </div>
     <div className="min-h-0 flex-1 overflow-y-auto">
       <CombatLog

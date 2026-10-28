@@ -12,14 +12,16 @@ export const RULES = {
   waterHealing: 5,
   /** Extra damage, in percent, an air spell deals through its relay. */
   relayBonus: 75,
-  /** What a relay's pylon takes before it breaks. */
-  relayHealth: 12,
+  /** What a relay's pylon takes before it breaks, in percent of its owner's maximum health. */
+  relayHealthPercent: 50,
   /** What a breaking pylon does to each of its owner's enemies beside it. */
-  relayBlast: 10,
+  relayBlast: 14,
   /** What a Stonewarden's pillar soaks up for its owner before it crumbles. */
   pillarHealth: 15,
   /** Extra damage, in percent, water adds to lightning and storms. */
   conductBonus: 50,
+  /** The furthest a spell reaches when cast from a cell of smoke. */
+  smokeRange: 3,
 } as const;
 
 /** Damage raised by a percentage bonus, rounded down like the server. */
@@ -60,7 +62,10 @@ export const TERRAIN_INFO: Record<TerrainKind, { name: string; text: string }> =
     get name() { return t("Fire"); },
     get text() { return t("One more burn to whoever walks in or starts a turn here. Water puts it out."); },
   },
-  smoke: { get name() { return t("Smoke"); }, get text() { return t("Nothing can be seen through it. It can be walked through."); } },
+  smoke: {
+    get name() { return t("Smoke"); },
+    get text() { return t("Nothing can be seen through it. It can be walked through. From inside it, spells reach {smokeRange} cells at most.", { smokeRange: RULES.smokeRange }); },
+  },
   water: {
     get name() { return t("Water"); },
     get text() { return t("Enemies starting a turn here lose 1 MP; its owner heals {waterHealing}. Puts burns out.", { waterHealing: RULES.waterHealing }); },
@@ -72,7 +77,7 @@ export const TERRAIN_INFO: Record<TerrainKind, { name: string; text: string }> =
   },
   relay: {
     get name() { return t("Pylon"); },
-    get text() { return t("Its owner's air spells go out from here whenever it reaches, {relayBonus}% harder. Blocks the way and the view. Breaks after {relayHealth} damage, and hurts every enemy beside it {relayBlast}.", { relayBonus: RULES.relayBonus, relayHealth: RULES.relayHealth, relayBlast: RULES.relayBlast }); },
+    get text() { return t("Its owner's air spells go out from here whenever it reaches, {relayBonus}% harder. Blocks the way and the view. Holds half its owner's health, hides in tall grass and smoke, and hurts every enemy beside it {relayBlast} when it breaks.", { relayBonus: RULES.relayBonus, relayBlast: RULES.relayBlast }); },
   },
   crater: { get name() { return t("Crater"); }, get text() { return t("Nobody can walk through it."); } },
   fissure: { get name() { return t("Fissure"); }, get text() { return t("Nobody can walk through it."); } },
@@ -94,5 +99,9 @@ export const ZONE_INFO: Record<ZoneKind, { name: string; text: string }> = {
   drums: {
     get name() { return t("Thunder drums"); },
     get text() { return t("Struck again at the start of each of its owner's turns, harder on the last beat."); },
+  },
+  upheaval: {
+    get name() { return t("Dug-up ground"); },
+    get text() { return t("Turns over into its owner's element at the start of their next turn: fire, water, or bare earth."); },
   },
 };

@@ -106,6 +106,16 @@ var climbBands = []band{
 	{20, climbFloors, 0.00, 0.20},
 }
 
+// coopBands are the same for a party of two or three. A party picks a boon
+// per player per floor and plays together, and players climbing as a pair
+// found the middle floors too easy; the curves grow faster for them, so the
+// bots here, which neither coordinate nor choose their boons, fall sooner.
+var coopBands = []band{
+	{1, 4, 0.80, 1.00},
+	{8, 12, 0.05, 0.60},
+	{20, climbFloors, 0.00, 0.20},
+}
+
 func TestTheClimbGetsHarder(t *testing.T) {
 	if testing.Short() {
 		t.Skip("plays whole climbs")
@@ -151,7 +161,11 @@ func TestTheClimbGetsHarder(t *testing.T) {
 		}
 		report.WriteString("\n")
 
-		for _, b := range climbBands {
+		bands := climbBands
+		if size > 1 {
+			bands = coopBands
+		}
+		for _, b := range bands {
 			f, w := 0, 0
 			for floor := b.from; floor <= b.to; floor++ {
 				f += fought[floor]

@@ -32,8 +32,10 @@ func TestShippedDreamCoversEveryRoom(t *testing.T) {
 	}
 	for _, b := range d.Boons {
 		if b.Effect.Kind == types.BoonGrantSpell {
-			if spell := cat.Spells[b.Effect.Spell]; spell.Special != types.SpecialRevive {
-				t.Errorf("boon %s grants %s; the only spell a boon grants today is a revive", b.ID, spell.Name)
+			// The planner leaves a once-a-fight spell alone; anything else a
+			// boon granted, the party's bots would have to learn to cast.
+			if spell := cat.Spells[b.Effect.Spell]; spell.Special != types.SpecialRevive && spell.Special != types.SpecialUpheaval {
+				t.Errorf("boon %s grants %s; a boon only grants a revive or an upheaval today", b.ID, spell.Name)
 			}
 		}
 	}
@@ -127,6 +129,15 @@ func TestABadDreamIsRefused(t *testing.T) {
 		{"a room of seven", "floors.maxMonsters", "between 1 and 6", func(d map[string]any) {
 			d["floors"].(map[string]any)["maxMonsters"] = 7
 		}},
+		{"a health curve missing a party size", "floors.healthPerFloor", "one per party size", func(d map[string]any) {
+			d["floors"].(map[string]any)["healthPerFloor"] = []any{4, 6}
+		}},
+		{"a trio's monsters hitting softer than a pair's", "floors.damagePerFloor[2]", "below a smaller party's", func(d map[string]any) {
+			d["floors"].(map[string]any)["damagePerFloor"] = []any{2, 4, 3}
+		}},
+		{"monster boons arriving later for a bigger party", "floors.partyBoonsEarlier", "must not be negative", func(d map[string]any) {
+			d["floors"].(map[string]any)["partyBoonsEarlier"] = -1
+		}},
 		{"levels that do not start at the bottom", "floors.levels", "must start at floor 1", func(d map[string]any) {
 			d["floors"].(map[string]any)["levels"] = []any{map[string]any{"from": 3, "level": "easy"}}
 		}},
@@ -158,4 +169,19 @@ func TestAReviveIsAimedAtTheFallen(t *testing.T) {
 	})
 	_, err = Parse(sources(spells, validIslands(t)), config.LoadBalance(balancePath), testBounds)
 	assertProblem(t, err, "config/spells.json", `spells["33"].special`, "nothing but stand an ally back up")
+}
+
+func TestAnUpheavalLeavesItsZoneAndNothingElse(t *testing.T) {
+	spells := mutateSpells(t, func(doc map[string]any) {
+		delete(spell(doc, "34"), "zone")
+	})
+	_, err := Parse(sources(spells, validIslands(t)), config.LoadBalance(balancePath), testBounds)
+	assertProblem(t, err, "config/spells.json", `spells["34"].special`, "go together")
+
+	spells = mutateSpells(t, func(doc map[string]any) {
+		spell(doc, "34")["damage"] = 5
+		spell(doc, "34")["criticalDamage"] = 5
+	})
+	_, err = Parse(sources(spells, validIslands(t)), config.LoadBalance(balancePath), testBounds)
+	assertProblem(t, err, "config/spells.json", `spells["34"].special`, "nothing but turn the ground over")
 }

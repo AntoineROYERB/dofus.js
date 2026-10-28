@@ -58,6 +58,7 @@ import { infusedBook, unavailableReason } from "../utils/spellUtils";
 import { markDefeated, readDefeated } from "../utils/progressStorage";
 import { useContent } from "../hooks/useContent";
 import { hapticGameOver, hapticTap, hapticTurnStart } from "../lib/native";
+import { playSelect } from "../audio/sfx";
 import { sameSide, teamed } from "../utils/sides";
 import { RULES } from "../utils/terrain";
 import { t } from "../i18n/lang";
@@ -326,6 +327,7 @@ function GamePage() {
 
   const handleSpellClick = (spellId: number) => {
     hapticTap();
+    if (selectedSpellId !== spellId) playSelect(spellBook?.[String(spellId)]?.element);
     setSelectedSpellId((prev) => (prev === spellId ? null : spellId));
   };
 
@@ -580,7 +582,7 @@ function GamePage() {
               />
             }
           >
-            <RailBody latestGameState={gameState} />
+            <RailBody latestGameState={gameState} withSound />
           </SideSheet>
         )}
 

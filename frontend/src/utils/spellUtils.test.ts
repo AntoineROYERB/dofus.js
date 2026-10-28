@@ -167,6 +167,18 @@ describe("castOrigin", () => {
     ).toEqual(caster);
   });
 
+  it("reaches no further than the smoke allows from inside it, but the pylon does", () => {
+    const spell = makeSpell({ range: 5, relayed: true });
+    const target = { x: 0, y: 0 };
+    expect(castOrigin(spell, target, caster, open, null, true)).toBeNull();
+    expect(castOrigin(spell, { x: -1, y: 0 }, caster, open, null, true)).toEqual(caster);
+    const relay = { x: -2, y: 1 };
+    expect(castOrigin(spell, target, caster, open, relay, true)).toEqual(relay);
+    const transfer = makeSpell({ range: 14, special: "swap", needsLineOfSight: false });
+    const far = { x: 4, y: 2 };
+    expect(castOrigin(transfer, far, caster, open, far, true)).toEqual(caster);
+  });
+
   it("only offers the caster's own cell to a spell cast on itself", () => {
     const spell = makeSpell({ range: 0, targeting: "self" });
     expect(castOrigin(spell, caster, caster, open, null)).toEqual(caster);

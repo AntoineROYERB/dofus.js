@@ -54,7 +54,7 @@ func decide(g *Game, id string) BotAction {
 // ---------------------------------------------------------------------------
 
 func TestTheBotBurnsBeforeItDetonates(t *testing.T) {
-	g := duel(t, types.Position{}, types.Position{Y: 4})
+	g := duel(t, types.Position{}, types.Position{Y: 1})
 	setBar(g, "a", "1", "3")
 	// Room for a Kindle and a Combustion. Combustion hits as hard on its
 	// own, but only the burn the Kindle leaves gives it something to set off.
@@ -102,7 +102,7 @@ func TestTheBotTradesPlacesWithItsPylonToGetCloser(t *testing.T) {
 	asChampion(g, "a", "sef")
 	setBar(g, "a", strconv.Itoa(spellTransfer))
 	points(g, "a", 1, 0)
-	placeRelay(g, "a", types.Position{X: 1}, RelayHealth)
+	placeRelay(g, "a", types.Position{X: 1}, fullRelay(g, "a"))
 
 	action := decide(g, "a")
 	if action.Kind != BotCast || action.SpellID != spellTransfer || action.Target != (types.Position{X: 1}) {
@@ -117,7 +117,7 @@ func TestTheBotShootsDownAPylonItCanBreak(t *testing.T) {
 	asChampion(g, "b", "sef")
 	setBar(g, "a", strconv.Itoa(spellKindle))
 	points(g, "a", 6, 0)
-	placeRelay(g, "b", types.Position{X: 2}, RelayHealth)
+	placeRelay(g, "b", types.Position{X: 2}, fullRelay(g, "b"))
 
 	action := decide(g, "a")
 	if action.Kind != BotCast || action.SpellID != spellKindle || action.Target != (types.Position{X: 2}) {
@@ -378,7 +378,7 @@ func TestTheAshKingWaitsForThreeBurns(t *testing.T) {
 		{"legend_roi_cendre", 2, spellKindle},     // the Ash King piles on a third
 		{"legend_roi_cendre", 3, spellCombustion}, // and then sets them off
 	} {
-		g := duel(t, types.Position{}, types.Position{Y: 4})
+		g := duel(t, types.Position{}, types.Position{Y: 1})
 		setBar(g, "a", "1", "3")
 		playsAs(g, "a", BotHard, tc.boss)
 		burning(g, "b", tc.burns)
@@ -592,5 +592,29 @@ func TestABossMatchReplays(t *testing.T) {
 	}
 	if p := replayed.Snapshot().Players["bot-1"]; p.Boss != "legend_roi_cendre" || p.BotLevel == "" {
 		t.Errorf("the replayed boss is %q at level %q", p.Boss, p.BotLevel)
+	}
+}
+
+// Walled in by rock on two sides and an enemy's traps on the other two, a bot
+// used to stand still for good, and a fight against an opponent that would
+// not come to it never ended. Once the fight has dragged on, it springs one.
+func TestABoxedInBotSpringsATrapRatherThanWaitForEver(t *testing.T) {
+	g := duel(t, types.Position{}, types.Position{Y: 6})
+	setBar(g, "a", "1")
+	g.mu.Lock()
+	g.obstacles[types.Position{X: -1}] = true
+	g.obstacles[types.Position{Y: -1}] = true
+	g.placeTerrainLocked(types.Position{X: 1}, types.TerrainTrap, "b")
+	g.placeTerrainLocked(types.Position{Y: 1}, types.TerrainTrap, "b")
+	g.mu.Unlock()
+
+	if action := decide(g, "a"); action.Kind == BotMove {
+		t.Fatalf("action = %+v on turn 1, want it to keep off the traps", action)
+	}
+	g.mu.Lock()
+	g.turnNumber = patientTurns + 1
+	g.mu.Unlock()
+	if action := decide(g, "a"); action.Kind != BotMove {
+		t.Errorf("action = %+v after %d turns, want it to walk into a trap", action, patientTurns)
 	}
 }

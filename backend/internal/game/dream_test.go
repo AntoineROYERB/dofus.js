@@ -298,3 +298,115 @@ func TestSharedStrengthLendsAPToAlliesNearby(t *testing.T) {
 		t.Fatalf("an ally six cells away gets %d AP, want none", extra)
 	}
 }
+
+// A monster seated with a damage bonus — what a high floor gives it — has
+// every spell on its bar dealt again that much harder.
+func TestAMonsterSeatedHarderHitsHarder(t *testing.T) {
+	cat := shippedContent(t)
+	g := NewWithOptions(Options{Seed: 1, TurnDuration: time.Hour, Content: &cat, Seats: 1})
+	m, _ := cat.DreamMonster("caillou")
+	id, err := g.AddBotOf(BotSpec{Monster: "caillou", Team: TeamDream, Mode: BotStandsStill,
+		Stats: &types.FighterStats{Health: m.Health, ActionPoints: m.ActionPoints, MovementPoints: m.MovementPoints, Damage: 50}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	snap := g.Snapshot()
+	p := snap.Players[id]
+	key := p.SpellBar[0]
+	got, base := snap.Spells[key], cat.Spells[m.Bar[0]]
+	if want := scaleDamage(base, 50).Damage; got.Damage != want {
+		t.Errorf("%s hits for %d, want %d: 50%% on %d", got.Name, got.Damage, want, base.Damage)
+	}
+}
+
+// upheavalFight seats a dreamer in a champion's set, carrying Upheaval, and a
+// stone-still monster far away; the dreamer plays first.
+func upheavalFight(t *testing.T, champion string) (*Game, int) {
+	t.Helper()
+	cat := shippedContent(t)
+	c, ok := cat.Champion(champion)
+	if !ok {
+		t.Fatalf("no champion %s", champion)
+	}
+	g := NewWithOptions(Options{Seed: 3, TurnDuration: time.Hour, Content: &cat, Seats: 2})
+	if err := g.AddPlayerSeated("a", "A", lookIn("Digger", c.Set), Seat{Team: TeamParty, Boons: []string{"upheaval"}}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := g.AddBotOf(BotSpec{Monster: "caillou", Team: TeamDream, Mode: BotStandsStill}); err != nil {
+		t.Fatal(err)
+	}
+	g.mu.Lock()
+	for id, pos := range map[string]types.Position{"a": {X: -4}, "bot-2": {X: 5}} {
+		p := g.players[id]
+		placed := pos
+		p.Character.Position = &placed
+		p.HasPositioned = true
+		g.players[id] = p
+	}
+	g.obstacles = map[types.Position]bool{}
+	g.ground = map[types.Position]types.GroundCell{}
+	g.terrain = nil
+	g.turnOrder = []string{"a", "bot-2"}
+	g.beginPlayLocked()
+	g.mu.Unlock()
+
+	snap := g.Snapshot()
+	for _, key := range snap.Players["a"].SpellBar {
+		if snap.Spells[key].Special == types.SpecialUpheaval {
+			return g, snap.Spells[key].ID
+		}
+	}
+	t.Fatalf("the dreamer carries no Upheaval")
+	return nil, 0
+}
+
+// Fire laid on water went out and left only its damage. Upheaval digs a
+// cross of ground up; at the start of its caster's next turn the island's
+// ground and the loose terrain there are gone, and the caster's element lies
+// in their place.
+func TestUpheavalTurnsTheGroundOverIntoItsCastersElement(t *testing.T) {
+	for _, tc := range []struct{ champion, want string }{
+		{"ashka", types.TerrainFire},
+		{"mother-brine", types.TerrainWater},
+	} {
+		t.Run(tc.champion, func(t *testing.T) {
+			g, upheaval := upheavalFight(t, tc.champion)
+			aim := types.Position{X: -2}
+			g.mu.Lock()
+			g.ground[aim] = types.GroundCell{Position: aim, Kind: GroundShallowWater}
+			g.placeTerrainLocked(types.Position{X: -2, Y: 1}, types.TerrainWater, "bot-2")
+			g.mu.Unlock()
+
+			if err := g.CastSpell("a", upheaval, aim); err != nil {
+				t.Fatalf("Upheaval: %v", err)
+			}
+			if kind := groundKindAt(g, aim); kind != GroundShallowWater {
+				t.Fatalf("ground = %q the moment it is cast, want it to wait a turn", kind)
+			}
+			mustEndTurn(t, g) // the monster's turn
+			mustEndTurn(t, g) // back to the digger
+			if kind := groundKindAt(g, aim); kind != "" {
+				t.Errorf("ground = %q after the upheaval, want it dug up", kind)
+			}
+			for _, cell := range []types.Position{aim, {X: -2, Y: 1}, {X: -1}} {
+				if kind := terrainAt(g, cell); kind != tc.want {
+					t.Errorf("terrain at %+v = %q, want %q", cell, kind, tc.want)
+				}
+			}
+
+			// Once a fight, however many turns it waits.
+			for i := 0; i < 4; i++ {
+				mustEndTurn(t, g)
+			}
+			if err := g.CastSpell("a", upheaval, aim); !errors.Is(err, ErrSpentThisFight) {
+				t.Errorf("a second Upheaval: %v, want ErrSpentThisFight", err)
+			}
+		})
+	}
+}
+
+func groundKindAt(g *Game, at types.Position) string {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+	return g.ground[at].Kind
+}

@@ -169,14 +169,14 @@ func TestBurnsNeverStackPastTheCap(t *testing.T) {
 }
 
 func TestCombustionCashesInTheBurns(t *testing.T) {
-	g := duel(t, types.Position{}, types.Position{Y: 3})
+	g := duel(t, types.Position{}, types.Position{Y: 1})
 	g.mu.Lock()
 	b := g.players["b"]
 	addBurn(&b.Character, 2)
 	g.players["b"] = b
 	g.mu.Unlock()
 
-	cast(t, g, "a", spellCombustion, types.Position{Y: 3})
+	cast(t, g, "a", spellCombustion, types.Position{Y: 1})
 
 	want := StartingHealth - (damageOf(g, spellCombustion) + 2*BurnDuration*BurnDamagePerStack)
 	if hp := health(t, g, "b"); hp != want {
@@ -184,6 +184,21 @@ func TestCombustionCashesInTheBurns(t *testing.T) {
 	}
 	if stacks, _ := burnOf(character(g, "b")); stacks != 0 {
 		t.Errorf("the burn is still there with %d stacks after going off", stacks)
+	}
+}
+
+// Combustion from across the board let a Pyromancer cash in every burn from
+// safety; it now asks them to walk up to the target first.
+func TestCombustionOnlyReachesTheNextCell(t *testing.T) {
+	g := duel(t, types.Position{}, types.Position{Y: 2})
+	g.mu.Lock()
+	b := g.players["b"]
+	addBurn(&b.Character, 2)
+	g.players["b"] = b
+	g.mu.Unlock()
+
+	if err := g.CastSpell("a", spellCombustion, types.Position{Y: 2}); !errors.Is(err, ErrOutOfRange) {
+		t.Errorf("Combustion two cells away: %v, want ErrOutOfRange", err)
 	}
 }
 
@@ -232,6 +247,22 @@ func TestWaterPutsFireOutAndFireDoesNotTakeOnWater(t *testing.T) {
 	if kind := terrainAt(g, types.Position{Y: 3}); kind != types.TerrainWater {
 		t.Errorf("fire took on water: terrain = %q", kind)
 	}
+}
+
+// Smoke laid for good let a caster sit in it and hit across the board. From
+// inside it, a spell now reaches SmokeRange cells and no further; one step
+// out, it has its whole range back.
+func TestSmokeShortensTheReachOfWhoeverStandsInIt(t *testing.T) {
+	g := duel(t, types.Position{}, types.Position{Y: 5})
+	g.mu.Lock()
+	g.placeTerrainLocked(types.Position{}, types.TerrainSmoke, "a")
+	g.mu.Unlock()
+
+	if err := g.CastSpell("a", spellKindle, types.Position{Y: 5}); !errors.Is(err, ErrOutOfRange) {
+		t.Fatalf("Kindle at 5 cells from inside smoke: %v, want ErrOutOfRange", err)
+	}
+	place(g, "b", types.Position{Y: SmokeRange})
+	cast(t, g, "a", spellKindle, types.Position{Y: SmokeRange})
 }
 
 func TestSmokeBlocksSightButNotFeet(t *testing.T) {
@@ -395,6 +426,18 @@ func TestStonewardenIsHardToThrow(t *testing.T) {
 	}
 }
 
+// wearRelayTo leaves the pylon on a cell with that much health.
+func wearRelayTo(g *Game, at types.Position, health int) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	cell := g.terrain[at]
+	cell.Health = health
+	g.terrain[at] = cell
+}
+
+// fullRelay is what a pylon raised by a character holds when whole.
+func fullRelay(g *Game, owner string) int { return wholeRelay(character(g, owner)) }
+
 func relayHealth(g *Game, at types.Position) int {
 	for _, cell := range g.Snapshot().Terrain {
 		if cell.Position == at && cell.Kind == types.TerrainRelay {
@@ -419,15 +462,18 @@ func TestAPylonBlocksTheWayAndTheView(t *testing.T) {
 func TestEnemySpellsWearAPylonDown(t *testing.T) {
 	g := duel(t, types.Position{}, types.Position{X: 2, Y: 3})
 	cast(t, g, "a", spellUpdraft, types.Position{X: 2})
-	if hp := relayHealth(g, types.Position{X: 2}); hp != RelayHealth {
-		t.Fatalf("a new pylon has %d health, want %d", hp, RelayHealth)
+	if hp := relayHealth(g, types.Position{X: 2}); hp != fullRelay(g, "a") {
+		t.Fatalf("a new pylon has %d health, want %d", hp, fullRelay(g, "a"))
 	}
 	mustEndTurn(t, g)
 
 	cast(t, g, "b", spellLightning, types.Position{X: 2})
-	if hp, want := relayHealth(g, types.Position{X: 2}), RelayHealth-damageOf(g, spellLightning); hp != want {
+	if hp, want := relayHealth(g, types.Position{X: 2}), fullRelay(g, "a")-damageOf(g, spellLightning); hp != want {
 		t.Fatalf("pylon health = %d, want %d", hp, want)
 	}
+	// Half its owner's health is more than a turn of Lightning; worn down
+	// to its last blow, the next one breaks it.
+	wearRelayTo(g, types.Position{X: 2}, damageOf(g, spellLightning))
 	cast(t, g, "b", spellLightning, types.Position{X: 2})
 	if kind := terrainAt(g, types.Position{X: 2}); kind != "" {
 		t.Fatalf("terrain = %q, want the pylon broken", kind)
@@ -454,6 +500,7 @@ func TestEnemySpellsWearAPylonDown(t *testing.T) {
 func TestABreakingPylonHurtsTheEnemiesBesideIt(t *testing.T) {
 	g := duel(t, types.Position{}, types.Position{X: 3})
 	cast(t, g, "a", spellUpdraft, types.Position{X: 2})
+	wearRelayTo(g, types.Position{X: 2}, 1)
 	mustEndTurn(t, g)
 	cast(t, g, "b", spellHammer, types.Position{X: 2})
 	if kind := terrainAt(g, types.Position{X: 2}); kind != "" {
@@ -475,7 +522,7 @@ func TestGaleThroughAPylonDrawsTheTargetIntoIt(t *testing.T) {
 	if hp, want := hp(g, "b"), StartingHealth-gale-CollisionDamage; hp != want {
 		t.Errorf("b's health = %d, want %d: the relayed gale and the slam", hp, want)
 	}
-	if hp, want := relayHealth(g, types.Position{Y: 3}), RelayHealth-CollisionDamage; hp != want {
+	if hp, want := relayHealth(g, types.Position{Y: 3}), fullRelay(g, "a")-CollisionDamage; hp != want {
 		t.Errorf("pylon health = %d, want %d: the slam wears it too", hp, want)
 	}
 
@@ -512,8 +559,8 @@ func TestTransferSwapsYouAndYourPylon(t *testing.T) {
 	if kind := terrainAt(g, types.Position{}); kind != types.TerrainRelay {
 		t.Errorf("terrain where a stood = %q, want the pylon", kind)
 	}
-	if hp := relayHealth(g, types.Position{}); hp != RelayHealth {
-		t.Errorf("pylon health = %d, want %d: moving it does not mend or hurt it", hp, RelayHealth)
+	if hp := relayHealth(g, types.Position{}); hp != fullRelay(g, "a") {
+		t.Errorf("pylon health = %d, want %d: moving it does not mend or hurt it", hp, fullRelay(g, "a"))
 	}
 }
 
@@ -1006,4 +1053,79 @@ func TestEnemiesCanWearAPillarDown(t *testing.T) {
 	if hp, want := pillarHealth(g, types.Position{X: -2}), PillarHealth-damageOf(g, spellLightning); hp != want {
 		t.Errorf("pillar health = %d, want %d", hp, want)
 	}
+}
+
+// A pylon used to hold 12, which any monster broke in one blow. It now holds
+// half of its owner's maximum health, so a sturdier owner raises a sturdier
+// pylon.
+func TestAPylonHoldsHalfItsOwnersHealth(t *testing.T) {
+	g := duel(t, types.Position{}, types.Position{X: 3, Y: 3})
+	g.mu.Lock()
+	a := g.players["a"]
+	a.Character.MaxHealth = 140
+	g.players["a"] = a
+	g.mu.Unlock()
+	cast(t, g, "a", spellUpdraft, types.Position{X: 2})
+	if hp := relayHealth(g, types.Position{X: 2}); hp != 70 {
+		t.Errorf("pylon health = %d, want 70: half of 140", hp)
+	}
+}
+
+// Raised in smoke, the pylon keeps the smoke, hides from anyone further than
+// GrassSightRange, and leaves the smoke behind when it goes.
+func TestAPylonHidesInSmokeAndLeavesItBehind(t *testing.T) {
+	g := duel(t, types.Position{}, types.Position{Y: 6})
+	g.mu.Lock()
+	g.placeTerrainLocked(types.Position{X: 2}, types.TerrainSmoke, "a")
+	g.mu.Unlock()
+	cast(t, g, "a", spellUpdraft, types.Position{X: 2})
+
+	if relaySeenBy(g, "b", types.Position{X: 2}) {
+		t.Errorf("b sees the pylon in smoke from %d cells", Distance(types.Position{Y: 6}, types.Position{X: 2}))
+	}
+	if !relaySeenBy(g, "a", types.Position{X: 2}) {
+		t.Errorf("its owner lost sight of their own pylon")
+	}
+	place(g, "b", types.Position{X: 2, Y: 2})
+	if !relaySeenBy(g, "b", types.Position{X: 2}) {
+		t.Errorf("b does not see the pylon from %d cells", GrassSightRange)
+	}
+
+	g.mu.Lock()
+	g.breakRelayLocked(types.Position{X: 2})
+	g.mu.Unlock()
+	if kind := terrainAt(g, types.Position{X: 2}); kind != types.TerrainSmoke {
+		t.Errorf("terrain = %q once the pylon is gone, want the smoke back", kind)
+	}
+}
+
+// Tall grass hides a pylon as it hides a character.
+func TestAPylonHidesInTallGrass(t *testing.T) {
+	g := duel(t, types.Position{}, types.Position{Y: 6})
+	groundOn(g, GroundTallGrass, nil, types.Position{X: 2})
+	cast(t, g, "a", spellUpdraft, types.Position{X: 2})
+	if relaySeenBy(g, "b", types.Position{X: 2}) {
+		t.Errorf("b sees the pylon in tall grass from afar")
+	}
+}
+
+// Transfer is how a kiting Windwalker gets away: the swap leaves them two
+// more MP to walk off with.
+func TestTransferLeavesRoomToRun(t *testing.T) {
+	g := duel(t, types.Position{}, types.Position{Y: 6})
+	cast(t, g, "a", spellUpdraft, types.Position{X: 3})
+	before := character(g, "a").MovementPoints
+	cast(t, g, "a", spellTransfer, types.Position{X: 3})
+	if mp := character(g, "a").MovementPoints; mp != before+2 {
+		t.Errorf("MP after Transfer = %d, want %d", mp, before+2)
+	}
+}
+
+func relaySeenBy(g *Game, viewer string, at types.Position) bool {
+	for _, cell := range g.SnapshotFor(viewer).Terrain {
+		if cell.Position == at && cell.Kind == types.TerrainRelay {
+			return true
+		}
+	}
+	return false
 }
