@@ -1,0 +1,1409 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Plateau ASCII</title>
+<style>
+  :root { --night:#070a1e; --ink:#e8e4d4; --gold:#d8ae31; --line:#2a3170; }
+  html, body { margin:0; background:var(--night); color:var(--ink);
+    font-family: ui-monospace, Menlo, Consolas, monospace; }
+  main { max-width:1440px; margin:0 auto; padding:16px; }
+  canvas { width:100%; height:auto; display:block; background:#04060f; touch-action:manipulation; }
+  .bar { display:flex; gap:6px; margin-top:10px; flex-wrap:wrap; align-items:center; }
+  button { font:inherit; font-size:11px; letter-spacing:.14em; text-transform:uppercase;
+    background:transparent; color:var(--ink); border:1px solid var(--line);
+    padding:8px 10px; cursor:pointer; }
+  button[aria-pressed="true"] { border-color:#7d8be0; background:#1a2258; }
+  button.gold { border-color:var(--gold); color:var(--gold); }
+  .sep { flex:1; }
+  #msg { font-size:11px; opacity:.7; }
+  p { font-size:12px; opacity:.7; line-height:1.6; max-width:900px; }
+</style>
+</head>
+<body>
+<main>
+  <canvas id="c"></canvas>
+  <div class="bar" id="islands"></div>
+  <div class="bar">
+    <button id="mode">Vue pixels</button>
+    <button id="pause">Pause</button>
+    <span class="sep"></span>
+    <span id="msg"></span>
+    <button id="copy" class="gold">Copier l'ASCII</button>
+  </div>
+  <p>Tout l'écran est le monde : herbe sous le vent, ruines, mares qui reflètent
+  leurs berges. La grille reste cachée. Survole Ashka ou une case proche : les cases
+  où il peut marcher s'encadrent en vert, avec le chemin. Choisis un sort (1 à 4) :
+  sa portée s'encadre en vermillon, en gris ce qui est à portée mais caché, et la
+  zone d'effet s'allume sous le curseur. Échap annule.</p>
+</main>
+<script>
+const COLS = 300, ROWS = 130, CW = 5, CH = 9;
+// One scene pixel is one column wide and CH/CW of a row tall, so the
+// isometric cells keep their 2:1 shape once they are turned into glyphs.
+const SW = COLS, SH = Math.round(ROWS * CH / CW), K = SH / ROWS, N = SW * SH;
+const R = new Float32Array(N), G = new Float32Array(N), B = new Float32Array(N), M = new Uint8Array(N), EM = new Uint8Array(N);
+// The floor under everything, kept apart so a cell behind a fighter still
+// gets the ground's colour behind its glyph instead of a black hole.
+const BR = new Float32Array(N), BG = new Float32Array(N), BB = new Float32Array(N), BM = new Uint8Array(N);
+// Each board pixel also knows its cell's edge ink and how loud that ink is,
+// so a grid line between a plain cell and a highlighted one takes the
+// highlight's colour, and a cell nobody points at draws no line at all.
+const ER = new Float32Array(N), EG = new Float32Array(N), EB = new Float32Array(N), EP = new Uint8Array(N), EF = new Uint8Array(N);
+const LL = new Float32Array(N), LR = new Float32Array(N), LG = new Float32Array(N), LB = new Float32Array(N);
+
+const cv = document.getElementById('c');
+const dpr = Math.min(2, window.devicePixelRatio || 1);
+cv.width = COLS * CW * dpr; cv.height = ROWS * CH * dpr;
+const g = cv.getContext('2d'); g.scale(dpr, dpr);
+
+const hex = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+const mix = (a, b, k) => a.map((v, i) => v + (b[i] - v) * k);
+const mul = (a, k) => a.map(v => v * k);
+function hash(x, y, s = 0) {
+  let n = Math.imul(x | 0, 374761393) + Math.imul(y | 0, 668265263) + Math.imul(s | 0, 2246822519);
+  n = Math.imul(n ^ (n >>> 13), 1274126177);
+  return ((n ^ (n >>> 16)) >>> 0) / 4294967296;
+}
+function vnoise(x, y, s, seed) {
+  const fx = x / s, fy = y / s, x0 = Math.floor(fx), y0 = Math.floor(fy), tx = fx - x0, ty = fy - y0;
+  const a = hash(x0, y0, seed), b = hash(x0 + 1, y0, seed), c = hash(x0, y0 + 1, seed), d = hash(x0 + 1, y0 + 1, seed);
+  const sx = tx * tx * (3 - 2 * tx), sy = ty * ty * (3 - 2 * ty);
+  return a + (b - a) * sx + (c - a) * sy + (a - b - c + d) * sx * sy;
+}
+function mulberry(a) {
+  return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+}
+const strHash = s => [...s].reduce((h, c) => Math.imul(h ^ c.charCodeAt(0), 16777619), 2166136261);
+function put(x, y, m, c, emit = 0) {
+  x = Math.round(x); y = Math.round(y);
+  if (x < 0 || y < 0 || x >= SW || y >= SH) return;
+  const i = y * SW + x; M[i] = m; R[i] = c[0]; G[i] = c[1]; B[i] = c[2]; EM[i] = emit;
+}
+function floor(x, y, m, c, bgk, emit = 0) {
+  const i = y * SW + x; BM[i] = m; BR[i] = c[0] * bgk; BG[i] = c[1] * bgk; BB[i] = c[2] * bgk;
+  M[i] = m; R[i] = c[0]; G[i] = c[1]; B[i] = c[2]; EM[i] = emit;
+}
+
+// --- Content, as backend/config/islands.json writes it ---------------------
+const TERRAINS = {
+  tall_grass:    { name: 'Tall grass',    mark: '"', rule: 'A fighter inside cannot be seen from more than 2 cells away.' },
+  rock:          { name: 'Rock',          mark: '@', rule: 'Blocks movement and line of sight.', solid: true },
+  shallow_water: { name: 'Shallow water', mark: '~', rule: 'Costs 2 MP to enter; whoever stands in it takes 10% more water damage.', cost: 2, liquid: true },
+  ice:           { name: 'Ice',           mark: '_', rule: 'Whoever walks onto it slides one cell further the way they were going.', liquid: true },
+  acid_pool:     { name: 'Acid pool',     mark: 'o', rule: 'Ending a turn in it burns away 5% of your max HP.', liquid: true },
+  lava:          { name: 'Lava',          mark: '^', rule: 'Impassable, and the cells around it burn for 3% of max HP.', solid: true, liquid: true },
+  air_current:   { name: 'Air current',   mark: '›', rule: 'Pushes whoever starts a turn on it one cell with the wind.' },
+};
+const ISLANDS = {
+  prairie: { name: 'Prairie', terrains: ['tall_grass'], foe: 'Bouflaine', shape: 'wool', foeBody: '#e8e2d0',
+    ground: ['#6ea552','#80b85e','#94c96c'], path: '#c2a676', stone: ['#7f7a72','#9b958b','#b8b1a4','#d6cfc0'],
+    wood: ['#5e412a','#86603e'], leaves: ['#3b7236','#5a9e46','#80c25a','#a8dc78'], pine: ['#2c5a44','#3e7a58','#5d9c6c'],
+    flowers: ['#e0564a','#f2c94c','#ffffff'], earth: ['#6a4a3a','#8a6048'], outline: '#1b201c',
+    liquid: ['#2a6aa0','#3a8ac0','#5aaad8','#b4e2f4'], accent: '#f2c94c',
+    amb: .62, grass: 1, cover: 'tree', decor: { tree: .45, pine: .25, boulder: .15, bush: .15 }, fall: true, moss: true, ambient: 'firefly',
+    glyphs: [',', "'", '.', '`', '"', ';'] },
+  earth: { name: 'Earth', terrains: ['rock'], foe: 'Caillou', shape: 'rock', foeBody: '#8a847e',
+    ground: ['#5a5654','#666260','#726e6a'], path: '#8a7a6a', stone: ['#2e2c30','#45424a','#5e5a62','#7a7680'],
+    wood: ['#3a3230','#544a44'], leaves: ['#4a5a3a','#5e7044','#76884e','#92a05a'], pine: ['#34443a','#44584a','#5a705e'],
+    flowers: ['#f0a040','#e06a2a','#ffd070'], earth: ['#2a2628','#3a3436'], outline: '#120e10',
+    liquid: ['#2a4a6a','#36607e','#4a7a96','#9ab8c8'], accent: '#e2701e',
+    amb: .8, grass: .35, cover: 'pillar', decor: { pine: .3, boulder: .5, bush: .2 }, fall: false, moss: true, ambient: 'dust',
+    glyphs: ['.', ':', ',', '·', "'", ';'] },
+  water: { name: 'Water', terrains: ['shallow_water'], foe: 'Poulpinet', shape: 'blob', foeBody: '#c86a9a',
+    ground: ['#3a4656','#445264','#506072'], path: '#6a7a86', stone: ['#1e2a3e','#2c3c54','#3e526c','#566e88'],
+    wood: ['#3a3a44','#50505a'], leaves: ['#1e4a4a','#28605c','#347a70','#4a9486'], pine: ['#1a3a44','#244c56','#306270'],
+    flowers: ['#5ae0e0','#9af0f0','#e0f8f8'], earth: ['#1a2230','#242e40'], outline: '#070c14',
+    liquid: ['#0c1e36','#12304e','#1c4a6a','#5ae0e0'], accent: '#5ae0e0',
+    amb: .9, grass: .7, cover: 'pillar', decor: { bush: .35, boulder: .35, pine: .3 }, fall: true, moss: true, ambient: 'drizzle',
+    glyphs: ['.', ',', '·', "'", ':', '`'] },
+  ice: { name: 'Ice', terrains: ['ice', 'shallow_water'], foe: 'Givrelle', shape: 'rock', foeBody: '#c4dcf6',
+    ground: ['#e6eef6','#eef4fa','#f8fbfe'], path: '#c8d4e6', stone: ['#7a90b8','#94aad0','#b4c6e4','#d4e0f2'],
+    wood: ['#5a5a6a','#7a7a8a'], leaves: ['#8aa8d8','#a8c2e8','#c8daf4','#eef4fc'], pine: ['#3a5a86','#4e70a0','#6a8cbc'],
+    flowers: ['#8ab4f0','#ffffff','#c6dcfa'], earth: ['#4a5a7a','#627496'], outline: '#16223a',
+    liquid: ['#8ab4e0','#a8ccee','#c6e0f6','#eef6fe'], accent: '#8ab4f0',
+    amb: .64, grass: 0, cover: 'crystal', decor: { pine: .6, boulder: .25, bush: .15 }, fall: true, snow: true, ambient: 'snow',
+    glyphs: ['.', '·', '-', "'", '_', ','] },
+  air: { name: 'Air', terrains: ['air_current', 'rock'], foe: 'Chauvolet', shape: 'bat', foeBody: '#9a7ab4',
+    ground: ['#4a3a52','#56445e','#62506a'], path: '#7a6a82', stone: ['#2e2436','#42344c','#584866','#72607e'],
+    wood: ['#2a1e28','#3e2c38'], leaves: ['#3a2a44','#4a3656','#5c4468','#72567e'], pine: ['#2a2234','#3a2e46','#4c3e5a'],
+    flowers: ['#e0306a','#ff6a9a','#c38ff0'], earth: ['#241a2a','#342638'], outline: '#0c0810',
+    liquid: ['#2a2a5a','#3a3a72','#4e4e8a','#a0a0e0'], accent: '#e03aa0',
+    amb: .85, grass: .8, cover: 'pillar', decor: { tree: .4, boulder: .3, bush: .3 }, fall: false, ambient: 'petal',
+    glyphs: ['.', "'", ',', '·', '`', ':'] },
+  acid: { name: 'Acid', terrains: ['acid_pool'], foe: 'Gloop', shape: 'blob', foeBody: '#7ec82e',
+    ground: ['#2e4a2a','#385632','#42623a'], path: '#5a5a32', stone: ['#2a3426','#3a4834','#4e5e44','#667a58'],
+    wood: ['#2a2418','#403624'], leaves: ['#2a4a22','#38602a','#4a7a34','#62943e'], pine: ['#1e3a26','#284a30','#365e3c'],
+    flowers: ['#e6c040','#9ce04a','#c4f26a'], earth: ['#22261a','#2e3424'], outline: '#0a100a',
+    liquid: ['#2e6a14','#4e9a1e','#7ec82e','#c4f26a'], accent: '#9ce04a',
+    amb: .9, grass: .8, cover: 'tree', decor: { tree: .45, bush: .35, boulder: .2 }, fall: true, moss: true, ambient: 'spore',
+    glyphs: [',', '.', "'", ';', '·', '`'] },
+  fire: { name: 'Fire', terrains: ['lava'], foe: 'Ash King', shape: 'rock', crown: true, foeBody: '#5a4a4e',
+    ground: ['#3a3238','#463c42','#52464c'], path: '#5a4a4a', stone: ['#2e2a32','#423c46','#58505c','#706874'],
+    wood: ['#2a2226','#403438'], leaves: ['#3a3036','#4a3c40','#5a4a4e','#6a585a'], pine: ['#2a2e30','#383e40','#4a5254'],
+    flowers: ['#e2521d','#ffb03a','#8c2d4c'], earth: ['#2a2024','#3a2c30'], outline: '#0e0b10',
+    liquid: ['#8a1e10','#c8401a','#e2701e','#ffc04a'], accent: '#ffb03a',
+    amb: 1, grass: 0, cover: 'pillar', decor: { boulder: .5, pine: .3, bush: .2 }, fall: true, glow: true, ambient: 'ember',
+    glyphs: ['.', ',', ':', '·', "'", '`'] },
+};
+// Board tokens from frontend/src/constants.ts.
+const TOK = { ink: hex('#eef1ff'), move: hex('#46e06a'), aim: hex('#ff6a3d') };
+// "Cannot see it": the vermilion bled almost all the way out to grey.
+TOK.blind = mix(TOK.aim, [120, 120, 132], .72);
+
+// --- Board -----------------------------------------------------------------
+const RADIUS = 7, OX = 150, OY = 108, HW = 12, HH = 6, MP = 3, AP = 6;
+const inGrid = (x, y) => Math.abs(x) + Math.abs(y) <= RADIUS;
+const key = (x, y) => x + ',' + y;
+const centre = (x, y) => [OX + (x - y) * HW, OY + (x + y) * HH];
+const tileAt = (x, y) => {
+  const a = (x - OX) / HW + (y - OY) / HH, b = (y - OY) / HH - (x - OX) / HW;
+  return { x: Math.round(a / 2), y: Math.round(b / 2) };
+};
+const NB = [[1,0],[-1,0],[0,1],[0,-1]];
+const HERO = { x: -2, y: 3 }, FOE = { x: 2, y: -3 };
+const foe = FOE;
+let hero = { ...HERO }, ap = AP, mp = MP, mode = 'idle', hover = null, burns = 0, heroHp = 90, foeHp = 100;
+let casts = {}, effects = new Map(), parent = new Map(), floaters = [], sparks = [], ambient = [], decor = [];
+let island, P, ground, cover, reach;
+
+function layout(id) {
+  island = ISLANDS[id];
+  P = {}; for (const k of ['ground','stone','wood','leaves','pine','flowers','earth','liquid']) P[k] = island[k].map(hex);
+  for (const k of ['path','outline','accent','foeBody']) P[k] = hex(island[k]);
+  const rnd = mulberry(strHash(id));
+  const pick = arr => arr[Math.floor(rnd() * arr.length)];
+  const cells = [];
+  for (let x = -RADIUS; x <= RADIUS; x++) for (let y = -RADIUS; y <= RADIUS; y++) if (inGrid(x, y)) cells.push([x, y]);
+  const reserved = new Set();
+  for (const f of [HERO, FOE]) { reserved.add(key(f.x, f.y)); for (const [dx, dy] of NB) reserved.add(key(f.x + dx, f.y + dy)); }
+  ground = new Map(); cover = new Set();
+  const free = (x, y) => inGrid(x, y) && !reserved.has(key(x, y)) && !ground.has(key(x, y));
+  island.terrains.forEach((kind, n) => {
+    const clusters = n === 0 ? 5 : 3;
+    for (let c = 0; c < clusters; c++) {
+      let [x, y] = pick(cells.filter(([a, b]) => free(a, b)));
+      // Wind runs in lines; everything else spreads in blobs.
+      const dir = pick(NB), len = kind === 'air_current' ? 4 : 3 + Math.floor(rnd() * 3);
+      for (let s = 0; s < len; s++) {
+        if (free(x, y)) ground.set(key(x, y), kind);
+        const [dx, dy] = kind === 'air_current' ? dir : pick(NB);
+        if (!inGrid(x + dx, y + dy)) break;
+        x += dx; y += dy;
+      }
+    }
+  });
+  const spots = cells.filter(([x, y]) => free(x, y) && Math.abs(x) + Math.abs(y) > 2);
+  for (let n = 0; n < 7 && spots.length; n++) cover.add(key(...spots.splice(Math.floor(rnd() * spots.length), 1)[0]));
+
+  // The land around the board, out to the edges of the screen: woods at the
+  // back, low things in front so nothing hides a cell you can play, and open
+  // water where the ponds lie.
+  decor = [];
+  const weights = Object.entries(island.decor);
+  const draw = () => { let r = rnd(), acc = 0; for (const [k, w] of weights) { acc += w; if (r < acc) return k; } return weights[0][0]; };
+  for (let x = -20; x <= 20; x++) for (let y = -20; y <= 20; y++) {
+    const r = Math.abs(x) + Math.abs(y);
+    if (r <= RADIUS) continue;
+    const [cx, cy] = centre(x, y);
+    if (cx < -12 || cx > SW + 12 || cy < 14 || cy > SH - 14) continue;
+    const pf = pondField(cx, cy);
+    if (pf < 1.15) continue;
+    // Keep the wall in view: only a few trees grow right against it.
+    if (cy < wallBase(cx) + 10 && rnd() < .6) continue;
+    const back = cy < OY - 24, far = Math.abs(cx - OX) > 104 || pf < 2.2;
+    const p = rnd();
+    let kind = null;
+    if (back) kind = p < .45 ? draw() : p < .8 ? 'tufts' : null;
+    else if (far) kind = p < .45 ? draw() : p < .75 ? 'tufts' : null;
+    else kind = p < .16 ? (rnd() < .5 ? 'bush' : 'boulder') : p < .5 ? 'tufts' : null;
+    if (kind && r === RADIUS + 1 && !back && (kind === 'tree' || kind === 'pine')) kind = 'bush';
+    if (kind) decor.push({ x, y, kind, seed: Math.floor(rnd() * 1e6), small: !back && !far, jx: (rnd() - .5) * 8, jy: (rnd() - .5) * 4 });
+  }
+  hero = { ...HERO }; ap = AP; mp = MP; mode = 'idle'; burns = 0; heroHp = 90; foeHp = 100;
+  casts = {}; effects = new Map(); floaters = []; sparks = [];
+  terrace();
+  ambient = Array.from({ length: 70 }, (_, i) => ({ x: rnd() * SW, y: rnd() * SH, i, v: rnd() }));
+  computeReach();
+}
+
+// Where Ashka can walk with the MP left: solid cells and the foe block,
+// shallow water costs 2, as the server's step costs say.
+const solidAt = (x, y) => cover.has(key(x, y)) || !!TERRAINS[ground.get(key(x, y))]?.solid || (x === foe.x && y === foe.y);
+function computeReach() {
+  reach = new Map([[key(hero.x, hero.y), 0]]); parent = new Map();
+  const queue = [[hero.x, hero.y]];
+  while (queue.length) {
+    const [x, y] = queue.shift(), d = reach.get(key(x, y));
+    for (const [dx, dy] of NB) {
+      const nx = x + dx, ny = y + dy, k = key(nx, ny);
+      if (!inGrid(nx, ny) || solidAt(nx, ny)) continue;
+      const nd = d + (TERRAINS[ground.get(k)]?.cost || 1);
+      if (nd <= mp && (!reach.has(k) || reach.get(k) > nd)) { reach.set(k, nd); parent.set(k, key(x, y)); queue.push([nx, ny]); }
+    }
+  }
+  reach.delete(key(hero.x, hero.y));
+}
+
+// --- Spells, as backend/config/spells.json and rules.go write them -----------
+const SPELLS = [
+  { id: 1, name: 'Kindle',         ap: 3, range: 7, sight: true,  area: 'none',  perTurn: 2, damage: 6, effect: 'burn' },
+  { id: 2, name: 'Scorched Earth', ap: 3, range: 5, sight: true,  area: 'wall',  perTurn: 1, damage: 5, terrain: 'fire' },
+  { id: 3, name: 'Combustion',     ap: 4, range: 7, sight: true,  area: 'none',  perTurn: 1, damage: 6, effect: 'detonate' },
+  { id: 4, name: 'Smokescreen',    ap: 2, range: 6, sight: false, area: 'cross', perTurn: 1, damage: 0, terrain: 'smoke' },
+];
+const AREAS = {
+  none: [[0, 0]],
+  // Across the cast: facing "up" (+Y) the wall runs along X.
+  wall: [[-2, 0], [-1, 0], [0, 0], [1, 0], [2, 0]],
+  cross: [[0, 0], [0, 1], [1, 0], [-1, 0], [0, -1]],
+};
+const AREA_LABEL = { none: 'une case', wall: 'mur de 5 cases', cross: 'croix, sans vue' };
+const dist = (a, b) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+const roundHalf = v => v < 0 ? -Math.floor(-v + .5) : Math.floor(v + .5);
+// The same walk as HasLineOfSight: half-cell steps, endpoints never block.
+function sightClear(from, to) {
+  const dx = to.x - from.x, dy = to.y - from.y, steps = Math.max(Math.abs(dx), Math.abs(dy)) * 2;
+  for (let i = 1; i < steps; i++) {
+    const s = i / steps, x = from.x + roundHalf(dx * s), y = from.y + roundHalf(dy * s);
+    if ((x === from.x && y === from.y) || (x === to.x && y === to.y)) continue;
+    const k = key(x, y);
+    if (cover.has(k) || ground.get(k) === 'rock' || effects.get(k) === 'smoke' || (x === foe.x && y === foe.y)) return false;
+  }
+  return true;
+}
+function facing(from, to) {
+  const dx = to.x - from.x, dy = to.y - from.y;
+  if (dx === 0 && dy !== 0) return dy < 0 ? 'down' : 'up';
+  if (dy === 0 && dx !== 0) return dx < 0 ? 'left' : 'right';
+  if (Math.abs(dx) >= Math.abs(dy)) return dx < 0 ? 'left' : 'right';
+  return dy < 0 ? 'down' : 'up';
+}
+const rotate = ([x, y], d) => d === 'down' ? [-x, -y] : d === 'left' ? [-y, x] : d === 'right' ? [y, -x] : [x, y];
+function affected(s, target) {
+  const d = facing(hero, target);
+  return AREAS[s.area].map(o => s.area === 'none' ? o : rotate(o, d))
+    .map(([x, y]) => ({ x: target.x + x, y: target.y + y })).filter(p => inGrid(p.x, p.y));
+}
+const canCast = s => ap >= s.ap && (casts[s.id] || 0) < s.perTurn;
+const inSight = (s, p) => !s.sight || sightClear(hero, p);
+const canTarget = (s, p) => { const d = dist(hero, p); return d >= 1 && d <= s.range && inSight(s, p); };
+const isSpell = () => typeof mode === 'number';
+
+// What each cell says right now. Nothing at rest: the ground is the ground.
+// Pointing at Ashka or at a cell he can reach frames where he can walk, in
+// green; a chosen spell frames its range in vermilion, and in grey vermilion
+// what is in range but not seen.
+function markCells() {
+  const out = new Map(), home = key(hero.x, hero.y);
+  if (!isSpell()) {
+    const hk = hover && key(hover.x, hover.y);
+    const show = mode === 'move' || (hk && (hk === home || reach.has(hk)));
+    if (!show) return out;
+    for (const k of reach.keys()) out.set(k, { c: TOK.move, w: .16, edge: TOK.move, p: 3 });
+    if (hk && reach.has(hk)) for (let k = hk; k && k !== home; k = parent.get(k)) out.set(k, { c: TOK.move, w: .5, edge: TOK.move, p: 4, path: true });
+  } else {
+    const s = SPELLS[mode];
+    for (let x = -RADIUS; x <= RADIUS; x++) for (let y = -RADIUS; y <= RADIUS; y++) {
+      const p = { x, y }, d = dist(hero, p);
+      if (!inGrid(x, y) || d < 1 || d > s.range) continue;
+      out.set(key(x, y), inSight(s, p)
+        ? { c: TOK.aim, w: .14, edge: TOK.aim, p: 3 }
+        : { c: TOK.blind, w: .12, edge: TOK.blind, p: 2 });
+    }
+    if (hover && canTarget(s, hover)) for (const p of affected(s, hover))
+      out.set(key(p.x, p.y), { c: TOK.aim, w: .5, edge: TOK.aim, p: 4, aim: true });
+  }
+  out.set(home, { c: TOK.ink, w: .1, edge: TOK.ink, p: 5 });
+  return out;
+}
+
+function select(n) {
+  if (mode === n) mode = 'idle';
+  else if (canCast(SPELLS[n])) mode = n;
+}
+function walk(p) {
+  const k = key(p.x, p.y);
+  if (!reach.has(k)) return false;
+  mp -= reach.get(k); hero = { ...p }; computeReach(); mode = 'idle';
+  return true;
+}
+function cast(s, p) {
+  ap -= s.ap; casts[s.id] = (casts[s.id] || 0) + 1;
+  for (const c of affected(s, p)) {
+    const [x, y] = centre(c.x, c.y);
+    for (let n = 0; n < 10; n++)
+      sparks.push({ x: x + (Math.random() - .5) * HW * 1.4, y: y + (Math.random() - .5) * HH, vx: (Math.random() - .5) * 6, vy: -(6 + Math.random() * 14), life: 1, c: s.terrain === 'smoke' ? 'smoke' : 'fire' });
+    if (s.terrain && !solidAt(c.x, c.y)) effects.set(key(c.x, c.y), s.terrain);
+    if (c.x === foe.x && c.y === foe.y && (s.damage || s.effect)) {
+      const dmg = s.effect === 'detonate' ? s.damage + burns * 4 : s.damage;
+      if (s.effect === 'detonate') burns = 0;
+      if (s.effect === 'burn') burns = Math.min(3, burns + 1);
+      foeHp = Math.max(0, foeHp - dmg);
+      floaters.push({ text: '-' + dmg, x: centre(foe.x, foe.y)[0], y: centre(foe.x, foe.y)[1] - 30, t0: t });
+    }
+  }
+  mode = 'idle';
+}
+function endTurn() {
+  ap = AP; mp = MP; casts = {}; mode = 'idle';
+  if (burns) { foeHp = Math.max(0, foeHp - 4 * burns); floaters.push({ text: '-' + 4 * burns, x: centre(foe.x, foe.y)[0], y: centre(foe.x, foe.y)[1] - 30, t0: t }); }
+  computeReach();
+}
+
+// --- Materials ---------------------------------------------------------------
+const GROUND=8, FLOWER=9, PEBBLE=10, WASH=11, FOAM=12, WIND=13, PATH=14, AIM=15, FX=16,
+      GRASS=17, WATER=18, REFL=19, SHORE=20, BRICK=21, MORTAR=22, ARCH=23, BANNER=24, VOID=25, SIDE=26, LIP=27,
+      // Shaded families: base, base+1, base+2 are shadow, middle and light.
+      LEAF=30, PINE=33, TRUNK=36, STONE=39, WOOL=42, BLOB=45, BAT=48, CRYST=51,
+      TUFT=55, OUTLINE=56, RING=57,
+      A_OUT=60, ROBE=61, FOLD=62, HOOD=63, EYE=64, CRACK=65, GOLD=66, STAFF=67, HEART=68, SLEEVE=69,
+      FIRE=70, SPARK=71, AMB=72, F_DARK=73, F_EYE=74, F_HORN=75, F_GLOW=76, F_MOUTH=77, F_SHINE=78, LEAFFALL=79;
+const FAM = { [LEAF]: ['#', '&', '*'], [PINE]: ['A', '^', "'"], [TRUNK]: ['|', '|', '!'], [STONE]: ['#', '%', '='],
+  [WOOL]: ['%', '&', 'o'], [BLOB]: ['O', 'o', '°'], [BAT]: ['#', '%', '*'], [CRYST]: ['/', '|', '*'] };
+const PRI = new Uint8Array(100);
+const setPri = (p, ...ms) => ms.forEach(m => PRI[m] = p);
+setPri(1, GROUND, GRASS, WATER, VOID, BRICK, MORTAR, ARCH, SIDE);
+setPri(2, FLOWER, PEBBLE, WASH, FOAM, WIND, FX, SHORE, REFL, LIP);
+setPri(3, PATH, AIM);
+setPri(4, RING, BANNER);
+for (const b of Object.keys(FAM).map(Number)) setPri(5, b, b + 1, b + 2);
+setPri(5, TUFT, ROBE, FOLD, HOOD);
+setPri(6, OUTLINE, A_OUT, SLEEVE, F_DARK);
+setPri(7, STAFF, GOLD, F_HORN, F_MOUTH, F_SHINE);
+setPri(8, CRACK, FIRE, AMB, F_GLOW, LEAFFALL);
+setPri(9, SPARK, HEART);
+setPri(10, EYE, F_EYE);
+const FLOORISH = new Set([GROUND, GRASS, FLOWER, PEBBLE, WASH, FOAM, WIND, PATH, AIM, FX]);
+
+
+// --- Ground, ruins and water, out to the edges of the screen ---------------------
+const PONDS = [{ x: 40, y: 192, a: 46, b: 22 }, { x: 266, y: 188, a: 48, b: 24 }];
+function pondField(x, y) {
+  let e = 9;
+  for (const p of PONDS) e = Math.min(e, ((x - p.x) / p.a) ** 2 + ((y - p.y) / p.b) ** 2);
+  return e + (vnoise(x, y, 9, 77) - .5) * .5;
+}
+const wallBase = x => Math.round(36 + 5 * Math.sin(x * .031) + (hash(x >> 3, 0, 61) - .5) * 4);
+const wallTop = x => Math.round(4 + 22 * Math.max(0, vnoise(x, 0, 26, 62) - .35) + (hash(x >> 2, 0, 63) < .2 ? 3 : 0) + ((x >> 2) % 3 === 0 ? 0 : 2));
+const ARCHES = [62, 150, 238], BANNERS = [104, 196], TORCHES = [84, 216];
+// One wind for the whole scene: grass, trees and banners lean with the same
+// gusts, so the field reads as weather and not as noise. It takes a column
+// and a text row, so the grass glyphs and the pixels agree.
+const wind = (x, row, t) => Math.sin(x * .05 + row * .09 - t * 1.7) + .5 * Math.sin(x * .13 - row * .04 - t * 2.6);
+let marks = new Map();
+const pondTop = new Int16Array(SW);
+// The land is terraced: it climbs in steps towards the ruins, drops a step
+// in front of the board, and sinks where the ponds lie. The board itself
+// stays flat at level 0, so nothing about the fight changes; it only stands
+// on a stone plinth whose face shows where the ground falls away.
+const LEVEL_MIN = -14, POND_H = -12;
+let heights = new Map(), TILES = [];
+const hAt = (i, j) => Math.abs(i) + Math.abs(j) <= RADIUS ? 0 : heights.get(key(i, j)) ?? 0;
+function terrace() {
+  heights = new Map(); TILES = [];
+  for (let i = -22; i <= 22; i++) for (let j = -22; j <= 22; j++) {
+    const r = Math.abs(i) + Math.abs(j), [cx, cy] = centre(i, j);
+    if (r > RADIUS) {
+      let h;
+      if (pondField(cx, cy) < 1.05) h = POND_H;
+      else {
+        const back = (OY - cy) / 70;
+        h = back > 0 ? 4 + back * 12 : back * 14 - 4;
+        h += (vnoise(i * 3, j * 3, 7, 91) - .5) * 10;
+        h = Math.max(-8, Math.min(16, Math.round(h / 4) * 4));
+        if (r === RADIUS + 1 && back <= 0) h = -6;
+      }
+      heights.set(key(i, j), h);
+    }
+    const h = hAt(i, j);
+    if (cx < -HW || cx > SW + HW || cy - h + HH < 0 || cy - h - HH > SH) continue;
+    if (r > RADIUS && cy < wallBase(Math.max(0, Math.min(SW - 1, cx))) + 4) continue;
+    TILES.push({ i, j, h, cx, cy, r });
+  }
+  TILES.sort((p, q) => (p.i + p.j) - (q.i + q.j) || p.i - q.i);
+}
+function world(t) {
+  M.fill(0); BM.fill(0); EP.fill(0); EF.fill(0); EM.fill(0);
+  marks = markCells();
+  pondTop.fill(-1);
+  for (let y = 0; y < SH; y++) for (let x = 0; x < SW; x++) {
+    if (y < wallBase(x)) wallPixel(x, y);
+    else floor(x, y, VOID, [5, 7, 14], 1);
+  }
+  for (const tl of TILES) drawTile(tl, t);
+}
+// Painter's order, back to front: each tile drops a wall down to its lower
+// front neighbour, then lays its top over it.
+function drawTile({ i, j, h, cx, cy, r }, t) {
+  const hl = hAt(i, j + 1), hr = hAt(i + 1, j);
+  for (let x = Math.ceil(cx - HW); x <= cx + HW; x++) {
+    if (x < 0 || x >= SW) continue;
+    const left = x < cx, drop = h - (left ? hl : hr);
+    if (drop <= 0) continue;
+    const ybot = cy + HH * (1 - Math.abs(x - cx) / HW), top = Math.round(ybot - h);
+    for (let d = 0; d <= drop + 1; d++) {
+      const y = top + d;
+      if (y >= 0 && y < SH) sidePixel(x, y, d, left, r, x, ybot + d);
+    }
+  }
+  for (let yw = Math.floor(cy - HH); yw <= cy + HH; yw++) {
+    const yd = yw - h;
+    if (yd < 0 || yd >= SH) continue;
+    for (let x = Math.floor(cx - HW); x <= cx + HW; x++) {
+      if (x < 0 || x >= SW) continue;
+      const fa = ((x - OX) / HW + (yw - OY) / HH) / 2 - i, fb = ((yw - OY) / HH - (x - OX) / HW) / 2 - j;
+      if (Math.abs(fa) > .5 || Math.abs(fb) > .5) continue;
+      groundPixel(x, yw, yd, i, j, fa, fb, r, t, P.liquid, h);
+    }
+  }
+}
+// A terrace face: a lip of grass, then earth and stone in strata, lit on the
+// left and in the shade on the right. The board's plinth is laid stone.
+function sidePixel(x, y, d, left, r, wx, wy) {
+  const lit = left ? 1.08 : .66;
+  if (r <= RADIUS) {
+    const row = Math.floor(wy / 3), off = (row % 2) * 4;
+    if (Math.floor(wy) % 3 === 0 || (x + off) % 8 === 0) return floor(x, y, MORTAR, mul(P.stone[0], lit), .45);
+    return floor(x, y, BRICK, mul(P.stone[hash(Math.floor((x + off) / 8), row, 66) < .5 ? 1 : 2], lit), .42);
+  }
+  if (d === 0 && island.grass) return floor(x, y, LIP, mul(P.leaves[2], island.amb * lit), .45);
+  const band = Math.floor((wy + vnoise(x, wy, 5, 7) * 4) / 4) % 3;
+  const c = band === 2 ? P.stone[1] : P.earth[band];
+  if (hash(x, Math.floor(wy), 33) < .04) return floor(x, y, SIDE, mul(P.stone[2], lit), .45);
+  floor(x, y, SIDE, mul(c, lit * 1.15), .5);
+}
+// The ruined wall at the back: courses of stone, broken along the top, with
+// arches onto darkness and ivy hanging down.
+function wallPixel(x, y) {
+  const top = wallTop(x), base = wallBase(x);
+  if (y < top) return floor(x, y, VOID, [4, 6, 14], 1);
+  for (const ax of ARCHES) if (((x - ax) / 9) ** 2 + ((y - base) / 18) ** 2 < 1) return floor(x, y, ARCH, [6, 6, 14], 1);
+  const depth = .45 + .35 * (y / base);
+  const row = Math.floor(y / 3), off = (row % 2) * 4, bx = Math.floor((x + off) / 8);
+  if (island.moss && hash(x >> 1, 0, 64) < .16 && y - top < 4 + hash(x >> 1, 1, 64) * 18)
+    return floor(x, y, LEAF + 1, mul(P.leaves[hash(x, y, 65) < .5 ? 1 : 2], depth * 1.1), .4);
+  if (y % 3 === 0 || (x + off) % 8 === 0) return floor(x, y, MORTAR, mul(P.stone[0], depth), .45);
+  const c = P.stone[hash(bx, row, 66) < .3 ? 1 : hash(bx, row, 67) < .8 ? 2 : 3];
+  floor(x, y, BRICK, mul(c, depth), .4);
+}
+function groundPixel(x, y, yd, i, j, fa, fb, r, t, liq, h) {
+  const k = key(i, j), onBoard = r <= RADIUS;
+  // Three tones in soft patches, worn earth, flowers and pebbles; grass over
+  // all of it wherever the island grows any.
+  const n = vnoise(x, y, 5, 1);
+  let c = P.ground[n < .38 ? 0 : n < .66 ? 1 : 2], m = island.grass ? GRASS : GROUND;
+  if (vnoise(x, y, 13, 2) > (onBoard ? .66 : .74)) { c = mix(c, P.path, .6); m = GROUND; }
+  const fine = hash(x, y, 4);
+  if (fine < (onBoard ? .008 : .02)) { c = P.flowers[Math.floor(hash(x, y, 6) * 3)]; m = FLOWER; }
+  else if (fine < (onBoard ? .016 : .03)) { c = P.stone[2]; m = PEBBLE; }
+  // Higher ground catches a little more light.
+  c = mul(c, island.amb * (1 + h * .012));
+
+  if (h === POND_H) {
+    if (pondField(x, y) < 1.05) {
+      if (pondTop[x] < 0 || yd < pondTop[x]) pondTop[x] = yd;
+      const v = vnoise(x + t * 1.2, y * 2, 5, 3), glow = island.glow || island.name === 'Acid';
+      return floor(x, yd, WATER, mul(liq[v < .6 ? 0 : 1], glow ? 1 : .55), glow ? .7 : .5, glow ? 1 : 0);
+    }
+    return floor(x, yd, SHORE, mul(hash(x, y, 8) < .5 ? P.stone[1] : P.path, island.amb * .8), .4);
+  }
+
+  const kind = onBoard && ground.get(k);
+  const tr = kind && TERRAINS[kind];
+  if (tr && tr.liquid) {
+    const v = vnoise(x + t * (kind === 'lava' ? 3 : 1.5), y, 4, 3);
+    c = mul(liq[v < .45 ? 1 : v < .75 ? 2 : 0], kind === 'ice' ? .8 : 1);
+    m = WASH;
+    // Foam or a bright rim where the pool meets dry ground.
+    const [ni, nj] = Math.abs(fa) > .38 ? [i + Math.sign(fa), j] : Math.abs(fb) > .38 ? [i, j + Math.sign(fb)] : [i, j];
+    if ((ni !== i || nj !== j) && ground.get(key(ni, nj)) !== kind) { c = liq[3]; m = FOAM; }
+  } else if (kind === 'tall_grass') { c = mix(c, P.leaves[1], .5); m = GRASS; }
+  else if (kind === 'air_current') { c = mix(c, [210, 210, 255], .12); m = WIND; }
+  const fx = onBoard && effects.get(k);
+  if (fx === 'fire') { c = mix(c, [210, 70, 18], .5); m = FX; }
+  if (fx === 'smoke') { c = mix(c, [160, 160, 172], .5); m = FX; }
+
+  const mk = onBoard && marks.get(k);
+  if (mk) { c = mix(c, mk.c, mk.w); if (mk.path) m = PATH; if (mk.aim) m = AIM; }
+  floor(x, yd, m, c, .32, kind === 'lava' || fx === 'fire' ? 1 : 0);
+  const pi = yd * SW + x;
+  if (mk) { ER[pi] = mk.edge[0]; EG[pi] = mk.edge[1]; EB[pi] = mk.edge[2]; EP[pi] = mk.p; }
+  const rim = Math.max(Math.abs(fa), Math.abs(fb));
+  EF[pi] = mk ? (rim > .465 ? 2 : rim > .41 ? 1 : 0) : 0;
+}
+
+// --- Things that stand: one brush, outlined, lit from the upper left ---------------
+// Light comes from the upper left, so whatever stands throws its shadow down
+// and to the right, onto the ground only: a darker tone of what it covers.
+function castShadow(cx, cy, rx, ry) {
+  const sx = cx + rx * .55, sy = cy + ry * .35;
+  for (let y = Math.floor(sy - ry); y <= sy + ry; y++) for (let x = Math.floor(sx - rx); x <= sx + rx; x++) {
+    if (x < 0 || y < 0 || x >= SW || y >= SH || ((x - sx) / rx) ** 2 + ((y - sy) / ry) ** 2 > 1) continue;
+    const i = y * SW + x;
+    if (PRI[M[i]] > 2) continue;
+    R[i] *= .58; G[i] *= .6; B[i] *= .72; BR[i] *= .6; BG[i] *= .6; BB[i] *= .7;
+  }
+}
+function obj() {
+  const px = new Map();
+  return {
+    px,
+    set(x, y, m, c, emit = 0) { x = Math.round(x); y = Math.round(y); if (x >= 0 && y >= 0 && x < SW && y < SH) px.set(y * SW + x, { m, c, emit }); },
+  };
+}
+// Families get their level from their neighbours when `shade` is on: a pixel
+// with nothing above or to its left catches the light, one with nothing
+// below or to its right falls into shadow.
+function blit(o, { shade = false, tint = false, outline = null } = {}) {
+  const has = i => o.px.has(i);
+  if (outline) for (const i of o.px.keys()) for (const d of [-1, 1, -SW, SW]) {
+    const n = i + d;
+    if (n < 0 || n >= N || has(n) || Math.abs((n % SW) - (i % SW)) > 1) continue;
+    put(n % SW, Math.floor(n / SW), OUTLINE, outline);
+  }
+  for (const [i, p] of o.px) {
+    let { m, c } = p;
+    if (shade || tint) {
+      const lit = !has(i - 1) || !has(i - SW), dark = !has(i + 1) || !has(i + SW);
+      const lv = lit ? 2 : dark ? 0 : 1;
+      if (shade && FAM[m] !== undefined) { m = m + lv; c = mul(c, [.72, 1, 1.25][lv]); }
+      else if (tint && !p.emit) c = mul(c, [.8, 1, 1.16][lv]);
+    }
+    put(i % SW, Math.floor(i / SW), m, c, p.emit);
+  }
+}
+// Trees answer the wind: a slow sway of their own, plus the gust passing
+// over them, more at the top than at the trunk.
+const treeSway = (cx, cy, seed, t) => Math.sin(t * 1.2 + (seed % 97)) * .6 + Math.max(0, wind(cx, cy / K, t)) * 1.8;
+function canopy(o, cx, cyc, blobs, seed, bright, t, sway) {
+  const rmax = Math.max(...blobs.map(b => Math.hypot(b[0], b[1]) + b[2]));
+  crowns.push({ x: cx, y: cyc, r: rmax });
+  for (let y = Math.floor(cyc - rmax); y <= cyc + rmax; y++) for (let x = Math.floor(cx - rmax); x <= cx + rmax; x++) {
+    if (!blobs.some(([bx, by, br]) => (x - cx - bx) ** 2 + (y - cyc - by) ** 2 <= br * br)) continue;
+    const lift = Math.max(0, Math.min(1.2, (cyc + rmax - y) / (2 * rmax)));
+    const sx = x + Math.round(sway * lift);
+    const v = -((x - cx) * .6 + (y - cyc)) / rmax + (vnoise(x, y, 2.2, seed) - .5) * .9;
+    let lv = v > .4 ? 2 : v > -.35 ? 1 : 0;
+    // Leaves turn and catch the light for a moment.
+    if (lv < 2 && hash(x, y, seed + Math.floor(t * 5)) < .07) lv++;
+    if (hash(x, y, seed) < .03 && bright) o.set(sx, y, FLOWER, P.flowers[Math.floor(hash(x, y, seed + 1) * 3)]);
+    else o.set(sx, y, LEAF + lv, P.leaves[[0, vnoise(x, y, 3, seed + 2) < .5 ? 1 : 2, 3][lv]]);
+  }
+}
+function tree(cx, cy, seed, small, t) {
+  const o = obj(), h = (small ? 4 : 8) + Math.floor(hash(seed, 1) * 4), sway = treeSway(cx, cy, seed, t);
+  for (let s = 0; s < h; s++) {
+    const bend = s > h * .5 ? Math.round(sway * .35 * (s - h * .5) / h) : 0;
+    for (let dx = -1; dx <= 1; dx++)
+      o.set(cx + dx + (s > h - 3 ? Math.sign(dx) : 0) + bend, cy - s, TRUNK + (dx < 0 ? 2 : dx > 0 ? 0 : 1), P.wood[dx < 0 ? 1 : 0]);
+  }
+  o.set(cx - 2, cy, TRUNK + 1, P.wood[0]); o.set(cx + 2, cy, TRUNK, P.wood[0]);
+  const r = (small ? 5 : 8) + hash(seed, 2) * 2, cyc = cy - h - r * .55;
+  castShadow(cx, cy, r * 1.3, r * .5);
+  canopy(o, cx + Math.round(sway * .2), cyc, [[0, 0, r], [-r * .65, r * .35, r * .62], [r * .62, r * .3, r * .66], [hash(seed, 3) * 4 - 2, -r * .6, r * .62]], seed, true, t, sway);
+  blit(o, { outline: P.outline });
+}
+function pine(cx, cy, seed, small, t) {
+  const o = obj(), H = (small ? 12 : 20) + Math.floor(hash(seed, 1) * 7), sway = treeSway(cx, cy, seed, t) * .8;
+  castShadow(cx, cy, H * .5, H * .18);
+  for (let s = 0; s < 3; s++) { o.set(cx, cy - s, TRUNK + 1, P.wood[0]); o.set(cx - 1, cy - s, TRUNK + 2, P.wood[1]); }
+  crowns.push({ x: cx, y: cy - 3 - H * .4, r: 6 });
+  for (let s = 0; s < H; s++) {
+    const k = s / H, tier = (s % 6) / 6, w = (1 - k) * (small ? 6 : 8.5) * (.6 + .4 * (1 - tier)) + .5;
+    const shift = Math.round(sway * k);
+    for (let dx = -Math.ceil(w); dx <= Math.ceil(w); dx++) {
+      if (Math.abs(dx) > w) continue;
+      let lv = dx < -w * .25 ? 2 : dx > w * .35 ? 0 : 1;
+      if (lv < 2 && hash(cx + dx, s, seed + Math.floor(t * 4)) < .05) lv++;
+      if (island.snow && tier < .2 && hash(cx + dx, s, seed) < .7) o.set(cx + dx + shift, cy - 3 - s, CRYST + 2, [240, 246, 255]);
+      else o.set(cx + dx + shift, cy - 3 - s, PINE + lv, P.pine[lv]);
+    }
+  }
+  blit(o, { outline: P.outline });
+}
+function bush(cx, cy, seed, t) {
+  const o = obj();
+  castShadow(cx, cy, 7, 3);
+  canopy(o, cx, cy - 4, [[-3, 1, 4], [3, 1, 4.2], [0, -2, 4]], seed, true, t, treeSway(cx, cy, seed, t) * .4);
+  blit(o, { outline: P.outline });
+}
+function boulder(cx, cy, size, seed) {
+  const o = obj(), ry = size * .78, cyc = cy - ry * .65;
+  castShadow(cx, cy, size * 1.2, size * .45);
+  for (let y = Math.floor(cyc - ry - 1); y <= cyc + ry; y++) for (let x = Math.floor(cx - size - 1); x <= cx + size; x++) {
+    const e = ((x - cx) / size) ** 2 + ((y - cyc) / ry) ** 2;
+    if (e > 1 - (vnoise(x, y, 2.5, seed) - .5) * .5) continue;
+    const v = -((x - cx) * .7 + (y - cyc)) / size;
+    const lv = v > .35 ? 2 : v > -.4 ? 1 : 0;
+    if (island.moss && y < cyc - ry * .25 && vnoise(x, y, 2, seed) > .55) o.set(x, y, LEAF + 1, P.leaves[2]);
+    else if (island.snow && y < cyc - ry * .45) o.set(x, y, CRYST + 2, [236, 244, 255]);
+    else if (hash(x, y, seed) < .05) o.set(x, y, STONE, P.stone[0]);
+    else o.set(x, y, STONE + lv, P.stone[lv + 1]);
+  }
+  blit(o, { outline: P.outline });
+}
+function pillar(cx, cy, seed) {
+  const o = obj(), h = 18 + Math.floor(hash(seed, 3) * 4), broken = hash(seed, 4) < .5;
+  castShadow(cx, cy, 12, 4);
+  for (let y = cy - h; y <= cy + 1; y++) for (let x = cx - 5; x <= cx + 4; x++) {
+    const lv = x < cx - 1 ? 2 : x <= cx ? 1 : 0;
+    const mortar = (y - cy + 40) % 5 === 0 || ((x - cx + 10 + ((y - cy + 40) / 5 | 0) * 3) % 6 === 0);
+    if (broken && y < cy - h + 3 && x > cx + (hash(x, seed, 5) * 6 - 2)) continue;
+    if (island.moss && y > cy - 3 && hash(x, y, seed) < .4) { o.set(x, y, LEAF + lv, P.leaves[lv + 1]); continue; }
+    o.set(x, y, STONE + (mortar ? 0 : lv), mortar ? P.stone[0] : P.stone[lv + 1]);
+  }
+  for (let x = cx - 6; x <= cx + 5; x++) for (let y = cy - h - 2; y < cy - h; y++) {
+    if (broken && x > cx - 1) continue;
+    o.set(x, y, STONE + 2, P.stone[3]);
+  }
+  if (island.moss) for (let n = 0; n < 4; n++) {
+    const x = cx - 4 + Math.floor(hash(seed, n + 7) * 8), len = 2 + Math.floor(hash(seed, n + 11) * 6);
+    for (let s = 0; s < len; s++) o.set(x, cy - h + s, LEAF + 1, P.leaves[2]);
+  }
+  blit(o, { outline: P.outline });
+}
+function crystal(cx, cy, seed) {
+  const o = obj();
+  for (const [ox, h, w, lean] of [[0, 20, 3.5, .05], [-5, 12, 2.6, -.18], [5, 14, 2.6, .2]]) {
+    for (let s = 0; s < h; s++) {
+      const half = w * (1 - s / h) ** .7, x0 = cx + ox + lean * s;
+      for (let dx = -Math.ceil(half); dx <= Math.ceil(half); dx++) {
+        if (Math.abs(dx) > half) continue;
+        const lv = dx < -.3 ? 2 : dx > .5 ? 0 : 1;
+        o.set(x0 + dx, cy - s, CRYST + lv, lv === 2 ? P.liquid[3] : lv === 1 ? P.stone[2] : P.stone[1], lv === 2 ? 1 : 0);
+      }
+    }
+  }
+  blit(o, { outline: P.outline });
+}
+function tufts(cx, cy, t, n = 18) {
+  for (let s = 0; s < n; s++) {
+    const u = hash(cx, s, 11) - .5, v = hash(cy, s, 12) - .5;
+    if (Math.abs(u) / .5 + Math.abs(v) / .5 > .95) continue;
+    const bx = cx + u * HW * 1.7, by = cy + v * HH * 1.7, h = 5 + Math.floor(hash(cx + s, cy, 13) * 5);
+    const sway = wind(bx, by / K, t) * .9 + Math.sin(t * 1.5 + bx) * .3;
+    for (let q = 0; q < h; q++) {
+      const k = q / h;
+      put(bx + sway * k * k * 2.2, by - q, TUFT, P.leaves[Math.min(3, 1 + Math.floor(k * 3))]);
+    }
+  }
+}
+
+// --- Fighters ---------------------------------------------------------------------
+const HERO_SPRITE = [
+  "", "", "", "", "",
+  "...G.G",
+  "..GFGFG",
+  "..GFFFG",
+  "...GFG",
+  "....G...........KK",
+  "....S..........KDDK",
+  "....S........KKDdDK",
+  "....S.......KDDDddK",
+  "....S......KDDdddDDK",
+  "....S.....KDDdHHHdDDK",
+  "....S....KDDdHHHHHHDDK",
+  "....S....KDdHHHHHHHHDK",
+  "....S....KDHHEHHHEHHDK",
+  "....S....KDHHEHHHEHHDK",
+  "....S....KDHHHHHHHHHDK",
+  "....S....KDDHHHHHHHDDK",
+  "...KSK...KDDDHHHHHDDDK",
+  "..KdSdKKKDDDDDDDDDDDDDK",
+  "..KPSPPDDDDDdDDDDDDdDDDK",
+  "...KSKPPDDdDDGCCCGDDdDDPK",
+  "....S.KPDDdDDGCFCGDDdDPPK",
+  "....S.KDDDdDDDGCGDDDdDPPK",
+  "....S.KDDCdDDDDGDDDDdCPPK",
+  "....S.KDDDcDDDDDDDDDdDKdK",
+  "....S.KDDDCDDdDDDDcDDKddK",
+  "....S.KDDDDDDdDDDDDDDDKKK",
+  "....S..KDDcDDdDDCDDDDDDK",
+  "....S..KGGGGGGGGGGGGGGGK",
+  "....S..KDDDCDdDDDDDDDDDK",
+  "....S..KDDDDDdDDDCDDDDDDK",
+  "....S.KDDcDDDdDDDDDDDcDDK",
+  "....S.KDDDDDDdDDDDDDDDDDK",
+  "....S.KKDDDCDDDDDDCDDDKKK",
+  "....S..KKKKDDKKKKKDDKKK",
+  "....S.....KbbK...KbbK",
+  "....S.....KKKKK..KKKKK",
+];
+const HERO_PAL = {
+  K: [A_OUT, [40, 22, 32]], D: [ROBE, [158, 96, 116]], d: [FOLD, [214, 146, 150]], H: [HOOD, [26, 16, 28]],
+  E: [EYE, [255, 196, 70], 1], C: [CRACK, [236, 132, 32], 1], c: [CRACK, [150, 64, 22], 1], G: [GOLD, [216, 174, 49]],
+  F: [HEART, [255, 90, 60], 1], P: [SLEEVE, [190, 70, 120]], S: [STAFF, [176, 120, 64]], b: [F_DARK, [64, 40, 34]],
+};
+const FOE_SPRITES = {
+  wool: [
+    "......hh......hh....",
+    ".....h..h....h..h...",
+    "......hWWWWWWWWh....",
+    "....WWWWWWWWWWWWWW..",
+    "...WWWWWWWWWWWWWWWW.",
+    "..WWWWWFFFFFFFFWWWWW",
+    "..WWWWFFeFFFFeFFWWWW",
+    "..WWWWFFeFFFFeFFWWWW",
+    "..WWWWFFFFFFFFFFWWWW",
+    "..WWWWWFFFnnFFFWWWWW",
+    "..WWWWWWFFFFFFWWWWWW",
+    "...WWWWWWWWWWWWWWWW.",
+    "....WWWWWWWWWWWWWW..",
+    ".....LL..LL..LL.LL..",
+    ".....LL..LL..LL.LL..",
+    ".....kk..kk..kk.kk..",
+  ],
+  rock: [
+    ".......RRRRRR.......",
+    ".....RRRRRRRRRR.....",
+    "....RRReeRReeRRR....",
+    "....RRRRRRRRRRRR....",
+    "..RR.RRRmmmmRRR.RR..",
+    ".RRRR.RRRRRRRR.RRRR.",
+    "RRRRRRRRRCRRRRRRRRRR",
+    "RRRR.RRRRCCRRRRR.RRR",
+    "RRR..RRRRRCRRRRR..RR",
+    ".RR..RRRRRRRRRRR..R.",
+    "......RRRRRRRRR.....",
+    "......RRR...RRR.....",
+    ".....RRRR...RRRR....",
+  ],
+  blob: [
+    "........BBBB........",
+    "......BBBBBBBB......",
+    ".....BBBBBBBBBB.....",
+    "....BBsBBBBBBBBB....",
+    "...BBssBBBBBBBBBB...",
+    "...BBBBeeBBBeeBBB...",
+    "..BBBBBeEBBBeEBBBB..",
+    "..BBBBBBBBBBBBBBBB..",
+    "..BBBBBBBmmmmBBBBB..",
+    ".BBBBBBBBBBBBBBBBBB.",
+    ".BBBBBBBBBBBBBBBBBB.",
+    "BBB.BBBBBBBBBBB.BBBB",
+    "BB..BB.BBB.BB...BB.B",
+    "B...B...B...B....B..",
+  ],
+  bat: [
+    "W..................W",
+    "WW......B..B......WW",
+    "WWW....BBBBBB....WWW",
+    "WWWW..BBBBBBBB..WWWW",
+    "WWWWWBBeBBBBeBBWWWWW",
+    ".WWWWBBBBBBBBBBWWWW.",
+    "..WWWBBBsBBsBBBWWW..",
+    "...WW.BBBBBBBB.WW...",
+    "......BBBBBBBB......",
+    ".......B....B.......",
+  ],
+};
+const CROWN = ["......G.G.G.G.......", "......GGGGGGG......."];
+
+function heroSprite(cx, cy, t) {
+  const o = obj(), left = cx - 16, top = cy + 1 - HERO_SPRITE.length;
+  const blink = (t % 4.3) < .14, pulse = .5 + .5 * Math.sin(t * 3);
+  // Breathing lifts everything above the feet by a pixel, and the hem of the
+  // robe swings with the wind.
+  const bob = Math.floor(t * 1.4) % 2, sway = Math.sin(t * 1.8) + Math.max(0, wind(cx, cy / K, t)) * .6;
+  HERO_SPRITE.forEach((row, ry) => [...row].forEach((ch, rx) => {
+    if (ch === '.') return;
+    let [m, c, emit] = HERO_PAL[ch];
+    if (m === EYE && blink) [m, c, emit] = HERO_PAL.H;
+    if (m === CRACK) c = mul(c, .75 + .35 * hash(rx, ry, Math.floor(t * 6)));
+    if (m === HEART) c = [255, 70 + 90 * pulse, 40 + 30 * pulse];
+    const hem = ry >= 30 && ry < 38 ? Math.round(sway * (ry - 29) / 9) : 0;
+    // The last robe row is drawn twice when lifted, so no gap opens above the feet.
+    if (ry === 37 && bob) o.set(left + rx + hem, top + ry, m, c, emit || 0);
+    o.set(left + rx + hem, top + ry - (ry < 38 ? bob : 0), m, c, emit || 0);
+  }));
+  blit(o, { tint: true });
+  return { top: top - bob, fx: left + 4, fy: top + 5 - bob };
+}
+function foeSprite(cx, cy, t) {
+  const rows = [...(island.crown ? CROWN : []), ...FOE_SPRITES[island.shape]];
+  const sc = { wool: 1, blob: 1.1, rock: 1.25, bat: 1.1 }[island.shape], w = rows[0].length, h = rows.length;
+  // A sheep hops, a bat hovers, the others stand their ground.
+  const lift = island.shape === 'bat' ? 10 + Math.round(Math.sin(t * 3) * 2)
+    : island.shape === 'wool' ? Math.round(Math.max(0, Math.sin(t * 2.4)) * 2) : 0;
+  const o = obj(), left = Math.round(cx - w * sc / 2), top = Math.round(cy + 1 - h * sc) - lift;
+  const body = P.foeBody, acc = P.accent, blink = ((t + 1.7) % 3.9) < .14;
+  const famOf = { wool: WOOL, rock: STONE, blob: BLOB, bat: BAT }[island.shape];
+  const pal = {
+    W: island.shape === 'bat' ? [BAT, mul(body, .62)] : [WOOL, body],
+    R: [STONE, body], B: [famOf, body], E: [F_DARK, [20, 16, 26]],
+    F: [F_DARK, mix(body, [40, 26, 22], .78)], L: [F_DARK, [52, 40, 36]], k: [F_DARK, [26, 20, 18]],
+    e: [F_EYE, island.shape === 'blob' ? [240, 240, 236] : acc, 1], h: [F_HORN, [222, 204, 160]], n: [F_MOUTH, [224, 120, 130]],
+    m: [F_MOUTH, mul(body, .35)], s: [F_SHINE, [250, 250, 240]], C: [F_GLOW, acc, 1], G: [GOLD, [230, 186, 56], 1],
+  };
+  for (let ty = 0; ty < Math.ceil(h * sc); ty++) for (let tx = 0; tx < Math.ceil(w * sc); tx++) {
+    const ch = rows[Math.floor(ty / sc)]?.[Math.floor(tx / sc)];
+    if (!ch || ch === '.') continue;
+    let [m, c, emit] = pal[ch];
+    if (m === F_EYE && blink) [m, c, emit] = [F_DARK, mul(body, .5), 0];
+    if (m === F_GLOW) c = mul(c, .8 + .3 * Math.sin(t * 4 + tx));
+    o.set(left + tx, top + ty, m, c, emit || 0);
+  }
+  blit(o, { shade: true, tint: true, outline: mix(P.outline, [0, 0, 0], .2) });
+  return { top, glow: { x: cx, y: top + h * sc * .5 } };
+}
+function socle(cx, cy, colour, rx = 11) {
+  for (let y = cy - 5; y <= cy + 5; y++) for (let x = cx - rx - 2; x <= cx + rx + 2; x++) {
+    const e = Math.hypot((x - cx) / rx, (y - cy) / (rx * .4));
+    if (x < 0 || y < 0 || x >= SW || y >= SH) continue;
+    const i = y * SW + x;
+    if (e < .92) { R[i] *= .55; G[i] *= .55; B[i] *= .7; }
+    else if (e < 1.12) put(x, y, RING, colour);
+  }
+}
+function flame(bx, by, t, size = 11) {
+  for (let dy = 1; dy <= size; dy++) {
+    const k = dy / size, w = (2.6 * (size / 11) * (1 - k) + .4) * (.85 + .25 * Math.sin(t * 11 + dy * 1.7 + bx));
+    const cx = bx + Math.sin(t * 6 + dy * .7 + bx) * k * 1.8;
+    for (let dx = -Math.ceil(w); dx <= Math.ceil(w); dx++) {
+      const e = 1 - Math.abs(dx) / (w + .6) - k * .55;
+      if (e <= 0 || (k > .55 && hash(dx, dy, Math.floor(t * 12) + bx) < .35)) continue;
+      put(cx + dx, by - dy, FIRE, e > .7 ? [255, 242, 176] : e > .45 ? [255, 182, 44] : e > .25 ? [232, 112, 26] : [168, 50, 16], 1);
+    }
+  }
+}
+
+let lights = [], labels = [], crowns = [];
+// Banners hang from the wall and stream with the wind; braziers burn at its
+// foot and light the stones around them.
+function ruins(t) {
+  for (const bx of BANNERS) {
+    const top = wallTop(bx) + 4, len = 18;
+    for (let d = -4; d <= 4; d++) put(bx + d, top - 1, STAFF, [120, 90, 50]);
+    for (let s = 0; s < len; s++) {
+      const sway = Math.round((wind(bx, top / K, t) * .9 + Math.sin(t * 2 + bx) * .4) * (s / len) * 2.4);
+      const w = s > len - 4 ? 3 - (s - (len - 4)) : 3;
+      for (let d = -w; d <= w; d++) {
+        const c = Math.abs(d) === 3 ? mul(P.accent, .7) : (s === 5 || s === 6) && Math.abs(d) < 2 ? P.accent : mix(P.flowers[0], [70, 18, 26], .4);
+        put(bx + d + sway, top + s, BANNER, c);
+      }
+    }
+  }
+  for (const tx of TORCHES) {
+    const by = wallBase(tx) + 4;
+    for (let d = -3; d <= 3; d++) { put(tx + d, by, STONE + 1, P.stone[2]); if (Math.abs(d) < 3) put(tx + d, by + 1, STONE, P.stone[1]); }
+    for (let s = 2; s <= 5; s++) put(tx, by + s, STAFF, [90, 70, 50]);
+    flame(tx, by, t, 7);
+    lights.push({ x: tx, y: by - 4, rad: 44 * (.9 + .1 * Math.sin(t * 9 + tx)), col: [255, 140, 50], str: .9 });
+  }
+}
+function things(t) {
+  labels = []; lights = []; crowns = [];
+  ruins(t);
+  const list = [];
+  for (const d of decor) list.push({ d: d.x + d.y, x: d.x, y: d.y, kind: d.kind, seed: d.seed, small: d.small, jx: d.jx, jy: d.jy });
+  for (const k of cover) { const [x, y] = k.split(',').map(Number); list.push({ d: x + y, x, y, kind: 'cover', seed: x * 31 + y * 7 + 5 }); }
+  for (const [k, kind] of ground) {
+    const [x, y] = k.split(',').map(Number);
+    if (kind === 'rock') list.push({ d: x + y, x, y, kind: 'boulder', seed: x * 13 + y * 17, big: true });
+    if (kind === 'tall_grass') list.push({ d: x + y, x, y, kind: 'tufts' });
+  }
+  list.push({ d: hero.x + hero.y, ...hero, kind: 'hero' }, { d: foe.x + foe.y, ...foe, kind: 'foe' });
+  list.sort((p, q) => p.d - q.d || p.x - q.x);
+  for (const o of list) {
+    let [cx, cy] = centre(o.x, o.y);
+    cx = Math.round(cx + (o.jx || 0)); cy = Math.round(cy + (o.jy || 0) - hAt(o.x, o.y));
+    switch (o.kind) {
+      case 'tree': tree(cx, cy, o.seed, o.small, t); break;
+      case 'pine': pine(cx, cy, o.seed, o.small, t); break;
+      case 'bush': bush(cx, cy, o.seed, t); break;
+      case 'boulder': boulder(cx, cy, o.big ? 8 : o.small ? 4 : 7, o.seed); break;
+      case 'tufts': tufts(cx, cy, t); break;
+      case 'cover':
+        if (island.cover === 'tree') tree(cx, cy, o.seed, false, t);
+        else if (island.cover === 'crystal') { crystal(cx, cy, o.seed); lights.push({ x: cx, y: cy - 10, rad: 16, col: P.liquid[3], str: .45 }); }
+        else pillar(cx, cy, o.seed);
+        break;
+      case 'hero': {
+        socle(cx, cy, mul(TOK.ink, .6));
+        const s = heroSprite(cx, cy, t);
+        flame(s.fx, s.fy, t);
+        heroFlame = [s.fx, s.fy - 6];
+        lights.push({ x: s.fx, y: s.fy - 4, rad: 50 * (.92 + .1 * Math.sin(t * 13)), col: [255, 150, 50], str: 1 });
+        labels.push({ text: 'Ashka', x: cx, y: s.top - 8, c: TOK.ink, hp: heroHp / 90 });
+        break;
+      }
+      case 'foe': {
+        socle(cx, cy, mul(TOK.aim, .75), 9);
+        const s = foeSprite(cx, cy, t);
+        if (island.shape === 'rock' || island.glow) lights.push({ x: s.glow.x, y: s.glow.y, rad: 20, col: P.accent, str: .5 });
+        labels.push({ text: island.foe + (burns ? ' ' + '▲'.repeat(burns) : ''), x: cx, y: s.top - 7, c: TOK.aim, hp: foeHp / 100 });
+        break;
+      }
+    }
+  }
+  for (const [k, kind] of ground) {
+    const [x, y] = centre(...k.split(',').map(Number));
+    if (kind === 'lava') lights.push({ x, y, rad: 22, col: [255, 110, 30], str: .8 });
+    if (kind === 'acid_pool') lights.push({ x, y, rad: 14, col: [150, 236, 70], str: .45 });
+  }
+  for (const [k, kind] of effects) if (kind === 'fire') { const [x, y] = centre(...k.split(',').map(Number)); lights.push({ x, y, rad: 16, col: [255, 120, 40], str: .7 }); }
+}
+let heroFlame = [0, 0];
+
+// The edges of the screen sink into the dark, in steps.
+const VIG = new Float32Array(N);
+for (let y = 0; y < SH; y++) for (let x = 0; x < SW; x++) {
+  const d = Math.hypot((x - OX) / (SW * .6), (y - OY) / (SH * .62));
+  VIG[y * SW + x] = Math.floor((1 - Math.min(.62, Math.max(0, d - .5) * 1.3)) * 8) / 8;
+}
+// Distance haze: the further back a row lies, the more it fades towards a
+// cool blue, in steps. It is what makes the ruins sit far behind the board.
+const HAZE = [58, 70, 108], HAZE_K = new Float32Array(SH);
+for (let y = 0; y < SH; y++) HAZE_K[y] = Math.floor(Math.max(0, Math.min(1, (OY - 20 - y) / 90)) * 4) / 4 * .42;
+// Still water mirrors what stands on its bank: each pond pixel looks up
+// past the shoreline, with a ripple, and takes on what it finds there.
+function reflect(t) {
+  for (let y = 0; y < SH; y++) for (let x = 0; x < SW; x++) {
+    const i = y * SW + x;
+    if (M[i] !== WATER) continue;
+    const top = pondTop[x]; if (top < 0) continue;
+    const d = y - top;
+    const sx = Math.round(x + Math.sin(y * 1.3 + t * 2.6) * (.6 + d * .03));
+    const sy = top - 1 - Math.round(d * 1.1);
+    if (sy < 0 || sx < 0 || sx >= SW) continue;
+    const si = sy * SW + sx, sm = M[si];
+    if (PRI[sm] < 4 && sm !== GRASS && sm !== FLOWER && sm !== TUFT) continue;
+    const k = .6 - Math.min(.35, d * .012);
+    R[i] = R[i] * (1 - k) + R[si] * k * .75; G[i] = G[i] * (1 - k) + G[si] * k * .82; B[i] = B[i] * (1 - k) + B[si] * k + 14 * k;
+    M[i] = REFL;
+  }
+}
+// Banded light, never smooth: a pool steps the way the pixel art does.
+function light() {
+  LL.fill(0);
+  for (const s of lights) {
+    const x0 = Math.max(0, Math.floor(s.x - s.rad)), x1 = Math.min(SW - 1, Math.ceil(s.x + s.rad));
+    const y0 = Math.max(0, Math.floor(s.y - s.rad)), y1 = Math.min(SH - 1, Math.ceil(s.y + s.rad));
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+      const l = Math.floor(s.str * (1 - Math.hypot(x - s.x, (y - s.y) * 1.15) / s.rad) * 4) / 4;
+      const i = y * SW + x;
+      if (l > LL[i]) { LL[i] = l; LR[i] = s.col[0]; LG[i] = s.col[1]; LB[i] = s.col[2]; }
+    }
+  }
+  for (let i = 0; i < N; i++) {
+    const l = LL[i];
+    if (l > 0) {
+      if (!EM[i]) { R[i] = R[i] * (1 + .35 * l) + LR[i] * .38 * l; G[i] = G[i] * (1 + .25 * l) + LG[i] * .3 * l; B[i] = B[i] * (1 + .1 * l) + LB[i] * .2 * l; }
+      BR[i] += LR[i] * .16 * l; BG[i] += LG[i] * .12 * l; BB[i] += LB[i] * .08 * l;
+    }
+    const hz = HAZE_K[(i / SW) | 0];
+    if (hz > 0 && !EM[i]) { R[i] += (HAZE[0] - R[i]) * hz; G[i] += (HAZE[1] - G[i]) * hz; B[i] += (HAZE[2] - B[i]) * hz; }
+    if (hz > 0) { BR[i] += (HAZE[0] * .3 - BR[i]) * hz; BG[i] += (HAZE[1] * .3 - BG[i]) * hz; BB[i] += (HAZE[2] * .3 - BB[i]) * hz; }
+    const v = VIG[i];
+    if (v < 1) { if (!EM[i]) { R[i] *= v; G[i] *= v; B[i] *= v; } BR[i] *= v; BG[i] *= v; BB[i] *= v; }
+  }
+}
+
+// Foreground: big dark ferns at the bottom of the frame, closer to the eye
+// than anything in the fight, swaying wider than the grass behind them.
+const FERNS = [{ x: 6, n: 9 }, { x: 98, n: 5 }, { x: 214, n: 6 }, { x: 296, n: 9 }];
+function foreground(t) {
+  const base = SH - 12;
+  for (const f of FERNS) for (let s = 0; s < f.n; s++) {
+    const ang = (s / (f.n - 1) - .5) * 2.2, len = 16 + hash(f.x, s, 71) * 14;
+    const sway = (wind(f.x, base / K, t) * 1.2 + Math.sin(t * 1.4 + s + f.x) * .6);
+    for (let q = 0; q < len; q++) {
+      const k = q / len, x = f.x + Math.sin(ang) * q * .9 + sway * k * k * 4, y = base - Math.cos(ang) * q * .8 + k * k * 6;
+      const c = mul(P.leaves[k > .6 ? 1 : 0], .42);
+      for (let w = -1; w <= 1; w++) put(x + w * (1 - k), y, TUFT, c);
+      if (q % 3 === 0 && k > .15) { put(x - 2, y + 1, TUFT, c); put(x + 2, y + 1, TUFT, c); }
+    }
+  }
+}
+function stepParticles(dt, t) {
+  const emit = [{ x: heroFlame[0], y: heroFlame[1], w: 2, rate: .5, c: 'fire' }];
+  for (const tx of TORCHES) emit.push({ x: tx, y: wallBase(tx) - 4, w: 2, rate: .3, c: 'fire' });
+  for (const [k, kind] of ground) if (kind === 'lava' || kind === 'acid_pool') {
+    const [x, y] = centre(...k.split(',').map(Number));
+    emit.push({ x, y, w: HW, rate: kind === 'lava' ? .12 : .05, c: kind });
+  }
+  for (const [k, kind] of effects) if (kind === 'fire') { const [x, y] = centre(...k.split(',').map(Number)); emit.push({ x, y, w: HW, rate: .2, c: 'fire' }); }
+  for (const e of emit) if (Math.random() < e.rate)
+    sparks.push({ x: e.x + (Math.random() - .5) * e.w, y: e.y, vx: (Math.random() - .5) * 4, vy: -(5 + Math.random() * 9), life: .8, c: e.c });
+  // Now and then a leaf lets go of a crown and rides the wind down.
+  if (crowns.length && Math.random() < .5) {
+    const c = crowns[Math.floor(Math.random() * crowns.length)];
+    sparks.push({ x: c.x + (Math.random() - .5) * c.r * 1.6, y: c.y + (Math.random() - .3) * c.r, vx: 2 + Math.random() * 3, vy: 3 + Math.random() * 3, life: 1.6, c: 'leaf', ph: Math.random() * 6 });
+  }
+  for (const p of sparks) {
+    if (p.c === 'leaf') { p.x += (p.vx + Math.max(0, wind(p.x, p.y / K, t)) * 7) * dt + Math.sin(t * 3 + p.ph) * .25; p.y += p.vy * dt; p.life -= dt * .3; continue; }
+    p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt * .6;
+  }
+  sparks = sparks.filter(p => p.life > 0 && p.y > 0 && p.y < SH && p.x < SW);
+  // The island's own air: fireflies, snow, embers, spores, petals, drizzle.
+  const kind = island.ambient;
+  for (const a of ambient) {
+    const ph = a.i * 1.7;
+    if (kind === 'firefly' || kind === 'dust') { a.x += Math.sin(t * .7 + ph) * .35; a.y += Math.cos(t * .9 + ph) * .22; }
+    if (kind === 'snow') { a.y += 5 * dt * (.6 + a.v); a.x += Math.sin(t + ph) * .2 + Math.max(0, wind(a.x, a.y / K, t)) * .3; }
+    if (kind === 'drizzle') { a.y += 40 * dt * (.7 + a.v); a.x -= 6 * dt; }
+    if (kind === 'ember' || kind === 'spore') { a.y -= 5 * dt * (.6 + a.v); a.x += Math.sin(t * 1.3 + ph) * .25; }
+    if (kind === 'petal') { a.x += 9 * dt * (.6 + a.v) + Math.max(0, wind(a.x, a.y / K, t)) * .4; a.y += Math.sin(t * 1.5 + ph) * .3; }
+    if (a.y > SH) a.y = 0; if (a.y < 0) a.y = SH; if (a.x > SW) a.x = 0; if (a.x < 0) a.x = SW;
+  }
+}
+function drawParticles(t) {
+  for (const p of sparks) {
+    if (p.c === 'leaf') { put(p.x, p.y, LEAFFALL, P.leaves[p.ph > 3 ? 3 : 2]); continue; }
+    const c = p.c === 'acid_pool' ? P.liquid[3] : p.c === 'smoke' ? [190, 190, 205] : p.life > .55 ? [255, 214, 120] : p.life > .3 ? [240, 140, 40] : [150, 60, 20];
+    put(p.x, p.y, SPARK, c, 1);
+  }
+  const colour = { firefly: [220, 240, 120], dust: [170, 160, 150], snow: [235, 242, 255], drizzle: [140, 190, 230],
+    ember: [255, 150, 50], spore: [170, 240, 90], petal: [255, 120, 170] }[island.ambient];
+  for (const a of ambient) {
+    const on = island.ambient !== 'firefly' || Math.sin(t * 3 + a.i) > .2;
+    if (on) put(a.x, a.y, AMB, mul(colour, .6 + .4 * a.v), 1);
+  }
+}
+
+// --- Glyphs ----------------------------------------------------------------------
+const lum = (r, gg, b) => (0.3 * r + 0.59 * gg + 0.11 * b) / 255;
+function glyph(m, L, cx, cy, t, kind, fx, board) {
+  const hv = hash(cx, cy, 3);
+  if (m >= LEAF && m < TUFT) { const base = LEAF + 3 * Math.floor((m - LEAF) / 3); return FAM[base][(m - LEAF) % 3]; }
+  switch (m) {
+    case VOID: case ARCH: return ' ';
+    case BRICK: return hv < .4 ? '#' : hv < .7 ? '=' : '%';
+    case MORTAR: return hv < .5 ? '.' : ':';
+    case BANNER: return hv < .5 ? '#' : '|';
+    case GRASS: {
+      // Blades lean with the gust as it passes and stand back up behind it.
+      const w = wind(cx, cy, t), v = hash(cx, cy, 7);
+      if (v > (board ? .45 : .92)) return ' ';
+      if (w > .75) return hv < .7 ? '/' : "'";
+      if (w < -1.05) return hv < .5 ? '\\' : '|';
+      return ['|', "'", '"', ',', '|', ';', '`', '|'][Math.floor(hv * 8)];
+    }
+    case GROUND: { const v = hash(cx, cy, 7); return v < .4 ? ' ' : island.glyphs[Math.floor(hv * 6)]; }
+    case FLOWER: return hv < .5 ? '*' : '°';
+    case PEBBLE: return hv < .5 ? 'o' : '.';
+    case WASH: {
+      const ph = Math.sin(t * 2.2 + cx * .45 + cy * .9);
+      if (kind === 'lava') return ph > .3 ? '~' : hv < .4 ? '^' : '≈';
+      if (kind === 'acid_pool') { const b = hash(cx, cy, Math.floor(t * 3)); return b < .12 ? 'o' : b < .18 ? 'O' : ph > 0 ? '~' : '-'; }
+      if (kind === 'ice') return hash(cx, cy, Math.floor(t * 2)) < .05 ? '*' : hv < .4 ? '_' : hv < .7 ? '=' : '-';
+      return ph > .45 ? '~' : ph > -.3 ? '-' : '.';
+    }
+    case FOAM: return hv < .5 ? '~' : '.';
+    case WIND: return ((cx + cy - Math.floor(t * 8)) % 6 + 6) % 6 === 0 ? '›' : hv < .3 ? '~' : '.';
+    case WATER: {
+      if (hash(cx, cy, Math.floor(t * 3)) < .012) return '*';
+      const ph = Math.sin(cx * .35 + cy * 1.2 - t * 2);
+      return ph > .7 ? '~' : ph > .1 ? '-' : ' ';
+    }
+    case REFL: { const ph = Math.sin(cx * .5 + cy * 1.4 - t * 2.4); return ph > .3 ? '=' : ph > -.4 ? '~' : '-'; }
+    case SHORE: return hv < .4 ? '.' : hv < .7 ? 'o' : ',';
+    case SIDE: return hv < .35 ? '|' : hv < .6 ? ':' : hv < .8 ? '#' : '.';
+    case LIP: return hv < .5 ? '"' : ',';
+    case PATH: return '•';
+    case AIM: return hv < .6 ? 'x' : '·';
+    case FX: {
+      if (fx === 'smoke') return hash(cx, cy, Math.floor(t * 2)) < .5 ? '░' : '▒';
+      const f = hash(cx, cy, Math.floor(t * 8)); return f < .35 ? '^' : f < .55 ? "'" : ',';
+    }
+    case TUFT: { const w = wind(cx, cy, t); return w > .6 ? '/' : w < -.9 ? '\\' : hv < .6 ? '|' : '"'; }
+    case LEAFFALL: return hash(cx, cy, Math.floor(t * 6)) < .5 ? "'" : ',';
+    case OUTLINE: case A_OUT: return '@';
+    case RING: return hv < .5 ? '-' : '·';
+    case ROBE: return hv < .55 ? '%' : '#';
+    case FOLD: case GOLD: return '=';
+    case HOOD: return '.';
+    case EYE: return 'o';
+    case CRACK: return '*';
+    case STAFF: return '|';
+    case HEART: return '♥';
+    case SLEEVE: return '#';
+    case FIRE: return L > .85 ? '@' : L > .62 ? '#' : L > .42 ? '*' : '^';
+    case SPARK: return L > .6 ? '*' : '·';
+    case AMB: return { firefly: '*', dust: '.', snow: hv < .5 ? '*' : '·', drizzle: "'", ember: '·', spore: 'o', petal: '~' }[island.ambient];
+    case F_DARK: return hv < .5 ? '#' : '%';
+    case F_EYE: return '●';
+    case F_HORN: return hv < .5 ? '(' : ')';
+    case F_GLOW: return '*';
+    case F_MOUTH: return '-';
+    case F_SHINE: return '+';
+  }
+  return ' ';
+}
+
+const CELL_CH = new Array(COLS * ROWS), CELL_C = new Array(COLS * ROWS), CELL_BG = new Array(COLS * ROWS);
+// 2 for a grid line's core, 1 for its halo, with the line's colour.
+const CELL_E = new Uint8Array(COLS * ROWS), CELL_EC = new Array(COLS * ROWS);
+// A grid line only where a highlighted cell has one. Where the line crosses
+// the glyph's height picks the glyph, so edges climb as _-' along the 2:1
+// slope instead of a fence of slashes.
+function edgeAt(cx, cy) {
+  const dxh = (cx + .5 - OX) / HW, top = cy * K, yc = top + K / 2;
+  let core = null, halo = null, loudC = 0, loudH = 0;
+  for (const sign of [-1, 1]) {
+    const n = Math.round(((yc - OY) / HH - sign * dxh - 1) / 2) * 2 + 1;
+    for (const nn of [n - 2, n, n + 2]) {
+      const y = OY + (nn + sign * dxh) * HH;
+      // A line through the cell is its core; one within a row of it lights
+      // the cell as halo, which is what lets the neon bleed into the ground.
+      const dist = y < top ? top - y : y >= top + K ? y - (top + K) : 0;
+      if (dist > K * 1.1) continue;
+      for (const side of [-.8, .8]) {
+        const p = tileAt(cx + .5, y + side);
+        if (!inGrid(p.x, p.y)) continue;
+        const pi = Math.min(SH - 1, Math.max(0, Math.round(y + side))) * SW + cx;
+        const ep = EP[pi]; if (!ep) continue;
+        const col = [ER[pi], EG[pi], EB[pi]];
+        if (dist === 0) {
+          if (ep <= loudC) continue;
+          loudC = ep;
+          const f = (y - top) / K;
+          core = { ch: f < .34 ? '▔' : f < .67 ? '━' : '▁', c: col, core: true };
+        } else if (ep > loudH) { loudH = ep; halo = { c: col, halo: true }; }
+      }
+    }
+  }
+  return core || halo;
+}
+function cells(t) {
+  for (let cy = 0; cy < ROWS; cy++) {
+    const y0 = Math.floor(cy * K), y1 = Math.min(SH - 1, Math.ceil((cy + 1) * K) - 1);
+    for (let cx = 0; cx < COLS; cx++) {
+      let best = -1, bm = 0;
+      for (let y = y0; y <= y1; y++) { const m = M[y * SW + cx]; if (PRI[m] > best) { best = PRI[m]; bm = m; } }
+      let r = 0, gg = 0, b = 0, n = 0, br = 0, bg = 0, bb = 0, bn = 0;
+      for (let y = y0; y <= y1; y++) {
+        const i = y * SW + cx;
+        if (M[i] === bm) { r += R[i]; gg += G[i]; b += B[i]; n++; }
+        if (BM[i]) { br += BR[i]; bg += BG[i]; bb += BB[i]; bn++; }
+      }
+      const k = cy * COLS + cx, c = [r / (n || 1), gg / (n || 1), b / (n || 1)];
+      const tile = tileAt(cx + .5, (y0 + y1) / 2), ck = key(tile.x, tile.y), fx = effects.get(ck);
+      const board = inGrid(tile.x, tile.y);
+      const e = FLOORISH.has(bm) ? edgeAt(cx, cy) : null;
+      CELL_E[k] = e ? (e.core ? 2 : 1) : 0; CELL_EC[k] = e && e.c;
+      if (e && e.core) { CELL_CH[k] = e.ch; CELL_C[k] = e.c; }
+      else {
+        CELL_CH[k] = glyph(bm, lum(...c), cx, cy, t, ground.get(ck), fx, board);
+        const gust = wind(cx, cy, t) > .75;
+        CELL_C[k] = bm === PATH ? TOK.move : bm === AIM ? TOK.aim
+          : bm === FX ? (fx === 'smoke' ? [200, 200, 214] : [255, 150, 50])
+          : bm === GRASS ? mul(c, (gust ? 1.75 : 1.3) * (board ? .9 : 1))
+          : bm === TUFT ? mul(c, gust ? 1.3 : 1)
+          : bm === WATER ? mul(c, 1.5) : bm === REFL ? mul(c, 1.25)
+          : bm === BRICK || bm === MORTAR || bm === SIDE || bm === LIP ? mul(c, 1.25)
+          : FLOORISH.has(bm) ? mul(c, 1.2) : c;
+        if (e) CELL_C[k] = mix(CELL_C[k], e.c, .5);
+      }
+      CELL_BG[k] = bn ? [br / bn, bg / bn, bb / bn] : null;
+    }
+  }
+}
+function write(col, row, text, c, bg = null) {
+  [...text].forEach((ch, n) => {
+    const k = row * COLS + col + n;
+    if (k >= 0 && k < CELL_CH.length && col + n < COLS) { CELL_CH[k] = ch; CELL_C[k] = c; CELL_E[k] = 0; if (bg !== undefined) CELL_BG[k] = bg; }
+  });
+}
+function wrap(text, width) {
+  const out = []; let line = '';
+  for (const w of text.split(' ')) { if ((line + ' ' + w).trim().length > width) { out.push(line); line = w; } else line = (line + ' ' + w).trim(); }
+  return line ? [...out, line] : out;
+}
+const PANEL = [10, 13, 36];
+function overlays() {
+  const ink = TOK.ink, dim = [120, 126, 170], acc = P.accent;
+  const W = 44, lines = [[island.name, ink]];
+  for (const id of island.terrains) {
+    const tr = TERRAINS[id];
+    lines.push([`${tr.mark} ${tr.name}`, acc]);
+    for (const l of wrap(tr.rule, W - 4)) lines.push(['  ' + l, dim]);
+  }
+  lines.push(['', dim]);
+  if (isSpell()) lines.push([`x vermillon : où ${SPELLS[mode].name} tombe`, TOK.aim], ['· gris : à portée, mais pas en vue', TOK.blind]);
+  else if (marks.size > 1) lines.push(['• vert : où Ashka peut marcher', TOK.move], ['  clique pour y aller', dim]);
+  else lines.push(['Survole Ashka pour voir où marcher', dim], ['1 à 4 : choisir un sort', dim]);
+  write(1, 1, '┌' + '─'.repeat(W) + '┐', dim, PANEL);
+  lines.forEach(([txt, c], n) => { write(1, 2 + n, '│' + ' '.repeat(W) + '│', dim, PANEL); write(3, 2 + n, txt, c, PANEL); });
+  write(1, 2 + lines.length, '└' + '─'.repeat(W) + '┘', dim, PANEL);
+  for (const l of labels) {
+    const row = Math.floor(l.y / K);
+    write(Math.round(l.x - l.text.length / 2), row, l.text, l.c, undefined);
+    const bars = 10, full = Math.round(l.hp * bars);
+    write(Math.round(l.x - bars / 2), row + 1, '▰'.repeat(full), hex('#ff2a44'), undefined);
+    write(Math.round(l.x - bars / 2) + full, row + 1, '▱'.repeat(bars - full), [90, 60, 80], undefined);
+  }
+  floaters = floaters.filter(f => t - f.t0 < 1.2);
+  for (const f of floaters) write(Math.round(f.x - f.text.length / 2), Math.floor((f.y - (t - f.t0) * 8) / K), f.text, TOK.aim, undefined);
+  spellBar();
+}
+
+// The command deck, in glyphs too: the four spells, the points left, and
+// the one gold button of the screen.
+let regions = [];
+function spellBar() {
+  regions = [];
+  const row = ROWS - 7, ink = TOK.ink, dim = [120, 126, 170], pa = hex('#4fa3ff'), gold = hex('#d8ae31');
+  for (let r = row - 1; r < ROWS; r++) write(0, r, ' '.repeat(COLS), ink, PANEL);
+  write(0, row - 1, '─'.repeat(COLS), [42, 50, 112], PANEL);
+  write(3, row + 1, `PA ${'●'.repeat(ap)}${'·'.repeat(AP - ap)}  ${ap}`, pa, PANEL);
+  write(3, row + 2, `PM ${'●'.repeat(mp)}${'·'.repeat(MP - mp)}     ${mp}`, TOK.move, PANEL);
+  write(3, row + 4, isSpell() ? 'Clique pour lancer · Échap annule' : 'Survole Ashka · 1 à 4 : un sort', dim, PANEL);
+  const W = 24, x0 = 90;
+  SPELLS.forEach((s, n) => {
+    const x = x0 + n * (W + 2), on = mode === n, can = canCast(s);
+    const frame = on ? TOK.aim : can ? [90, 100, 170] : [46, 52, 86], text = can ? ink : [86, 92, 126];
+    const box = (r, l, mid, rgt) => write(x, r, l + mid.repeat(W - 2) + rgt, frame, PANEL);
+    box(row, on ? '╔' : '┌', on ? '═' : '─', on ? '╗' : '┐');
+    for (let r = 1; r <= 3; r++) box(row + r, on ? '║' : '│', ' ', on ? '║' : '│');
+    box(row + 4, on ? '╚' : '└', on ? '═' : '─', on ? '╝' : '┘');
+    write(x + 2, row + 1, `${n + 1}  ${s.name}`, on ? TOK.aim : text, PANEL);
+    write(x + 2, row + 2, `${s.ap} PA`, can ? pa : text, PANEL);
+    write(x + 10, row + 2, `portée ${s.range}`, text, PANEL);
+    write(x + 2, row + 3, AREA_LABEL[s.area], dim, PANEL);
+    regions.push({ c0: x, c1: x + W - 1, r0: row, r1: row + 4, act: () => select(n) });
+  });
+  const ex = x0 + 4 * (W + 2) + 4;
+  write(ex, row + 1, '╔════════════════╗', gold, PANEL);
+  write(ex, row + 2, '║  Fin du tour   ║', gold, PANEL);
+  write(ex, row + 3, '╚════════════════╝', gold, PANEL);
+  regions.push({ c0: ex, c1: ex + 17, r0: row + 1, r1: row + 3, act: endTurn });
+}
+
+let pixelView = false, paused = false;
+const ASCII_FG = 1.35, ASCII_BG = 1.7;
+function paint() {
+  g.fillStyle = '#04060f'; g.fillRect(0, 0, COLS * CW, ROWS * CH);
+  // The grid breathes like a neon tube.
+  const pulse = .8 + .2 * Math.sin(t * 3.2);
+  if (pixelView) {
+    const ph = CH / K;
+    for (let y = 0; y < SH; y++) for (let x = 0; x < SW; x++) {
+      const i = y * SW + x; if (!M[i]) continue;
+      const e = M[i] === BM[i] ? EF[i] : 0, ec = [ER[i], EG[i], EB[i]];
+      const c = e === 2 ? mix(ec, [255, 255, 255], .45 * pulse) : e === 1 ? mix([R[i], G[i], B[i]], ec, .55) : [R[i], G[i], B[i]];
+      g.fillStyle = `rgb(${Math.min(255, c[0]) | 0},${Math.min(255, c[1]) | 0},${Math.min(255, c[2]) | 0})`;
+      g.fillRect(x * CW, y * ph, CW, ph + .5);
+    }
+    return;
+  }
+  // The glyph view loses light to the black between letters, so it is lifted
+  // here, and only here: the pixel view keeps the scene's own values.
+  const lift = (v, gain, floor) => Math.min(255, v * gain + floor) | 0;
+  for (let k = 0; k < COLS * ROWS; k++) {
+    let bg = CELL_BG[k]; if (!bg) continue;
+    bg = [lift(bg[0], ASCII_BG, 4), lift(bg[1], ASCII_BG, 5), lift(bg[2], ASCII_BG, 8)];
+    // The ground under a line, and a row either side of it, takes its glow.
+    if (CELL_E[k]) bg = mix(bg, mul(CELL_EC[k], .55), CELL_E[k] === 2 ? .55 * pulse : .28 * pulse);
+    g.fillStyle = `rgb(${bg[0] | 0},${bg[1] | 0},${bg[2] | 0})`;
+    g.fillRect((k % COLS) * CW, Math.floor(k / COLS) * CH, CW + .5, CH + .5);
+  }
+  g.font = `bold ${CH - 1}px Menlo, ui-monospace, Consolas, monospace`;
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  for (let k = 0; k < COLS * ROWS; k++) {
+    const ch = CELL_CH[k]; if (ch === ' ' || CELL_E[k] === 2) continue;
+    const c = CELL_C[k];
+    g.fillStyle = `rgb(${lift(c[0], ASCII_FG, 10)},${lift(c[1], ASCII_FG, 10)},${lift(c[2], ASCII_FG, 12)})`;
+    g.fillText(ch, (k % COLS) * CW + CW / 2, Math.floor(k / COLS) * CH + CH / 2 + 1);
+  }
+  // Neon last: a near-white core with a blur of its own colour around it.
+  g.shadowBlur = 9;
+  for (let k = 0; k < COLS * ROWS; k++) {
+    if (CELL_E[k] !== 2) continue;
+    const c = CELL_EC[k], core = mix(c, [255, 255, 255], .5 * pulse);
+    g.shadowColor = `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${.95 * pulse})`;
+    g.fillStyle = `rgb(${core[0] | 0},${core[1] | 0},${core[2] | 0})`;
+    g.fillText(CELL_CH[k], (k % COLS) * CW + CW / 2, Math.floor(k / COLS) * CH + CH / 2 + 1);
+  }
+  g.shadowBlur = 0;
+}
+
+let t = 0, last = 0;
+const STEP = 1 / 15; // Stepped like a sprite sheet, not smoothed.
+function frame(advance = false) {
+  if (advance) stepParticles(STEP, t);
+  world(t);
+  things(t);
+  drawParticles(t);
+  reflect(t);
+  foreground(t);
+  light();
+  cells(t); overlays(); paint();
+}
+function tick(now) {
+  requestAnimationFrame(tick);
+  if (paused || now - last < STEP * 1000) return;
+  last = now; t += STEP; frame(true);
+}
+
+const bar = document.getElementById('islands');
+for (const [id, isl] of Object.entries(ISLANDS)) {
+  const b = document.createElement('button');
+  b.textContent = isl.name; b.dataset.id = id;
+  b.onclick = () => choose(id);
+  bar.appendChild(b);
+}
+function choose(id) {
+  layout(id);
+  bar.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', b.dataset.id === id));
+  try { localStorage.setItem('plateau-ascii-island', id); } catch {}
+  frame();
+}
+let start = 'prairie';
+try { start = localStorage.getItem('plateau-ascii-island') || start; } catch {}
+choose(ISLANDS[start] ? start : 'prairie');
+requestAnimationFrame(tick);
+
+// Pointer and keys: hovering shows the path or the area, a click walks or
+// casts, as the board does in a fight.
+function pointerCell(ev) {
+  const r = cv.getBoundingClientRect();
+  return { col: Math.floor((ev.clientX - r.left) / r.width * COLS), row: Math.floor((ev.clientY - r.top) / r.height * ROWS) };
+}
+const regionAt = (col, row) => regions.find(g => col >= g.c0 && col <= g.c1 && row >= g.r0 && row <= g.r1);
+function track(ev) {
+  const { col, row } = pointerCell(ev);
+  const p = tileAt(col + .5, (row + .5) * K);
+  const reg = regionAt(col, row);
+  hover = !reg && row < ROWS - 8 && inGrid(p.x, p.y) ? p : null;
+  cv.style.cursor = reg || hover ? 'pointer' : 'default';
+  if (paused) frame();
+}
+cv.addEventListener('pointermove', track);
+cv.addEventListener('pointerdown', track);
+cv.addEventListener('pointerleave', () => { hover = null; if (paused) frame(); });
+cv.addEventListener('click', ev => {
+  const { col, row } = pointerCell(ev);
+  const reg = regionAt(col, row);
+  if (reg) reg.act();
+  else if (hover && isSpell()) { const s = SPELLS[mode]; if (canTarget(s, hover)) cast(s, hover); else mode = 'idle'; }
+  else if (hover && hover.x === hero.x && hover.y === hero.y) mode = mode === 'move' ? 'idle' : 'move';
+  else if (hover) walk(hover);
+  frame();
+});
+window.addEventListener('keydown', ev => {
+  if (ev.key >= '1' && ev.key <= '4') select(+ev.key - 1);
+  else if (ev.key === 'Escape') mode = 'idle';
+  else return;
+  frame();
+});
+
+const msg = document.getElementById('msg');
+document.getElementById('mode').onclick = e => {
+  pixelView = !pixelView; e.target.textContent = pixelView ? 'Vue ASCII' : 'Vue pixels'; frame();
+};
+document.getElementById('pause').onclick = e => {
+  paused = !paused; e.target.textContent = paused ? 'Lecture' : 'Pause';
+};
+document.getElementById('copy').onclick = async () => {
+  const lines = [];
+  for (let r = 0; r < ROWS; r++) lines.push(CELL_CH.slice(r * COLS, (r + 1) * COLS).join('').trimEnd());
+  try { await navigator.clipboard.writeText(lines.join('\n')); msg.textContent = 'Image courante copiée.'; }
+  catch { msg.textContent = 'Copie refusée par le navigateur.'; }
+};
+</script>
+</body>
+</html>

@@ -1,0 +1,338 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pyromancien ASCII</title>
+<style>
+  :root { --night:#070a1e; --ink:#e8e4d4; --gold:#d8ae31; --line:#2a3170; }
+  html, body { margin:0; background:var(--night); color:var(--ink);
+    font-family: ui-monospace, Menlo, Consolas, monospace; }
+  main { max-width:800px; margin:0 auto; padding:16px; }
+  canvas { width:100%; height:auto; display:block; background:#04060f; }
+  .bar { display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; align-items:center; }
+  button { font:inherit; font-size:11px; letter-spacing:.16em; text-transform:uppercase;
+    background:transparent; color:var(--ink); border:1px solid var(--line);
+    padding:8px 12px; cursor:pointer; }
+  button.gold { border-color:var(--gold); color:var(--gold); }
+  #msg { font-size:11px; opacity:.7; }
+  p { font-size:12px; opacity:.7; line-height:1.6; }
+</style>
+</head>
+<body>
+<main>
+  <canvas id="c"></canvas>
+  <div class="bar">
+    <button id="mode">Vue pixels</button>
+    <button id="pause">Pause</button>
+    <button id="copy" class="gold">Copier l'ASCII</button>
+    <span id="msg"></span>
+  </div>
+  <p>Ashka, Pyromancer : capuche, yeux de braise, robe fendue de braises, le cœur
+  d'Ashka sur la poitrine et le bâton cœur-de-feu. La scène est peinte en pixels
+  (sol isométrique 2:1), puis chaque cellule devient un glyphe : herbe en
+  <code>' " / | \</code>, dalles en <code>/ \</code>, braises en <code>^ *</code>.</p>
+</main>
+<script>
+const COLS = 96, ROWS = 64, CW = 8, CH = 13;
+// One scene pixel is one column wide; a cell is CH/CW scene pixels tall, so
+// the pixel art keeps square pixels once it is turned into glyphs.
+const SW = COLS, SH = Math.round(ROWS * CH / CW), K = SH / ROWS;
+const N = SW * SH;
+const R = new Float32Array(N), G = new Float32Array(N), B = new Float32Array(N);
+const M = new Uint8Array(N);
+
+const cv = document.getElementById('c');
+const dpr = Math.min(2, window.devicePixelRatio || 1);
+cv.width = COLS * CW * dpr; cv.height = ROWS * CH * dpr;
+const g = cv.getContext('2d'); g.scale(dpr, dpr);
+
+function hash(x, y, s = 0) {
+  let n = Math.imul(x | 0, 374761393) + Math.imul(y | 0, 668265263) + Math.imul(s | 0, 2246822519);
+  n = Math.imul(n ^ (n >>> 13), 1274126177);
+  return ((n ^ (n >>> 16)) >>> 0) / 4294967296;
+}
+function put(x, y, m, c) {
+  x = Math.round(x); y = Math.round(y);
+  if (x < 0 || y < 0 || x >= SW || y >= SH) return;
+  const i = y * SW + x; M[i] = m; R[i] = c[0]; G[i] = c[1]; B[i] = c[2];
+}
+
+// Materials: each one has its own glyphs, and a priority that decides which
+// one a cell shows when it covers two scene pixels (thin eyes and staff win).
+const GRASS=1, STONE=2, EDGE_A=3, EDGE_B=4, BURN=5, OUTLINE=10, ROBE=11, FOLD=12,
+      HOOD=13, EYE=14, CRACK=15, GOLD=16, SLEEVE=17, STAFF=18, FIRE=19, SPARK=20,
+      HEART=23, CRACK_DIM=24;
+const PRI = new Uint8Array(32);
+Object.entries({[GRASS]:1,[STONE]:1,[EDGE_A]:2,[EDGE_B]:2,[BURN]:3,[ROBE]:4,[FOLD]:4,
+  [HOOD]:4,[OUTLINE]:5,[SLEEVE]:5,[STAFF]:6,[CRACK_DIM]:6,[GOLD]:7,[CRACK]:8,[FIRE]:8,
+  [SPARK]:9,[HEART]:9,[EYE]:10}).forEach(([m, p]) => PRI[m] = p);
+
+const SPRITE = [
+  "", "", "", "", "",
+  "...G.G",
+  "..GFGFG",
+  "..GFFFG",
+  "...GFG",
+  "....G...........KK",
+  "....S..........KDDK",
+  "....S........KKDdDK",
+  "....S.......KDDDddK",
+  "....S......KDDdddDDK",
+  "....S.....KDDdHHHdDDK",
+  "....S....KDDdHHHHHHDDK",
+  "....S....KDdHHHHHHHHDK",
+  "....S....KDHHEHHHEHHDK",
+  "....S....KDHHEHHHEHHDK",
+  "....S....KDHHHHHHHHHDK",
+  "....S....KDDHHHHHHHDDK",
+  "...KSK...KDDDHHHHHDDDK",
+  "..KdSdKKKDDDDDDDDDDDDDK",
+  "..KPSPPDDDDDdDDDDDDdDDDK",
+  "...KSKPPDDdDDGCCCGDDdDDPK",
+  "....S.KPDDdDDGCFCGDDdDPPK",
+  "....S.KDDDdDDDGCGDDDdDPPK",
+  "....S.KDDCdDDDDGDDDDdCPPK",
+  "....S.KDDDcDDDDDDDDDdDKdK",
+  "....S.KDDDCDDdDDDDcDDKddK",
+  "....S.KDDDDDDdDDDDDDDDKKK",
+  "....S..KDDcDDdDDCDDDDDDK",
+  "....S..KDDDDDdDDDDDcDDDK",
+  "....S..KDDDCDdDDDDDDDDDK",
+  "....S..KDDDDDdDDDCDDDDDDK",
+  "....S.KDDcDDDdDDDDDDDcDDK",
+  "....S.KDDDDDDdDDDDDDDDDDK",
+  "....S.KKDDDCDDDDDDCDDDKKK",
+  "....S..KKKKDDKKKKKDDKKK",
+  "....S.....KDDK...KDDK",
+  "....S.....KKKKK..KKKKK",
+];
+const PAL = {
+  K:[OUTLINE,[78,48,62]], D:[ROBE,[104,64,78]], d:[FOLD,[150,96,106]], H:[HOOD,[30,20,32]],
+  E:[EYE,[255,196,70]], C:[CRACK,[236,132,32]], c:[CRACK_DIM,[150,64,22]],
+  G:[GOLD,[216,174,49]], F:[HEART,[255,90,60]], P:[SLEEVE,[134,50,86]], S:[STAFF,[132,88,46]],
+};
+
+// Isometric board, 2:1 tiles. (i, j) grow towards the bottom-right and the
+// bottom-left; the figure stands on (0, 0).
+const OX = 48, OY = 74, HW = 10, HH = 5, BOARD = 2;
+const BURNING = [[1,0],[1,1],[2,1]];
+const LEFT = OX - 16, TOP = OY - (SPRITE.length - 1);
+const FX = LEFT + 4, FY = TOP + 5;
+const tileCenter = (i, j) => [OX + (i - j) * HW, OY + (i + j) * HH];
+
+let lights = [];
+function light(x, y) {
+  let l = 0;
+  for (const s of lights) {
+    const d = Math.hypot(x - s.x, (y - s.y) * 1.15);
+    l = Math.max(l, s.str * (1 - d / s.rad));
+  }
+  // Banded, never smooth: the light pool steps like the pixel art does.
+  return Math.max(0, Math.min(1, Math.floor(l * 4) / 4));
+}
+const lit = (c, l) => [c[0] * (1 + .8 * l) + 90 * l, c[1] * (1 + .5 * l) + 36 * l, c[2] * (1 + .15 * l)];
+
+function ground(t) {
+  const burn = new Set(BURNING.map(([i, j]) => i + ',' + j));
+  for (let y = 0; y < SH; y++) {
+    const depth = 0.55 + 0.45 * Math.floor((y / SH) * 5) / 5;
+    for (let x = 0; x < SW; x++) {
+      const dx = x - OX, dy = y - OY;
+      const a = dx / HW + dy / HH, b = dy / HH - dx / HW;
+      const i = Math.round(a / 2), j = Math.round(b / 2);
+      const fa = a / 2 - i, fb = b / 2 - j;
+      const l = light(x, y);
+      if (Math.max(Math.abs(i), Math.abs(j)) <= BOARD) {
+        let m = STONE, c;
+        if (Math.abs(fa) > 0.465) m = EDGE_A;
+        else if (Math.abs(fb) > 0.465) m = EDGE_B;
+        if (m === STONE && burn.has(i + ',' + j)) {
+          m = BURN;
+          const f = 0.7 + 0.5 * hash(x, y, Math.floor(t * 10));
+          c = [200 * f, 70 * f, 18 * f];
+        } else if (m === STONE) {
+          const v = (0.85 + hash(i, j, 7) * 0.3) * depth;
+          c = [70 * v, 78 * v, 128 * v];
+        } else {
+          c = [96 * depth, 108 * depth, 168 * depth];
+        }
+        put(x, y, m, m === BURN ? c : lit(c, l));
+      } else {
+        const hv = hash(x, y, 1);
+        const c = hv > 0.93 ? [120, 210, 96] : [34 + hv * 36, 96 + hv * 90, 46 + hv * 28];
+        put(x, y, GRASS, lit(c.map(v => v * depth), l));
+      }
+    }
+  }
+  // Coloured shadow under the feet, never black.
+  for (let y = OY - 3; y <= OY + 3; y++)
+    for (let x = OX - 10; x <= OX + 10; x++) {
+      if (((x - OX) / 9) ** 2 + ((y - OY - .5) / 2.4) ** 2 >= 1) continue;
+      const i = y * SW + x; R[i] *= .45; G[i] *= .4; B[i] *= .6;
+    }
+}
+
+function figure(t) {
+  const blink = (t % 4.3) < 0.14;
+  const pulse = 0.5 + 0.5 * Math.sin(t * 3);
+  SPRITE.forEach((row, ry) => {
+    [...row].forEach((ch, rx) => {
+      if (ch === '.') return;
+      let [m, c] = PAL[ch];
+      const x = LEFT + rx, y = TOP + ry;
+      if (m === EYE && blink) { m = HOOD; c = PAL.H[1]; }
+      if (m === CRACK) { const f = 0.75 + 0.35 * hash(rx, ry, Math.floor(t * 6)); c = c.map(v => v * f); }
+      if (m === HEART) c = [255, 70 + 90 * pulse, 40 + 30 * pulse];
+      const emissive = m === EYE || m === CRACK || m === HEART;
+      put(x, y, m, emissive ? c : lit(c, light(x, y) * 0.8));
+    });
+  });
+}
+
+function flame(t) {
+  for (let dy = 1; dy <= 11; dy++) {
+    const k = dy / 11;
+    const w = (2.6 * (1 - k) + 0.4) * (0.85 + 0.25 * Math.sin(t * 11 + dy * 1.7));
+    const cx = FX + Math.sin(t * 6 + dy * 0.7) * k * 1.8;
+    for (let dx = -Math.ceil(w); dx <= Math.ceil(w); dx++) {
+      const e = 1 - Math.abs(dx) / (w + 0.6) - k * 0.55;
+      if (e <= 0) continue;
+      if (k > 0.55 && hash(dx, dy, Math.floor(t * 12)) < 0.35) continue;
+      const c = e > .7 ? [255, 242, 176] : e > .45 ? [255, 182, 44] : e > .25 ? [232, 112, 26] : [168, 50, 16];
+      put(cx + dx, FY - dy, FIRE, c);
+    }
+  }
+}
+
+let sparks = [];
+function stepSparks(dt) {
+  if (Math.random() < 0.7) sparks.push({ x: FX + (Math.random() - .5) * 3, y: FY - 8, vx: (Math.random() - .5) * 5, vy: -(8 + Math.random() * 10), life: 1 });
+  for (const [i, j] of BURNING) if (Math.random() < 0.25) {
+    const [x, y] = tileCenter(i, j);
+    sparks.push({ x: x + (Math.random() - .5) * 12, y: y + (Math.random() - .5) * 4, vx: (Math.random() - .5) * 3, vy: -(5 + Math.random() * 7), life: 0.8 });
+  }
+  for (const p of sparks) { p.x += p.vx * dt; p.y += p.vy * dt; p.vx += Math.sin(p.y * .3) * dt * 4; p.life -= dt * 0.55; }
+  sparks = sparks.filter(p => p.life > 0 && p.y > 0);
+}
+function drawSparks() {
+  for (const p of sparks) put(p.x, p.y, SPARK, p.life > .6 ? [255, 214, 120] : p.life > .3 ? [240, 140, 40] : [150, 60, 20]);
+}
+
+const lum = (r, gg, b) => (0.3 * r + 0.59 * gg + 0.11 * b) / 255;
+function glyph(m, L, cx, cy, t, life) {
+  const hv = hash(cx, cy, 3);
+  switch (m) {
+    case GRASS: {
+      const s = Math.sin(t * 1.8 + cx * 0.22 - cy * 0.15);
+      if (hv < 0.28) return hv < 0.14 ? '.' : ',';
+      if (hv < 0.56) return s > 0.35 ? '/' : s < -0.35 ? '\\' : '|';
+      if (hv < 0.76) return "'";
+      return hv < 0.9 ? '"' : ';';
+    }
+    case STONE: return hv < 0.3 ? '.' : hv < 0.5 ? '-' : hv < 0.6 ? '_' : hv < 0.75 ? '·' : ' ';
+    case EDGE_A: return '/';
+    case EDGE_B: return '\\';
+    case BURN: { const f = hash(cx, cy, Math.floor(t * 8)); return f < .3 ? '^' : f < .5 ? "'" : f < .65 ? ',' : '.'; }
+    case OUTLINE: return '@';
+    case ROBE: return hv < 0.55 ? '%' : '#';
+    case FOLD: return '=';
+    case HOOD: return '.';
+    case EYE: return 'o';
+    case CRACK: return '*';
+    case CRACK_DIM: return '+';
+    case GOLD: return '=';
+    case SLEEVE: return '#';
+    case STAFF: return '|';
+    case HEART: return '♥';
+    case FIRE: return L > .85 ? '@' : L > .62 ? '#' : L > .42 ? '*' : '^';
+    case SPARK: return L > .6 ? '*' : L > .35 ? '·' : '.';
+  }
+  return ' ';
+}
+
+const CELL_CH = new Array(COLS * ROWS), CELL_C = new Array(COLS * ROWS);
+function cells(t) {
+  for (let cy = 0; cy < ROWS; cy++) {
+    const y0 = Math.floor(cy * K), y1 = Math.min(SH - 1, Math.ceil((cy + 1) * K) - 1);
+    for (let cx = 0; cx < COLS; cx++) {
+      let best = -1, bm = 0;
+      for (let y = y0; y <= y1; y++) { const m = M[y * SW + cx]; if (PRI[m] > best) { best = PRI[m]; bm = m; } }
+      let r = 0, gg = 0, b = 0, n = 0;
+      for (let y = y0; y <= y1; y++) { const i = y * SW + cx; if (M[i] === bm) { r += R[i]; gg += G[i]; b += B[i]; n++; } }
+      r /= n || 1; gg /= n || 1; b /= n || 1;
+      const k = cy * COLS + cx;
+      CELL_CH[k] = glyph(bm, lum(r, gg, b), cx, cy, t);
+      CELL_C[k] = [r, gg, b];
+    }
+  }
+}
+function write(col, row, text, c) {
+  [...text].forEach((ch, n) => { const k = row * COLS + col + n; CELL_CH[k] = ch; CELL_C[k] = c; });
+}
+function overlays() {
+  const ink = [232, 228, 212], dim = [120, 126, 170], ember = [224, 121, 26];
+  write(1, 1, '┌───────────────────────┐', dim);
+  write(1, 2, '│ Ashka the Kindled     │', dim); write(3, 2, 'Ashka the Kindled', ink);
+  write(1, 3, '│ PV ██████████ 90/90   │', dim); write(6, 3, '██████████', ember); write(17, 3, '90/90', ink);
+  write(1, 4, '│ Brûlure ▲▲▲     3/3   │', dim); write(11, 4, '▲▲▲', ember); write(19, 4, '3/3', ink);
+  write(1, 5, '│ Pyromancer · Feu      │', dim);
+  write(1, 6, '└───────────────────────┘', dim);
+  const labelRow = Math.floor((TOP + 9) / K) - 2;
+  write(OX - 1, labelRow, 'Ashka', ink);
+}
+
+let pixelView = false, paused = false;
+function paint() {
+  g.fillStyle = '#04060f'; g.fillRect(0, 0, COLS * CW, ROWS * CH);
+  if (pixelView) {
+    const ph = CH / K;
+    for (let y = 0; y < SH; y++) for (let x = 0; x < SW; x++) {
+      const i = y * SW + x; if (!M[i]) continue;
+      g.fillStyle = `rgb(${R[i] | 0},${G[i] | 0},${B[i] | 0})`;
+      g.fillRect(x * CW, y * ph, CW, ph + .5);
+    }
+    return;
+  }
+  g.font = `bold ${CH - 1}px Menlo, ui-monospace, Consolas, monospace`;
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  for (let k = 0; k < COLS * ROWS; k++) {
+    const ch = CELL_CH[k]; if (ch === ' ') continue;
+    const c = CELL_C[k];
+    g.fillStyle = `rgb(${Math.min(255, c[0]) | 0},${Math.min(255, c[1]) | 0},${Math.min(255, c[2]) | 0})`;
+    g.fillText(ch, (k % COLS) * CW + CW / 2, Math.floor(k / COLS) * CH + CH / 2 + 1);
+  }
+}
+
+let t = 0, last = 0;
+const STEP = 1 / 15; // Stepped like a sprite sheet, not smoothed.
+function tick(now) {
+  requestAnimationFrame(tick);
+  if (paused || now - last < STEP * 1000) return;
+  last = now; t += STEP;
+  M.fill(0);
+  const fl = 0.9 + 0.15 * Math.sin(t * 13);
+  lights = [{ x: FX, y: FY - 3, rad: 40 * fl, str: 1 },
+    ...BURNING.map(([i, j]) => { const [x, y] = tileCenter(i, j); return { x, y, rad: 16, str: .75 }; })];
+  stepSparks(STEP);
+  ground(t); figure(t); flame(t); drawSparks();
+  cells(t); overlays(); paint();
+}
+requestAnimationFrame(tick);
+
+const msg = document.getElementById('msg');
+document.getElementById('mode').onclick = e => {
+  pixelView = !pixelView; e.target.textContent = pixelView ? 'Vue ASCII' : 'Vue pixels'; paint();
+};
+document.getElementById('pause').onclick = e => {
+  paused = !paused; e.target.textContent = paused ? 'Lecture' : 'Pause';
+};
+document.getElementById('copy').onclick = async () => {
+  const lines = [];
+  for (let r = 0; r < ROWS; r++) lines.push(CELL_CH.slice(r * COLS, (r + 1) * COLS).join('').trimEnd());
+  try { await navigator.clipboard.writeText(lines.join('\n')); msg.textContent = 'Image courante copiée.'; }
+  catch { msg.textContent = 'Copie refusée par le navigateur.'; }
+};
+</script>
+</body>
+</html>
