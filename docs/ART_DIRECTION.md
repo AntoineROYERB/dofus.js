@@ -221,6 +221,16 @@ A brawler's home screen (`LobbyHome.tsx`): as few buttons as the screen can
 do with, each opening what it stands for, and nothing to read that a tap
 cannot bring up.
 
+- **Behind it, a place** (`DreamFountain.tsx`): a dream's fountain under a
+  night sky, after the platform fighters' Fountain of Dreams — stepped sky
+  bands, fixed twinkling stars, a moon lit from the upper left, crystal
+  spires on the horizon, two grassy islets bobbing either side, and a
+  fountain whose jets arch either side of the fighter, with sparkles rising
+  off the water in pink, gold and pale crystal. It is world art, painted
+  the world's way (section 5): a small canvas at art resolution scaled by a
+  whole number, one short palette, no smooth gradient. Only water, glow
+  and the islets move, at 30 frames a second; under reduced motion it is a
+  still frame.
 - **The fighter in the middle**, large, on a lit stage, its class above it
   (the element's icon and the grimoire's name) and its three numbers under
   that. Tapping it opens the wardrobe.

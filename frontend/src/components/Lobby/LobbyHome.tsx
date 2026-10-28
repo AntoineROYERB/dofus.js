@@ -4,6 +4,7 @@ import { ContentResponse, Loadout } from "../../types/message";
 import { CharacterShowcase } from "../Game/CharacterShowcase";
 import { kitOf } from "../../utils/loadoutUtils";
 import { ElementGlyph } from "../Game/ElementGlyph";
+import { DreamFountain } from "./DreamFountain";
 import { HomeIcon, ICONS } from "./homeIcons";
 import { useT } from "../../i18n/LanguageProvider";
 
@@ -90,15 +91,12 @@ export const LobbyHome: React.FC<LobbyHomeProps> = ({
   const kit = kitOf(loadout, content);
   return (
     <div className="relative h-[100dvh] select-none overflow-hidden bg-paper text-ink">
-      {/* The stage: a pool of light, and a gold floor under the fighter. */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0"
-        style={{
-          background:
-            "radial-gradient(ellipse 38% 70% at 50% 55%, rgb(var(--board) / 0.95) 0%, rgb(var(--board) / 0) 100%), radial-gradient(ellipse 60% 40% at 50% 0%, rgb(43 47 134 / 0.7), transparent 70%)",
-        }}
-      />
+      {/*
+        The scene behind everything: a dream's fountain under a night sky,
+        so the home screen is a place the fighter stands in rather than an
+        empty page with buttons on it.
+      */}
+      <DreamFountain className="absolute inset-0" />
 
       {/*
         Centre stage. Laid over the whole screen rather than in a column, so
