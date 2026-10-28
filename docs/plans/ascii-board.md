@@ -48,9 +48,12 @@ background** of the ground's colour.
 - The glyphs are **lifted at display**: glyph colours ×1.35 and backgrounds
   ×1.7, with the shadows raised slightly. Without the lift the view is too dark,
   because the gaps between letters lose light.
-- Cell size: the mock-up uses 5×9 px cells on a 300×130 grid. On a phone, pick
-  the cell size so that a board cell is at least about 20 glyphs wide; pinch
-  zoom changes the cell size in whole steps.
+- Cell size (decided): the mock-up uses 5×9 px cells on a 300×130 grid. At
+  740×360 a board cell is about 77 px wide (`fitTile`), so 20 glyphs per cell
+  would make glyphs about 4×7 px, which read as texture rather than letters.
+  On a phone a board cell is **about 12 glyphs wide** (glyphs of 6–7 px); on a
+  desk, **20 or more**. The glyph cell is a whole number of device pixels;
+  pinch zoom changes it in whole steps.
 
 ### 1.2 A world that fills the screen
 
@@ -74,9 +77,26 @@ board is a clearing in it.
   plinth** whose brick face shows wherever the ground falls away. Heights can
   come from the terrace code already written for exploration
   (`explore/world.ts`, `heightAt`, `MAX_LEVEL`) or a shared equivalent.
-- **The back.** A ruined wall across the whole width: stone courses, a broken
-  top, arches open onto darkness, ivy, two banners in the island's colours, and
-  two lit braziers.
+- **The back: a backdrop of its own for each island** (decided). It spans the
+  whole width, in the island's palette, and keeps what makes the mock-up's
+  wall work: a broken top line against the dark, openings onto darkness, and
+  two light sources that throw stepped light on the ground. The mock-up's
+  ruined wall (stone courses, arches, ivy, banners, braziers) is Prairie's.
+  The others, as a starting point:
+  - **Earth**: a basalt cliff in strata, magma veins in its cracks, fallen
+    blocks at its foot;
+  - **Water**: a drowned colonnade, two thin waterfalls, its arches half under
+    the water;
+  - **Ice**: frozen ramparts, icicles off the broken top, light through blue
+    ice instead of braziers;
+  - **Air**: broken arches standing on nothing over a sea of cloud, long
+    pennants in the wind;
+  - **Acid**: a fungal ruin, giant mushrooms and dripping vats glowing green;
+  - **Fire**: a forge wall with lava falling through its arches.
+
+  A backdrop is drawn the scene's way (materials, wind, light), is chosen by
+  the island's palette id like the exploration's scenery, and never covers a
+  playable cell.
 - **Ponds.** Two sunken ponds in the front corners that **reflect** what grows
   on their banks, with a ripple, and glint. Lava on Fire, acid on Acid, ice on
   Ice.
@@ -105,10 +125,47 @@ board is a clearing in it.
 
 ### 1.4 Characters
 
-- Keep **the real sprite sheets** (`public/animation/outfits/…`,
-  `public/bestiary/…`, `explore/sprites.ts`). They are painted into the scene at
-  art resolution, so the ASCII pass turns them into glyphs like everything
-  else.
+#### ASCII figures: a format made to draw new characters easily
+
+The existing sheets (256 px heroes, `public/bestiary/…`) carry colour only, and
+shrink to about 30 px in the scene, where most of their detail is lost. Fighters
+are instead drawn as **figures**, a format of their own made for this view:
+
+- **Drawn at the scene's own resolution**, where one pixel is one glyph column
+  (square pixels, a hero about 24×36, a monster about 14×14). What is drawn is
+  what is shown; nothing is shrunk.
+- **Painted in materials, not colours.** A figure uses only the colours of a
+  fixed **material palette**, each exact colour standing for one material:
+  outline, skin, hair, cloth and its shadow, trim, metal, leather, eye, glow,
+  accent… The game gives each material its colour at draw time, from the
+  outfit's element, the side's colour or the creature's palette. One figure
+  makes every dye, and the ASCII pass knows what is an eye and what is a robe
+  without guessing.
+- **Any pixel editor works** (Aseprite, Piskel, LibreSprite): the palette ships
+  as a file to load into it (`.gpl` and `.png`), and a figure is one PNG sheet:
+  one column per frame, one row per animation (idle, walk, melee, ranged, hit,
+  fall). Five directions are drawn (S, SE, E, NE, N); the other three are
+  mirrored.
+- **A small JSON beside it**: frame size, where the feet are, frames and rate
+  per animation, and optionally a glyph set per material (a wool body in
+  `% & o`, a slime in `O o °`).
+- **Checked like content.** A Jest test reads every figure and refuses a colour
+  outside the palette, a sheet that does not divide into frames, feet outside
+  the frame, or a missing animation.
+- **Seen before it ships**: a dev page (`?figure=<name>`) shows a figure in
+  ASCII, every animation and direction, on each island's ground, in the wind,
+  and reloads when the PNG changes.
+- **Nothing is ever missing.** A fighter with no figure yet is drawn from its
+  existing sheet, its materials guessed from the pixels (edge against
+  transparency → outline, small very bright spots → eyes and glows, the rest
+  → body). The figure replaces it as soon as it exists.
+- The four outfit families and the thirteen creatures (five of them bosses)
+  each need a figure. Step 1 ships the format, the palette, the check, the
+  preview, the fallback, and **one figure drawn by hand as the reference**: the
+  Pyromancer of the character study.
+
+#### On the board
+
 - **Sizes**: a bestiary monster fits inside one cell (the mock-up's sheep was
   far too big at first); a hero stands about two cells tall.
 - **Idle life**: a one-pixel breath, a hem that follows the wind, blinking
@@ -273,6 +330,9 @@ change **in the same pull request** as the code that draws it.
   - which colour an edge takes between two cells;
   - scenery determinism (same seed, same scenery);
   - the "nothing tall in the first ring" rule;
+  - every figure: palette colours only, whole frames, feet inside the frame,
+    every animation present;
+  - the fallback's material guess on a small hand-made sheet;
   - the cells highlighted for a given spell, which must equal what `reachable`
     and `sightBlockedBy` give.
 - **What CI runs**: `npm test`, `npm run lint` and `npm run build`. Nothing
@@ -293,20 +353,15 @@ Decided:
 2. **Frame rate**: the display's rate, 60 fps held on a recent phone (section 4).
 3. **Spell effects**: in ASCII, painted into the scene (section 4).
 4. **Scenery**: full, edge to edge, at every aspect ratio (section 1.2).
+5. **The back**: a backdrop of its own for each island (section 1.2).
+6. **Glyph size**: about 12 glyphs per board cell on a phone, 20 or more on a
+   desk (section 1.1).
+7. **Characters**: a figure format of their own, drawn in materials, so new
+   ones are easy to make; the existing sheets are only the fallback
+   (section 1.4).
 
 Still open:
 
-5. **The ruined wall**: the same everywhere (in the island's colours), or a
-   backdrop of its own for each island?
-6. **Glyph size on a phone.** At 740×360 a board cell is about 77 px wide
-   (`fitTile`); 20 glyphs per cell makes glyphs about 4×7 px, which read as
-   texture rather than letters. Options: accept it, use about 12 glyphs per
-   cell on a phone (6–7 px glyphs) and 20 or more on a desk, or follow the
-   fighter with the camera so the whole board is no longer on screen.
-7. **Materials on real sprite sheets.** The sheets carry no material map.
-   Proposal: derive it from the pixels — the edge against transparency is the
-   outline, small very bright or saturated spots are eyes and glows, the rest
-   is body, its glyph chosen by luminance.
 8. **The scenery's seed.** `GameState` carries no match id and the server does
    not move. Proposal: the island, the `roomId` and a hash of the dealt ground.
    A rematch on exactly the same ground would get the same scenery.
@@ -317,8 +372,9 @@ One pull request per step, each branched from `origin/develop` and opened
 against `develop` once the maintainer agrees:
 
 1. **The scene and the ASCII pass** (WebGL2 plus fallback, glyph atlas): full
-   ground edge to edge, terraces, plinth, wall, ponds, deterministic scenery,
-   real sprite sheets, wind, light and particles, at 60 fps with the
+   ground edge to edge, terraces, plinth, each island's backdrop, ponds,
+   deterministic scenery, the figure format (palette, check, preview,
+   fallback, the Pyromancer), wind, light and particles, at 60 fps with the
    frame-time measurement. It replaces the current board drawing, and the
    charter changes with it. Today's marks stay on top until step 3, so the
    game stays playable.
