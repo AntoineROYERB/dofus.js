@@ -72,7 +72,7 @@ export const HitFeedback: React.FC<HitFeedbackProps> = ({
 
   const healed = hit.delta > 0;
   // A heal that is drawn in the damage colour is a bar that lies about itself.
-  const accent = healed ? BOARD.place : BOARD.accent;
+  const accent = healed ? BOARD.place : BOARD.hp;
 
   return (
     <>
@@ -116,7 +116,7 @@ export const HitFeedback: React.FC<HitFeedbackProps> = ({
             color: accent,
             fontSize: `${Math.max(14, tileSize.width * 0.24)}px`,
             textShadow:
-              "0 1px 0 #fff, 0 -1px 0 #fff, 1px 0 0 #fff, -1px 0 0 #fff",
+              `0 1px 0 ${BOARD.edge}, 0 -1px 0 ${BOARD.edge}, 1px 0 0 ${BOARD.edge}, -1px 0 0 ${BOARD.edge}`,
             /*
              * Reduced motion keeps the figure still and readable for its whole
              * life rather than dropping it: the guard in index.css collapses

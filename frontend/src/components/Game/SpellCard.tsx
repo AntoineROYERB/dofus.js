@@ -1,11 +1,16 @@
 import React from "react";
 import { createPortal } from "react-dom";
 import { Spell } from "../../types/message";
+import { SpellUpgrade } from "../../utils/spellUpgrades";
+import { spellFacts } from "../../utils/gearFacts";
 import { Position } from "../../types/game";
 import { calculateImpactedCells, spellMechanics } from "../../utils/spellUtils";
 import { RULES } from "../../utils/terrain";
 import { effectLook } from "./EffectBadges";
 import { SpellGlyph } from "./SpellGlyph";
+import { BOARD } from "../../constants";
+import { Key, t } from "../../i18n/lang";
+import { elementName } from "../../utils/elements";
 
 const W = 34;
 const H = 17;
@@ -36,7 +41,7 @@ const Fighter: React.FC<{ at: Position; color: string }> = ({ at, color }) => {
   const { x, y } = project(at);
   return (
     <g transform={`translate(${x} ${y})`}>
-      <ellipse rx={9} ry={4} fill="#17181a" opacity={0.1} />
+      <ellipse rx={9} ry={4} fill={BOARD.edge} opacity={0.5} />
       <rect x={-5} y={-22} width={10} height={16} rx={3} fill={color} />
       <circle cy={-27} r={5.5} fill={color} />
     </g>
@@ -71,8 +76,8 @@ const SpellDemo: React.FC<{ spell: Spell }> = ({ spell }) => {
           <polygon
             key={key}
             points={diamond(p)}
-            fill={!selfCast && inRange(p) ? "#eef2fb" : "#ffffff"}
-            stroke="#e2e3e0"
+            fill={!selfCast && inRange(p) ? "#34418a" : BOARD.tile}
+            stroke={BOARD.stroke}
             strokeWidth={0.8}
           />
         );
@@ -98,8 +103,8 @@ const SpellDemo: React.FC<{ spell: Spell }> = ({ spell }) => {
         </polygon>
       ))}
 
-      {!selfCast && <Fighter at={target} color="#8b8d8a" />}
-      <Fighter at={caster} color="#17181a" />
+      {!selfCast && <Fighter at={target} color={BOARD.socle.out} />}
+      <Fighter at={caster} color={BOARD.socle.mine} />
 
       {/* The shot itself. */}
       {!selfCast && (
@@ -156,8 +161,8 @@ const SpellDemo: React.FC<{ spell: Spell }> = ({ spell }) => {
           fontFamily="Archivo, system-ui, sans-serif"
           fontWeight={800}
           fontSize={15}
-          fill={spell.damage > 0 ? "#d1462f" : spell.color}
-          stroke="#fff"
+          fill={spell.damage > 0 ? BOARD.accent : spell.color}
+          stroke={BOARD.ink}
           strokeWidth={3}
           paintOrder="stroke"
           opacity={0}
@@ -199,10 +204,21 @@ const Fact: React.FC<{ label: string; value: React.ReactNode }> = ({
   </div>
 );
 
+/** A spell's area, as the card names it. */
+const AREA_NAMES: Record<string, Key> = {
+  none: "single cell",
+  circle: "circle",
+  line: "line",
+  cross: "cross",
+  wall: "wall",
+};
+
 interface SpellCardProps {
   spell: Spell;
   /** Why it cannot be cast right now, if it cannot. */
   blocked: string | null;
+  /** What a dream's boons have made of it, if anything. */
+  upgrades?: SpellUpgrade[];
 }
 
 /**
@@ -210,21 +226,22 @@ interface SpellCardProps {
  * the numbers behind it. It sits over the middle of the screen, clear of the
  * thumb that is holding it open.
  */
-export const SpellCard: React.FC<SpellCardProps> = ({ spell, blocked }) => {
+export const SpellCard: React.FC<SpellCardProps> = ({ spell, blocked, upgrades = [] }) => {
   const effect = spell.effect;
   const area =
-    spell.areaOfEffect === "none" ? "single cell" : spell.areaOfEffect;
+    spell.areaOfEffect in AREA_NAMES ? t(AREA_NAMES[spell.areaOfEffect]) : spell.areaOfEffect;
+  const side = effect?.onSelf ? t("self") : t("target");
 
   return createPortal(
     <div
       role="tooltip"
-      className="pointer-events-none fixed left-1/2 top-1/2 z-[70] w-[min(540px,90vw)] -translate-x-1/2 -translate-y-1/2 animate-[card-pop_160ms_ease-out] border border-rule bg-panel p-3 shadow-[0_12px_32px_rgba(23,24,26,0.18)]"
+      className={`pointer-events-none fixed left-1/2 top-1/2 z-[70] w-[min(540px,90vw)] -translate-x-1/2 -translate-y-1/2 animate-[card-pop_160ms_ease-out] rounded-2xl bg-panel p-3 shadow-[0_12px_32px_rgb(var(--night)/0.6)] ${upgrades.length > 0 ? "border-2 border-heart" : "border border-gold/50"}`}
     >
       <div className="flex gap-4">
         <div className="w-[52%] flex-none">
           <div className="flex items-center gap-2.5">
             <span
-              className="grid h-9 w-9 flex-none place-items-center border border-hairline bg-board"
+              className="grid h-9 w-9 flex-none place-items-center rounded-full border border-hairline bg-board"
               style={{ color: spell.color }}
             >
               <SpellGlyph
@@ -238,11 +255,24 @@ export const SpellCard: React.FC<SpellCardProps> = ({ spell, blocked }) => {
                 {spell.name}
               </p>
               <p className="font-mono text-[9px] uppercase tracking-label text-muted">
-                {spell.element} · {spell.APCost} AP ·{" "}
-                <span style={{ color: spell.ultimate ? "#8a6a10" : spell.color }}>
+                {elementName(spell.element)} · {t("{n} AP", { n: spell.APCost })} ·{" "}
+                <span style={{ color: spell.ultimate ? "rgb(var(--gold))" : spell.color }}>
                   {spell.role}
                 </span>
               </p>
+              {upgrades.length > 0 && (
+                // A dream's work on it, said as plainly as its numbers.
+                <p className="mt-0.5 flex flex-wrap gap-1">
+                  {upgrades.map((u) => (
+                    <span
+                      key={u.kind}
+                      className="rounded-full bg-heart/20 px-1.5 font-mono text-[9px] uppercase tracking-label text-heart"
+                    >
+                      ✦ {u.label}
+                    </span>
+                  ))}
+                </p>
+              )}
             </div>
           </div>
 
@@ -250,69 +280,77 @@ export const SpellCard: React.FC<SpellCardProps> = ({ spell, blocked }) => {
         </div>
 
         <div className="min-w-0 flex-1">
-          {spell.description && (
-            <p className="mb-1.5 text-[12px] leading-snug text-graphite">
-              {spell.description}
-            </p>
-          )}
+          {/*
+            What it does, as short facts with their numbers, where the
+            server's English sentence used to be; the table under them
+            carries the rest.
+          */}
+          <p className="mb-1.5 flex flex-wrap gap-1">
+            {spellFacts(spell).map((fact) => (
+              <span key={fact} className="rounded-full bg-board px-2 font-display text-[12.5px] leading-5 text-ink">
+                {fact}
+              </span>
+            ))}
+          </p>
           <Fact
-            label="Range"
+            label={t("Range")}
             value={
               spell.targeting === "self"
-                ? "self"
+                ? t("self")
                 : spell.special === "swap"
-                  ? "your pylon, wherever it stands"
+                  ? t("your pylon, wherever it stands")
                   : spell.targeting === "empty"
-                  ? `a free cell within ${spell.range}`
-                  : `${spell.range} cells`
+                  ? t("a free cell within {n}", { n: spell.range })
+                  : t("{n} cells", { n: spell.range })
             }
           />
-          <Fact label="Area" value={area} />
+          <Fact label={t("Area")} value={area} />
           {spell.damage > 0 && (
             <Fact
-              label="Damage"
+              label={t("Damage")}
               value={`${spell.damage}${
                 spell.criticalChance > 0
-                  ? ` · crit ${spell.criticalDamage} (${spell.criticalChance}%)`
+                  ? ` · ${t("crit {n}", { n: spell.criticalDamage })} (${spell.criticalChance}%)`
                   : ""
               }`}
             />
           )}
           {effect && (
             <Fact
-              label="Effect"
+              label={t("Effect")}
               value={
                 effect.kind === "burn"
-                  ? `${effectLook.burn.icon} +${effect.value} burn · ${RULES.burnDamagePerStack}/turn each`
+                  ? `${effectLook.burn.icon} ${t("+{n} burn · {each}/turn each", { n: effect.value, each: RULES.burnDamagePerStack })}`
                   : effect.kind === "root"
-                    ? `${effectLook.root.icon} cannot move · ${effect.onSelf ? "self" : "target"}`
+                    ? `${effectLook.root.icon} ${t("cannot move")} · ${side}`
                     : `${effectLook[effect.kind]?.icon ?? ""} ${
                         effect.value > 0 && effect.kind !== "poison" ? "+" : ""
-                      }${effect.value} ${effectLook[effect.kind]?.label ?? effect.kind} · ${
-                        effect.duration
-                      }t · ${effect.onSelf ? "self" : "target"}`
+                      }${effect.value} ${effectLook[effect.kind] ? t(effectLook[effect.kind].label) : effect.kind} · ${t(
+                        "{n}t",
+                        { n: effect.duration }
+                      )} · ${side}`
               }
             />
           )}
           {spellMechanics(spell).length > 0 && (
-            <Fact label="Also" value={spellMechanics(spell).join(" · ")} />
+            <Fact label={t("Also")} value={spellMechanics(spell).join(" · ")} />
           )}
           <Fact
-            label="Use"
+            label={t("Use")}
             value={
               spell.ultimate
-                ? `ultimate · once a fight, from turn ${RULES.ultimateFromTurn}`
+                ? t("ultimate · once a fight, from turn {n}", { n: RULES.ultimateFromTurn })
                 : spell.cooldown > 0
-                ? `${spell.cooldown}-turn cooldown`
+                ? t("{n}-turn cooldown", { n: spell.cooldown })
                 : spell.maxCastsPerTurn > 0
-                  ? `${spell.maxCastsPerTurn}× a turn`
-                  : "no limit"
+                  ? t("{n}× a turn", { n: spell.maxCastsPerTurn })
+                  : t("no limit")
             }
           />
           {spell.range > 0 && spell.targeting !== "empty" && spell.special !== "swap" && (
             <Fact
-              label="Line of sight"
-              value={spell.needsLineOfSight ? "needed" : "ignored"}
+              label={t("Line of sight")}
+              value={spell.needsLineOfSight ? t("needed") : t("ignored")}
             />
           )}
           {blocked && (

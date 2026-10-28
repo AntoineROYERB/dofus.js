@@ -1,4 +1,6 @@
 import React from "react";
+import { Modal } from "../Overlay";
+import { t } from "../../i18n/lang";
 
 interface LeaveDialogProps {
   onConfirm: () => void;
@@ -24,52 +26,47 @@ export const LeaveDialog: React.FC<LeaveDialogProps> = ({
   replay = false,
   dream = false,
 }) => (
-  <div
-    role="dialog"
-    aria-modal="true"
-    aria-labelledby="leave-dialog-title"
-    className="fixed inset-0 z-50 flex items-center justify-center bg-ink/70 px-6"
-    onClick={onCancel}
+  <Modal
+    onClose={onCancel}
+    labelledBy="leave-dialog-title"
+    dim="hard"
+    className="max-w-sm rounded-3xl border-2 border-gold/70 bg-panel p-6 shadow-[0_0_40px_rgb(var(--night)/0.8)] short:p-5"
   >
-    <div
-      className="w-full max-w-sm border-2 border-ink bg-panel p-6"
-      onClick={(event) => event.stopPropagation()}
-    >
-      <div className="font-mono text-[9.5px] uppercase tracking-label text-muted">
-        {replay ? "Replay tutorial" : "Leave"}
-      </div>
-      <h2
-        id="leave-dialog-title"
-        className="mt-2 font-display text-[24px] font-bold leading-none tracking-tight"
-      >
-        {replay ? "Leave this fight for the tutorial?" : "Leave the fight?"}
-      </h2>
-      <p className="mt-3 text-[13.5px] text-graphite">
-        {replay
-          ? "It counts as a loss, and a fresh tutorial match opens against an opponent that stands still."
-          : dream
-            ? "Your party fights this floor without you; if nobody is left in it, the dream ends."
-            : "It counts as a loss, and you go back to the lobby."}
-      </p>
-      <div className="mt-6 flex gap-3">
-        <button
-          type="button"
-          onClick={onConfirm}
-          className="flex-1 bg-vermilion px-3 py-3 font-display text-[15px] font-bold text-white transition-colors hover:bg-[#b93a25]"
-        >
-          {replay ? "Start the tutorial" : "Leave"}
-        </button>
-        <button
-          type="button"
-          autoFocus
-          onClick={onCancel}
-          className="flex-1 border border-ink px-3 py-3 font-display text-[15px] font-bold text-ink transition-colors hover:bg-hairline"
-        >
-          Keep fighting
-        </button>
-      </div>
+    <div className="font-mono text-[9.5px] uppercase tracking-label text-muted">
+      {replay ? t("Replay tutorial") : t("Leave")}
     </div>
-  </div>
+    <h2
+      id="leave-dialog-title"
+      className="mt-2 pr-8 font-display text-[24px] font-bold leading-none tracking-tight"
+    >
+      {replay ? t("Leave this fight for the tutorial?") : t("Leave the fight?")}
+    </h2>
+    <p className="mt-3 text-[13.5px] text-graphite">
+      {replay
+        ? t("It counts as a loss, and a fresh tutorial match opens against an opponent that stands still.")
+        : dream
+          ? t("Your party fights this floor without you; if nobody is left in it, the dream ends.")
+          : t("It counts as a loss, and you go back to the lobby.")}
+    </p>
+    <div className="mt-6 flex gap-3 short:mt-4">
+      <button
+        type="button"
+        onClick={onConfirm}
+        className="flex-1 btn-night px-3 py-3 font-display text-[15px] font-bold"
+      >
+        {replay ? t("Start the tutorial") : t("Leave")}
+      </button>
+      <button
+        type="button"
+        autoFocus
+        onClick={onCancel}
+        // Staying is the gold one: the forfeit is never the button that glows.
+        className="flex-1 btn-gold px-3 py-3 font-display text-[15px] font-bold"
+      >
+        {t("Keep fighting")}
+      </button>
+    </div>
+  </Modal>
 );
 
 export default LeaveDialog;

@@ -67,7 +67,12 @@ docs/ART_DIRECTION.md   the visual charter
 ## Conventions
 
 - **Language:**
-  - code, comments, in-game text, commits, pull requests and issues: English;
+  - code, comments, commits, pull requests and issues: English;
+  - the interface speaks French by default, English on request (Options).
+    Every text it shows goes through `t("English text")` from
+    `frontend/src/i18n/lang.ts`; the French lives in `i18n/fr.ts`, keyed by
+    the English, and a key missing there fails `tsc`. Content (spell,
+    champion, island names) stays as the server's files write it;
   - conversation with the maintainer: French.
 - **Comments explain why.** They say what went wrong before, or what would
   break otherwise, in full sentences. Match the density of the surrounding
@@ -76,7 +81,7 @@ docs/ART_DIRECTION.md   the visual charter
   `fix(explore): …`), with a body that explains the reasoning.
 - **Visual work** (anything drawn, styled or animated) follows
   [docs/ART_DIRECTION.md](docs/ART_DIRECTION.md). Use tokens rather than hex
-  values, and at most one vermilion element per screen state. If a rule has
+  values, and at most one gold button per screen state. If a rule has
   to change, edit the charter in the same pull request.
 
 ## Workflow

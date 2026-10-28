@@ -4,6 +4,7 @@ import { Daylight, ExploreBoard } from "../explore/ExploreBoard";
 import { setWorldContent } from "../explore/islands";
 import { useContent } from "../hooks/useContent";
 import { readCharacter } from "../utils/characterStorage";
+import { t } from "../i18n/lang";
 import { phaseAt } from "../explore/paint";
 import { useMusic } from "../audio/useSound";
 import { SoundToggle } from "../audio/SoundToggle";
@@ -53,12 +54,12 @@ const ExplorePage: React.FC = () => {
     <div className="flex h-[100dvh] flex-col overflow-hidden bg-paper text-ink">
       <div className="flex flex-none flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b-2 border-ink px-4 pt-[calc(0.75rem+env(safe-area-inset-top))] pb-1.5 sm:px-6">
         <span className="font-mono text-[9.5px] uppercase tracking-label text-muted">
-          Dofus.js · open world
+          Dofus.js · {t("open world")}
           {character?.name ? ` · ${character.name}` : ""}
         </span>
         <div className="flex gap-5">
           <span className="font-mono text-[9.5px] uppercase tracking-label text-muted">
-            Click the ground to walk
+            {t("Click the ground to walk")}
           </span>
           <SoundToggle />
           <button
@@ -74,7 +75,7 @@ const ExplorePage: React.FC = () => {
             onClick={() => navigate("/lobby")}
             className="font-mono text-[9.5px] uppercase tracking-label text-muted transition-colors hover:text-vermilion"
           >
-            Back to lobby
+            {t("Back to lobby")}
           </button>
         </div>
       </div>
@@ -84,7 +85,7 @@ const ExplorePage: React.FC = () => {
           <ExploreBoard daylight={daylight} />
         ) : (
           <p className="absolute inset-0 flex items-center justify-center font-mono text-[11px] uppercase tracking-label text-muted">
-            {failed ? "The world could not be reached. Try again in a moment." : "Unrolling the map…"}
+            {failed ? t("The world could not be reached. Try again in a moment.") : t("Unrolling the map…")}
           </p>
         )}
       </div>

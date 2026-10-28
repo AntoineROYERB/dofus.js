@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { ChatWindow } from "./ChatWindow";
 import { ChatInput } from "./ChatInput";
 import { useWebSocket } from "../../context/WebSocketContext";
+import { t } from "../../i18n/lang";
 
 const OPEN_KEY = "dofusjs.chatOpen";
 
@@ -53,9 +54,9 @@ export const Chat: React.FC = () => {
           className={`h-1.5 w-1.5 flex-none translate-y-[-2px] rounded-full ${
             connected ? "bg-graphite" : "bg-vermilion"
           }`}
-          title={connected ? `Connected as ${userName}` : "Disconnected"}
+          title={connected ? t("Connected as {name}", { name: userName }) : t("Disconnected")}
         />
-        <span className="flex-1 text-ink">Chat</span>
+        <span className="flex-1 text-ink">{t("Chat")}</span>
         <span className="font-mono text-[11.5px] tabular-nums text-ink">
           {unread > 0 ? unread : ""}
         </span>

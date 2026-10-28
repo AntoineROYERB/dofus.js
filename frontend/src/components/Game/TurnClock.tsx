@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { t } from "../../i18n/lang";
 
 interface TurnClockProps {
   /** Unix time in ms when the turn is passed on; 0 outside play. */
@@ -41,9 +42,9 @@ export const TurnClock: React.FC<TurnClockProps> = ({
 
   if (!turnEndsAt) return null;
 
-  const label = `${remaining} seconds left in ${
-    isMyTurn ? "your turn" : "this turn"
-  }`;
+  const label = isMyTurn
+    ? t("{n} seconds left in your turn", { n: remaining })
+    : t("{n} seconds left in this turn", { n: remaining });
   const urgent = remaining <= 10;
 
   if (variant === "inline") {

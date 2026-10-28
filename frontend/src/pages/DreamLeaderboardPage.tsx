@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { fetchLeaderboard } from "../lib/api";
 import { LeaderboardEntry } from "../types/message";
 import { useContent } from "../hooks/useContent";
+import { t } from "../i18n/lang";
 import { useMusic } from "../audio/useSound";
 
 const BOARDS = [
@@ -48,14 +49,14 @@ const DreamLeaderboardPage: React.FC = () => {
             onClick={() => navigate("/dream")}
             className="font-mono text-[9.5px] uppercase tracking-label text-muted transition-colors hover:text-vermilion"
           >
-            Back
+            {t("Back")}
           </button>
         </div>
         <h1 className="mt-5 font-display text-[clamp(2rem,8vw,2.6rem)] font-bold leading-none tracking-tight short:mt-3 short:text-[26px]">
-          Deepest dreams
+          {t("Deepest dreams")}
         </h1>
 
-        <div className="mt-4 flex gap-1.5" role="tablist" aria-label="Party size">
+        <div className="mt-4 flex gap-1.5" role="tablist" aria-label={t("Party size")}>
           {BOARDS.map((b) => (
             <button
               key={b.size}
@@ -73,10 +74,10 @@ const DreamLeaderboardPage: React.FC = () => {
         </div>
 
         <section className="mt-3 border-t border-ink">
-          {failed && <p className="py-8 text-center text-[13px] text-vermilion">The leaderboard could not be read.</p>}
-          {!failed && entries === null && <p className="py-8 text-center text-[13px] text-muted">Loading…</p>}
+          {failed && <p className="py-8 text-center text-[13px] text-vermilion">{t("The leaderboard could not be read.")}</p>}
+          {!failed && entries === null && <p className="py-8 text-center text-[13px] text-muted">{t("Loading…")}</p>}
           {entries?.length === 0 && (
-            <p className="py-8 text-center text-[13px] text-muted">Nobody has climbed this way yet.</p>
+            <p className="py-8 text-center text-[13px] text-muted">{t("Nobody has climbed this way yet.")}</p>
           )}
           <ol>
             {entries?.map((e, i) => (
@@ -85,7 +86,7 @@ const DreamLeaderboardPage: React.FC = () => {
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-display text-[15px] font-bold">{e.names.join(", ")}</p>
                   <p className="truncate font-mono text-[9.5px] uppercase tracking-label text-muted">
-                    {e.grimoires.map(grimoire).join(" · ")} · {e.turns} turns
+                    {e.grimoires.map(grimoire).join(" · ")} · {t("{n} turns", { n: e.turns })}
                   </p>
                 </div>
                 <span className="font-display text-[20px] font-bold tabular-nums">
@@ -96,9 +97,9 @@ const DreamLeaderboardPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => navigate(`/matches/${e.matchIds[e.matchIds.length - 1]}`)}
-                    className="border border-ink px-3 py-1.5 font-mono text-[10px] uppercase tracking-label text-ink transition-colors hover:bg-ink hover:text-paper"
+                    className="rounded-full border border-ink px-3 py-1.5 font-mono text-[10px] uppercase tracking-label text-ink transition-colors hover:bg-ink hover:text-paper"
                   >
-                    Replay
+                    {t("Replay")}
                   </button>
                 )}
               </li>

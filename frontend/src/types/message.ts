@@ -436,7 +436,20 @@ export type DreamBoon = {
   icon: string;
   grimoire?: string;
   stacks?: boolean;
-  effect: { kind: string; value?: number };
+  effect: {
+    kind: string;
+    value?: number;
+    /** The spell a spellMod changes, or a grantSpell deals. */
+    spell?: string;
+    /** How far a sharedAP reaches, in cells. */
+    range?: number;
+    /** How many turns a partyShield lasts. */
+    duration?: number;
+    /** What a spellMod changes on its spell. */
+    apCost?: number;
+    spellRange?: number;
+    effectValue?: number;
+  };
 };
 
 export type DreamDifficulty = {

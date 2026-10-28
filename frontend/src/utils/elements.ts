@@ -11,6 +11,22 @@
  * "elements"); keep the two in step.
  */
 
+import { Key, t } from "../i18n/lang";
+
+const ELEMENT_NAMES: Record<string, Key> = {
+  Fire: "Fire",
+  Air: "Air",
+  Water: "Water",
+  Earth: "Earth",
+};
+
+/**
+ * An element's name as the player reads it. The element itself stays the
+ * English word everywhere else: it is an identifier the server sends.
+ */
+export const elementName = (element: string | undefined): string =>
+  element && element in ELEMENT_NAMES ? t(ELEMENT_NAMES[element]) : element ?? "";
+
 export interface ElementLook {
   /** Its colour, for text on paper and the marks it leaves. */
   color: string;
@@ -18,12 +34,18 @@ export interface ElementLook {
   dark: string;
   /** Its light, for the icon's lit side. */
   light: string;
+  /**
+   * Its colour for words written on the night page. `dark` was the text
+   * colour on paper; on the Heart grimoire's night it all but vanished.
+   */
+  text: string;
   /** The icon, a pixel a letter: x its colour, d its shadow, l its light. */
   glyph: string[];
 }
 
 export const ELEMENTS: Record<string, ElementLook> = {
   Fire: {
+    text: "#ff9a4a",
     color: "#e0791a",
     dark: "#8a3f0c",
     light: "#ffd08a",
@@ -41,6 +63,7 @@ export const ELEMENTS: Record<string, ElementLook> = {
     ],
   },
   Air: {
+    text: "#7cc8ea",
     color: "#4fa3c7",
     dark: "#24607a",
     light: "#cfeefa",
@@ -57,6 +80,7 @@ export const ELEMENTS: Record<string, ElementLook> = {
     ],
   },
   Water: {
+    text: "#4fd0c4",
     color: "#1f8a8a",
     dark: "#0e4a4c",
     light: "#9fe0d6",
@@ -73,6 +97,7 @@ export const ELEMENTS: Record<string, ElementLook> = {
     ],
   },
   Earth: {
+    text: "#e0a85c",
     color: "#a8702a",
     dark: "#5e3c12",
     light: "#e8c48a",

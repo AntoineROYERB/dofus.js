@@ -1,5 +1,6 @@
 import { Position } from "../types/game";
 import { TerrainCell, TerrainKind, ZoneKind } from "../types/message";
+import { t } from "../i18n/lang";
 
 /** Numbers the server's rules are written with, mirrored for what the UI says. */
 export const RULES = {
@@ -53,53 +54,54 @@ export const relayOf = (
 
 /**
  * What each kind of ground does, in the words the hover card uses. Kept next
- * to the kinds so a new one cannot ship without saying what it is.
+ * to the kinds so a new one cannot ship without saying what it is. Getters,
+ * so each read is in the language in force rather than the one at load.
  */
 export const TERRAIN_INFO: Record<TerrainKind, { name: string; text: string }> = {
   fire: {
-    name: "Fire",
-    text: "One more burn to whoever walks in or starts a turn here. Water puts it out.",
+    get name() { return t("Fire"); },
+    get text() { return t("One more burn to whoever walks in or starts a turn here. Water puts it out."); },
   },
   smoke: {
-    name: "Smoke",
-    text: "Nothing can be seen through it. It can be walked through. From inside it, spells reach 3 cells at most.",
+    get name() { return t("Smoke"); },
+    get text() { return t("Nothing can be seen through it. It can be walked through. From inside it, spells reach {smokeRange} cells at most.", { smokeRange: RULES.smokeRange }); },
   },
   water: {
-    name: "Water",
-    text: `Enemies starting a turn here lose 1 MP; its owner heals ${RULES.waterHealing}. Puts burns out.`,
+    get name() { return t("Water"); },
+    get text() { return t("Enemies starting a turn here lose 1 MP; its owner heals {waterHealing}. Puts burns out.", { waterHealing: RULES.waterHealing }); },
   },
-  ice: { name: "Ice", text: "Whoever steps on it slides on to the far side." },
+  ice: { get name() { return t("Ice"); }, get text() { return t("Whoever steps on it slides on to the far side."); } },
   trap: {
-    name: "Bubble trap",
-    text: `The first enemy to step here takes ${RULES.trapDamage} and cannot move again this turn.`,
+    get name() { return t("Bubble trap"); },
+    get text() { return t("The first enemy to step here takes {trapDamage} and cannot move again this turn.", { trapDamage: RULES.trapDamage }); },
   },
   relay: {
-    name: "Pylon",
-    text: `Its owner's air spells go out from here whenever it reaches, ${RULES.relayBonus}% harder. Blocks the way and the view. Holds half its owner's health, hides in tall grass and smoke, and hurts every enemy beside it ${RULES.relayBlast} when it breaks.`,
+    get name() { return t("Pylon"); },
+    get text() { return t("Its owner's air spells go out from here whenever it reaches, {relayBonus}% harder. Blocks the way and the view. Holds half its owner's health, hides in tall grass and smoke, and hurts every enemy beside it {relayBlast} when it breaks.", { relayBonus: RULES.relayBonus, relayBlast: RULES.relayBlast }); },
   },
-  crater: { name: "Crater", text: "Nobody can walk through it." },
-  fissure: { name: "Fissure", text: "Nobody can walk through it." },
+  crater: { get name() { return t("Crater"); }, get text() { return t("Nobody can walk through it."); } },
+  fissure: { get name() { return t("Fissure"); }, get text() { return t("Nobody can walk through it."); } },
   pillar: {
-    name: "Cairn",
-    text: `Raised by a Stonewarden. Nothing walks through it or sees past it. Takes the blows aimed at its owner in the eight cells around it, a stone for every 3, until it has soaked up ${RULES.pillarHealth}.`,
+    get name() { return t("Cairn"); },
+    get text() { return t("Raised by a Stonewarden. Nothing walks through it or sees past it. Takes the blows aimed at its owner in the eight cells around it, a stone for every 3, until it has soaked up {pillarHealth}.", { pillarHealth: RULES.pillarHealth }); },
   },
 };
 
 export const ZONE_INFO: Record<ZoneKind, { name: string; text: string }> = {
   storm: {
-    name: "Storm",
-    text: `Strikes every enemy inside at the start of their turn, ${RULES.conductBonus}% harder in water.`,
+    get name() { return t("Storm"); },
+    get text() { return t("Strikes every enemy inside at the start of their turn, {conductBonus}% harder in water.", { conductBonus: RULES.conductBonus }); },
   },
   maelstrom: {
-    name: "Maelstrom",
-    text: "Drags enemies inside back to its centre and strips their buffs.",
+    get name() { return t("Maelstrom"); },
+    get text() { return t("Drags enemies inside back to its centre and strips their buffs."); },
   },
   drums: {
-    name: "Thunder drums",
-    text: "Struck again at the start of each of its owner's turns, harder on the last beat.",
+    get name() { return t("Thunder drums"); },
+    get text() { return t("Struck again at the start of each of its owner's turns, harder on the last beat."); },
   },
   upheaval: {
-    name: "Dug-up ground",
-    text: "Turns over into its owner's element at the start of their next turn: fire, water, or bare earth.",
+    get name() { return t("Dug-up ground"); },
+    get text() { return t("Turns over into its owner's element at the start of their next turn: fire, water, or bare earth."); },
   },
 };

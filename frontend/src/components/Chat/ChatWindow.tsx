@@ -1,5 +1,6 @@
 import { useChatWindow } from "../../hooks/useChatWindow";
 import { useWebSocket } from "../../context/WebSocketContext";
+import { t } from "../../i18n/lang";
 
 export const ChatWindow: React.FC = () => {
   const { chatMessages, userId } = useWebSocket();
@@ -10,7 +11,7 @@ export const ChatWindow: React.FC = () => {
   return (
     <div className="h-full overflow-y-auto pr-1">
       {chatMessages.length === 0 ? (
-        <p className="py-2 text-[12.5px] text-muted">No messages yet.</p>
+        <p className="py-2 text-[12.5px] text-muted">{t("No messages yet.")}</p>
       ) : (
         chatMessages.map((msg, index) => {
           if (msg.messageId === lastMessageId) return null;

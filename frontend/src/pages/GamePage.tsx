@@ -8,25 +8,30 @@ import { GameAction, Position, GameStatus, GAME_STATUS } from "../types/game";
 import { FighterPanel } from "../components/Game/FighterPanel";
 import { TurnTimeline } from "../components/Game/TurnTimeline";
 import { TurnClock } from "../components/Game/TurnClock";
-import { MainButton } from "../components/Game/Button";
 import { GameOverModal } from "../components/Game/GameOverModal";
 import { useWebSocket } from "../context/WebSocketContext";
 import { readCharacter } from "../utils/characterStorage";
 import { blockedBy, findPath, pathCost } from "../utils/board";
 import { stepCostOf } from "../utils/ground";
 import { RotateHint } from "../components/Game/RotateHint";
-import { SideRail } from "../components/Game/SideRail";
+import { RailBody, RailExits, SideRail } from "../components/Game/SideRail";
+import { SideSheet } from "../components/Overlay";
 import { useRejectionBanner } from "../hooks/useRejectionBanner";
 import { GameTutorial } from "../components/Game/GameTutorial";
 import { LeaveDialog } from "../components/Game/LeaveDialog";
+import { ShortcutSheet } from "../components/Game/ShortcutSheet";
 import {
-  CORNER_BUTTON,
-  CornerButton,
-  FighterStatus,
-  SpellArc,
+  CommandDeck,
+  MainAction,
+  MainActionProps,
+  MenuButton,
+  PortraitGauge,
+  SpellHint,
   TurnBar,
 } from "../components/Game/PhoneHud";
 import { useMediaQuery } from "../hooks/useMediaQuery";
+import { shortcutFor } from "../utils/shortcuts";
+import { AimedAction } from "../utils/touchConfirm";
 import {
   armTutorialMatch,
   disarmTutorialMatch,
@@ -52,11 +57,12 @@ import {
 import { infusedBook, unavailableReason } from "../utils/spellUtils";
 import { markDefeated, readDefeated } from "../utils/progressStorage";
 import { useContent } from "../hooks/useContent";
-import { hapticGameOver, hapticTurnStart } from "../lib/native";
+import { hapticGameOver, hapticTap, hapticTurnStart } from "../lib/native";
 import { playSelect } from "../audio/sfx";
-import { SoundToggle } from "../audio/SoundToggle";
 import { sameSide, teamed } from "../utils/sides";
 import { RULES } from "../utils/terrain";
+import { t } from "../i18n/lang";
+import { useT } from "../i18n/LanguageProvider";
 
 /** Why the match is being left: back to the list, or into a fresh tutorial. */
 type LeaveIntent = "lobby" | "tutorial";
@@ -65,17 +71,18 @@ type LeaveIntent = "lobby" | "tutorial";
 const phaseLabel = (status: GameStatus, isMyTurn: boolean | undefined, allyTurn = false) => {
   switch (status) {
     case GAME_STATUS.CREATING_PLAYER:
-      return "Getting ready";
+      return t("Getting ready");
     case GAME_STATUS.POSITION_CHARACTERS:
-      return "Placement";
+      return t("Placement");
     case GAME_STATUS.PLAYING:
-      return isMyTurn ? "Your turn" : allyTurn ? "Ally's turn" : "Opponent's turn";
+      return isMyTurn ? t("Your turn") : allyTurn ? t("Ally's turn") : t("Opponent's turn");
     default:
-      return "Over";
+      return t("Over");
   }
 };
 
 function GamePage() {
+  useT();
   const {
     userId,
     connected,
@@ -103,7 +110,16 @@ function GamePage() {
   const visibleRejection = useRejectionBanner(rejection);
   // Below lg the rail is a sheet: the board keeps the screen until asked.
   const [railOpen, setRailOpen] = useState(false);
+  // What the board says the gold disc would do: a cast or a move, and where.
+  const [aimed, setAimed] = useState<AimedAction | null>(null);
+  // Declared up here because the keyboard reads it long before the Leave
+  // button that sets it is laid out.
+  const [leaveAsked, setLeaveAsked] = useState<LeaveIntent | null>(null);
   const compact = useMediaQuery("(max-height: 560px)");
+  // A desk, or a tablet held sideways: wide enough for the board to keep the
+  // whole width, with the deck and the portrait laid over its corners as on a
+  // phone. Below this, a phone held upright keeps its bar under the board.
+  const wide = useMediaQuery("(min-width: 900px)");
 
   // The character request must go out exactly once, and only once the socket
   // is open: an early attempt used to be dropped with no retry, leaving the
@@ -310,8 +326,18 @@ function GamePage() {
     setSelectedPosition(position);
 
   const handleSpellClick = (spellId: number) => {
+    hapticTap();
     if (selectedSpellId !== spellId) playSelect(spellBook?.[String(spellId)]?.element);
     setSelectedSpellId((prev) => (prev === spellId ? null : spellId));
+  };
+
+  // A right-click on the board puts a picked spell down, the way a tactics
+  // game on a desk lets the mouse take a choice back without travelling to
+  // the deck. With nothing picked the browser keeps its own menu.
+  const dropOnRightClick = (event: React.MouseEvent) => {
+    if (selectedSpellId === null) return;
+    event.preventDefault();
+    setSelectedSpellId(null);
   };
 
   const handleEndTurnClick = () => {
@@ -331,27 +357,26 @@ function GamePage() {
     });
   };
 
-  // P does whatever the main button underneath the board currently does:
+  // Space does whatever the gold button currently does:
   // confirm a placement while positioning, end the turn once play starts.
+  // Read from a ref: the gold disc's action is worked out further down,
+  // once the board has said what is aimed at.
+  const mainRef = useRef<MainActionProps | null>(null);
   const handleMainButtonKey = () => {
-    if (gameStatus === GAME_STATUS.POSITION_CHARACTERS) {
-      if (connected && selectedPosition && !isPlayerPositioned) {
-        handleFightClick();
-      }
-      return;
-    }
-    if (gameStatus === GAME_STATUS.PLAYING && isMyTurn) {
-      handleEndTurnClick();
-    }
+    const main = mainRef.current;
+    if (main && !main.disabled) main.onClick();
   };
 
-  // Number keys pick a spell, Escape drops the selection, Tab and P end the
-  // turn (P also confirms a placement), the way the game this is modelled on
-  // does it. Keystrokes aimed at the chat are left alone.
+  // The fight's keyboard (utils/shortcuts.ts): number keys pick a spell,
+  // Space — or P, or Tab — does what the gold button does, Escape puts a
+  // spell down or opens the menu, L opens the menu and H lists all of it.
+  // Keystrokes aimed at the chat are left alone, and so is every key while
+  // an overlay is asking its own question.
+  const [helpOpen, setHelpOpen] = useState(false);
+  const overlayOpen = railOpen || helpOpen || !!leaveAsked || !!winner;
   useEffect(() => {
-    // The same order the bar draws its slots in, so key 3 is the third slot.
+    // The same order the deck draws its rows in, so key 3 is the third row.
     const catalogue = barSpells(currentPlayer, spellBook);
-    if (catalogue.length === 0) return;
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.metaKey || event.ctrlKey || event.altKey) return;
@@ -364,27 +389,38 @@ function GamePage() {
       ) {
         return;
       }
+      if (overlayOpen) return;
 
-      if (event.key === "Escape") {
-        setSelectedSpellId(null);
-        return;
-      }
-      if (event.key === "Tab") {
-        event.preventDefault();
-        if (isMyTurn) handleEndTurnClick();
-        return;
-      }
-      if (event.key === "p" || event.key === "P") {
-        event.preventDefault();
-        handleMainButtonKey();
-        return;
-      }
-      const slot = Number(event.key);
-      if (!Number.isInteger(slot) || slot < 1 || slot > catalogue.length) return;
-
+      const shortcut = shortcutFor(event);
+      if (!shortcut) return;
       event.preventDefault();
-      const spell = catalogue[slot - 1];
-      setSelectedSpellId((prev) => (prev === spell.id ? null : spell.id));
+      // A spell row clicked a moment ago still has the focus, and Space
+      // would press it again instead of ending the turn.
+      if (target instanceof HTMLElement && target !== document.body) target.blur();
+
+      switch (shortcut.kind) {
+        case "spell": {
+          const spell = catalogue[shortcut.slot - 1];
+          // As on the deck: out of turn a spell is read, not picked.
+          if (!spell || !isMyTurn) return;
+          hapticTap();
+          setSelectedSpellId((prev) => (prev === spell.id ? null : spell.id));
+          return;
+        }
+        case "main":
+          handleMainButtonKey();
+          return;
+        case "back":
+          if (selectedSpellId !== null) setSelectedSpellId(null);
+          else setRailOpen(true);
+          return;
+        case "menu":
+          setRailOpen(true);
+          return;
+        case "help":
+          setHelpOpen(true);
+          return;
+      }
     };
 
     window.addEventListener("keydown", onKeyDown);
@@ -392,8 +428,9 @@ function GamePage() {
   }, [
     spellBook,
     currentPlayer,
+    selectedSpellId,
+    overlayOpen,
     isMyTurn,
-    handleEndTurnClick,
     handleMainButtonKey,
   ]);
 
@@ -422,7 +459,6 @@ function GamePage() {
 
   // Walking out before anyone has fought costs nothing; once the fight is on,
   // it is a forfeit, so the button asks first — whichever door it is.
-  const [leaveAsked, setLeaveAsked] = useState<LeaveIntent | null>(null);
   const requestLeave = (intent: LeaveIntent = "lobby") => {
     if (
       gameStatus === GAME_STATUS.PLAYING ||
@@ -481,6 +517,41 @@ function GamePage() {
     }
   };
 
+  /*
+   * The gold disc, and Space: one action, worked out from what is aimed at.
+   * A spell picked and a cell it can reach aimed: Cast. A cell to walk to
+   * tapped: Move. Otherwise the turn's own button: Fight, then End turn.
+   * With a spell picked and nothing in reach the disc waits for a tap on the
+   * board rather than ending the turn under a thumb that meant to cast.
+   */
+  const actOnAim = () => {
+    if (!aimed) return;
+    hapticTap();
+    handleCellClick(aimed.cell);
+  };
+  const main: MainActionProps | null =
+    gameStatus === GAME_STATUS.POSITION_CHARACTERS
+      ? {
+          label: isPlayerPositioned ? t("Waiting…") : t("Fight"),
+          disabled: !connected || !selectedPosition || !!isPlayerPositioned,
+          onClick: handleFightClick,
+          beckon: connected && !!selectedPosition && !isPlayerPositioned,
+        }
+      : gameStatus === GAME_STATUS.PLAYING
+        ? isMyTurn && selectedSpellId !== null
+          ? aimed?.kind === "cast"
+            ? { label: t("Cast"), detail: aimed.detail, tone: "cast", disabled: false, onClick: actOnAim }
+            : { label: t("Aim"), detail: t("tap a cell"), disabled: true, onClick: () => {} }
+          : isMyTurn && aimed?.kind === "move"
+            ? { label: t("Move"), detail: aimed.detail, tone: "move", disabled: false, onClick: actOnAim }
+            : isMyTurn
+              ? { label: t("End turn"), disabled: false, onClick: handleEndTurnClick }
+              : { label: allyTurn ? t("Ally's turn") : t("Their turn"), disabled: true, onClick: () => {} }
+        : gameStatus === GAME_STATUS.GAME_OVER
+          ? null
+          : { label: connected ? t("Waiting…") : t("Offline"), disabled: true, onClick: () => {} };
+  mainRef.current = main;
+
   // Everything laid over either layout: notices, the log sheet, the result,
   // the leave confirmation and the tutorial.
   const overlays = (
@@ -495,17 +566,11 @@ function GamePage() {
         )}
 
         {railOpen && (
-          <div className="fixed inset-0 z-40">
-            <button
-              type="button"
-              aria-label="Close the log"
-              onClick={() => setRailOpen(false)}
-              className="absolute inset-0 bg-ink/40"
-            />
-            <aside className="absolute bottom-0 right-0 top-0 flex w-[min(340px,88vw)] flex-col border-l-2 border-ink bg-paper pl-5 pr-[calc(1.25rem+env(safe-area-inset-right))] pt-4">
-              <SideRail
-                roomName={roomName}
-                latestGameState={gameState}
+          <SideSheet
+            title={roomName}
+            onClose={() => setRailOpen(false)}
+            footer={
+              <RailExits
                 onLeave={() => {
                   setRailOpen(false);
                   requestLeave();
@@ -514,10 +579,11 @@ function GamePage() {
                   setRailOpen(false);
                   requestLeave("tutorial");
                 }}
-                onClose={() => setRailOpen(false)}
               />
-            </aside>
-          </div>
+            }
+          >
+            <RailBody latestGameState={gameState} withSound />
+          </SideSheet>
         )}
 
         {winner && (
@@ -540,6 +606,8 @@ function GamePage() {
             }
           />
         )}
+
+        {helpOpen && <ShortcutSheet onClose={() => setHelpOpen(false)} />}
 
         {leaveAsked && !winner && (
           <LeaveDialog
@@ -567,36 +635,21 @@ function GamePage() {
 
   /*
    * A phone held sideways: the board fills the screen and the controls sit
-   * over its corners, spells in an arc under the right thumb. A tap on a cell
-   * previews it and a bubble confirms it; holding a spell shows what it does.
+   * over its corners, the spells under the left thumb and the gold disc under
+   * the right. Picking a spell aims it; a tap on a cell aims elsewhere, and
+   * the disc confirms; holding a spell shows what it does.
    */
   if (compact) {
-    const main =
-      gameStatus === GAME_STATUS.POSITION_CHARACTERS
-        ? {
-            label: isPlayerPositioned ? "Waiting…" : "Fight",
-            disabled: !connected || !selectedPosition || !!isPlayerPositioned,
-            onClick: handleFightClick,
-            beckon: connected && !!selectedPosition && !isPlayerPositioned,
-          }
-        : gameStatus === GAME_STATUS.PLAYING
-          ? {
-              label: "End turn",
-              disabled: !isMyTurn,
-              onClick: handleEndTurnClick,
-            }
-          : gameStatus === GAME_STATUS.GAME_OVER
-            ? null
-            : {
-                label: connected ? "Waiting…" : "Offline",
-                disabled: true,
-                onClick: () => {},
-              };
 
     return (
       <div className="fixed inset-0 select-none overflow-hidden bg-paper text-ink">
-        {/* A little lower than the top edge, so the far row clears the turn bar. */}
-        <div id="tutorial-board" className="absolute inset-x-0 bottom-0 top-5">
+        {/*
+          A little lower than the top edge, so the far row clears the turn bar,
+          and clear of the command deck on the left: a phone held sideways is
+          short before it is narrow, so the board loses almost nothing by
+          starting where the deck ends, and no cell hides under a spell.
+        */}
+        <div id="tutorial-board" onContextMenu={dropOnRightClick} className="absolute bottom-0 left-[min(176px,24vw)] right-0 top-5">
           <GameBoard
             gridSize={15}
             handleSelectedPosition={handleSelectedPosition}
@@ -605,6 +658,7 @@ function GamePage() {
             handleCellClick={handleCellClick}
             latestGameState={gameState}
             userId={userId}
+            onAimChange={setAimed}
           />
         </div>
 
@@ -616,34 +670,134 @@ function GamePage() {
               phase={phaseLabel(gameStatus, isMyTurn, allyTurn)}
             />
           </div>
-          <div className="pointer-events-auto absolute right-[max(12px,env(safe-area-inset-right))] top-[max(8px,env(safe-area-inset-top))] flex gap-2">
-            <SoundToggle className={CORNER_BUTTON} />
-            <CornerButton label="Log" onClick={() => setRailOpen(true)} />
-            <CornerButton label="Leave" onClick={() => requestLeave()} />
+          <div className="pointer-events-auto absolute right-[max(12px,env(safe-area-inset-right))] top-[max(8px,env(safe-area-inset-top))] flex flex-col items-end gap-2">
+            <MenuButton onClick={() => setRailOpen(true)} />
+            <SpellHint
+              player={currentPlayer}
+              spells={spellBook}
+              selectedSpellId={selectedSpellId}
+              onSelectSpell={handleSpellClick}
+            />
           </div>
+          {/* Flush with the left edge: the deck's spine is the screen's. */}
           <div
-            id="tutorial-fighter-panel"
-            className="pointer-events-auto absolute bottom-[max(8px,env(safe-area-inset-bottom))] left-[max(12px,env(safe-area-inset-left))]"
+            id="tutorial-spellbar"
+            className="pointer-events-auto absolute bottom-[max(8px,env(safe-area-inset-bottom))] left-[env(safe-area-inset-left)]"
           >
-            <FighterStatus player={currentPlayer} />
+            <CommandDeck
+              active={gameStatus === GAME_STATUS.PLAYING && !!isMyTurn}
+              turnKey={gameState?.turnNumber ?? 0}
+              player={currentPlayer}
+              spells={spellBook}
+              selectedSpellId={selectedSpellId}
+              onSelectSpell={handleSpellClick}
+              turnNumber={ultimateTurn}
+              hasRelay={!!relayOf(gameState?.terrain, userId)}
+              onPeek={() => setPeeks((n) => n + 1)}
+            />
+          </div>
+          {/*
+            The gold disc in the corner, under the right thumb; the portrait,
+            which is only ever read, beside it towards the middle.
+          */}
+          <div className="pointer-events-auto absolute bottom-[max(4px,env(safe-area-inset-bottom))] right-[max(4px,env(safe-area-inset-right))] flex items-end gap-1">
+            <div id="tutorial-fighter-panel" className="mb-1">
+              <PortraitGauge player={currentPlayer} />
+            </div>
+            {main && (
+              <div id="tutorial-mainbutton">
+                <MainAction {...main} turnEndsAt={gameState?.turnEndsAt} timed={gameStatus === GAME_STATUS.PLAYING} />
+              </div>
+            )}
           </div>
         </div>
 
-        <div className="pointer-events-none absolute inset-0 mb-[env(safe-area-inset-bottom)] mr-[env(safe-area-inset-right)]">
-          <SpellArc
-            player={currentPlayer}
-            spells={spellBook}
-            selectedSpellId={selectedSpellId}
-            onSelectSpell={handleSpellClick}
-            main={main}
-            isMyTurn={!!isMyTurn}
-            turnEndsAt={gameState?.turnEndsAt ?? 0}
-            turnNumber={ultimateTurn}
-            hasRelay={!!relayOf(gameState?.terrain, userId)}
-            status={gameStatus}
-            onPeek={() => setPeeks((n) => n + 1)}
-          />
+        {overlays}
+      </div>
+    );
+  }
+
+  /*
+   * A desk: the phone's layout, given room. The board takes everything left
+   * of the rail; the deck runs down its left edge with the number keys that
+   * pick each spell, and the portrait and the gold button sit bottom right —
+   * the same places a thumb finds them, so a player moving between the two
+   * never has to learn the screen twice.
+   */
+  if (wide) {
+
+    return (
+      <div className="relative flex h-[100dvh] max-h-[100dvh] overflow-hidden bg-paper text-ink">
+        <div className="relative flex min-h-0 min-w-0 flex-1 flex-col pl-[env(safe-area-inset-left)]">
+          <div className="relative z-10 flex-none px-6 pt-[max(1rem,env(safe-area-inset-top))]">
+            <TurnTimeline
+              latestGameState={gameState}
+              userId={userId}
+              onOpenRail={() => setRailOpen(true)}
+            />
+          </div>
+          {/* Starting where the deck ends, so no cell sits under a spell. */}
+          <div id="tutorial-board" onContextMenu={dropOnRightClick} className="relative ml-[244px] min-h-0 flex-1 xl:ml-[288px]">
+            <GameBoard
+              gridSize={15}
+              handleSelectedPosition={handleSelectedPosition}
+              selectedPosition={selectedPosition}
+              selectedSpellId={selectedSpellId}
+              handleCellClick={handleCellClick}
+              latestGameState={gameState}
+              userId={userId}
+              onAimChange={setAimed}
+            />
+          </div>
+
+          <div className="pointer-events-none absolute inset-0">
+            <div className="pointer-events-auto absolute right-6 top-[88px]">
+              <SpellHint
+                player={currentPlayer}
+                spells={spellBook}
+                selectedSpellId={selectedSpellId}
+                onSelectSpell={handleSpellClick}
+              />
+            </div>
+            <div
+              id="tutorial-spellbar"
+              className="pointer-events-auto absolute bottom-4 left-[env(safe-area-inset-left)] origin-bottom-left xl:scale-[1.15]"
+            >
+              <CommandDeck
+                active={gameStatus === GAME_STATUS.PLAYING && !!isMyTurn}
+                turnKey={gameState?.turnNumber ?? 0}
+                player={currentPlayer}
+                spells={spellBook}
+                selectedSpellId={selectedSpellId}
+                onSelectSpell={handleSpellClick}
+                turnNumber={ultimateTurn}
+                hasRelay={!!relayOf(gameState?.terrain, userId)}
+                onPeek={() => setPeeks((n) => n + 1)}
+                shortcuts
+                onHelp={() => setHelpOpen(true)}
+              />
+            </div>
+            <div className="pointer-events-auto absolute bottom-3 right-4 flex origin-bottom-right items-end gap-2 xl:scale-[1.15]">
+              <div id="tutorial-fighter-panel" className="mb-1">
+                <PortraitGauge player={currentPlayer} />
+              </div>
+              {main && (
+                <div id="tutorial-mainbutton">
+                  <MainAction {...main} turnEndsAt={gameState?.turnEndsAt} timed={gameStatus === GAME_STATUS.PLAYING} />
+                </div>
+              )}
+            </div>
+          </div>
         </div>
+
+        <aside className="hidden w-[300px] flex-none flex-col border-l border-gold/30 bg-panel/60 pl-5 pr-[calc(1.25rem+env(safe-area-inset-right))] pt-4 lg:flex">
+          <SideRail
+            roomName={roomName}
+            latestGameState={gameState}
+            onLeave={() => requestLeave()}
+            onReplayTutorial={() => requestLeave("tutorial")}
+          />
+        </aside>
 
         {overlays}
       </div>
@@ -667,11 +821,10 @@ function GamePage() {
               latestGameState={gameState}
               userId={userId}
               onOpenRail={() => setRailOpen(true)}
-              onLeave={() => requestLeave()}
             />
           </div>
           <RotateHint />
-          <div id="tutorial-board" className="relative min-h-0 flex-1">
+          <div id="tutorial-board" onContextMenu={dropOnRightClick} className="relative min-h-0 flex-1">
             <GameBoard
               gridSize={15}
               handleSelectedPosition={handleSelectedPosition}
@@ -680,6 +833,7 @@ function GamePage() {
               handleCellClick={handleCellClick}
               latestGameState={gameState}
               userId={userId}
+              onAimChange={setAimed}
             />
           </div>
         </div>
@@ -723,7 +877,7 @@ function GamePage() {
         >
           <div className="flex items-baseline justify-between gap-2">
             <span className="font-mono text-[9.5px] uppercase tracking-label text-muted">
-              Turn
+              {t("Turn")}
             </span>
             <span className="hidden truncate font-mono text-[9.5px] uppercase tracking-label text-ink sm:inline">
               {phaseLabel(gameStatus, isMyTurn, allyTurn)}
@@ -747,15 +901,11 @@ function GamePage() {
             />
           </div>
           <div className="mt-auto narrow:pt-2">
-            <MainButton
-              gameStatus={gameStatus}
-              connected={connected}
-              handleEndTurnClick={handleEndTurnClick}
-              isMyTurn={isMyTurn}
-              handleFightClick={handleFightClick}
-              selectedPosition={selectedPosition ?? undefined}
-              isPlayerPositioned={isPlayerPositioned}
-            />
+            {main && (
+              <div className="grid place-items-center">
+                <MainAction {...main} turnEndsAt={gameState?.turnEndsAt} timed={gameStatus === GAME_STATUS.PLAYING} />
+              </div>
+            )}
           </div>
         </div>
       </div>

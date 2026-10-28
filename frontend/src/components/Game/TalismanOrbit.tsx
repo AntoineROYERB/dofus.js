@@ -85,7 +85,7 @@ export const TalismanOrbit: React.FC<TalismanOrbitProps> = ({
                 height: `${size}px`,
                 left: `${-size / 2}px`,
                 top: `${-size / 2}px`,
-                backgroundColor: ready ? color : "#b9b4a8",
+                backgroundColor: ready ? color : "#6b77a8",
                 boxShadow: ready
                   ? `0 0 ${size * 0.9}px ${size * 0.25}px ${color}`
                   : undefined,

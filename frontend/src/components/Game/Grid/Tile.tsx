@@ -1,6 +1,7 @@
 import React from "react";
 import { Position } from "../../../types/game";
 import { BOARD } from "../../../constants";
+import { t } from "../../../i18n/lang";
 
 interface TileProps {
   x: number;
@@ -308,7 +309,7 @@ const TileView: React.FC<TileProps> = ({
       className="absolute focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-vermilion"
       role={interactive ? "button" : undefined}
       tabIndex={interactive ? 0 : undefined}
-      aria-label={interactive ? `Cell ${x}, ${y}` : undefined}
+      aria-label={interactive ? t("Cell {x}, {y}", { x, y }) : undefined}
       data-live-cell={isLiveCell || undefined}
       style={{
         left: `${screenPosition.x - w / 2}px`,

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { GroundCell, Island, Terrain } from "../../../types/message";
 import { GroundSwatch } from "./GroundLayer";
+import { t, tn } from "../../../i18n/lang";
 
 interface IslandLegendProps {
   /** The island the fight is on, as the catalogue describes it. */
@@ -35,7 +36,7 @@ export const IslandLegend: React.FC<IslandLegendProps> = ({ island, ground, terr
       >
         <span className="font-display text-[12px] font-bold leading-tight">{island.name}</span>
         <span className="font-mono text-[9px] uppercase tracking-label text-muted">
-          {open ? "Ground ▴" : `${kinds.length} terrain${kinds.length > 1 ? "s" : ""} ▾`}
+          {open ? `${t("Ground")} ▴` : `${tn("{n} terrain", "{n} terrains", kinds.length)} ▾`}
         </span>
       </button>
       {open && (

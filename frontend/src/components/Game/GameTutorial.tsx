@@ -12,6 +12,7 @@ import {
 } from "../../utils/tutorialSteps";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { prefersReducedMotion } from "../../utils/motion";
+import { t } from "../../i18n/lang";
 import {
   Box,
   Spot,
@@ -288,8 +289,8 @@ export const GameTutorial: React.FC<GameTutorialProps> = ({
 
   const objective = !!step.done;
   const counter = objective
-    ? `Step ${objectivesBefore(stepIndex) + 1}/${OBJECTIVE_COUNT}`
-    : "Tutorial";
+    ? t("Step {n}/{total}", { n: objectivesBefore(stepIndex) + 1, total: OBJECTIVE_COUNT })
+    : t("Tutorial");
 
   // Nothing here may take a click but the card: the root spans the screen, so
   // without pointer-events-none the tour would quietly swallow every tap on
@@ -330,7 +331,7 @@ export const GameTutorial: React.FC<GameTutorialProps> = ({
           height="100%"
           // Light enough that the fight stays readable through it: the player
           // is meant to be watching the board, not the card.
-          fill={lit.length > 0 ? "rgba(20, 16, 12, 0.45)" : "rgba(20, 16, 12, 0.6)"}
+          fill={lit.length > 0 ? "rgba(4, 6, 20, 0.5)" : "rgba(4, 6, 20, 0.65)"}
           mask={lit.length > 0 ? "url(#tutorial-spotlight)" : undefined}
         />
       </svg>
@@ -409,9 +410,10 @@ export const GameTutorial: React.FC<GameTutorialProps> = ({
           <button
             type="button"
             onClick={onFinish}
-            className="pointer-events-auto font-mono text-[9.5px] uppercase tracking-label text-muted transition-colors hover:text-vermilion"
+            // The words stay small; the finger's target around them does not.
+            className="pointer-events-auto -my-3 -mr-2 px-2 py-3 font-mono text-[9.5px] uppercase tracking-label text-muted transition-colors hover:text-vermilion"
           >
-            Skip tutorial
+            {t("Skip tutorial")}
           </button>
         </div>
 
@@ -437,19 +439,19 @@ export const GameTutorial: React.FC<GameTutorialProps> = ({
           {objective ? (
             done ? (
               <span className="font-mono text-[9.5px] uppercase tracking-label text-vermilion">
-                Done
+                {t("Done")}
               </span>
             ) : stuck ? (
               <button
                 type="button"
                 onClick={advance}
-                className="pointer-events-auto font-mono text-[9.5px] uppercase tracking-label text-muted underline decoration-rule underline-offset-4 transition-colors hover:text-vermilion"
+                className="pointer-events-auto -my-3 -ml-2 px-2 py-3 font-mono text-[9.5px] uppercase tracking-label text-muted underline decoration-rule underline-offset-4 transition-colors hover:text-vermilion"
               >
-                Skip this step
+                {t("Skip this step")}
               </button>
             ) : (
               <span className="font-mono text-[9.5px] uppercase tracking-label text-muted">
-                {!ready ? "Waiting" : stalled ? "Next turn" : "Your move"}
+                {!ready ? t("Waiting") : stalled ? t("Next turn") : t("Your move")}
               </span>
             )
           ) : (
@@ -460,9 +462,9 @@ export const GameTutorial: React.FC<GameTutorialProps> = ({
             <button
               type="button"
               onClick={advance}
-              className="pointer-events-auto border border-ink bg-ink px-4 py-2 font-mono text-[10px] uppercase tracking-label text-paper transition-colors hover:bg-vermilion hover:border-vermilion"
+              className="rounded-full pointer-events-auto border border-ink bg-ink px-4 py-2 font-mono text-[10px] uppercase tracking-label text-paper transition-colors hover:bg-vermilion hover:border-vermilion"
             >
-              {dummy?.cta ?? (isLast ? "Back to the fight" : "Show me")}
+              {dummy?.cta ?? (isLast ? t("Back to the fight") : t("Show me"))}
             </button>
           )}
         </div>

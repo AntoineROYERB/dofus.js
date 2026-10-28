@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Position, Player } from "../types/game";
 import { Spell } from "../types/message";
-import { screenToIso, generateIsometricCoordinates } from "../utils/isoUtils";
+import { screenToIso, isoToScreen, generateIsometricCoordinates } from "../utils/isoUtils";
 import { findPath, pathCost, StepCost } from "../utils/board";
 import { calculateImpactedCells } from "../utils/spellUtils";
 
@@ -43,7 +43,7 @@ export const useGridInteraction = ({
   /*
    * Where the stats card may peek, which is stricter than `hoveredPosition`:
    * that one legitimately survives a tap — it drives the move preview and the
-   * confirm bubble — while the card is only ever a peek. It follows the mouse
+   * gold disc — while the card is only ever a peek. It follows the mouse
    * and dies with it, and on a touch screen it lives only as long as the
    * finger stays down, so a tap that moves or casts leaves no card behind.
    */
@@ -134,6 +134,26 @@ export const useGridInteraction = ({
         centerX,
         centerY,
       );
+      /*
+       * A fighter stands taller than its cell: a finger on its head or chest
+       * is on the cells behind it, and used to aim there. Its whole body now
+       * counts as its cell — the front-most fighter first, where two overlap.
+       */
+      const body = Object.values(players ?? {})
+        .filter((p) => p.character.isAlive && p.character.position)
+        .map((p) => {
+          const at = p.character.position as Position;
+          return { at, screen: isoToScreen(at.x, at.y, tileSize, centerX, centerY) };
+        })
+        .filter(
+          ({ screen }) =>
+            Math.abs(relativeX - screen.x) <= tileSize.width * 0.28 &&
+            relativeY <= screen.y + tileSize.height * 0.25 &&
+            relativeY >= screen.y - tileSize.height * 2.4
+        )
+        .sort((a, b) => b.screen.y - a.screen.y)[0];
+      if (body) return body.at;
+
       const coordinates = generateIsometricCoordinates(gridSize);
       return (
         coordinates.find(
@@ -144,7 +164,7 @@ export const useGridInteraction = ({
 
     const handlePointerDown = (e: PointerEvent) => {
       if (e.pointerType !== "touch" && e.pointerType !== "pen") return;
-      // Controls drawn over the board (the confirm bubble) are not cells.
+      // Controls drawn over the board are not cells.
       if ((e.target as Element | null)?.closest?.("[data-board-ui]")) return;
 
       if (e.pointerType === "touch") {
@@ -252,6 +272,17 @@ export const useGridInteraction = ({
     return ready;
   }, []);
 
+  /**
+   * Aims at a cell without a tap: what a spell is pointed at the moment it
+   * is picked. It previews like a tap would, and a tap on the same cell then
+   * confirms it, as a second tap always has.
+   */
+  const aimAt = useCallback((cell: Position | null) => {
+    previewed.current = cell;
+    armed.current = false;
+    setHoveredPosition(cell);
+  }, []);
+
   /** Drops the tapped preview, once its action has been confirmed. */
   const clearPreview = useCallback(() => {
     previewed.current = null;
@@ -270,5 +301,6 @@ export const useGridInteraction = ({
     confirmsTap,
     touchMode,
     clearPreview,
+    aimAt,
   };
 };

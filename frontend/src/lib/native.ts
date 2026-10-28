@@ -15,9 +15,9 @@ const quietly = (run: () => Promise<unknown>) => {
   run().catch(() => {});
 };
 
-/** Dark status-bar text over the paper background, once at start-up. */
+/** Light status-bar text over the night background, once at start-up. */
 export const setUpNativeShell = () =>
-  quietly(() => StatusBar.setStyle({ style: Style.Light }));
+  quietly(() => StatusBar.setStyle({ style: Style.Dark }));
 
 /** A firm tap when the turn comes round, for a player who looked away. */
 export const hapticTurnStart = () =>
@@ -30,3 +30,24 @@ export const hapticGameOver = (won: boolean) =>
       type: won ? NotificationType.Success : NotificationType.Error,
     })
   );
+
+/**
+ * The lightest tick, as a spell is picked or put down: the finger feels the
+ * deck answer before the eye has found the board. An Android browser gets
+ * the same from the vibration API; elsewhere on the web it does nothing.
+ */
+export const hapticTap = () => {
+  if (isNativeApp) {
+    quietly(() => Haptics.selectionChanged());
+    return;
+  }
+  try {
+    navigator.vibrate?.(8);
+  } catch {
+    // A browser that refuses is a browser that stays still.
+  }
+};
+
+/** A warning buzz when ten seconds of the turn are left. */
+export const hapticHurry = () =>
+  quietly(() => Haptics.notification({ type: NotificationType.Warning }));

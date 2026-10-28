@@ -4,6 +4,7 @@ import { EffectBadges } from "./EffectBadges";
 import { effectTotal } from "../../utils/effectUtils";
 import { KitTag } from "./KitTag";
 import { useContent } from "../../hooks/useContent";
+import { t } from "../../i18n/lang";
 
 interface FighterPanelProps {
   currentPlayer: Player | undefined;
@@ -43,10 +44,10 @@ export const FighterPanel: React.FC<FighterPanelProps> = ({
     return (
       <div className="flex h-full flex-col">
         <div className="font-mono text-[9.5px] uppercase tracking-label text-muted">
-          Fighter
+          {t("Fighter")}
         </div>
         <p className="mt-2 text-sm text-graphite">
-          {connected ? "Joining the game…" : "Reconnecting…"}
+          {connected ? t("Joining the game…") : t("Reconnecting…")}
         </p>
       </div>
     );
@@ -70,7 +71,7 @@ export const FighterPanel: React.FC<FighterPanelProps> = ({
     <div className="flex h-full flex-col">
       <div className="flex items-baseline justify-between">
         <span className="font-mono text-[9.5px] uppercase tracking-label text-muted narrow:hidden short:hidden">
-          Fighter
+          {t("Fighter")}
         </span>
         {connected ? (
           <KitTag
@@ -80,7 +81,7 @@ export const FighterPanel: React.FC<FighterPanelProps> = ({
           />
         ) : (
           <span className="font-mono text-[9.5px] uppercase tracking-label text-vermilion">
-            offline
+            {t("offline")}
           </span>
         )}
       </div>
@@ -90,18 +91,18 @@ export const FighterPanel: React.FC<FighterPanelProps> = ({
       </div>
 
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 sm:gap-x-5 lg:gap-x-6">
-        <Figure value={character.health} label="hp" color="text-vermilion" />
-        <Figure value={character.actionPoints} label="ap" color="text-pa" />
-        <Figure value={character.movementPoints} label="mp" color="text-pm" />
+        <Figure value={character.health} label={t("hp")} color="text-hp" />
+        <Figure value={character.actionPoints} label={t("ap")} color="text-pa" />
+        <Figure value={character.movementPoints} label={t("mp")} color="text-pm" />
         {shield > 0 && (
-          <Figure value={shield} label="shield" color="text-graphite" />
+          <Figure value={shield} label={t("shield")} color="text-graphite" />
         )}
       </div>
 
       <div className="mb-2 mt-2 flex sm:mt-3 short:mb-0 short:mt-2">
         <div className="relative h-1 flex-1 bg-hairline">
           <div
-            className="absolute inset-y-0 left-0 bg-vermilion transition-[width] duration-300"
+            className="absolute inset-y-0 left-0 bg-hp transition-[width] duration-300"
             style={{ width: `${share * 100}%` }}
           />
           {shieldFillShare > 0 && (
@@ -126,7 +127,7 @@ export const FighterPanel: React.FC<FighterPanelProps> = ({
         {character.effects && character.effects.length > 0 ? (
           <EffectBadges effects={character.effects} />
         ) : (
-          <span className="text-muted">No effect running</span>
+          <span className="text-muted">{t("No effect running")}</span>
         )}
       </div>
     </div>

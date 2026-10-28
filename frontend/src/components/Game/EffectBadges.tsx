@@ -1,11 +1,12 @@
 import React from "react";
 import { Effect, EffectKind } from "../../types/message";
+import { Key, t, tn } from "../../i18n/lang";
 
 interface EffectBadgesProps {
   effects: Effect[] | null | undefined;
 }
 
-export const effectLook: Record<EffectKind, { icon: string; label: string }> = {
+export const effectLook: Record<EffectKind, { icon: string; label: Key }> = {
   poison: { icon: "☠", label: "poison" },
   regen: { icon: "✚", label: "regen" },
   shield: { icon: "◈", label: "shield" },
@@ -16,22 +17,21 @@ export const effectLook: Record<EffectKind, { icon: string; label: string }> = {
 };
 
 const describe = (effect: Effect): string => {
-  const turns = `${effect.turnsLeft} turn${effect.turnsLeft > 1 ? "s" : ""}`;
+  const left = tn("{n} turn left", "{n} turns left", effect.turnsLeft);
+  const source = effect.source;
   switch (effect.kind) {
     case "poison":
-      return `${effect.source}: ${effect.value} damage a turn, ${turns} left`;
+      return `${source}: ${t("{n} damage a turn", { n: effect.value })}, ${left}`;
     case "regen":
-      return `${effect.source}: heals ${effect.value} a turn, ${turns} left`;
+      return `${source}: ${t("heals {n} a turn", { n: effect.value })}, ${left}`;
     case "shield":
-      return `${effect.source}: soaks ${effect.value} per hit, ${turns} left`;
+      return `${source}: ${t("soaks {n} per hit", { n: effect.value })}, ${left}`;
     case "burn":
-      return `Burning ×${effect.value}: ${effect.value * 4} damage a turn, ${turns} left`;
+      return `${t("Burning ×{n}", { n: effect.value })}: ${t("{n} damage a turn", { n: effect.value * 4 })}, ${left}`;
     case "root":
-      return `${effect.source}: cannot move next turn`;
+      return `${source}: ${t("cannot move next turn")}`;
     default:
-      return `${effect.source}: ${effect.value > 0 ? "+" : ""}${effect.value} ${
-        effectLook[effect.kind].label
-      }, ${turns} left`;
+      return `${source}: ${effect.value > 0 ? "+" : ""}${effect.value} ${t(effectLook[effect.kind].label)}, ${left}`;
   }
 };
 

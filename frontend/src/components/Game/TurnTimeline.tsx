@@ -5,18 +5,19 @@ import { EffectBadges } from "./EffectBadges";
 import { TurnClock } from "./TurnClock";
 import { KitTag } from "./KitTag";
 import { useContent } from "../../hooks/useContent";
+import { t } from "../../i18n/lang";
 import { SoundToggle } from "../../audio/SoundToggle";
 
 interface TurnTimelineProps {
   latestGameState: GameState | null;
   userId: string;
-  /** Opens the log sheet, on the screens too narrow to keep the rail. */
-  onOpenRail?: () => void;
   /**
-   * Leaves the room. The rail carries its own Leave button, but below lg the
-   * rail is a sheet, and a way out hidden behind "Log" is one nobody finds.
+   * Opens the menu sheet — log, chat and the ways out — on the screens too
+   * narrow to keep the rail. Leave used to sit beside it as a word of its
+   * own, a forfeit one slip from the log; the sheet now ends on it, as a
+   * button that says what it does.
    */
-  onLeave?: () => void;
+  onOpenRail?: () => void;
 }
 
 /**
@@ -29,7 +30,6 @@ export const TurnTimeline: React.FC<TurnTimelineProps> = ({
   latestGameState,
   userId,
   onOpenRail,
-  onLeave,
 }) => {
   const { content } = useContent();
   const players = latestGameState?.players ?? {};
@@ -47,32 +47,27 @@ export const TurnTimeline: React.FC<TurnTimelineProps> = ({
     <div className="pointer-events-auto select-none">
       <div className="flex items-baseline justify-between border-b-2 border-ink pb-1.5">
         <span className="font-mono text-[9.5px] uppercase tracking-label text-muted">
-          Turn order
+          {t("Turn order")}
         </span>
         <span className="flex flex-none items-baseline gap-4">
           <span className="font-mono text-[10px] uppercase tracking-label text-muted">
-            Turn{" "}
+            {t("Turn")}{" "}
             <b className="font-medium text-ink">
               {latestGameState?.turnNumber ?? 0}
             </b>
           </span>
           <SoundToggle className="font-mono text-[10px] uppercase tracking-label text-muted transition-colors hover:text-vermilion" />
-          {onLeave && (
-            <button
-              type="button"
-              onClick={onLeave}
-              className="font-mono text-[10px] uppercase tracking-label text-muted transition-colors hover:text-vermilion lg:hidden"
-            >
-              Leave
-            </button>
-          )}
           {onOpenRail && (
             <button
               type="button"
               onClick={onOpenRail}
-              className="font-mono text-[10px] uppercase tracking-label text-ink underline decoration-rule underline-offset-4 lg:hidden"
+              aria-label={t("Menu: log, chat and leave")}
+              className="-my-2 flex items-center gap-1.5 py-2 pl-2 font-mono text-[10px] uppercase tracking-label text-ink lg:hidden"
             >
-              Log
+              <svg aria-hidden viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round">
+                <path d="M2.5 4h11M2.5 8h11M2.5 12h11" />
+              </svg>
+              {t("Menu")}
             </button>
           )}
         </span>
@@ -110,11 +105,14 @@ export const TurnTimeline: React.FC<TurnTimelineProps> = ({
                 content={content}
                 className="hidden sm:inline-flex short:hidden"
               />
-              <span className="hidden font-mono text-[9.5px] text-muted sm:inline">
-                {isYou ? "you" : `${player.character.health} HP`}
-                {player.isBot && !isYou ? " · cpu" : ""}
-                {!player.isBot && !player.connected ? " · away" : ""}
-                {dead ? " · out" : ""}
+              {/* Held upright, the opponent's health is the one fact kept. */}
+              <span className="font-mono text-[9.5px] text-muted">
+                {isYou ? <span className="hidden sm:inline">{t("you")}</span> : t("{n} HP", { n: player.character.health })}
+                <span className="hidden sm:inline">
+                  {player.isBot && !isYou ? ` · ${t("cpu")}` : ""}
+                </span>
+                {!player.isBot && !player.connected ? ` · ${t("away")}` : ""}
+                {dead ? ` · ${t("out")}` : ""}
               </span>
               {isPlaying && (
                 <TurnClock

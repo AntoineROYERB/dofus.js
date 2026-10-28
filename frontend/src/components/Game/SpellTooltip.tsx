@@ -1,4 +1,5 @@
 import React from "react";
+import { spellFacts } from "../../utils/gearFacts";
 import { createPortal } from "react-dom";
 import { Spell } from "../../types/message";
 import { Position } from "../../types/game";
@@ -6,7 +7,8 @@ import { areaPattern } from "../../utils/spellUtils";
 import { effectLook } from "./EffectBadges";
 import { RULES } from "../../utils/terrain";
 import { spellMechanics } from "../../utils/spellUtils";
-import { ELEMENTS } from "../../utils/elements";
+import { ELEMENTS, elementName } from "../../utils/elements";
+import { t } from "../../i18n/lang";
 import { ElementGlyph } from "./ElementGlyph";
 
 /** One stat, rendered the same way EffectBadges renders a status effect. */
@@ -134,47 +136,47 @@ export const SpellTooltip: React.FC<SpellTooltipProps> = ({
         </span>
         <span
           className="flex-none border px-1 font-mono text-[9px] uppercase tracking-label"
-          style={{ borderColor: spell.ultimate ? "#c99a1a" : spell.color, color: spell.ultimate ? "#8a6a10" : spell.color }}
+          style={{ borderColor: spell.ultimate ? "rgb(var(--gold))" : spell.color, color: spell.ultimate ? "rgb(var(--gold))" : spell.color }}
         >
           {spell.role}
         </span>
       </div>
-      <p className="mb-1.5 font-sans text-[11px] leading-snug text-ink">
-        {spell.description}
+      <p className="mb-1.5 font-display text-[12.5px] leading-snug text-ink">
+        {spellFacts(spell).join(" · ")}
       </p>
 
       <div className="mb-1.5 flex flex-wrap gap-1">
-        <Badge icon="⚡">{spell.APCost} AP</Badge>
+        <Badge icon="⚡">{t("{n} AP", { n: spell.APCost })}</Badge>
         <Badge icon="📏">
           {spell.targeting === "self"
-            ? "self"
+            ? t("self")
             : spell.special === "swap"
-              ? "your pylon"
+              ? t("your pylon")
               : spell.targeting === "empty"
-              ? `free cell ≤ ${spell.range}`
+              ? t("free cell ≤ {n}", { n: spell.range })
               : spell.range}
         </Badge>
         {spell.damage > 0 && (
           <Badge icon="🗡">
             {spell.damage}
-            {spell.criticalChance > 0 ? ` (crit ${spell.criticalChance}%)` : ""}
+            {spell.criticalChance > 0 ? ` (${t("crit {n}%", { n: spell.criticalChance })})` : ""}
           </Badge>
         )}
         {spell.ultimate && (
-          <Badge icon="★">1× a fight · turn {RULES.ultimateFromTurn}+</Badge>
+          <Badge icon="★">{t("1× a fight · turn {n}+", { n: RULES.ultimateFromTurn })}</Badge>
         )}
         {spell.cooldown > 0 && <Badge icon="⏱">{spell.cooldown}</Badge>}
         {!spell.ultimate && spell.cooldown === 0 && spell.maxCastsPerTurn > 0 && (
-          <Badge icon="🔁">{spell.maxCastsPerTurn}/turn</Badge>
+          <Badge icon="🔁">{t("{n}/turn", { n: spell.maxCastsPerTurn })}</Badge>
         )}
         {spell.range > 0 &&
           spell.targeting !== "empty" &&
           spell.special !== "swap" &&
           spell.needsLineOfSight === false && (
-          <Badge icon="👁">ignores line of sight</Badge>
+          <Badge icon="👁">{t("ignores line of sight")}</Badge>
         )}
         {ELEMENTS[spell.element] && (
-          <Badge icon={<ElementGlyph element={spell.element} size={10} />}>{spell.element}</Badge>
+          <Badge icon={<ElementGlyph element={spell.element} size={10} />}>{elementName(spell.element)}</Badge>
         )}
       </div>
 
@@ -183,18 +185,20 @@ export const SpellTooltip: React.FC<SpellTooltipProps> = ({
           <span aria-hidden>{effectLook[effect.kind]?.icon ?? "•"}</span>
           <span>
             {effect.kind === "burn"
-              ? `+${effect.value} burn (${RULES.burnDamagePerStack} a turn each)`
+              ? t("+{n} burn ({each} a turn each)", { n: effect.value, each: RULES.burnDamagePerStack })
               : effect.kind === "root"
-                ? "cannot move"
+                ? t("cannot move")
                 : `${effect.value > 0 && effect.kind !== "poison" ? "+" : ""}${effect.value} ${
-                    effectLook[effect.kind]?.label ?? effect.kind
+                    effectLook[effect.kind] ? t(effectLook[effect.kind].label) : effect.kind
                   }`}
             {" · "}
             {effect.kind === "burn"
-              ? "stacks to 3"
-              : `${effect.duration > 1 ? `${effect.duration} turns` : "next turn"}`}
+              ? t("stacks to 3")
+              : effect.duration > 1
+                ? t("{n} turns", { n: effect.duration })
+                : t("next turn")}
             {" · "}
-            {effect.onSelf ? "on self" : "on target"}
+            {effect.onSelf ? t("on self") : t("on target")}
           </span>
         </div>
       )}

@@ -17,8 +17,11 @@ import {
 } from "../utils/loadoutUtils";
 import { Champion, ContentResponse } from "../types/message";
 import { Wardrobe } from "../components/Game/Wardrobe";
-import { LobbyHome } from "../components/Lobby/LobbyHome";
+import { HomeMode, LobbyHome } from "../components/Lobby/LobbyHome";
+import { HomeIcon, ICONS } from "../components/Lobby/homeIcons";
+import { ModeCard, ModeId, ModePicker } from "../components/Lobby/ModePicker";
 import { RenameDialog } from "../components/Lobby/RenameDialog";
+import { SideSheet } from "../components/Overlay";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { ElementGlyph } from "../components/Game/ElementGlyph";
 import {
@@ -26,8 +29,11 @@ import {
   hasSeenTutorial,
   isTutorialMatchArmed,
 } from "../utils/tutorialStorage";
+import { Key, t } from "../i18n/lang";
+import { useT } from "../i18n/LanguageProvider";
+import { Modal } from "../components/Overlay";
+import { OptionsPanel } from "../components/OptionsPanel";
 import { useMusic } from "../audio/useSound";
-import { SoundToggle } from "../audio/SoundToggle";
 
 /**
  * One rung of the solo arc: a champion, and whether it can be fought yet.
@@ -63,29 +69,29 @@ const OpponentRow: React.FC<{
         </p>
         <p className="truncate font-mono text-[9.5px] uppercase tracking-label text-muted">
           {kit?.grimoire.name}
-          {beaten ? " · set won" : ""}
-          {!open && opener ? ` · beat ${opener.name} first` : ""}
+          {beaten ? ` · ${t("set won")}` : ""}
+          {!open && opener ? ` · ${t("beat {name} first", { name: opener.name })}` : ""}
         </p>
       </div>
       <button
         type="button"
         disabled={disabled || !open}
         onClick={() => onChallenge(champion.id)}
-        className="border border-ink px-4 py-2.5 font-mono text-[10px] uppercase tracking-label text-ink transition-colors hover:bg-ink hover:text-paper disabled:cursor-not-allowed disabled:border-hairline disabled:text-muted disabled:hover:bg-transparent disabled:hover:text-muted sm:py-1.5"
+        className="rounded-full border border-ink px-4 py-2.5 font-mono text-[10px] uppercase tracking-label text-ink transition-colors hover:bg-ink hover:text-paper disabled:cursor-not-allowed disabled:border-hairline disabled:text-muted disabled:hover:bg-transparent disabled:hover:text-muted sm:py-1.5"
       >
         {!open
-          ? "Locked"
+          ? t("Locked")
           : picked === undefined
-            ? "Fight"
+            ? t("Fight")
             : picked
-              ? "Picked"
-              : "Pick"}
+              ? t("Picked")
+              : t("Pick")}
       </button>
     </li>
   );
 };
 
-const statusLabel: Record<string, string> = {
+const statusLabel: Record<string, Key> = {
   creating_player: "Waiting for players",
   position_characters: "Placing characters",
   playing: "In progress",
@@ -107,7 +113,7 @@ const RoomRow: React.FC<{
           {room.name}
         </p>
         <p className="font-mono text-[9.5px] uppercase tracking-label text-muted">
-          {statusLabel[room.status] ?? room.status}
+          {room.status in statusLabel ? t(statusLabel[room.status]) : room.status}
         </p>
       </div>
       <span className="font-mono text-[12px] tabular-nums text-graphite">
@@ -117,46 +123,13 @@ const RoomRow: React.FC<{
         type="button"
         disabled={closed}
         onClick={() => onJoin(room.id)}
-        className="border border-ink px-4 py-2.5 font-mono text-[10px] uppercase tracking-label text-ink sm:py-1.5 transition-colors hover:bg-ink hover:text-paper disabled:cursor-not-allowed disabled:border-hairline disabled:text-muted disabled:hover:bg-transparent disabled:hover:text-muted"
+        className="rounded-full border border-ink px-4 py-2.5 font-mono text-[10px] uppercase tracking-label text-ink sm:py-1.5 transition-colors hover:bg-ink hover:text-paper disabled:cursor-not-allowed disabled:border-hairline disabled:text-muted disabled:hover:bg-transparent disabled:hover:text-muted"
       >
-        {full ? "Full" : started ? "Started" : "Join"}
+        {full ? t("Full") : started ? t("Started") : t("Join")}
       </button>
     </li>
   );
 };
-
-/** A panel sliding in from the right, over the home screen. */
-const Sheet: React.FC<{
-  title: string;
-  onClose: () => void;
-  children: React.ReactNode;
-}> = ({ title, onClose, children }) => (
-  <div className="fixed inset-0 z-40">
-    <button
-      type="button"
-      aria-label="Close"
-      onClick={onClose}
-      className="absolute inset-0 bg-ink/40"
-    />
-    <aside
-      role="dialog"
-      aria-label={title}
-      className="absolute bottom-0 right-0 top-0 flex w-[min(420px,92vw)] flex-col border-l-2 border-ink bg-paper pb-[env(safe-area-inset-bottom)] pl-5 pr-[calc(1.25rem+env(safe-area-inset-right))] pt-[max(1rem,env(safe-area-inset-top))]"
-    >
-      <div className="flex flex-none items-baseline justify-between border-b-2 border-ink pb-1.5">
-        <span className="font-display text-[17px] font-bold">{title}</span>
-        <button
-          type="button"
-          onClick={onClose}
-          className="font-mono text-[9.5px] uppercase tracking-label text-ink transition-colors hover:text-vermilion"
-        >
-          Close
-        </button>
-      </div>
-      <div className="min-h-0 flex-1 overflow-y-auto pb-3">{children}</div>
-    </aside>
-  </div>
-);
 
 /**
  * The island a solo match starts on, from `?island=ice` on the lobby's URL.
@@ -175,6 +148,7 @@ const LobbyPage: React.FC = () => {
   // Endless Dreams opens once the tutorial has been played.
   const dreamsOpen = hasSeenTutorial() || !!dream;
   const navigate = useNavigate();
+  useT();
   const [newRoomName, setNewRoomName] = useState("");
   const [roomNameFocused, setRoomNameFocused] = useState(false);
   const [howToPlayOpen, setHowToPlayOpen] = useState(false);
@@ -194,11 +168,14 @@ const LobbyPage: React.FC = () => {
   // A phone held sideways — the iOS app — gets the home screen instead of
   // the list; the list lives on in its sheets.
   const homeScreen = useMediaQuery("(max-height: 560px)");
-  const [sheet, setSheet] = useState<"opponents" | "rooms" | null>(null);
+  const [sheet, setSheet] = useState<"opponents" | "rooms" | "modes" | "menu" | "options" | null>(null);
+  // What Play starts on the home screen. A dream under way is picked back up.
+  const [mode, setMode] = useState<ModeId>(() => (dream && dream.phase !== "over" ? "dreams" : "duel"));
   // The opponent Play starts against: the arc's next one unless picked.
   const [pickedId, setPickedId] = useState<string | null>(null);
   const [renaming, setRenaming] = useState(false);
   const [wardrobeOpen, setWardrobeOpen] = useState(false);
+  const [optionsOpen, setOptionsOpen] = useState(false);
   // The character lives in storage; bumping this re-reads it after an edit.
   const [, setEdits] = useState(0);
   const picked =
@@ -303,6 +280,7 @@ const LobbyPage: React.FC = () => {
             pick
               ? (id) => {
                   setPickedId(id);
+                  setMode("duel");
                   setSheet(null);
                 }
               : playSolo
@@ -321,10 +299,10 @@ const LobbyPage: React.FC = () => {
           onChange={(e) => setNewRoomName(e.target.value)}
           onFocus={() => setRoomNameFocused(true)}
           onBlur={() => setRoomNameFocused(false)}
-          placeholder="Name your game"
-          aria-label="Name your game"
+          placeholder={t("Name your game")}
+          aria-label={t("Name your game")}
           maxLength={24}
-          className={`h-12 min-w-0 flex-1 border bg-board px-3 text-[15px] text-ink placeholder:text-muted focus:border-ink focus:outline-none sm:h-11 sm:text-[14px] ${
+          className={`h-12 min-w-0 flex-1 rounded-full border bg-board px-4 text-[15px] text-ink placeholder:text-muted focus:border-ink focus:outline-none sm:h-11 sm:text-[14px] ${
             newRoomName.length === 0 && !roomNameFocused
               ? "animate-hint"
               : "border-rule"
@@ -333,19 +311,19 @@ const LobbyPage: React.FC = () => {
         <button
           type="submit"
           disabled={!connected || newRoomName.trim().length < 3}
-          className="h-12 flex-none border border-ink bg-ink px-5 font-mono text-[10px] uppercase tracking-label text-paper transition-colors disabled:cursor-not-allowed disabled:border-hairline disabled:bg-transparent disabled:text-muted sm:h-11"
+          className="rounded-full h-12 flex-none border border-ink bg-ink px-5 font-mono text-[10px] uppercase tracking-label text-paper transition-colors disabled:cursor-not-allowed disabled:border-hairline disabled:bg-transparent disabled:text-muted sm:h-11"
         >
-          Create
+          {t("Create")}
         </button>
       </form>
 
       <div className="mb-1.5 mt-8 font-mono text-[9.5px] uppercase tracking-label text-muted">
-        Open games
+        {t("Open games")}
       </div>
       <section className="flex-1 border-t border-ink">
         {rooms.length === 0 ? (
           <p className="py-8 text-center text-[13px] text-muted">
-            No games open yet. Create one and wait for an opponent.
+            {t("No games open yet. Create one and wait for an opponent.")}
           </p>
         ) : (
           <ul>
@@ -386,6 +364,46 @@ const LobbyPage: React.FC = () => {
     const joinable = rooms.filter(
       (r) => r.status === "creating_player" && r.players < r.maxPlayers
     ).length;
+    const dreaming = !!dream && dream.phase !== "over";
+    const rivalElement = kitOf(picked?.set, content)?.element;
+    const homeMode: HomeMode =
+      mode === "dreams"
+        ? { label: t("Endless Dreams"), title: dreaming ? t("Floor {n}", { n: Math.max(1, dream?.floor ?? 1) }) : t("Climb the dream"), icon: "dream" }
+        : mode === "rooms"
+          ? { label: t("With friends"), title: joinable > 0 ? t("{n} open", { n: joinable }) : t("Open a room"), icon: "games" }
+          : { label: t("Duel"), title: picked?.name ?? t("Computer opponent"), icon: "swords", element: rivalElement };
+    const modeCards: ModeCard[] = [
+      {
+        id: "duel",
+        name: t("Duel"),
+        line: t("One against one, against a rival. Beat them all to climb."),
+        icon: "swords",
+        element: rivalElement,
+      },
+      {
+        id: "dreams",
+        name: t("Endless Dreams"),
+        line: t("Floor after floor, alone or up to three. Boons between floors."),
+        icon: "dream",
+        locked: dreamsOpen ? undefined : t("Opens once the tutorial is played."),
+        badge: dreaming ? "on" : undefined,
+      },
+      {
+        id: "rooms",
+        name: t("With friends"),
+        line: t("Open a room or join one, and fight another player."),
+        icon: "games",
+        badge: joinable > 0 ? t("{n} open", { n: joinable }) : undefined,
+      },
+    ];
+    const menuItems: { label: string; icon: HomeIcon; onClick: () => void }[] = [
+      { label: t("How to play"), icon: "help", onClick: () => setHowToPlayOpen(true) },
+      { label: t("Match history"), icon: "history", onClick: () => navigate("/matches") },
+      { label: t("Dream leaderboard"), icon: "trophy", onClick: () => navigate("/dreams/leaderboard") },
+      { label: t("Open world"), icon: "world", onClick: () => navigate("/explore") },
+      { label: t("Change character"), icon: "user", onClick: () => navigate("/") },
+      { label: t("Options"), icon: "options", onClick: () => setSheet("options") },
+    ];
     return (
       <>
         <LobbyHome
@@ -394,32 +412,72 @@ const LobbyPage: React.FC = () => {
           loadout={loadout}
           connected={connected}
           notice={notice}
-          opponent={picked}
           beaten={defeated.size}
-          openRooms={joinable}
-          onPlay={() => playSolo(picked?.id)}
-          onRename={() => setRenaming(true)}
-          onSelectSet={(champion) => {
-            saveCharacter(character.name, character.color, champion.set);
-            setEdits((n) => n + 1);
+          rivals={champions.length}
+          mode={homeMode}
+          canPlay={mode === "duel" ? connected : true}
+          onPlay={() => {
+            if (mode === "dreams") navigate("/dream");
+            else if (mode === "rooms") setSheet("rooms");
+            else playSolo(picked?.id);
           }}
+          onRename={() => setRenaming(true)}
           onOpenWardrobe={() => setWardrobeOpen(true)}
-          onOpenOpponents={() => setSheet("opponents")}
-          onOpenRooms={() => setSheet("rooms")}
-          onOpenHistory={() => navigate("/matches")}
-          onOpenHelp={() => setHowToPlayOpen(true)}
-          onOpenDream={dreamsOpen ? () => navigate("/dream") : undefined}
-          dreaming={!!dream && dream.phase !== "over"}
+          onOpenModes={() => setSheet("modes")}
+          onOpenRivals={() => setSheet("opponents")}
+          onOpenMenu={() => setSheet("menu")}
         />
+        {sheet === "modes" && (
+          <ModePicker
+            modes={modeCards}
+            selected={mode}
+            rival={picked ? { name: picked.name, element: kitOf(picked.set, content)?.element } : undefined}
+            onSelect={(id) => {
+              setMode(id);
+              setSheet(null);
+            }}
+            onChangeRival={() => setSheet("opponents")}
+            onClose={() => setSheet(null)}
+          />
+        )}
+        {sheet === "menu" && (
+          <SideSheet title={t("Menu")} width="w-[min(340px,88vw)]" onClose={() => setSheet(null)}>
+            <nav aria-label={t("Menu")} className="mt-3 flex flex-col gap-2">
+              {menuItems.map((item) => (
+                <button
+                  key={item.label}
+                  type="button"
+                  onClick={() => {
+                    setSheet(null);
+                    item.onClick();
+                  }}
+                  className="flex items-center gap-3 rounded-2xl bg-panel/80 px-3 py-2.5 text-left shadow-[inset_0_0_0_1px_rgb(var(--rule))] transition-transform active:scale-[0.98]"
+                >
+                  <span className="grid h-9 w-9 place-items-center rounded-xl bg-board text-gold">
+                    <svg aria-hidden viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+                      <path d={ICONS[item.icon]} />
+                    </svg>
+                  </span>
+                  <span className="font-display text-[16px]">{item.label}</span>
+                </button>
+              ))}
+            </nav>
+          </SideSheet>
+        )}
+        {sheet === "options" && (
+          <SideSheet title={t("Options")} width="w-[min(340px,88vw)]" onClose={() => setSheet(null)}>
+            <OptionsPanel />
+          </SideSheet>
+        )}
         {sheet === "opponents" && (
-          <Sheet title="Rivals" onClose={() => setSheet(null)}>
+          <SideSheet title={t("Rivals")} width="w-[min(420px,92vw)]" onClose={() => setSheet(null)}>
             {opponentList(true)}
-          </Sheet>
+          </SideSheet>
         )}
         {sheet === "rooms" && (
-          <Sheet title="Rooms" onClose={() => setSheet(null)}>
+          <SideSheet title={t("Rooms")} width="w-[min(420px,92vw)]" onClose={() => setSheet(null)}>
             {roomsPanel}
-          </Sheet>
+          </SideSheet>
         )}
         {renaming && (
           <RenameDialog
@@ -443,18 +501,18 @@ const LobbyPage: React.FC = () => {
       <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col px-4 pb-[env(safe-area-inset-bottom)] pt-4 sm:px-6 sm:pt-5">
         <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b-2 border-ink pb-1.5">
           <span className="font-mono text-[9.5px] uppercase tracking-label text-muted">
-            Dofus.js · lobby
+            Dofus.js · {t("lobby")}
           </span>
           <span className="flex items-baseline gap-2 font-mono text-[9.5px] uppercase tracking-label text-muted">
             <b className="font-medium text-ink">{character?.name}</b>
             <span className={connected ? "" : "text-vermilion"}>
-              {connected ? "connected" : "reconnecting…"}
+              {connected ? t("connected") : t("reconnecting…")}
             </span>
           </span>
         </div>
 
         <h1 className="mt-6 font-display text-[clamp(2rem,9vw,2.6rem)] font-bold leading-none tracking-tight sm:mt-7">
-          Find a game
+          {t("Find a game")}
         </h1>
 
         {notice && (
@@ -476,11 +534,11 @@ const LobbyPage: React.FC = () => {
           type="button"
           onClick={() => playSolo(next?.id)}
           disabled={!connected}
-          className={`mt-5 w-full bg-vermilion px-4 py-4 font-display text-[16px] font-bold text-white sm:mt-6 sm:py-3.5 transition-colors hover:bg-[#b93a25] disabled:cursor-not-allowed disabled:bg-hairline disabled:text-muted ${
+          className={`mt-5 w-full btn-gold px-4 py-4 font-display text-[16px] font-bold sm:mt-6 sm:py-3.5 disabled:cursor-not-allowed disabled:bg-hairline disabled:text-muted ${
             connected ? "animate-beckon" : ""
           }`}
         >
-          {next ? `Challenge ${next.name}` : "Play against the computer"}
+          {next ? t("Challenge {name}", { name: next.name }) : t("Play against the computer")}
         </button>
         {next && (
           <p className="mt-2 text-center text-[13px] italic text-graphite">
@@ -493,18 +551,18 @@ const LobbyPage: React.FC = () => {
           how a fight on an island — and its ground — is opened.
         */}
         {islands.length > 0 && (
-          <div className="mt-3 flex flex-wrap items-center gap-1.5" role="radiogroup" aria-label="Fight on">
-            <span className="mr-1 font-mono text-[9.5px] uppercase tracking-label text-muted">Fight on</span>
-            {[{ id: "", name: "Arena" }, ...islands].map((i) => (
+          <div className="mt-3 flex flex-wrap items-center gap-1.5" role="radiogroup" aria-label={t("Fight on")}>
+            <span className="mr-1 font-mono text-[9.5px] uppercase tracking-label text-muted">{t("Fight on")}</span>
+            {[{ id: "", name: t("Arena") }, ...islands].map((i) => (
               <button
                 key={i.id || "arena"}
                 type="button"
                 role="radio"
                 aria-checked={island === i.id}
                 onClick={() => setIsland(i.id)}
-                className={`border px-2 py-0.5 font-mono text-[10px] uppercase tracking-label transition-colors ${
+                className={`rounded-full border px-2.5 py-0.5 font-mono text-[10px] uppercase tracking-label transition-colors ${
                   island === i.id
-                    ? "border-ink bg-ink text-paper"
+                    ? "border-gold bg-gold text-[#2a1b00]"
                     : "border-hairline text-graphite hover:border-ink"
                 }`}
               >
@@ -522,24 +580,24 @@ const LobbyPage: React.FC = () => {
           type="button"
           onClick={() => navigate("/dream")}
           disabled={!dreamsOpen}
-          className="mt-3 flex w-full items-baseline justify-between border border-ink px-4 py-3 text-left transition-colors hover:bg-ink hover:text-paper disabled:cursor-not-allowed disabled:border-hairline disabled:text-muted disabled:hover:bg-transparent"
+          className="mt-3 flex w-full items-baseline justify-between rounded-2xl border border-gold/60 bg-panel/60 px-4 py-3 text-left transition-colors hover:bg-ink hover:text-paper disabled:cursor-not-allowed disabled:border-hairline disabled:text-muted disabled:hover:bg-transparent"
         >
           <span className="font-display text-[16px] font-bold">
-            {dream && dream.phase !== "over" ? "Back to your dream" : "Endless Dreams"}
+            {dream && dream.phase !== "over" ? t("Back to your dream") : t("Endless Dreams")}
           </span>
           <span className="font-mono text-[9.5px] uppercase tracking-label">
             {!dreamsOpen
-              ? "after the tutorial"
+              ? t("after the tutorial")
               : dream && dream.phase !== "over"
-                ? `floor ${Math.max(1, dream.floor)}`
-                : "up to 3 players"}
+                ? t("floor {n}", { n: Math.max(1, dream.floor) })
+                : t("up to 3 players")}
           </span>
         </button>
 
         {champions.length > 1 && (
           <details className="mt-3 border-t border-hairline">
             <summary className="cursor-pointer py-2 font-mono text-[9.5px] uppercase tracking-label text-muted transition-colors hover:text-vermilion">
-              Every champion · {defeated.size}/{champions.length} beaten
+              {t("Every champion · {beaten}/{total} beaten", { beaten: defeated.size, total: champions.length })}
             </summary>
             {opponentList(false)}
           </details>
@@ -547,53 +605,75 @@ const LobbyPage: React.FC = () => {
 
         <div className="mt-7 flex items-center gap-3 font-mono text-[9.5px] uppercase tracking-label text-muted">
           <span className="h-px flex-1 bg-rule" />
-          or wait for someone
+          {t("or wait for someone")}
           <span className="h-px flex-1 bg-rule" />
         </div>
 
         {roomsPanel}
 
-        <div className="my-4 flex flex-wrap gap-x-5 gap-y-2">
+        {/*
+          Each link whole on its line: squeezed into one row on a phone, they
+          broke into stacks of single words that read as separate buttons.
+        */}
+        <div className="my-3 flex flex-wrap gap-x-5">
           <button
             type="button"
             onClick={() => setHowToPlayOpen(true)}
-            className="self-start font-mono text-[9.5px] uppercase tracking-label text-muted transition-colors hover:text-vermilion"
+            className="self-start whitespace-nowrap py-2 font-mono text-[9.5px] uppercase tracking-label text-muted transition-colors hover:text-vermilion"
           >
-            How to play
+            {t("How to play")}
           </button>
           <button
             type="button"
             onClick={() => navigate("/explore")}
-            className="self-start font-mono text-[9.5px] uppercase tracking-label text-muted transition-colors hover:text-vermilion"
+            className="self-start whitespace-nowrap py-2 font-mono text-[9.5px] uppercase tracking-label text-muted transition-colors hover:text-vermilion"
           >
-            Open world
+            {t("Open world")}
           </button>
           <button
             type="button"
             onClick={() => navigate("/matches")}
-            className="self-start font-mono text-[9.5px] uppercase tracking-label text-muted transition-colors hover:text-vermilion"
+            className="self-start whitespace-nowrap py-2 font-mono text-[9.5px] uppercase tracking-label text-muted transition-colors hover:text-vermilion"
           >
-            Match history
+            {t("Match history")}
           </button>
           <button
             type="button"
             onClick={() => setWardrobeOpen(true)}
             disabled={!content}
-            className="self-start font-mono text-[9.5px] uppercase tracking-label text-muted transition-colors hover:text-vermilion"
+            className="self-start whitespace-nowrap py-2 font-mono text-[9.5px] uppercase tracking-label text-muted transition-colors hover:text-vermilion"
           >
-            Wardrobe
+            {t("Wardrobe")}
           </button>
           <button
             type="button"
             onClick={() => navigate("/")}
-            className="self-start font-mono text-[9.5px] uppercase tracking-label text-muted transition-colors hover:text-vermilion"
+            className="self-start whitespace-nowrap py-2 font-mono text-[9.5px] uppercase tracking-label text-muted transition-colors hover:text-vermilion"
           >
-            Change character
+            {t("Change character")}
           </button>
-          <SoundToggle className="self-start font-mono text-[9.5px] uppercase tracking-label text-muted transition-colors hover:text-vermilion" />
+          <button
+            type="button"
+            onClick={() => setOptionsOpen(true)}
+            className="self-start whitespace-nowrap py-2 font-mono text-[9.5px] uppercase tracking-label text-muted transition-colors hover:text-vermilion"
+          >
+            {t("Options")}
+          </button>
         </div>
       </div>
 
+      {optionsOpen && (
+        <Modal
+          onClose={() => setOptionsOpen(false)}
+          labelledBy="options-title"
+          className="max-w-xs rounded-3xl border-2 border-gold/70 bg-paper p-5"
+        >
+          <h2 id="options-title" className="pr-10 font-display text-[22px] leading-none">
+            {t("Options")}
+          </h2>
+          <OptionsPanel />
+        </Modal>
+      )}
       {howToPlay}
       {wardrobe}
     </div>

@@ -1,4 +1,8 @@
 import React, { useEffect, useRef } from "react";
+import { CloseButton } from "./Overlay";
+import { useBackdropTap } from "../hooks/useDismiss";
+import { Key } from "../i18n/lang";
+import { useT } from "../i18n/LanguageProvider";
 
 interface AboutDialogProps {
   open: boolean;
@@ -19,7 +23,7 @@ const Section: React.FC<{ label: string; children: React.ReactNode }> = ({
   </section>
 );
 
-const facts: [string, string][] = [
+const facts: [Key, Key][] = [
   ["Board", "15 × 15 isometric, 113 cells"],
   ["Spells", "8, across four elements"],
   ["Turn", "45 seconds"],
@@ -34,6 +38,8 @@ const facts: [string, string][] = [
  */
 export const AboutDialog: React.FC<AboutDialogProps> = ({ open, onClose }) => {
   const ref = useRef<HTMLDialogElement>(null);
+  const backdrop = useBackdropTap(onClose);
+  const { t } = useT();
 
   useEffect(() => {
     const dialog = ref.current;
@@ -46,24 +52,16 @@ export const AboutDialog: React.FC<AboutDialogProps> = ({ open, onClose }) => {
     <dialog
       ref={ref}
       onClose={onClose}
-      // Clicking the backdrop lands on the dialog itself, never on its panel.
-      onClick={(event) => {
-        if (event.target === ref.current) onClose();
-      }}
-      className="m-0 max-h-none h-full w-full max-w-none bg-paper p-0 text-ink backdrop:bg-ink/50 sm:mx-auto sm:my-[6vh] sm:h-auto sm:max-h-[88vh] sm:w-[min(560px,92vw)] sm:border-2 sm:border-ink"
+      // A tap on the backdrop lands on the dialog itself, never on its panel.
+      {...backdrop}
+      className="m-0 max-h-none h-full w-full max-w-none bg-paper p-0 text-ink backdrop:bg-night/70 sm:mx-auto sm:my-[6vh] sm:h-auto sm:max-h-[88vh] sm:w-[min(560px,92vw)] sm:rounded-3xl sm:border-2 sm:border-gold/70 short:my-0 short:h-full short:max-h-full short:w-[min(640px,100vw)] short:border-y-0"
     >
       <div className="flex h-full max-h-full flex-col">
-        <div className="flex items-baseline justify-between gap-4 border-b-2 border-ink px-5 pb-2 pt-4 sm:px-7">
+        <div className="flex items-center justify-between gap-4 border-b border-gold/40 pl-5 pr-2 pt-[max(0.25rem,env(safe-area-inset-top))] sm:pl-7 sm:pr-3 sm:pt-1">
           <span className="font-mono text-[9.5px] uppercase tracking-label text-muted">
-            About the project
+            {t("About the project")}
           </span>
-          <button
-            type="button"
-            onClick={onClose}
-            className="font-mono text-[9.5px] uppercase tracking-label text-muted transition-colors hover:text-vermilion"
-          >
-            Close
-          </button>
+          <CloseButton onClick={onClose} />
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-7">
@@ -71,52 +69,35 @@ export const AboutDialog: React.FC<AboutDialogProps> = ({ open, onClose }) => {
             Dofus.js
           </h2>
           <p className="mt-3 text-[13.5px] leading-relaxed text-graphite">
-            A study of the combat system from Dofus, rebuilt for the browser: an
-            isometric board, action and movement points, line of sight, cover,
-            and a catalogue of spells that each answer a different question.
+            {t("A study of the combat system from Dofus, rebuilt for the browser: an isometric board, action and movement points, line of sight, cover, and a catalogue of spells that each answer a different question.")}
           </p>
 
           <div className="mt-6 space-y-5">
-            <Section label="How it works">
+            <Section label={t("How it works")}>
               <p>
-                The server is the referee. Whose turn it is, whether a cell is in
-                range, whether a spell is affordable — every rule is decided in
-                Go and broadcast as one authoritative snapshot. The client draws
-                that snapshot and asks for things; it is never trusted to decide
-                anything.
+                {t("The server is the referee. Whose turn it is, whether a cell is in range, whether a spell is affordable — every rule is decided in Go and broadcast as one authoritative snapshot. The client draws that snapshot and asks for things; it is never trusted to decide anything.")}
               </p>
               <p>
-                Identity comes from the connection: inbound messages carry no
-                user id at all, so nobody can act as another player. A resume
-                token brings a reload back as the same character.
+                {t("Identity comes from the connection: inbound messages carry no user id at all, so nobody can act as another player. A resume token brings a reload back as the same character.")}
               </p>
             </Section>
 
-            <Section label="In the game">
+            <Section label={t("In the game")}>
               <p>
-                Six action points and five movement points a turn. Cover blocks
-                both movement and line of sight, and pathing walks around it.
-                Spells carry cooldowns, critical hits, areas of effect and status
-                effects — poison, shields, regeneration. A turn lasts 45 seconds,
-                so nobody can freeze a match by walking away.
+                {t("Six action points and five movement points a turn. Cover blocks both movement and line of sight, and pathing walks around it. Spells carry cooldowns, critical hits, areas of effect and status effects — poison, shields, regeneration. A turn lasts 45 seconds, so nobody can freeze a match by walking away.")}
               </p>
               <p>
-                With no one else around, the computer opponent plays a full
-                match on the same clock, one action at a time.
+                {t("With no one else around, the computer opponent plays a full match on the same clock, one action at a time.")}
               </p>
             </Section>
 
-            <Section label="Built with">
+            <Section label={t("Built with")}>
               <p>
-                Go and gorilla/websocket on the server, React and TypeScript on
-                the client, Tailwind for the look, Docker to ship it. The
-                isometric projection, the back-to-front draw order, the
-                screen-to-grid hit test and the sprite animation are all
-                hand-written, and the geometry is unit-tested.
+                {t("Go and gorilla/websocket on the server, React and TypeScript on the client, Tailwind for the look, Docker to ship it. The isometric projection, the back-to-front draw order, the screen-to-grid hit test and the sprite animation are all hand-written, and the geometry is unit-tested.")}
               </p>
             </Section>
 
-            <Section label="Numbers">
+            <Section label={t("Numbers")}>
               <dl className="mt-1">
                 {facts.map(([term, value]) => (
                   <div
@@ -124,10 +105,10 @@ export const AboutDialog: React.FC<AboutDialogProps> = ({ open, onClose }) => {
                     className="flex items-baseline justify-between gap-4 border-b border-hairline py-1.5 last:border-b-0"
                   >
                     <dt className="font-mono text-[9.5px] uppercase tracking-label text-muted">
-                      {term}
+                      {t(term)}
                     </dt>
                     <dd className="text-right font-mono text-[11px] text-graphite">
-                      {value}
+                      {t(value)}
                     </dd>
                   </div>
                 ))}
@@ -136,14 +117,14 @@ export const AboutDialog: React.FC<AboutDialogProps> = ({ open, onClose }) => {
           </div>
         </div>
 
-        <div className="flex flex-none items-center gap-4 border-t-2 border-ink px-5 py-3 sm:px-7">
+        <div className="flex flex-none items-center gap-4 border-t border-gold/40 px-5 py-3 sm:px-7">
           <a
             href="https://github.com/AntoineROYERB/dofus.js"
             target="_blank"
             rel="noopener noreferrer"
             className="font-mono text-[10px] uppercase tracking-label text-ink underline decoration-rule underline-offset-4 transition-colors hover:text-vermilion"
           >
-            Source on GitHub
+            {t("Source on GitHub")}
           </a>
           <span className="ml-auto font-mono text-[9.5px] uppercase tracking-label text-muted">
             MIT

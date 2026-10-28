@@ -7,6 +7,7 @@ import SpellBar from "../components/Game/Spellbar";
 import { FighterPanel } from "../components/Game/FighterPanel";
 import { TurnTimeline } from "../components/Game/TurnTimeline";
 import { CombatLog } from "../components/Game/CombatLog";
+import { t } from "../i18n/lang";
 
 const MIN_STEP_MS = 350;
 const MAX_STEP_MS = 2200;
@@ -46,7 +47,7 @@ const ReplayPage: React.FC = () => {
         setIndex(0);
       })
       .catch(() => {
-        if (!cancelled) setError("Could not load this match.");
+        if (!cancelled) setError(t("Could not load this match."));
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -76,7 +77,7 @@ const ReplayPage: React.FC = () => {
     return (
       <div className="flex min-h-[100dvh] items-center justify-center bg-paper text-ink">
         <p className="font-mono text-[11px] uppercase tracking-label text-muted">
-          Loading match…
+          {t("Loading match…")}
         </p>
       </div>
     );
@@ -86,14 +87,14 @@ const ReplayPage: React.FC = () => {
     return (
       <div className="flex min-h-[100dvh] flex-col items-center justify-center gap-4 bg-paper text-ink">
         <p className="font-mono text-[11px] uppercase tracking-label text-vermilion">
-          {error ?? "This match has no recording."}
+          {error ?? t("This match has no recording.")}
         </p>
         <button
           type="button"
           onClick={() => navigate("/matches")}
-          className="border border-ink px-4 py-2 font-mono text-[10px] uppercase tracking-label text-ink transition-colors hover:bg-ink hover:text-paper"
+          className="rounded-full border border-ink px-4 py-2 font-mono text-[10px] uppercase tracking-label text-ink transition-colors hover:bg-ink hover:text-paper"
         >
-          Back to match history
+          {t("Back to match history")}
         </button>
       </div>
     );
@@ -110,10 +111,10 @@ const ReplayPage: React.FC = () => {
                 onClick={() => navigate("/matches")}
                 className="font-mono text-[9.5px] uppercase tracking-label text-muted transition-colors hover:text-vermilion"
               >
-                ← Match history
+                ← {t("Match history")}
               </button>
               <span className="font-mono text-[9.5px] uppercase tracking-label text-muted">
-                {summary.roomName} · {summary.winner ? `${summary.winner} won` : "no winner"}
+                {summary.roomName} · {summary.winner ? t("{name} won", { name: summary.winner }) : t("no winner")}
               </span>
             </div>
             <TurnTimeline latestGameState={state} userId={viewerId} />
@@ -138,7 +139,7 @@ const ReplayPage: React.FC = () => {
             </span>
           </div>
           <div className="mb-1.5 mt-4 flex-none font-mono text-[9.5px] uppercase tracking-label text-muted">
-            Log
+            {t("Log")}
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto">
             <CombatLog entries={state?.log ?? []} spellBook={state?.spells} />
@@ -166,14 +167,14 @@ const ReplayPage: React.FC = () => {
           <button
             type="button"
             onClick={() => setIndex(0)}
-            className="border border-ink px-3 py-1.5 font-mono text-[10px] uppercase tracking-label text-ink transition-colors hover:bg-ink hover:text-paper"
+            className="rounded-full border border-ink px-3 py-1.5 font-mono text-[10px] uppercase tracking-label text-ink transition-colors hover:bg-ink hover:text-paper"
           >
             ⏮
           </button>
           <button
             type="button"
             onClick={() => setIndex((i) => Math.max(0, i - 1))}
-            className="border border-ink px-3 py-1.5 font-mono text-[10px] uppercase tracking-label text-ink transition-colors hover:bg-ink hover:text-paper"
+            className="rounded-full border border-ink px-3 py-1.5 font-mono text-[10px] uppercase tracking-label text-ink transition-colors hover:bg-ink hover:text-paper"
           >
             ◀
           </button>
@@ -183,16 +184,16 @@ const ReplayPage: React.FC = () => {
               if (index >= snapshots.length - 1) setIndex(0);
               setPlaying((p) => !p);
             }}
-            className="w-20 flex-none border border-ink bg-ink px-3 py-1.5 font-mono text-[10px] uppercase tracking-label text-paper transition-colors hover:bg-vermilion"
+            className="rounded-full w-20 flex-none border border-ink bg-ink px-3 py-1.5 font-mono text-[10px] uppercase tracking-label text-paper transition-colors hover:bg-vermilion"
           >
-            {playing ? "Pause" : "Play"}
+            {playing ? t("Pause") : t("Play")}
           </button>
           <button
             type="button"
             onClick={() =>
               setIndex((i) => Math.min(snapshots.length - 1, i + 1))
             }
-            className="border border-ink px-3 py-1.5 font-mono text-[10px] uppercase tracking-label text-ink transition-colors hover:bg-ink hover:text-paper"
+            className="rounded-full border border-ink px-3 py-1.5 font-mono text-[10px] uppercase tracking-label text-ink transition-colors hover:bg-ink hover:text-paper"
           >
             ▶
           </button>

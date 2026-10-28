@@ -7,9 +7,12 @@ import { barSpells } from "../../utils/loadoutUtils";
 import { RULES } from "../../utils/terrain";
 import { BOARD } from "../../constants";
 import { spec, spellSummary, unavailableReason } from "../../utils/spellUtils";
+import { SpellUpgrade, upgradesOf } from "../../utils/spellUpgrades";
+import { spellFacts } from "../../utils/gearFacts";
+import { t } from "../../i18n/lang";
 
 /** The ultimate's own colour: gold, the one thing on the bar that is rare. */
-const ULTIMATE = "#c99a1a";
+const ULTIMATE = "rgb(var(--gold))";
 
 interface SpellBarProps {
   handleSpellClick: (spellId: number) => void;
@@ -33,9 +36,11 @@ const SpellSlot: React.FC<{
   turnNumber: number;
   hasRelay: boolean;
   isSelected: boolean;
+  /** What a dream's boons have made of it: framed in pink when anything. */
+  upgrades: SpellUpgrade[];
   onSelect: (spellId: number) => void;
   onPeek?: () => void;
-}> = ({ spell, shortcut, state, actionPoints, turnNumber, hasRelay, isSelected, onSelect, onPeek }) => {
+}> = ({ spell, shortcut, state, actionPoints, turnNumber, hasRelay, isSelected, upgrades, onSelect, onPeek }) => {
   const throughRelay = spell.relayed && hasRelay;
   const blocked = unavailableReason(spell, state, actionPoints, turnNumber, hasRelay);
   const spent = spell.ultimate && !!state?.spent;
@@ -54,22 +59,26 @@ const SpellSlot: React.FC<{
       ref={buttonRef}
       type="button"
       className={`relative h-12 w-12 flex-none text-ink transition-colors narrow:h-12 narrow:w-full sm:h-14 sm:w-14 lg:h-[72px] lg:w-full short:h-11 short:w-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-vermilion ${
-        spell.ultimate ? "bg-[#fff6dc]" : "bg-board"
+        spell.ultimate ? "bg-gold/10" : "bg-board"
       } ${
         isSelected
-          ? "border-2 border-ink"
+          ? "border-2 border-gold shadow-[0_0_12px_rgb(var(--gold)/0.45)]"
+          : upgrades.length > 0
+            ? "border-2 border-heart shadow-[0_0_10px_rgb(var(--heart)/0.35)]"
           : spell.ultimate
             ? "border-2 hover:border-graphite"
             : "border border-rule hover:border-graphite"
       } ${blocked && !locked ? "opacity-35" : ""}`}
       style={
-        spell.ultimate && !isSelected
+        spell.ultimate && !isSelected && upgrades.length === 0
           ? { borderColor: ULTIMATE }
           : throughRelay && !isSelected
             ? { borderColor: BOARD.relay, boxShadow: `inset 0 0 0 1px ${BOARD.relay}` }
             : undefined
       }
-      aria-label={`${spell.name} — ${spec(spell)} — press ${shortcut}${
+      aria-label={`${spell.name} — ${spec(spell)}${
+        upgrades.length > 0 ? ` — ${t("upgraded: {list}", { list: upgrades.map((u) => u.label).join(", ") })}` : ""
+      } — ${t("press {key}", { key: shortcut })}${
         blocked ? ` (${blocked})` : ""
       }`}
       aria-pressed={isSelected}
@@ -87,6 +96,11 @@ const SpellSlot: React.FC<{
       <span className="absolute left-1.5 top-0.5 font-mono text-[9px] text-muted touch:hidden">
         {shortcut}
       </span>
+      {upgrades.length > 0 && (
+        <span aria-hidden className="absolute left-1/2 top-0 -translate-x-1/2 text-[10px] text-heart">
+          ✦
+        </span>
+      )}
       {/* The element is a 6px square, the only place a spell's own colour shows. */}
       {!throughRelay && (
         <span
@@ -97,7 +111,7 @@ const SpellSlot: React.FC<{
       )}
       <span
         className={`flex h-full items-center justify-center lg:justify-start lg:pl-3 lg:pr-5 short:!justify-center short:!px-0 ${locked ? "opacity-40" : ""}`}
-        style={spell.ultimate ? { color: "#8a6a10" } : undefined}
+        style={spell.ultimate ? { color: ULTIMATE } : undefined}
       >
         <SpellGlyph
           spellId={spell.baseId ?? spell.id}
@@ -111,7 +125,7 @@ const SpellSlot: React.FC<{
           </span>
           <span
             className="block truncate font-mono text-[9px] uppercase tracking-label"
-            style={{ color: spell.ultimate ? "#8a6a10" : spell.color }}
+            style={{ color: spell.ultimate ? ULTIMATE : spell.color }}
           >
             {spell.role}
           </span>
@@ -128,7 +142,7 @@ const SpellSlot: React.FC<{
         <span
           className="absolute inset-x-1 top-0.5 text-right font-mono text-[9px] font-semibold leading-none"
           style={{ color: BOARD.relay }}
-          title={`Goes through your relay: +${RULES.relayBonus}% damage`}
+          title={t("Goes through your relay: +{n}% damage", { n: RULES.relayBonus })}
         >
           ↺+{RULES.relayBonus}%
         </span>
@@ -213,16 +227,16 @@ const SpellBar: React.FC<SpellBarProps> = ({
             </span>
             {/* The whole sentence, where there is room for it. */}
             <span className="ml-2.5 hidden font-sans text-xs font-normal text-graphite xl:inline short:!hidden">
-              — {selected.description}
+              — {spellFacts(selected).join(" · ")}
             </span>
           </>
         ) : (
           <span className="font-sans text-[11.5px] font-normal text-muted sm:text-xs short:text-[11px]">
             <span className="hidden touch:inline">
-              Tap a cell to preview, again to go.
+              {t("Tap a cell to preview, again to go.")}
             </span>
             <span className="touch:hidden">
-              Pick a spell with a number key, or click a cell to walk there.
+              {t("Pick a spell with a number key, or click a cell to walk there.")}
             </span>
           </span>
         )}
@@ -245,6 +259,7 @@ const SpellBar: React.FC<SpellBarProps> = ({
             turnNumber={turnNumber}
             hasRelay={hasRelay}
             isSelected={selectedSpellId === spell.id}
+            upgrades={upgradesOf(spell, spells)}
             onSelect={handleSpellClick}
             onPeek={onPeek}
           />

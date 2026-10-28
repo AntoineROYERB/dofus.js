@@ -1,36 +1,34 @@
 import React from "react";
 import { CharacterAppearance } from "../../types/game";
-import { Champion, ContentResponse, Loadout } from "../../types/message";
+import { ContentResponse, Loadout } from "../../types/message";
 import { CharacterShowcase } from "../Game/CharacterShowcase";
-import { KitTag } from "../Game/KitTag";
-import { SetCarousel } from "./SetCarousel";
 import { kitOf } from "../../utils/loadoutUtils";
 import { ElementGlyph } from "../Game/ElementGlyph";
-import { SoundToggle } from "../../audio/SoundToggle";
+import { DreamFountain } from "./DreamFountain";
+import { HomeIcon, ICONS } from "./homeIcons";
+import { useT } from "../../i18n/LanguageProvider";
 
 /*
- * The lobby as a phone game's home screen: your fighter in the middle, the
- * one thing you came to do — play — as the biggest target, bottom right,
- * under the thumb. Everything else is a small tile along the edges, and new
- * features get a tile of their own rather than a new page.
- *
- * It borrows the board's vocabulary: hairline rules on paper, no shadows,
- * and vermilion only on the button that starts a fight.
+ * The lobby as a brawler's home screen: your fighter, large, on a lit stage
+ * in the middle, and the one thing you came to do — Play — as the biggest
+ * target, bottom right, under the thumb. Around it, as few buttons as the
+ * screen can do with, each opening what it stands for: who you are (top
+ * left), how far up the rivals you have climbed (top middle), the menu (top
+ * right), your gear (left), and what Play will start (bottom left). The
+ * words that used to sit under the fighter — its passive, its rune — live
+ * behind a tap on it, in the wardrobe.
  */
 
-/** Every container on this screen: a 1px rule on panel paper, no shadow. */
-const HAIRLINE = "border border-rule bg-panel/90";
-/** A tap shows by the thing giving way a little, not by a shadow moving. */
-const PRESS = "transition-transform active:scale-[0.97]";
+const PRESS = "transition-transform active:scale-[0.96]";
 
-const Icon: React.FC<{ d: string }> = ({ d }) => (
+const Icon: React.FC<{ d: string; className?: string }> = ({ d, className = "h-[22px] w-[22px]" }) => (
   <svg
     aria-hidden
     viewBox="0 0 24 24"
-    className="h-[22px] w-[22px]"
+    className={className}
     fill="none"
     stroke="currentColor"
-    strokeWidth={1.6}
+    strokeWidth={1.8}
     strokeLinecap="round"
     strokeLinejoin="round"
   >
@@ -38,38 +36,18 @@ const Icon: React.FC<{ d: string }> = ({ d }) => (
   </svg>
 );
 
-const ICONS = {
-  swords: "M14.5 4H20v5.5L9 20.5 3.5 15zM6 13l5 5M4 20l2.5-2.5",
-  games: "M4 5h7v6H4zM13 5h7v6h-7zM4 13h7v6H4zM13 13h7v6h-7z",
-  history: "M3 12a9 9 0 1 0 3-6.7M3 4v5h5M12 7v5l3 2",
-  help: "M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14M12 17.5v.01M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z",
-  gear: "M9 4l3 2 3-2 5 3-2 4-2-1v10H8V10l-2 1-2-4z",
-  dream: "M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z",
-} as const;
 
-/** A square tile on the side rails: an icon over a mono label. */
-export const HomeTile: React.FC<{
-  icon: keyof typeof ICONS;
+
+/** What Play starts, as the mode card bottom left shows it. */
+export interface HomeMode {
+  /** The mode's name, in the card's small caps: "Duel", "Endless Dreams". */
   label: string;
-  onClick: () => void;
-  badge?: string | number;
-}> = ({ icon, label, onClick, badge }) => (
-  <button
-    type="button"
-    onClick={onClick}
-    className={`relative flex h-[58px] w-[64px] flex-col items-center justify-center gap-1 text-ink ${HAIRLINE} ${PRESS}`}
-  >
-    <Icon d={ICONS[icon]} />
-    <span className="font-mono text-[8.5px] uppercase tracking-label text-graphite">
-      {label}
-    </span>
-    {badge !== undefined && (
-      <span className="absolute -right-1.5 -top-1.5 grid h-[18px] min-w-[18px] place-items-center rounded-full bg-vermilion px-1 font-mono text-[10px] font-semibold text-white">
-        {badge}
-      </span>
-    )}
-  </button>
-);
+  /** What it is against, in the card's large type. */
+  title: string;
+  icon: HomeIcon;
+  /** An element to show instead of the icon, for a duel's rival. */
+  element?: string;
+}
 
 interface LobbyHomeProps {
   character: CharacterAppearance;
@@ -78,23 +56,18 @@ interface LobbyHomeProps {
   loadout: Loadout | undefined;
   connected: boolean;
   notice: string | null;
-  /** The champion Play will start a fight against. */
-  opponent?: Champion;
+  /** The rivals beaten so far, and how many there are. */
   beaten: number;
-  openRooms: number;
+  rivals: number;
+  mode: HomeMode;
+  /** Play is held while the mode cannot start (a duel while offline). */
+  canPlay: boolean;
   onPlay: () => void;
   onRename: () => void;
-  /** Turning the line-up in the middle puts on a champion's set. */
-  onSelectSet: (champion: Champion) => void;
   onOpenWardrobe: () => void;
-  onOpenOpponents: () => void;
-  onOpenRooms: () => void;
-  onOpenHistory: () => void;
-  onOpenHelp: () => void;
-  /** Endless Dreams, once the tutorial has been played. */
-  onOpenDream?: () => void;
-  /** Whether a dream is under way, waiting to be picked back up. */
-  dreaming?: boolean;
+  onOpenModes: () => void;
+  onOpenRivals: () => void;
+  onOpenMenu: () => void;
 }
 
 export const LobbyHome: React.FC<LobbyHomeProps> = ({
@@ -103,180 +76,195 @@ export const LobbyHome: React.FC<LobbyHomeProps> = ({
   loadout,
   connected,
   notice,
-  opponent,
   beaten,
-  openRooms,
+  rivals,
+  mode,
+  canPlay,
   onPlay,
   onRename,
-  onSelectSet,
   onOpenWardrobe,
-  onOpenOpponents,
-  onOpenRooms,
-  onOpenHistory,
-  onOpenHelp,
-  onOpenDream,
-  dreaming,
-}) => (
-  <div className="relative h-[100dvh] select-none overflow-hidden bg-paper text-ink">
-    {/* A pool of light under the fighter, so the middle reads as a stage. */}
-    <div
-      aria-hidden
-      className="pointer-events-none absolute inset-0"
-      style={{
-        background:
-          "radial-gradient(ellipse 45% 60% at 50% 58%, #ffffff 0%, rgba(255,255,255,0) 100%)",
-      }}
-    />
+  onOpenModes,
+  onOpenRivals,
+  onOpenMenu,
+}) => {
+  const { t } = useT();
+  const kit = kitOf(loadout, content);
+  return (
+    <div className="relative h-[100dvh] select-none overflow-hidden bg-paper text-ink">
+      {/*
+        The scene behind everything: a dream's fountain under a night sky,
+        so the home screen is a place the fighter stands in rather than an
+        empty page with buttons on it.
+      */}
+      <DreamFountain className="absolute inset-0" />
 
-    {/*
-      Centre stage: the fighter. It is laid over the whole screen rather than
-      in the grid's middle column, whose position shifts with the width of the
-      cards beside it — a longer name used to nudge the stand sideways.
-      Its padding clears the side rails and the bottom row, the same on both
-      sides so the stand sits on the screen's own centre line.
-    */}
-    <div className="absolute inset-0 flex flex-col items-center px-[calc(max(env(safe-area-inset-left),env(safe-area-inset-right),16px)+80px)] pb-[calc(max(10px,env(safe-area-inset-bottom))+70px)] pt-[max(10px,env(safe-area-inset-top))]">
-      <p className={`mt-1 flex flex-none items-center gap-2 px-3 py-1 font-display text-[17px] font-bold leading-tight tracking-tight ${HAIRLINE}`}>
-        {character.name}
-      </p>
-      {notice && (
-        <p
-          role="status"
-          className="mt-2 max-w-full flex-none border border-vermilion bg-panel px-3 py-1.5 text-center text-[12px] text-vermilion"
+      {/*
+        Centre stage. Laid over the whole screen rather than in a column, so
+        the fighter sits on the screen's own centre line whatever the corners
+        hold. Tapping the fighter opens the wardrobe, where everything about
+        it can be read and changed.
+      */}
+      <div className="absolute inset-0 flex flex-col items-center px-[calc(max(env(safe-area-inset-left),env(safe-area-inset-right),16px)+96px)] pb-[calc(max(10px,env(safe-area-inset-bottom))+20px)] pt-[calc(max(10px,env(safe-area-inset-top))+50px)]">
+        {/*
+          The fighter's class above it, as a brawler's name sits over its
+          stand — the player's own name is already top left — and its three
+          numbers under the class, clear of the corners.
+        */}
+        <h1 className="flex flex-none items-center gap-2 font-display text-[26px] leading-none text-white [text-shadow:0_2px_0_rgb(var(--night)),2px_0_0_rgb(var(--night)),-2px_0_0_rgb(var(--night)),0_-2px_0_rgb(var(--night)),0_4px_0_rgb(var(--night))]">
+          {kit && <ElementGlyph element={kit.element} size={22} />}
+          {kit?.grimoire.name ?? character.name}
+        </h1>
+        {kit && (
+          <p className="mt-1.5 flex flex-none items-center gap-3 rounded-full bg-panel/80 px-3.5 py-0.5 font-display text-[14px] tabular-nums shadow-[inset_0_0_0_1px_rgb(var(--gold)/0.35)]">
+            <span className="text-hp">♥ {kit.grimoire.health}</span>
+            <span className="text-pa">{t("{n} AP", { n: kit.grimoire.actionPoints })}</span>
+            <span className="text-pm">{t("{n} MP", { n: kit.grimoire.movementPoints })}</span>
+          </p>
+        )}
+        {notice && (
+          <p
+            role="status"
+            className="mt-2 max-w-full flex-none rounded-full border border-vermilion bg-panel px-3 py-1 text-center text-[12px] text-vermilion"
+          >
+            {notice}
+          </p>
+        )}
+        <button
+          type="button"
+          onClick={onOpenWardrobe}
+          aria-label={t("Open the wardrobe")}
+          className={`relative flex min-h-0 w-full flex-1 items-end justify-center ${PRESS}`}
         >
-          {notice}
-        </p>
-      )}
-      <div className="flex min-h-0 w-full flex-1 items-end justify-center">
-        {content && loadout && content.champions.length > 0 ? (
-          <SetCarousel
-            content={content}
-            loadout={loadout}
-            color={character.color}
-            onSelect={onSelectSet}
-          />
-        ) : (
           <CharacterShowcase
             color={character.color}
-            figureScale={2.7}
-            className="w-[min(100%,calc((100dvh-150px)*1.2))]"
+            outfit={kit?.outfit.sprite}
+            glyph={kit?.grimoire.glyph}
+            talisman={kit ? content?.spells[kit.talisman.ultimate]?.color : undefined}
+            talismanId={kit?.talisman.id}
+            figureScale={2.9}
+            className="w-[min(100%,calc((100dvh-150px)*1.15))]"
           />
-        )}
+        </button>
       </div>
-    </div>
 
-    <div className="pointer-events-none relative grid h-full [&>*]:pointer-events-auto grid-cols-[auto_minmax(0,1fr)_auto] grid-rows-[auto_minmax(0,1fr)_auto] gap-x-4 gap-y-2 pb-[max(10px,env(safe-area-inset-bottom))] pl-[max(16px,env(safe-area-inset-left))] pr-[max(16px,env(safe-area-inset-right))] pt-[max(10px,env(safe-area-inset-top))]">
-      {/* Top left: who you are. Tapping it renames you in place. */}
-      <button
-        type="button"
-        onClick={onRename}
-        className={`col-start-1 row-start-1 flex items-center gap-2.5 self-start py-1.5 pl-1.5 pr-3 text-left ${HAIRLINE} ${PRESS}`}
-      >
-        <span
-          aria-hidden
-          className="grid h-9 w-9 flex-none place-items-center bg-ink font-display text-[18px] font-bold text-white"
-        >
-          {character.symbol}
-        </span>
-        <span className="min-w-0">
-          <span className="block max-w-[140px] truncate font-display text-[15px] font-bold leading-tight">
-            {character.name}
-          </span>
-          <span className="flex items-center gap-1.5">
-            <KitTag loadout={loadout} content={content} />
-          </span>
-        </span>
-      </button>
-
-      {/* Top right: progress and whether the server is there at all. */}
-      <div className="col-start-3 row-start-1 flex items-center gap-2 self-start justify-self-end">
-        <SoundToggle
-          className={`px-2.5 py-1.5 font-mono text-[10px] uppercase tracking-label text-graphite ${HAIRLINE} ${PRESS}`}
-        />
-        <span className={`px-2.5 py-1.5 font-mono text-[10px] uppercase tracking-label text-graphite ${HAIRLINE}`}>
-          <b className="font-semibold tabular-nums text-ink">
-            {beaten}/{content?.champions.length ?? 0}
-          </b>{" "}
-          beaten
-        </span>
-        <span
-          className={`flex items-center gap-1.5 px-2.5 py-1.5 font-mono text-[10px] uppercase tracking-label text-graphite ${HAIRLINE}`}
+      <div className="pointer-events-none absolute inset-0 pb-[max(10px,env(safe-area-inset-bottom))] pl-[max(16px,env(safe-area-inset-left))] pr-[max(16px,env(safe-area-inset-right))] pt-[max(10px,env(safe-area-inset-top))] [&_button]:pointer-events-auto">
+        {/* Top left: who you are. Tapping it renames you in place. */}
+        <button
+          type="button"
+          onClick={onRename}
+          className={`absolute left-[max(16px,env(safe-area-inset-left))] top-[max(10px,env(safe-area-inset-top))] flex items-center gap-2.5 rounded-2xl bg-panel/90 py-1.5 pl-1.5 pr-3.5 text-left shadow-[inset_0_0_0_1.5px_rgb(var(--gold)/0.5)] ${PRESS}`}
         >
           <span
             aria-hidden
-            className={`h-1.5 w-1.5 rounded-full ${
-              connected ? "bg-pm" : "bg-vermilion"
+            className="grid h-9 w-9 flex-none place-items-center rounded-xl bg-gold font-display text-[19px] text-[#2a1b00]"
+          >
+            {character.symbol}
+          </span>
+          <span className="block max-w-[130px] truncate font-display text-[16px] leading-tight">
+            {character.name}
+          </span>
+        </button>
+
+        {/*
+          Top middle: the climb. One dot a rival, gold once beaten; tapping it
+          opens the rivals, in the order they come.
+        */}
+        <button
+          type="button"
+          onClick={onOpenRivals}
+          aria-label={t("Rivals: {beaten} of {rivals} beaten", { beaten, rivals })}
+          className={`absolute left-1/2 top-[max(10px,env(safe-area-inset-top))] flex -translate-x-1/2 items-center gap-2.5 rounded-full bg-panel/90 py-1.5 pl-2 pr-4 shadow-[inset_0_0_0_1.5px_rgb(var(--gold)/0.5)] ${PRESS}`}
+        >
+          <span className="grid h-8 w-8 place-items-center rounded-full bg-gold text-[#2a1b00]">
+            <Icon d={ICONS.trophy} className="h-[18px] w-[18px]" />
+          </span>
+          <span className="flex items-center gap-1.5" aria-hidden>
+            {Array.from({ length: rivals }, (_, i) => (
+              <span
+                key={i}
+                className={`h-2.5 w-2.5 rotate-45 ${
+                  i < beaten ? "bg-gold shadow-[0_0_6px_rgb(var(--gold)/0.8)]" : "bg-night shadow-[inset_0_0_0_1.5px_rgb(var(--rule))]"
+                }`}
+              />
+            ))}
+          </span>
+          <span className="font-display text-[15px] tabular-nums">
+            {beaten}/{rivals}
+          </span>
+        </button>
+
+        {/* Top right: whether the server is there, and the menu. */}
+        <div className="absolute right-[max(16px,env(safe-area-inset-right))] top-[max(10px,env(safe-area-inset-top))] flex items-center gap-2.5">
+          <span
+            role="status"
+            aria-label={connected ? t("Online") : t("Offline")}
+            title={connected ? t("Online") : t("Offline")}
+            className={`h-2.5 w-2.5 rounded-full ${
+              connected ? "bg-pm shadow-[0_0_8px_rgb(var(--pm)/0.8)]" : "animate-pulse bg-vermilion"
             }`}
           />
-          {connected ? "online" : "offline"}
-        </span>
-      </div>
+          <button
+            type="button"
+            onClick={onOpenMenu}
+            aria-label={t("Menu")}
+            className="btn-night grid h-11 w-11 place-items-center"
+          >
+            <Icon d={ICONS.menu} />
+          </button>
+        </div>
 
-      {/* Side rails. */}
-      <nav
-        aria-label="Menu"
-        className="col-start-1 row-start-2 flex flex-col gap-3 self-center"
-      >
-        <HomeTile icon="swords" label="Rivals" onClick={onOpenOpponents} />
-        <HomeTile icon="gear" label="Gear" onClick={onOpenWardrobe} />
-        <HomeTile icon="history" label="History" onClick={onOpenHistory} />
-      </nav>
-      <nav
-        aria-label="More"
-        className="col-start-3 row-start-2 flex flex-col items-end gap-3 self-center"
-      >
-        <HomeTile
-          icon="games"
-          label="Rooms"
-          onClick={onOpenRooms}
-          badge={openRooms > 0 ? openRooms : undefined}
-        />
-        {onOpenDream && (
-          <HomeTile icon="dream" label="Dreams" onClick={onOpenDream} badge={dreaming ? "on" : undefined} />
-        )}
-        <HomeTile icon="help" label="Help" onClick={onOpenHelp} />
-      </nav>
-
-      {/* Bottom left: what Play will do, and the way to change it. */}
-      <button
-        type="button"
-        onClick={onOpenOpponents}
-        className={`col-span-2 col-start-1 row-start-3 flex min-w-0 items-center gap-3 self-end justify-self-start py-1.5 pl-1.5 pr-4 text-left ${HAIRLINE} ${PRESS}`}
-      >
-        <span
-          aria-hidden
-          className="grid h-11 w-11 flex-none place-items-center border border-hairline bg-board text-[22px]"
+        {/* Left: the gear, the one place a fighter is changed. */}
+        <button
+          type="button"
+          onClick={onOpenWardrobe}
+          className={`absolute left-[max(16px,env(safe-area-inset-left))] top-1/2 flex h-[76px] w-[76px] -translate-y-1/2 flex-col items-center justify-center gap-1 rounded-2xl bg-panel/90 shadow-[inset_0_0_0_1.5px_rgb(var(--gold)/0.5)] ${PRESS}`}
         >
-          {kitOf(opponent?.set, content) ? (
-            <ElementGlyph element={kitOf(opponent?.set, content)?.element} size={24} />
-          ) : (
-            "⚔"
-          )}
-        </span>
-        <span className="min-w-0">
-          <span className="block font-mono text-[9px] uppercase tracking-label text-muted">
-            Solo · {kitOf(opponent?.set, content)?.grimoire.name ?? "computer"}
+          <span className="text-gold">
+            <Icon d={ICONS.gear} className="h-7 w-7" />
           </span>
-          <span className="block max-w-[260px] truncate font-display text-[16px] font-bold leading-tight">
-            {opponent?.name ?? "Computer opponent"}
-          </span>
-        </span>
-        <span className="ml-1 font-mono text-[9px] uppercase tracking-label text-vermilion">
-          Change
-        </span>
-      </button>
+          <span className="font-display text-[13px]">{t("Gear")}</span>
+        </button>
 
-      {/* Bottom right: the one big button. */}
-      <button
-        type="button"
-        onClick={onPlay}
-        disabled={!connected}
-        className={`col-start-3 row-start-3 h-[60px] w-[210px] self-end bg-vermilion font-display text-[24px] font-extrabold uppercase tracking-wide text-white hover:bg-[#b93a25] disabled:bg-hairline disabled:text-muted ${PRESS}`}
-      >
-        Play
-      </button>
+        {/* Bottom left: what Play will start, and the way to change it. */}
+        <button
+          type="button"
+          onClick={onOpenModes}
+          className={`absolute bottom-[max(10px,env(safe-area-inset-bottom))] left-[max(16px,env(safe-area-inset-left))] flex w-[min(280px,38vw)] items-center gap-3 rounded-2xl bg-panel/95 py-2 pl-2 pr-3 text-left shadow-[inset_0_0_0_1.5px_rgb(var(--gold)/0.6)] ${PRESS}`}
+        >
+          <span className="grid h-12 w-12 flex-none place-items-center rounded-xl bg-board text-gold">
+            {mode.element ? (
+              <ElementGlyph element={mode.element} size={26} />
+            ) : (
+              <Icon d={ICONS[mode.icon]} className="h-7 w-7" />
+            )}
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block font-mono text-[9.5px] uppercase tracking-label text-gold">
+              {mode.label}
+            </span>
+            <span className="block truncate font-display text-[17px] leading-tight">
+              {mode.title}
+            </span>
+          </span>
+          <span className="text-graphite">
+            <Icon d={ICONS.chevron} className="h-5 w-5" />
+          </span>
+        </button>
+
+        {/* Bottom right: the one big button. */}
+        <button
+          type="button"
+          onClick={onPlay}
+          disabled={!canPlay}
+          className={`btn-gold absolute bottom-[max(10px,env(safe-area-inset-bottom))] right-[max(16px,env(safe-area-inset-right))] h-[64px] w-[210px] font-display text-[30px] uppercase ${
+            canPlay ? "animate-beckon" : ""
+          }`}
+        >
+          {t("Play")}
+        </button>
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 export default LobbyHome;

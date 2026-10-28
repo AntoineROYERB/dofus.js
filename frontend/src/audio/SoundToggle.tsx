@@ -1,6 +1,7 @@
 import React from "react";
 import { useSoundSettings } from "./useSound";
 import { playTap } from "./sfx";
+import { t } from "../i18n/lang";
 
 /**
  * Sound on or off, in the frame's own type: a word, not an icon, like every
@@ -22,7 +23,7 @@ export const SoundToggle: React.FC<{ className?: string }> = ({
       }}
       className={className}
     >
-      {settings.muted ? "Sound: off" : "Sound: on"}
+      {settings.muted ? t("Sound: off") : t("Sound: on")}
     </button>
   );
 };

@@ -1,5 +1,6 @@
 import React from "react";
 import { NAME_RULE } from "../../utils/characterStorage";
+import { useT } from "../../i18n/LanguageProvider";
 
 interface CharacterCreationFormProps {
   characterName: string;
@@ -18,6 +19,7 @@ export const CharacterCreationForm: React.FC<CharacterCreationFormProps> = ({
   setIsNameValid,
   onSubmit,
 }) => {
+  const { t } = useT();
   const showError = characterName.length > 0 && !isNameValid;
   const [isFocused, setIsFocused] = React.useState(false);
   // Nothing on the page says "start here" in words; the field says it by
@@ -30,7 +32,7 @@ export const CharacterCreationForm: React.FC<CharacterCreationFormProps> = ({
         htmlFor="characterName"
         className="font-mono text-[9.5px] uppercase tracking-label text-muted"
       >
-        Your name
+        {t("Your name")}
       </label>
       <input
         id="characterName"
@@ -48,7 +50,7 @@ export const CharacterCreationForm: React.FC<CharacterCreationFormProps> = ({
         }}
         onFocus={() => setIsFocused(true)}
         onBlur={() => setIsFocused(false)}
-        placeholder="Your name"
+        placeholder={t("Your name")}
         aria-invalid={showError}
         className={`mt-1 w-full border-b bg-transparent pb-1.5 font-display text-[29px] short:pb-1 short:text-[22px] font-bold tracking-tight text-ink placeholder:font-sans placeholder:text-[18px] placeholder:font-normal placeholder:tracking-normal placeholder:text-muted focus:outline-none ${
           showError
@@ -61,7 +63,7 @@ export const CharacterCreationForm: React.FC<CharacterCreationFormProps> = ({
 
       {showError && (
         <p className="mt-1.5 font-mono text-[9.5px] uppercase tracking-label text-vermilion">
-          3 to 20 letters, digits or spaces
+          {t("3 to 20 letters, digits or spaces")}
         </p>
       )}
     </div>
