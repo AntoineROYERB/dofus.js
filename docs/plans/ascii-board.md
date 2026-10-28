@@ -24,6 +24,11 @@ before it is turned into glyphs; the game has **no pixel view**.
 | The grid | **hidden at rest**; it appears to walk (green) and to aim (vermilion), as **neon** |
 | Priority | **phone first** (landscape 740×360, then portrait), then desktop |
 | Language | every new string goes through `t("…")`, with its French in `i18n/fr.ts` |
+| Quality | **always the highest**: every particle, every light, every layer. There is **no quality option** |
+| Frame rate | **as smooth as a current mobile game**: the scene renders at the display's refresh rate, **60 fps held on a recent phone**, up to 120 Hz where the screen offers it |
+| The scenery | **full**: every text cell on screen carries a glyph over a coloured ground, edge to edge, at every aspect ratio. No black gaps, no empty bands |
+| Spell effects | **in ASCII too**, painted into the scene like everything else. Nothing is drawn on top in another style |
+| Finish | **polished**: the look is part of the deliverable, not a later pass |
 
 ## 1. What the player sees
 
@@ -52,6 +57,12 @@ background** of the ground's colour.
 A fight is no longer a diamond on paper: the scene fills the screen, and the
 board is a clearing in it.
 
+- **Full, edge to edge.** Every text cell on screen holds a glyph over a
+  coloured ground: no black gap, no empty band, no bare backdrop. The scene is
+  laid out wider and taller than any screen it may meet, so landscape,
+  portrait and desktop all crop into scenery rather than run out of it. In
+  portrait the extra height goes to more terraces at the back and more
+  foreground at the bottom.
 - **Full ground.** Three tones per island in soft patches, worn earth, flowers,
   pebbles, and grass wherever the island grows any (density per island:
   Prairie 1, Air and Acid 0.8, Water 0.7, Earth 0.35, Ice and Fire 0). On the
@@ -184,9 +195,10 @@ nothing playable under a control.
 
 ### 3.3 Options
 
-- Possibly a **Quality** option: High (about 24 fps, all particles) or Saver
-  (about 12 fps, half the particles), for phone batteries. To confirm
-  (section 7).
+- **No Quality option** (decided). The fight always runs at its highest
+  quality: every particle, every light, at the display's refresh rate. The
+  only saving is to stop drawing when the tab is hidden or the fight is
+  behind an overlay that covers it.
 
 ## 4. Client architecture
 
@@ -200,23 +212,36 @@ nothing playable under a control.
      board's edge colours and priorities;
   2. **light**: stepped sources, haze, edge darkening, reflections;
   3. **the ASCII pass**, which is the only thing on screen.
-- **The ASCII pass must run on a phone.** The mock-up takes about 96 ms per
-  frame in JavaScript on a laptop, which is far too slow. Target: **8 ms or less
-  per frame on a recent phone**. Approaches, in order:
-  - **WebGL2**: the scene and the material map as textures, and a fragment
-    shader that picks each glyph from a pre-rendered **glyph atlas**. Keep a
-    Canvas 2D fallback that draws from the same atlas (`drawImage`, never
-    `fillText` per cell);
+- **The whole frame must hold 60 fps on a recent phone**, like a current mobile
+  game, and follow the display up to 120 Hz where it offers more. The mock-up
+  takes about 96 ms per frame in JavaScript on a laptop, more than ten times
+  too slow. Budget: **8 ms or less of work per frame on a recent phone**
+  (scene, light and ASCII pass together), which leaves the browser the rest of
+  the 16.6 ms. Approaches, in order:
+  - **WebGL2 is the path the game is built for**: the scene and the material
+    map as textures, and a fragment shader that picks each glyph from a
+    pre-rendered **glyph atlas**, with light, haze, reflections and the neon
+    glow in shaders too. The per-frame JavaScript only updates what moved;
+  - a **Canvas 2D fallback** draws from the same atlas (`drawImage`, never
+    `fillText` per cell), for devices without WebGL2. It shows the same
+    picture at whatever rate the device holds; it is not where the 60 fps is
+    measured;
   - **cache** everything that does not move: the ground, the terraces, the
-    wall, objects at rest. Only wind, water, light, particles and fighters are
-    repainted;
-  - cap the rate (12 to 24 fps depending on quality), and **stop when the tab
-    is hidden**.
+    wall, objects at rest. Only wind, water, light, particles, effects and
+    fighters are repainted;
+  - no rate cap below the display's; **stop when the tab is hidden**.
+- **Motion runs on real time, not on frames.** Wind, water, particles, light,
+  the neon's breath, walks and the camera are functions of elapsed time, so
+  they are smooth at 60 or 120 Hz and the same speed at either. Sprite sheets
+  keep their own frame rate (they are drawn that way); everything around them
+  is fluid.
 - The neon keeps its glow: in WebGL, blur the edge mask only; in Canvas 2D, use
   `shadowBlur` on edge glyphs only.
-- **Spell effects** (`SpellFXLayer`, `vfx/`) are painted into the scene, so they
-  turn into glyphs too. If that does not fit the first release, they can stay
-  on top for one step, but the target is ASCII everywhere (section 7).
+- **Spell effects** (`SpellFXLayer`, `vfx/`, the grimoires' sheets and the
+  procedural fallbacks) are painted into the scene, so they turn into glyphs
+  too, with materials of their own (fire, spark, smoke, water, stone, wind) and
+  their light thrown on the ground around them. **Decided:** nothing stays on
+  top in another style once the fight ships in ASCII.
 - **Reduced motion**: the fight deliberately ignores `prefers-reduced-motion`
   (`utils/motion.ts`). Do not add a damped path without reading that file.
 
@@ -235,7 +260,10 @@ change **in the same pull request** as the code that draws it.
   cell size per screen.
 - The deliberate exception: **the grid's neon is the only soft glow allowed**
   in the world.
-- Section 8: the wind and its frame rate.
+- Section 7: spell effects are painted into the scene and shown as glyphs.
+- Section 8: the fight renders at the display's rate (60 fps held on a recent
+  phone); wind, water, light and particles move on real time; sprite sheets
+  keep their own frame rate.
 
 ## 6. Tests and checks
 
@@ -252,25 +280,54 @@ change **in the same pull request** as the code that draws it.
 - **In the browser, against a server from the same branch**, in 740×360
   landscape, in portrait and on desktop: a fight on every island, walking,
   aiming each of the four spells, an opponent's turn, and the end of the fight.
-  Measure frame time on a phone or with CPU throttling.
+  Measure frame time on a phone or with CPU throttling: the 60 fps target is
+  checked against the frame times, not by eye. A `?fps` overlay shows the
+  frame time and the share of frames over 16.6 ms, so it can be read on a
+  real phone through the dev server on the local network.
 
-## 7. To confirm with the maintainer before coding
+## 7. Decisions with the maintainer
 
-1. A **Quality** option for phones: yes or no?
-2. **The ruined wall**: the same everywhere (in the island's colours), or a
+Decided:
+
+1. **Quality**: no option; always the highest (section 3.3).
+2. **Frame rate**: the display's rate, 60 fps held on a recent phone (section 4).
+3. **Spell effects**: in ASCII, painted into the scene (section 4).
+4. **Scenery**: full, edge to edge, at every aspect ratio (section 1.2).
+
+Still open:
+
+5. **The ruined wall**: the same everywhere (in the island's colours), or a
    backdrop of its own for each island?
-3. **Spell effects** in ASCII from the first release, or one step later?
+6. **Glyph size on a phone.** At 740×360 a board cell is about 77 px wide
+   (`fitTile`); 20 glyphs per cell makes glyphs about 4×7 px, which read as
+   texture rather than letters. Options: accept it, use about 12 glyphs per
+   cell on a phone (6–7 px glyphs) and 20 or more on a desk, or follow the
+   fighter with the camera so the whole board is no longer on screen.
+7. **Materials on real sprite sheets.** The sheets carry no material map.
+   Proposal: derive it from the pixels — the edge against transparency is the
+   outline, small very bright or saturated spots are eyes and glows, the rest
+   is body, its glyph chosen by luminance.
+8. **The scenery's seed.** `GameState` carries no match id and the server does
+   not move. Proposal: the island, the `roomId` and a hash of the dealt ground.
+   A rematch on exactly the same ground would get the same scenery.
 
 ## 8. Delivery
 
 One pull request per step, each branched from `origin/develop` and opened
 against `develop` once the maintainer agrees:
 
-1. **The scene and the ASCII pass** (WebGL plus fallback, glyph atlas): full
-   ground, terraces, plinth, wall, ponds, deterministic scenery, real sprite
-   sheets, wind, with the frame-time measurement on a phone. It replaces the
-   current board drawing, and the charter changes with it.
-2. **The neon grid**, wired to the existing utilities, with its tests.
-3. **The phone interface** (landscape, then portrait).
-4. **The desktop interface**.
-5. **Spell effects in ASCII**, if they did not make step 1.
+1. **The scene and the ASCII pass** (WebGL2 plus fallback, glyph atlas): full
+   ground edge to edge, terraces, plinth, wall, ponds, deterministic scenery,
+   real sprite sheets, wind, light and particles, at 60 fps with the
+   frame-time measurement. It replaces the current board drawing, and the
+   charter changes with it. Today's marks stay on top until step 3, so the
+   game stays playable.
+2. **Spell effects in ASCII**: the grimoires' sheets and the procedural
+   effects painted into the scene, with their light. `SpellFXLayer` stops
+   drawing on top.
+3. **The neon grid**, wired to the existing utilities, with its tests.
+4. **The phone interface** (landscape, then portrait).
+5. **The desktop interface**.
+
+`develop` is not what Render deploys, so it may hold the first steps; `main`
+should take the fight's ASCII look once steps 1 to 3 are in.
