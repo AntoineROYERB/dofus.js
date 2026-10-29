@@ -1,0 +1,52 @@
+{
+  "name": "pyromancer",
+  "frame": [
+    34,
+    50
+  ],
+  "feet": [
+    19,
+    48
+  ],
+  "animations": {
+    "idle": {
+      "frames": 4,
+      "fps": 4
+    },
+    "walk": {
+      "frames": 4,
+      "fps": 8
+    },
+    "melee": {
+      "frames": 3,
+      "fps": 10
+    },
+    "ranged": {
+      "frames": 3,
+      "fps": 10
+    },
+    "hit": {
+      "frames": 2,
+      "fps": 8
+    },
+    "fall": {
+      "frames": 3,
+      "fps": 6
+    }
+  },
+  "colors": {
+    "outline": "#28161f",
+    "cloth": "#9e6074",
+    "leather": "#d69296",
+    "clothDark": "#1a101c",
+    "eye": "#ffc446",
+    "glow": "#ec8420",
+    "hair": "#963c16",
+    "trim": "#d8ae31",
+    "accent": "#ff5a3c",
+    "shell": "#be4678",
+    "wood": "#b07840",
+    "metal": "#402822",
+    "fire": "#ff8a1e"
+  }
+}

@@ -611,4 +611,12 @@ export const fr = {
   "spent": "utilisé",
   "turn {n}": "tour {n}",
   "Hits {n}% harder": "Frappe {n} % plus fort",
+  "{renderer} · {fps} fps · p95 {p95} ms · over 16.7 ms {missed}% · work {work} ms (p95 {workP95})": "{renderer} · {fps} i/s · p95 {p95} ms · au-delà de 16,7 ms {missed} % · calcul {work} ms (p95 {workP95})",
+  "Figure: {name}": "Figure : {name}",
+  "idle": "repos",
+  "walk": "marche",
+  "melee": "mêlée",
+  "ranged": "à distance",
+  "hit": "touché",
+  "fall": "chute",
 } satisfies Record<string, string>;

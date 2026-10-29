@@ -118,8 +118,6 @@ const TileView: React.FC<TileProps> = ({
   const { width: w, height: h } = tileSize;
   const points = `${w / 2},0 ${w},${h / 2} ${w / 2},${h} 0,${h / 2}`;
 
-  // Alternating paper, so the grid reads without needing a heavy outline.
-  const base = (Math.abs(x) + Math.abs(y)) % 2 === 0 ? BOARD.tile : BOARD.tileAlt;
 
   const initialPositionOwner =
     isPositioningPhase && allPlayersInitialPositions
@@ -298,10 +296,14 @@ const TileView: React.FC<TileProps> = ({
     return () => cancelAnimationFrame(frame);
   }, [isPillar]);
 
-  // Cover stands above the ground rather than lying flat on it, so a wall
-  // reads as something to walk around and not as a differently coloured floor.
-  const block = isPillar ? BOARD.pillar : BOARD.block;
-  const raised = isObstacle && !(isPillar && pillarSheet);
+  /*
+   * The ground, the cover and the island's terrains are the world's now
+   * (World/WorldCanvas): the cell only carries what the turn marks on it.
+   * A pillar a spell raised is still drawn standing here until spell
+   * effects join the world.
+   */
+  const block = BOARD.pillar;
+  const raised = isObstacle && isPillar && !pillarSheet;
   const rise = raised ? h * block.rise * grown : 0;
 
   return (
@@ -368,7 +370,6 @@ const TileView: React.FC<TileProps> = ({
           </g>
         ) : (
           <>
-            <polygon points={points} fill={base} stroke="none" />
             <polygon
               className={breathes ? "animate-placeable" : undefined}
               points={points}
@@ -379,13 +380,10 @@ const TileView: React.FC<TileProps> = ({
               // on top of the keyframes would fight them.
               style={breathes ? undefined : washStyle}
             />
-            {/* The outline goes on last, so a marked cell keeps a crisp edge. */}
-            <polygon
-              points={points}
-              fill="none"
-              stroke={overlay ? overlay.stroke : BOARD.stroke}
-              strokeWidth={overlay ? overlay.strokeWidth : BOARD.strokes.tile}
-            />
+            {/* The outline goes on last, so a marked cell keeps a crisp edge. No grid at rest. */}
+            {overlay && (
+              <polygon points={points} fill="none" stroke={overlay.stroke} strokeWidth={overlay.strokeWidth} />
+            )}
             {crossedOut && (
               <g
                 stroke={BOARD.foe}

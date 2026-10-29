@@ -8,6 +8,7 @@ import ExplorePage from "./pages/ExplorePage";
 import ReplayPage from "./pages/ReplayPage";
 import DreamPage from "./pages/DreamPage";
 import DreamLeaderboardPage from "./pages/DreamLeaderboardPage";
+import FigurePage from "./pages/FigurePage";
 import { LanguageProvider } from "./i18n/LanguageProvider";
 
 function App() {
@@ -24,6 +25,8 @@ function App() {
             <Route path="/matches/:id" element={<ReplayPage />} />
             <Route path="/dream" element={<DreamPage />} />
             <Route path="/dreams/leaderboard" element={<DreamLeaderboardPage />} />
+            {/* Where a figure is checked while it is being drawn: a tool, not a page of the game. */}
+            {import.meta.env.DEV && <Route path="/figures" element={<FigurePage />} />}
           </Routes>
         </Router>
       </WebSocketProvider>
