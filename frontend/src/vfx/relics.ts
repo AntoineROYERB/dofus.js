@@ -137,6 +137,36 @@ const SHARDS: Record<string, Shard> = {
     halo: "#e08a1e",
     stir: "dust",
   },
+  // The stub of a candle in a gold cup, its wick still lit in the blue of
+  // Ser Vesper's soul.
+  "vespers-wick": {
+    rows: [
+      "....o....",
+      "...oFo...",
+      "..oFfFo..",
+      "..oFWFo..",
+      "...oko...",
+      "..oCCCo..",
+      "..oCcCo..",
+      ".oGgGGGo.",
+      "oGGGGGgGo",
+      ".ooooooo.",
+    ],
+    palette: {
+      o: "#0f0c14",
+      F: "#3a92ff",
+      f: "#7edcff",
+      W: "#ecfcff",
+      k: "#1c1a24",
+      C: "#d9d2bc",
+      c: "#a69e88",
+      G: "#c48c36",
+      g: "#f8d06e",
+    },
+    glowing: "FfW",
+    halo: "#3a92ff",
+    stir: "embers",
+  },
   "ashen-crown": {
     rows: [
       "...y.Y.y...",

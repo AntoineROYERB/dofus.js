@@ -143,6 +143,42 @@
         "secondary": "#dcf8f1"
       },
       "sprite": "earth"
+    },
+    {
+      "id": "vesper-ablaze",
+      "name": "Ser Vesper, soul ablaze",
+      "element": "Fire",
+      "basicAttack": "35",
+      "weapon": "the oath greatsword",
+      "palette": {
+        "primary": "#d8ae31",
+        "secondary": "#faf3dd"
+      },
+      "sprite": "vesper-ablaze"
+    },
+    {
+      "id": "vesper-mist",
+      "name": "Ser Vesper, in the mist",
+      "element": "Fire",
+      "basicAttack": "36",
+      "weapon": "the oath greatsword",
+      "palette": {
+        "primary": "#d8ae31",
+        "secondary": "#faf3dd"
+      },
+      "sprite": "vesper-mist"
+    },
+    {
+      "id": "vesper-antlers",
+      "name": "Ser Vesper of the antlers",
+      "element": "Fire",
+      "basicAttack": "37",
+      "weapon": "the oath greatsword",
+      "palette": {
+        "primary": "#d8ae31",
+        "secondary": "#faf3dd"
+      },
+      "sprite": "vesper-antlers"
     }
   ]
 }

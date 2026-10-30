@@ -140,7 +140,9 @@ func TestShippedSpellsRespectTheRules(t *testing.T) {
 }
 
 // The elemental identities are the design, so they are checked as such: each
-// champion's set is one element's identity, every spell sits on exactly one
+// element's first champion is its identity, and a later one of the same
+// element (Ser Vesper after Ashka) has to bring a school of its own, or the
+// two would be one identity twice. Every spell sits on exactly one
 // champion's bar and is of that set's element, the ultimate comes last from
 // the talisman, and no two spells on a bar play the same role — a spell that
 // only repeats another is one more thing to learn for nothing.
@@ -156,10 +158,11 @@ func TestShippedChampionsKeepTheirElementalIdentity(t *testing.T) {
 	elements := map[string]string{}
 	for _, c := range cat.Champions {
 		kit := kits[c.ID]
-		if other, dup := elements[kit.Element]; dup {
-			t.Errorf("%s is a second %s champion after %s; each is one element's identity", c.ID, kit.Element, other)
+		if other, dup := elements[kit.Element]; !dup {
+			elements[kit.Element] = c.ID
+		} else if kits[other].Grimoire.ID == kit.Grimoire.ID {
+			t.Errorf("%s is a second %s champion on %s's grimoire; a later champion brings a school of its own", c.ID, kit.Element, other)
 		}
-		elements[kit.Element] = c.ID
 
 		roles := map[string]string{}
 		for i, id := range kit.Bar {

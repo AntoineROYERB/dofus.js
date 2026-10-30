@@ -4,6 +4,8 @@ import { Position } from "../../../types/game";
 import { SPRITE } from "../../../constants";
 import { AttackKind, outfitSheet } from "../../../utils/fxManifest";
 import { CREATURE_FEET, ROWS, artOf } from "../../../explore/sprites";
+import { soulOf, VESPER_ART } from "../../../vfx/vesper";
+import VesperFigure from "../VesperFigure";
 
 interface CharacterProps {
   screenPosition: Position;
@@ -152,6 +154,27 @@ export const Character: React.FC<CharacterProps> = ({
         opacity={opacity}
         dying={animation === "die"}
       />
+    );
+  }
+  const soul = soulOf(outfit);
+  if (soul) {
+    // Ser Vesper is drawn in code: a melee spell is his blow, a ranged one
+    // his oath, and a spell that strikes no pose leaves him on guard.
+    const gesture =
+      animation === "attack" ? (attack === "melee" ? "attack" : attack === "ranged" ? "cast" : "idle") : animation;
+    return (
+      <div
+        className="absolute"
+        style={{
+          left: `${screenPosition.x - VESPER_ART.feetX * 4 * scale}px`,
+          top: `${screenPosition.y - VESPER_ART.feetY * 4 * scale}px`,
+          pointerEvents: "none",
+          opacity,
+          transition: animation === "die" ? "opacity 80ms linear" : undefined,
+        }}
+      >
+        <VesperFigure soul={soul} gesture={gesture} direction={direction} scale={scale} />
+      </div>
     );
   }
   // No dedicated death sheet — the idle pose sinking and fading away reads

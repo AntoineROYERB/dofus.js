@@ -25,6 +25,12 @@
       "sprite": "old-grunds-stone"
     },
     {
+      "id": "vespers-wick",
+      "name": "Ser Vesper's wick",
+      "ultimate": "41",
+      "sprite": "vespers-wick"
+    },
+    {
       "id": "ashen-crown",
       "name": "Shard of the Ashen Halo",
       "ultimate": "29",
