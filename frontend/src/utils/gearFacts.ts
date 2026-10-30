@@ -48,6 +48,7 @@ export const grimoireRule = (g: Grimoire): string => {
     case "tidecaller":
       return t("Your water: −1 MP to enemies, +{n} HP to you", { n: RULES.waterHealing });
     case "stonewarden":
+    case "oathbound":
       return t("+{n}% damage up close", { n: g.meleeBonus ?? 50 });
     default:
       return tLoose(g.passive);

@@ -336,6 +336,18 @@ All sheets are PNGs drawn on the same grid: **art pixels in blocks of 4** on
   their attack, which is the outfit's basic attack: each of the three fights
   a different way. A new sheet is a complete set of the four sheets on this
   grid, and nothing else: the animation code reads it unchanged.
+- **Ser Vesper is drawn in code, not from sheets** (`frontend/src/vfx/vesper.ts`).
+  He is the fifth champion, a second fire school after Ashka's: a knight with
+  no head, his soul burning where it was. His three outfits are three souls
+  on one body, one per reference: a blue flame with a skull in it
+  (`vesper-ablaze`), a pale smoke out of a slit helm (`vesper-mist`) and a
+  stag's skull (`vesper-antlers`). An outfit whose sprite starts with
+  `vesper-` has no sheet folder. He keeps every rule of this section: one
+  pixel a 64th of a cell, his body as tall as a hero's, a 1 px dark outline,
+  short stepped palettes, light from the upper left, scaled up by a whole
+  number with no smoothing. He is a skeleton posed every frame with IK, a
+  cape and a tabard simulated as cloth, and a head that is a noise field, so
+  he is drawn in profile only, facing left or right.
 - **Outfits are never recoloured.** Whose fighter is whose shows on the ring
   and in the turn order (section 3.1), never on the armour. The bare hero
   sheet is the only sprite ever dyed, and only for a fighter with no outfit.
@@ -439,7 +451,10 @@ frame size, frame count, loop or one-shot, **layer** and **anchor**.
   gold, and stop as soon as they are answered.
 - **World time** runs at 12 fps for sprites and effects and 10 fps for
   walking. Wind, water and glow keep moving at 30 fps while nothing else
-  does.
+  does. The one exception is Ser Vesper (6.1): his gestures are functions of
+  real time, not frames of a sheet, so he is redrawn on every frame the
+  screen shows. His soul, his cape and his blade's smear are what make him,
+  and at 12 fps they stuttered.
 - **Reduced motion is a known trade-off.** The frame's entrances (an
   overlay fading, a sheet sliding) are asked for with `motion-safe:` and stop
   under `prefers-reduced-motion`, but the fight

@@ -13,6 +13,8 @@ import {
 import { TalismanOrbit } from "./TalismanOrbit";
 import { SheetFx } from "../../vfx/sheetFx";
 import { Position } from "../../types/game";
+import { soulOf, VESPER_ART } from "../../vfx/vesper";
+import VesperFigure from "./VesperFigure";
 
 const idle = {
   spriteSheet: "/animation/Idle.png",
@@ -164,6 +166,23 @@ export const CharacterShowcase: React.FC<CharacterShowcaseProps> = ({
           }}
         >
           <div style={figure.style}>
+            {soulOf(figure.outfit) ? (
+              // Ser Vesper is drawn in code, in a box the size of the sheet
+              // he stands in for, his feet where the sheet's would be.
+              <div style={{ width: (pose && !figures ? 384 : 256) * scale, height: (pose && !figures ? 384 : 256) * scale, position: "relative" }}>
+                <VesperFigure
+                  soul={soulOf(figure.outfit)!}
+                  gesture={pose && !figures ? (pose === "AttackMelee" ? "attack" : "cast") : "idle"}
+                  direction={pose && !figures ? "SE" : "S"}
+                  scale={scale}
+                  style={{
+                    position: "absolute",
+                    left: (pose && !figures ? 192 : 128) * scale - VESPER_ART.feetX * 4 * scale,
+                    top: (pose && !figures ? 246 : 256 * STAND.feet) * scale - VESPER_ART.feetY * 4 * scale,
+                  }}
+                />
+              </div>
+            ) : (
             <SpriteAnimation
               {...(pose && figure.outfit && !figures ? ATTACK : idle)}
               spriteSheet={
@@ -175,6 +194,7 @@ export const CharacterShowcase: React.FC<CharacterShowcaseProps> = ({
               scale={scale}
               color={figure.outfit ? undefined : figure.color}
             />
+            )}
           </div>
         </div>
       ))}

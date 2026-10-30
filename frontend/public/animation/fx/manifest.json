@@ -765,6 +765,61 @@
       "name": "Gueule des Profondeurs",
       "hero": null,
       "fx": []
+    },
+    "35": {
+      "name": "Taille d'âme",
+      "hero": "AttackMelee",
+      "fx": [
+        "fire/impact",
+        "fire/ignite"
+      ]
+    },
+    "36": {
+      "name": "Estoc de brume",
+      "hero": "AttackMelee",
+      "fx": [
+        "fire/impact"
+      ]
+    },
+    "37": {
+      "name": "Coup de bois",
+      "hero": "AttackMelee",
+      "fx": [
+        "fire/impact"
+      ]
+    },
+    "38": {
+      "name": "Arc balayé",
+      "hero": "AttackMelee",
+      "fx": [
+        "fire/sigil",
+        "fire/impact"
+      ]
+    },
+    "39": {
+      "name": "Fente de Vesper",
+      "hero": null,
+      "fx": [
+        "fire/sigil",
+        "earth/leap"
+      ]
+    },
+    "40": {
+      "name": "Serment intact",
+      "hero": "AttackRanged",
+      "fx": [
+        "fire/sigil",
+        "fire/ignite"
+      ]
+    },
+    "41": {
+      "name": "Dernière lueur",
+      "hero": "AttackRanged",
+      "fx": [
+        "fire/sigil",
+        "fire/combustion",
+        "fire/burning_ground"
+      ]
     }
   },
   "basic": {
