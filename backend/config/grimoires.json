@@ -60,6 +60,23 @@
       ],
       "movementPoints": 4,
       "meleeBonus": 50
+    },
+    {
+      "id": "oathbound",
+      "name": "Oathbound",
+      "element": "Fire",
+      "symbol": "⚔️",
+      "lore": "A knight who lost his head and kept his oath. Wades in with a greatsword, carves wide arcs, and holds his ground behind a soul that will not go out.",
+      "passive": "+25% damage against a target right next to you.",
+      "glyph": "fire/sigil",
+      "spells": [
+        "38",
+        "39",
+        "40"
+      ],
+      "movementPoints": 3,
+      "meleeBonus": 25,
+      "health": 108
     }
   ]
 }

@@ -87,14 +87,18 @@ basic attack of the weapon drawn in it — and **carries a grimoire** (three
 spells of that element and the passive they share), **a rune** (one
 improvement that works whatever the element) and **a talisman**, which circles
 you and carries your **ultimate**, cast once a fight from turn 2. The
-**wardrobe** changes each piece on its own. Four grimoires ship, one per
-element: the **Pyromancer** (burns that stack and then go off at once), the
+**wardrobe** changes each piece on its own. Five grimoires ship, one per
+element and a second for fire: the **Pyromancer** (burns that stack and then
+go off at once), the
 **Windwalker** (reach, through a pylon it sets across the board and trades
 places with to kite; the pylon holds half its owner's health and hides in
-grass and smoke), the **Tidecaller** (control: traps, ice and water) and the
-**Stonewarden** (a brawler that leaps into reach and walls off the way out).
-In solo play four champions fight in a full set each, and beating one unlocks
-the next.
+grass and smoke), the **Tidecaller** (control: traps, ice and water), the
+**Stonewarden** (a brawler that leaps into reach and walls off the way out),
+then a second fire school, the **Oathbound**: Ser Vesper's, a headless knight
+with a greatsword who lunges in, sweeps a wall of cells and plants his blade
+to hold his ground. He is drawn in code rather than from sprite sheets, at the
+screen's own frame rate. In solo play five champions fight in a full set
+each, and beating one unlocks the next.
 
 Once the tutorial is done, **Endless Dreams** opens from the lobby: a climb,
 alone or with up to two friends who join by a party code. Each floor offers

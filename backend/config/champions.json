@@ -59,6 +59,21 @@
         "talisman": "old-grunds-stone"
       },
       "unlockedBy": "mother-brine"
+    },
+    {
+      "id": "ser-vesper",
+      "name": "Ser Vesper",
+      "lines": [
+        "Kneel if you like. I gave that up along with my head.",
+        "The wick was always short. It burned well, though."
+      ],
+      "set": {
+        "outfit": "vesper-ablaze",
+        "grimoire": "oathbound",
+        "rune": "second-skin",
+        "talisman": "vespers-wick"
+      },
+      "unlockedBy": "old-grund"
     }
   ]
 }
